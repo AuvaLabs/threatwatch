@@ -1,0 +1,3018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<title>THREATWATCH | Cyber Threat Intelligence</title>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================= */
+/* RESET & BASE                                                   */
+/* ============================================================= */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #060a0d;
+  --cyan: #00e5ff;
+  --amber: #ffaa00;
+  --red: #ff2b2b;
+  --green: #00ff88;
+  --purple: #cc44ff;
+  --panel-bg: rgba(0,20,30,0.85);
+  --panel-border: rgba(0,229,255,0.2);
+  --panel-solid: rgba(6,10,13,0.97);
+  --text-primary: #c8d6e5;
+  --text-secondary: #8899aa;
+  --text-muted: #556;
+  --card-bg: rgba(0, 18, 28, 0.8);
+  --card-hover: rgba(0, 25, 38, 0.95);
+  --card-active: rgba(0,229,255,0.06);
+  --grid-line: rgba(0,229,255,0.03);
+  --scrollbar-track: rgba(0,0,0,0.3);
+  --stat-bg: rgba(0,229,255,0.03);
+  --stat-border: rgba(0,229,255,0.08);
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-title: 'Rajdhani', sans-serif;
+}
+
+[data-theme="light"] {
+  --bg: #f0f2f5;
+  --cyan: #0077cc;
+  --amber: #cc7700;
+  --red: #cc2222;
+  --green: #008844;
+  --purple: #8833bb;
+  --panel-bg: rgba(255,255,255,0.92);
+  --panel-border: rgba(0,119,204,0.15);
+  --panel-solid: rgba(255,255,255,0.98);
+  --text-primary: #1a2a3a;
+  --text-secondary: #556677;
+  --text-muted: #8899aa;
+  --card-bg: rgba(255,255,255,0.8);
+  --card-hover: rgba(240,245,250,0.95);
+  --card-active: rgba(0,119,204,0.06);
+  --grid-line: rgba(0,119,204,0.04);
+  --scrollbar-track: rgba(0,0,0,0.08);
+  --stat-bg: rgba(0,119,204,0.04);
+  --stat-border: rgba(0,119,204,0.1);
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* Grid line pattern (static, no overlay) */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+  will-change: auto;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--cyan); border-radius: 3px; }
+
+/* Theme toggle button */
+.theme-toggle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--cyan);
+  cursor: pointer;
+  transition: background 0.15s;
+  letter-spacing: 0.5px;
+}
+.theme-toggle:hover { background: rgba(0,229,255,0.08); }
+[data-theme="light"] .theme-toggle:hover { background: rgba(0,119,204,0.08); }
+
+/* ============================================================= */
+/* LAYOUT                                                         */
+/* ============================================================= */
+#app {
+  display: grid;
+  grid-template-rows: 48px 1fr 40px;
+  grid-template-columns: 340px 1fr 360px;
+  grid-template-areas:
+    "top top top"
+    "left center right"
+    "bottom bottom bottom";
+  height: 100vh;
+  width: 100vw;
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================= */
+/* TOP BAR                                                        */
+/* ============================================================= */
+#topbar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--panel-solid);
+  border-bottom: 1px solid var(--panel-border);
+  z-index: 10;
+}
+
+#topbar .logo {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--cyan);
+  letter-spacing: 3px;
+  text-shadow: 0 0 10px rgba(0,229,255,0.4);
+}
+
+#topbar .logo span {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-left: 12px;
+}
+
+#clock {
+  font-size: 16px;
+  color: var(--cyan);
+  letter-spacing: 2px;
+}
+
+#threat-level {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 4px 14px;
+  border-radius: 3px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+#threat-level.low { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+#threat-level.medium { background: rgba(255,170,0,0.15); color: var(--amber); border: 1px solid rgba(255,170,0,0.3); }
+#threat-level.high { background: rgba(255,140,0,0.15); color: #ff8c00; border: 1px solid rgba(255,140,0,0.3); }
+#threat-level.critical {
+  background: rgba(255,43,43,0.2); color: var(--red); border: 1px solid rgba(255,43,43,0.4);
+  box-shadow: 0 0 15px rgba(255,43,43,0.3);
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,43,43,0.3); }
+  50% { box-shadow: 0 0 25px rgba(255,43,43,0.6); }
+}
+
+/* ============================================================= */
+/* PANELS (shared)                                                */
+/* ============================================================= */
+.panel {
+  background: var(--panel-solid);
+  border: 1px solid var(--panel-border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+.panel-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-title {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--cyan);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--red); }
+  50% { opacity: 0.3; box-shadow: 0 0 8px var(--red); }
+}
+
+.cached-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--amber);
+  background: rgba(255,170,0,0.1);
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid rgba(255,170,0,0.2);
+  display: none;
+}
+.cached-badge.visible { display: inline-block; }
+
+/* ============================================================= */
+/* FEED FILTER BUTTONS                                            */
+/* ============================================================= */
+.feed-filters {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex-wrap: nowrap;
+}
+.feed-filters::-webkit-scrollbar { display: none; }
+
+.filter-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 3px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.filter-btn:hover { border-color: var(--cyan); color: #aab; }
+.filter-btn.active {
+  color: #ffffff;
+  border-color: transparent;
+}
+.filter-btn.active[data-filter="all"] { background: var(--cyan); }
+.filter-btn.active[data-filter="breach"] { background: #8B0000; }
+.filter-btn.active[data-filter="ransomware"] { background: #ff2b2b; }
+.filter-btn.active[data-filter="ddos"] { background: #ff6600; }
+.filter-btn.active[data-filter="apt"] { background: #6600cc; }
+.filter-btn.active[data-filter="phishing"] { background: #cc8800; }
+.filter-btn.active[data-filter="malware"] { background: #990033; }
+.filter-btn.active[data-filter="zero-day"] { background: #cc0000; }
+.filter-btn.active[data-filter="vuln"] { background: #005599; }
+.filter-btn.active[data-filter="darkweb"] { background: #9c27b0; }
+
+.feed-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.load-more-btn {
+  display: block;
+  width: calc(100% - 16px);
+  margin: 8px auto;
+  padding: 10px 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  border: 1px solid rgba(0,229,255,0.2);
+  border-radius: 3px;
+  background: rgba(0,229,255,0.03);
+  color: var(--cyan);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.load-more-btn:hover {
+  background: rgba(0,229,255,0.08);
+  border-color: rgba(0,229,255,0.4);
+}
+
+/* ============================================================= */
+/* LEFT PANEL — LIVE THREAT NEWS FEED                             */
+/* ============================================================= */
+#left-panel {
+  grid-area: left;
+  border-right: 1px solid var(--panel-border);
+}
+
+#threat-feed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px;
+  will-change: scroll-position;
+  -webkit-overflow-scrolling: touch;
+  contain: strict;
+}
+
+/* ============================================================= */
+/* FEED CARD DESIGN                                               */
+/* ============================================================= */
+.feed-card {
+  position: relative;
+  margin-bottom: 6px;
+  padding: 10px 12px;
+  background: var(--card-bg);
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  min-height: 90px;
+  contain: content;
+}
+
+.feed-card:hover {
+  background: var(--card-hover);
+}
+
+.feed-card.sev-critical {
+  border-left: 3px solid var(--red);
+}
+
+.feed-card.sev-high {
+  border-left: 3px solid #ff8c00;
+}
+
+.feed-card.sev-medium {
+  border-left: 3px solid var(--amber);
+}
+
+.feed-card.sev-low {
+  border-left: 3px solid #556;
+}
+
+.feed-card.active {
+  background: var(--card-active);
+  border-right: 1px solid var(--cyan);
+}
+
+.card-badges {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  padding: 2px 5px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+/* Source badges */
+.badge-src { background: rgba(255,255,255,0.06); color: #778; border: 1px solid rgba(255,255,255,0.08); }
+.badge-src.thn { color: #4ecdc4; border-color: rgba(78,205,196,0.3); }
+.badge-src.bleeping { color: #5c9ded; border-color: rgba(92,157,237,0.3); }
+.badge-src.krebs { color: #e8a838; border-color: rgba(232,168,56,0.3); }
+.badge-src.dark-reading { color: #b47be5; border-color: rgba(180,123,229,0.3); }
+.badge-src.cisa { color: var(--red); border-color: rgba(255,43,43,0.3); font-weight: 900; }
+.badge-src.nvd { color: var(--cyan); border-color: rgba(0,229,255,0.3); }
+.badge-src.threatdigest { color: var(--green); border-color: rgba(0,255,136,0.3); font-weight: 900; text-shadow: 0 0 6px rgba(0,255,136,0.3); }
+.badge-src.urlhaus { color: var(--purple); border-color: rgba(204,68,255,0.3); }
+.badge-src.darkweb { color: #e040fb; border-color: rgba(224,64,251,0.4); font-weight: 900; text-shadow: 0 0 8px rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+
+/* Type badges */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: 'Share Tech Mono';
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.type-badge.breach { background: #8B0000; color: #ff6666; }
+.type-badge.ransomware { background: #ff2b2b; color: #ffffff; }
+.type-badge.ddos { background: #ff6600; color: #ffffff; }
+.type-badge.apt { background: #6600cc; color: #cc88ff; }
+.type-badge.phishing { background: #cc8800; color: #ffdd44; }
+.type-badge.malware { background: #990033; color: #ff4488; }
+.type-badge.zero-day { background: #cc0000; color: #ffffff; }
+.type-badge.supply-chain { background: #8B4513; color: #ffaa66; }
+.type-badge.vuln { background: #005599; color: #44aaff; }
+.type-badge.advisory { background: #003366; color: #4488cc; }
+.type-badge.bec { background: #996600; color: #ffcc00; }
+.type-badge.threat-intel { background: #1a3a1a; color: #44ff88; }
+.type-badge.cisa-kev { background: rgba(255,43,43,0.2); color: var(--red); font-weight: 900; }
+.type-badge.cve { background: #005599; color: #44aaff; }
+
+.card-title {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.card-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.card-divider {
+  border: none;
+  border-top: 1px dashed rgba(255,255,255,0.08);
+  margin: 6px 0;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-time {
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.card-country {
+  font-size: 9px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-readmore {
+  font-size: 9px;
+  color: var(--cyan);
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.feed-card:hover .card-readmore { opacity: 1; }
+
+.card-new-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 8px;
+  padding: 1px 5px;
+  background: var(--green);
+  color: #000;
+  border-radius: 2px;
+  font-weight: bold;
+  animation: new-flash 3s ease-out forwards;
+}
+@keyframes new-flash {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ============================================================= */
+/* CENTER — OVERVIEW & INSIGHTS                                   */
+/* ============================================================= */
+#center-panel {
+  grid-area: center;
+  background: var(--panel-solid);
+  border: 1px solid var(--panel-border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.center-header {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+.center-header .panel-title {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--cyan);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.region-filters {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.region-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border: 1px solid rgba(0,229,255,0.15);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.region-btn:hover { border-color: rgba(0,229,255,0.3); color: var(--cyan); }
+.region-btn.active {
+  background: rgba(0,229,255,0.1);
+  border-color: rgba(0,229,255,0.4);
+  color: var(--cyan);
+}
+
+.center-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* ============================================================= */
+/* CENTER PANEL — INTELLIGENCE SECTIONS                           */
+/* ============================================================= */
+.center-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.center-section-title {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--cyan);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.center-section-title .section-icon {
+  font-size: 13px;
+}
+
+/* Threat Briefing */
+.briefing-text {
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1.75;
+  letter-spacing: 0.2px;
+}
+
+.briefing-text .b-hl { color: var(--cyan); font-weight: 600; }
+.briefing-text .b-crit { color: var(--red); font-weight: 600; }
+.briefing-text .b-warn { color: var(--amber); font-weight: 600; }
+.briefing-text .b-green { color: var(--green); font-weight: 600; }
+
+.briefing-timestamp {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-top: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* Key Incidents */
+.incident-card {
+  background: var(--stat-bg);
+  border: 1px solid var(--stat-border);
+  border-left: 3px solid var(--red);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.incident-card:hover { background: var(--card-hover); border-color: var(--cyan); }
+.incident-card.sev-high { border-left-color: #ff8c00; }
+.incident-card .incident-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.incident-card .incident-sev {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+}
+.incident-card .incident-sev.crit { background: rgba(255,43,43,0.15); color: var(--red); }
+.incident-card .incident-sev.high { background: rgba(255,140,0,0.15); color: #ff8c00; }
+.incident-card .incident-type {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-muted);
+}
+.incident-card .incident-title {
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+.incident-card .incident-context {
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Threat Actor Spotlight */
+.actor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.actor-tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--stat-bg);
+  border: 1px solid var(--stat-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.actor-tag:hover {
+  border-color: var(--cyan);
+  background: rgba(0,255,255,0.06);
+  transform: translateY(-1px);
+}
+.actor-tag.active {
+  border-color: var(--cyan);
+  background: rgba(0,255,255,0.12);
+  box-shadow: 0 0 8px rgba(0,255,255,0.2);
+}
+.actor-tag .actor-name {
+  font-family: var(--font-title);
+  font-weight: 600;
+  color: var(--purple);
+}
+.actor-tag .actor-type {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+.actor-tag .actor-count {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--cyan);
+}
+
+/* Sector Impact */
+.sector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.sector-tag {
+  background: var(--stat-bg);
+  border: 1px solid var(--stat-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.sector-tag:hover {
+  border-color: var(--amber);
+  background: rgba(255,170,0,0.08);
+  transform: translateY(-1px);
+}
+.sector-tag.active {
+  border-color: var(--amber);
+  background: rgba(255,170,0,0.15);
+  box-shadow: 0 0 8px rgba(255,170,0,0.2);
+}
+.sector-tag .sector-icon { font-size: 16px; display: block; margin-bottom: 3px; }
+.sector-tag .sector-name {
+  font-family: var(--font-title);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+}
+.sector-tag .sector-count {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--amber);
+}
+
+/* ============================================================= */
+/* RIGHT PANEL — DETAIL / OVERVIEW                                */
+/* ============================================================= */
+#right-panel {
+  grid-area: right;
+  border-left: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+}
+
+#detail-overview, #detail-article {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+#detail-article { display: none; }
+
+.detail-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  cursor: pointer;
+  border-bottom: 1px solid var(--panel-border);
+  transition: background 0.2s;
+}
+.detail-back:hover { background: rgba(0,229,255,0.05); }
+
+.detail-section {
+  padding: 14px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.detail-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.detail-headline {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin-bottom: 10px;
+}
+
+.detail-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+.detail-meta strong { color: var(--text-secondary); }
+
+.detail-divider {
+  height: 1px;
+  background: var(--panel-border);
+  margin: 12px 0;
+}
+
+.detail-body {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.detail-cve-info {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(0,229,255,0.04);
+  border: 1px solid rgba(0,229,255,0.1);
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.detail-cve-info .cve-id { color: var(--cyan); font-weight: bold; }
+.detail-cve-info .cvss-score { font-weight: bold; }
+.detail-cve-info .cvss-critical { color: var(--red); }
+.detail-cve-info .cvss-high { color: #ff8c00; }
+
+.detail-open-link {
+  display: inline-block;
+  margin-top: 14px;
+  padding: 8px 18px;
+  background: rgba(0,229,255,0.1);
+  border: 1px solid rgba(0,229,255,0.3);
+  border-radius: 3px;
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.detail-open-link:hover {
+  background: rgba(0,229,255,0.2);
+}
+
+/* IOC Extraction */
+.ioc-section {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--stat-border);
+  border-radius: 4px;
+}
+.ioc-section-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--amber);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ioc-group {
+  margin-bottom: 8px;
+}
+.ioc-group-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
+}
+.ioc-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ioc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(0,229,255,0.08);
+  border: 1px solid rgba(0,229,255,0.2);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--cyan);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ioc-chip:hover {
+  background: rgba(0,229,255,0.18);
+}
+.ioc-chip.ioc-cve { color: var(--red); border-color: rgba(255,0,0,0.3); background: rgba(255,0,0,0.08); }
+.ioc-chip.ioc-cve:hover { background: rgba(255,0,0,0.18); }
+.ioc-chip.ioc-ip { color: var(--green); border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.08); }
+.ioc-chip.ioc-ip:hover { background: rgba(0,255,136,0.18); }
+.ioc-chip.ioc-hash { color: var(--amber); border-color: rgba(255,170,0,0.3); background: rgba(255,170,0,0.08); }
+.ioc-chip.ioc-hash:hover { background: rgba(255,170,0,0.18); }
+.ioc-chip.ioc-domain { color: #bb88ff; border-color: rgba(187,136,255,0.3); background: rgba(187,136,255,0.08); }
+.ioc-chip.ioc-domain:hover { background: rgba(187,136,255,0.18); }
+.ioc-chip .ioc-copy {
+  font-size: 8px;
+  opacity: 0.5;
+}
+.ioc-chip .ioc-copy:hover {
+  opacity: 1;
+}
+.ioc-copied {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--green);
+  color: #000;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  z-index: 9999;
+  animation: fadeOut 1.5s forwards;
+}
+@keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Overview sections */
+.overview-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.section-title {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--cyan);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* CSS Bar Chart */
+.cat-row { display:flex; align-items:center; gap:8px; margin:6px 0; cursor:pointer; border-radius:4px; padding:2px 4px; transition:background 0.2s; }
+.cat-row:hover { background:rgba(255,255,255,0.05); }
+.cat-row.active { background:rgba(0,229,255,0.1); outline:1px solid rgba(0,229,255,0.3); }
+.cat-label { width:90px; font-family:'Share Tech Mono'; font-size:11px;
+             color:var(--text-secondary); text-align:right; flex-shrink:0; }
+.cat-bar-track { flex:1; height:18px; background:rgba(255,255,255,0.05);
+                 border-radius:2px; overflow:hidden; }
+.cat-bar { height:100%; border-radius:2px; width:0%;
+           transition: width 1s ease-out; }
+.cat-count { width:30px; font-family:'Share Tech Mono'; font-size:11px;
+             color:#00e5ff; text-align:right; flex-shrink:0; }
+
+/* Skeleton bars for chart */
+.cat-skeleton-row { display:flex; align-items:center; gap:8px; margin:6px 0; }
+.cat-skeleton-label { width:90px; height:11px; }
+.cat-skeleton-bar { flex:1; height:18px; border-radius:2px; }
+.cat-skeleton-count { width:30px; height:11px; }
+.cat-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  border-radius: 3px;
+}
+
+.section-item-count {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.country-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 12px;
+}
+.country-name { display: flex; align-items: center; gap: 6px; }
+.country-count { color: var(--cyan); font-weight: bold; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.stat-box {
+  text-align: center;
+  padding: 10px 6px;
+  background: var(--stat-bg);
+  border: 1px solid var(--stat-border);
+  border-radius: 4px;
+}
+.stat-box .count {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--cyan);
+  display: block;
+}
+.stat-box .label {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-top: 2px;
+  display: block;
+}
+.stat-box.critical .count { color: var(--red); }
+.stat-box.high .count { color: #ff8c00; }
+
+.feed-sources-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.source-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  padding: 3px 0;
+}
+.source-status .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  display: inline-block;
+}
+.source-status .dot.online { background: var(--green); }
+.source-status .dot.offline { background: var(--red); }
+
+/* ============================================================= */
+/* BOTTOM BAR — MARQUEE                                           */
+/* ============================================================= */
+#bottombar {
+  grid-area: bottom;
+  background: var(--panel-solid);
+  border-top: 1px solid var(--panel-border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+#marquee-track {
+  display: flex;
+  white-space: nowrap;
+  animation: marquee-scroll 360s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+#marquee-track span {
+  padding: 0 20px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+#marquee-track .sep { color: var(--cyan); }
+#marquee-track .headline { color: var(--text-primary); }
+#marquee-track .src { color: var(--text-muted); }
+#marquee-track .sev-crit { color: var(--red); }
+#marquee-track .sev-high { color: #ff8c00; }
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+#signature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 14px;
+  text-align: center;
+}
+
+#signature a {
+  color: var(--amber);
+  text-decoration: none;
+  padding: 2px 8px;
+  border: 1px solid rgba(255,170,0,0.2);
+  border-radius: 3px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+#signature a:hover {
+  background: rgba(255,170,0,0.1);
+  border-color: rgba(255,170,0,0.4);
+}
+
+/* ============================================================= */
+/* SKELETON LOADING                                               */
+/* ============================================================= */
+.skeleton-card {
+  margin: 6px 8px;
+  padding: 14px 12px;
+  border-radius: 4px;
+  border-left: 3px solid rgba(255,255,255,0.05);
+}
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  border-radius: 3px;
+}
+@keyframes skeleton-pulse {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skel-badges { height: 14px; width: 60%; margin-bottom: 8px; }
+.skel-title { height: 13px; width: 90%; margin-bottom: 6px; }
+.skel-title2 { height: 13px; width: 70%; margin-bottom: 6px; }
+.skel-desc { height: 10px; width: 100%; margin-bottom: 4px; }
+.skel-desc2 { height: 10px; width: 80%; margin-bottom: 6px; }
+.skel-footer { height: 10px; width: 40%; }
+
+/* ============================================================= */
+/* RESPONSIVE                                                     */
+/* ============================================================= */
+@media (max-width: 1400px) {
+  #app { grid-template-columns: 280px 1fr 300px; }
+}
+
+/* ============================================================= */
+/* HAMBURGER MENU BUTTON                                          */
+/* ============================================================= */
+.hamburger-btn {
+  display: none;
+  font-size: 22px;
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  color: var(--cyan);
+  cursor: pointer;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  line-height: 1;
+  transition: background 0.15s;
+}
+.hamburger-btn:hover { background: rgba(0,229,255,0.08); }
+
+/* Mobile overlay backdrop */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 49;
+}
+.mobile-overlay.visible { display: block; }
+
+/* ============================================================= */
+/* TABLET — max-width: 1024px                                     */
+/* ============================================================= */
+@media (max-width: 1024px) {
+  .hamburger-btn { display: block; }
+
+  #app {
+    grid-template-columns: 1fr 360px;
+    grid-template-areas:
+      "top top"
+      "center right"
+      "bottom bottom";
+  }
+
+  #left-panel {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    bottom: 40px;
+    width: 320px;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    background: var(--panel-solid);
+    border-right: 1px solid var(--panel-border);
+    overflow-y: auto;
+  }
+
+  #left-panel.open {
+    transform: translateX(0);
+  }
+
+  .region-filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .region-filters::-webkit-scrollbar { display: none; }
+  .region-btn { flex-shrink: 0; }
+}
+
+/* ============================================================= */
+/* MOBILE — max-width: 768px                                      */
+/* ============================================================= */
+@media (max-width: 768px) {
+  .hamburger-btn { display: block; }
+
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 48px 1fr 40px;
+    grid-template-areas:
+      "top"
+      "center"
+      "bottom";
+  }
+
+  #left-panel {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    bottom: 40px;
+    width: 85vw;
+    max-width: 340px;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    background: var(--panel-solid);
+    border-right: 1px solid var(--panel-border);
+    overflow-y: auto;
+  }
+
+  #left-panel.open {
+    transform: translateX(0);
+  }
+
+  #right-panel {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    right: 0;
+    bottom: 40px;
+    z-index: 45;
+    background: var(--panel-solid);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    border-left: none;
+    overflow-y: auto;
+  }
+
+  #right-panel.mobile-visible {
+    transform: translateX(0);
+  }
+
+  /* Topbar adjustments */
+  #topbar {
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  #topbar .logo span { display: none; }
+  #topbar .logo { font-size: 18px; letter-spacing: 2px; }
+
+  #clock { font-size: 12px; }
+
+  #threat-level { font-size: 10px; padding: 3px 8px; }
+
+  /* Filter buttons: horizontal scroll */
+  .feed-filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .region-filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .region-filters::-webkit-scrollbar { display: none; }
+  .region-btn { flex-shrink: 0; }
+
+  /* Actor grid: 1 column */
+  .actor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Sector grid: 2 columns */
+  .sector-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Center sections padding */
+  .center-section {
+    padding: 12px;
+  }
+
+  /* Feed cards */
+  .feed-card {
+    padding: 8px 10px;
+    min-height: 80px;
+  }
+
+  /* Cat rows */
+  .cat-row { padding: 4px 6px; }
+}
+
+/* ============================================================= */
+/* SMALL MOBILE — max-width: 480px                                */
+/* ============================================================= */
+@media (max-width: 480px) {
+  #topbar .logo { font-size: 15px; letter-spacing: 1px; }
+  #clock { display: none; }
+
+  .sector-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+
+  .sector-tag { padding: 6px 8px; }
+  .sector-tag .sector-icon { font-size: 14px; }
+  .sector-tag .sector-name { font-size: 9px; }
+}
+</style>
+<!-- __SSR_DATA__ -->
+</head>
+<body>
+
+<div id="app">
+  <!-- =========================================================== -->
+  <!-- TOP BAR                                                      -->
+  <!-- =========================================================== -->
+  <header id="topbar">
+    <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Toggle menu">&#9776;</button>
+    <div class="logo">THREATWATCH <span>Cyber Threat Intelligence</span></div>
+    <div id="clock">--:--:-- UTC</div>
+    <div id="threat-level" class="low">THREAT: LOW</div>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">LIGHT</button>
+  </header>
+  <div class="mobile-overlay" id="mobile-overlay" onclick="toggleMobileMenu()"></div>
+
+  <!-- =========================================================== -->
+  <!-- LEFT PANEL — LIVE THREAT NEWS FEED                           -->
+  <!-- =========================================================== -->
+  <div id="left-panel" class="panel">
+    <div class="panel-header">
+      <div class="panel-header-top">
+        <div class="panel-title">
+          <span class="live-dot"></span>
+          Live Threat Intelligence <span id="feed-count-badge" style="font-family:var(--font-mono);font-size:9px;color:#556;letter-spacing:0.5px"></span>
+        </div>
+        <span id="badge-feeds" class="cached-badge">FEEDS OFFLINE</span>
+      </div>
+      <div class="feed-filters" id="feed-filters">
+        <button class="filter-btn active" data-filter="all">ALL</button>
+        <button class="filter-btn" data-filter="breach">BREACH</button>
+        <button class="filter-btn" data-filter="ransomware">RANSOMWARE</button>
+        <button class="filter-btn" data-filter="ddos">DDOS</button>
+        <button class="filter-btn" data-filter="apt">APT</button>
+        <button class="filter-btn" data-filter="phishing">PHISHING</button>
+        <button class="filter-btn" data-filter="malware">MALWARE</button>
+        <button class="filter-btn" data-filter="zero-day">ZERO-DAY</button>
+        <button class="filter-btn" data-filter="vuln">VULN</button>
+        <button class="filter-btn" data-filter="darkweb">DARK WEB</button>
+      </div>
+      <div class="feed-meta">
+        <span id="last-refresh">--</span>
+      </div>
+    </div>
+    <div id="threat-feed">
+      <div class="skeleton-card"><div class="skeleton skel-badges"></div><div class="skeleton skel-title"></div><div class="skeleton skel-title2"></div><div class="skeleton skel-desc"></div><div class="skeleton skel-desc2"></div><div class="skeleton skel-footer"></div></div>
+      <div class="skeleton-card"><div class="skeleton skel-badges"></div><div class="skeleton skel-title"></div><div class="skeleton skel-title2"></div><div class="skeleton skel-desc"></div><div class="skeleton skel-desc2"></div><div class="skeleton skel-footer"></div></div>
+      <div class="skeleton-card"><div class="skeleton skel-badges"></div><div class="skeleton skel-title"></div><div class="skeleton skel-title2"></div><div class="skeleton skel-desc"></div><div class="skeleton skel-desc2"></div><div class="skeleton skel-footer"></div></div>
+      <div class="skeleton-card"><div class="skeleton skel-badges"></div><div class="skeleton skel-title"></div><div class="skeleton skel-title2"></div><div class="skeleton skel-desc"></div><div class="skeleton skel-desc2"></div><div class="skeleton skel-footer"></div></div>
+      <div class="skeleton-card"><div class="skeleton skel-badges"></div><div class="skeleton skel-title"></div><div class="skeleton skel-title2"></div><div class="skeleton skel-desc"></div><div class="skeleton skel-desc2"></div><div class="skeleton skel-footer"></div></div>
+    </div>
+  </div>
+
+  <!-- =========================================================== -->
+  <!-- CENTER — INSIGHTS & HEADLINES                                -->
+  <!-- =========================================================== -->
+  <div id="center-panel">
+    <div class="center-header">
+      <div class="panel-title">Threat Intelligence Briefing</div>
+      <div class="region-filters" id="region-filters">
+        <button class="region-btn active" data-region="all">GLOBAL</button>
+        <button class="region-btn" data-region="na">NA</button>
+        <button class="region-btn" data-region="emea">EMEA</button>
+        <button class="region-btn" data-region="mena">MENA</button>
+        <button class="region-btn" data-region="apac">APAC</button>
+        <button class="region-btn" data-region="latam">LATAM</button>
+      </div>
+    </div>
+    <div class="center-content">
+      <div class="center-section" id="section-briefing">
+        <div class="center-section-title"><span class="section-icon">&#x1F4E1;</span> Threat Briefing</div>
+        <div id="ai-briefing-content"></div>
+      </div>
+      <div class="center-section" id="section-incidents">
+        <div class="center-section-title"><span class="section-icon">&#x26A0;</span> Key Incidents</div>
+        <div id="key-incidents-content"></div>
+      </div>
+      <div class="center-section" id="section-actors">
+        <div class="center-section-title"><span class="section-icon">&#x1F3AD;</span> Active Threat Actors &amp; Malware</div>
+        <div id="actor-spotlight-content"></div>
+      </div>
+      <div class="center-section" id="section-sectors">
+        <div class="center-section-title"><span class="section-icon">&#x1F3E2;</span> Sector Impact</div>
+        <div id="sector-impact-content"></div>
+      </div>
+      <div id="detail-article-center" style="display:none">
+        <div class="detail-back" onclick="closeDetail()">&#8592; BACK TO BRIEFING</div>
+        <div class="detail-section" id="detail-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================== -->
+  <!-- RIGHT PANEL — INTELLIGENCE OVERVIEW                          -->
+  <!-- =========================================================== -->
+  <div id="right-panel" class="panel">
+    <div class="panel-header">
+      <div class="panel-header-top">
+        <div class="panel-title">Intelligence Overview</div>
+      </div>
+    </div>
+    <div id="detail-overview" style="flex:1;overflow-y:auto;">
+      <div class="overview-section">
+        <div class="section-title">Threat Summary</div>
+        <div class="stat-grid">
+          <div class="stat-box critical"><span class="count" id="stat-critical">0</span><span class="label">CRITICAL</span></div>
+          <div class="stat-box high"><span class="count" id="stat-high">0</span><span class="label">HIGH</span></div>
+          <div class="stat-box"><span class="count" id="stat-total">0</span><span class="label">TOTAL ITEMS</span></div>
+          <div class="stat-box"><span class="count" id="stat-sources">0</span><span class="label">SOURCES</span></div>
+        </div>
+      </div>
+      <div class="overview-section">
+        <div class="section-title">Threat Categories <span class="section-item-count" id="cat-item-count"></span></div>
+        <div id="chart-categories"></div>
+      </div>
+      <div class="overview-section">
+        <div class="section-title">Feed Status</div>
+        <div class="feed-sources-status" id="feed-sources-status"></div>
+      </div>
+      <div class="overview-section" id="signature">
+        <span>by Nicholai Imbong</span>
+        <a href="https://buymeacoffee.com/nicholaiimbong" target="_blank" rel="noopener">&#9749; Buy me a coffee</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================== -->
+  <!-- BOTTOM BAR — MARQUEE                                         -->
+  <!-- =========================================================== -->
+  <footer id="bottombar">
+    <div id="marquee-track"></div>
+  </footer>
+</div>
+
+<script>
+/* ============================================================= */
+/* CONFIGURATION                                                  */
+/* ============================================================= */
+const REFRESH_INTERVAL = 120000; // 2 min (local API only, fast)
+const CARDS_PER_PAGE = 8;
+const THREATDIGEST_API = '/api/articles';
+const THREATDIGEST_STATS_API = '/api/stats';
+
+const _flagCache = new Map();
+const FLAG = cc => {
+  if (_flagCache.has(cc)) return _flagCache.get(cc);
+  try { const f = String.fromCodePoint(...[...cc.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)); _flagCache.set(cc, f); return f; }
+  catch { _flagCache.set(cc, ''); return ''; }
+};
+
+function debounce(fn, ms) {
+  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+/* ============================================================= */
+/* KEYWORD CLASSIFICATION ENGINE                                  */
+/* ============================================================= */
+const CLASSIFY_RULES = [
+  // Priority order: high → low
+  { type: 'ZERO-DAY', icon: '\u26A1', severity: 'CRITICAL', cssType: 'zero-day',
+    re: /zero.?day|0day|0-day|actively\s+exploited|in\s+the\s+wild|no\s+patch\s+available|unpatched/i },
+  { type: 'RANSOMWARE', icon: '\uD83D\uDD12', severity: 'CRITICAL', cssType: 'ransomware',
+    re: /ransomware|encrypted\s+files|ransom\s+demand|lockbit|blackcat|cl0p|akira|play\s+ransomware|alphv|rhysida|medusa\s+ransom|black\s*basta/i },
+  { type: 'APT', icon: '\uD83C\uDFAF', severity: 'CRITICAL', cssType: 'apt',
+    re: /\bapt\b|apt28|apt29|apt41|nation.?state|state.?sponsored|espionage|lazarus|volt\s*typhoon|sandworm|charming\s*kitten|scattered\s*spider/i },
+  { type: 'BREACH', icon: '\uD83D\uDD13', severity: 'HIGH', cssType: 'breach',
+    re: /breach|breached|leaked|exposed|stolen\s+data|data\s+dump|database\s+exposed|records\s+stolen/i },
+  { type: 'SUPPLY CHAIN', icon: '\u26D3', severity: 'HIGH', cssType: 'supply-chain',
+    re: /supply\s*chain|third.party|software\s+update.*compromis|dependency|npm\s+package|pypi|github\s+action/i },
+  { type: 'MALWARE', icon: '\uD83E\uDDA0', severity: 'HIGH', cssType: 'malware',
+    re: /malware|trojan|backdoor|rat\s|stealer|infostealer|loader|dropper|botnet|worm|emotet|qakbot|cobalt\s+strike|sliver/i },
+  { type: 'BEC', icon: '\uD83D\uDCE7', severity: 'HIGH', cssType: 'bec',
+    re: /\bbec\b|business\s+email|wire\s+transfer\s+fraud|ceo\s+fraud|invoice\s+fraud/i },
+  { type: 'DDOS', icon: '\uD83D\uDCA5', severity: 'MEDIUM', cssType: 'ddos',
+    re: /ddos|denial\s+of\s+service|disruption|outage|flood\s+attack|bandwidth\s+attack|layer\s+7/i },
+  { type: 'PHISHING', icon: '\uD83C\uDFA3', severity: 'MEDIUM', cssType: 'phishing',
+    re: /phishing|spearphish|credential\s+harvest|fake\s+login|lookalike\s+domain|email\s+lure/i },
+  { type: 'VULN', icon: '\uD83D\uDD0D', severity: 'MEDIUM', cssType: 'vuln',
+    re: /vulnerability|cve-|cvss|patch\s+tuesday|security\s+update|\brce\b|privilege\s+escalation/i },
+  { type: 'ADVISORY', icon: '\uD83D\uDCCB', severity: 'LOW', cssType: 'advisory',
+    re: /advisory|cisa|ncsc|alert\s+aa|nist|security\s+notice|bulletin/i },
+];
+
+const _classifyCache = new Map();
+
+function classifyItem(title, desc) {
+  const key = (title || '') + '|' + (desc || '');
+  if (_classifyCache.has(key)) return _classifyCache.get(key);
+  const text = key.replace('|', ' ').toLowerCase();
+  for (const rule of CLASSIFY_RULES) {
+    if (rule.re.test(text)) {
+      const result = { type: rule.type, icon: rule.icon, severity: rule.severity, cssType: rule.cssType };
+      _classifyCache.set(key, result);
+      return result;
+    }
+  }
+  const fallback = { type: 'THREAT INTEL', icon: '\uD83D\uDEE1', severity: 'LOW', cssType: 'threat-intel' };
+  _classifyCache.set(key, fallback);
+  return fallback;
+}
+
+function stripHTML(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html || '';
+  return d.textContent || '';
+}
+
+function timeAgo(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+  if (diff < 7200) return '1 hour ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
+  if (diff < 172800) return 'yesterday';
+  if (diff < 604800) return Math.floor(diff / 86400) + ' days ago';
+  return Math.floor(diff / 604800) + 'w ago';
+}
+
+/* Country extraction from text */
+const COUNTRY_KEYWORDS = {
+  // North America
+  'united states': 'US', 'us ': 'US', 'u.s.': 'US', 'american': 'US', 'america': 'US',
+  'washington': 'US', 'pentagon': 'US', 'fbi ': 'US', 'nsa ': 'US', 'cisa ': 'US', 'doj ': 'US',
+  'canada': 'CA', 'canadian': 'CA', 'ottawa': 'CA',
+  'mexico': 'MX', 'mexican': 'MX',
+  'north america': 'US',
+  // Europe
+  'germany': 'DE', 'german': 'DE', 'berlin': 'DE', 'bundesamt': 'DE', 'bsi ': 'DE',
+  'united kingdom': 'GB', 'uk ': 'GB', 'british': 'GB', 'britain': 'GB', 'london': 'GB', 'ncsc': 'GB', 'gchq': 'GB',
+  'france': 'FR', 'french': 'FR', 'paris': 'FR', 'anssi': 'FR',
+  'ukraine': 'UA', 'ukrainian': 'UA', 'kyiv': 'UA', 'kiev': 'UA',
+  'netherlands': 'NL', 'dutch': 'NL', 'amsterdam': 'NL',
+  'poland': 'PL', 'polish': 'PL', 'warsaw': 'PL',
+  'italy': 'IT', 'italian': 'IT', 'rome': 'IT',
+  'spain': 'ES', 'spanish': 'ES', 'madrid': 'ES',
+  'sweden': 'SE', 'swedish': 'SE', 'stockholm': 'SE',
+  'norway': 'NO', 'norwegian': 'NO', 'oslo': 'NO',
+  'finland': 'FI', 'finnish': 'FI', 'helsinki': 'FI',
+  'denmark': 'DK', 'danish': 'DK', 'copenhagen': 'DK',
+  'switzerland': 'CH', 'swiss': 'CH', 'zurich': 'CH', 'geneva': 'CH',
+  'austria': 'AT', 'austrian': 'AT', 'vienna': 'AT',
+  'belgium': 'BE', 'belgian': 'BE', 'brussels': 'BE',
+  'portugal': 'PT', 'portuguese': 'PT', 'lisbon': 'PT',
+  'ireland': 'IE', 'irish': 'IE', 'dublin': 'IE',
+  'czech': 'CZ', 'prague': 'CZ', 'czechia': 'CZ',
+  'romania': 'RO', 'romanian': 'RO', 'bucharest': 'RO',
+  'hungary': 'HU', 'hungarian': 'HU', 'budapest': 'HU',
+  'greece': 'GR', 'greek': 'GR', 'athens': 'GR',
+  'croatia': 'HR', 'croatian': 'HR',
+  'bulgaria': 'BG', 'bulgarian': 'BG',
+  'slovakia': 'SK', 'slovak': 'SK',
+  'lithuania': 'LT', 'lithuanian': 'LT',
+  'latvia': 'LV', 'latvian': 'LV',
+  'estonia': 'EE', 'estonian': 'EE', 'tallinn': 'EE',
+  'europe': 'EU', 'european': 'EU', 'eu ': 'EU', 'nato': 'EU', 'europol': 'EU',
+  // Asia-Pacific
+  'japan': 'JP', 'japanese': 'JP', 'tokyo': 'JP',
+  'australia': 'AU', 'australian': 'AU', 'sydney': 'AU', 'melbourne': 'AU', 'canberra': 'AU',
+  'india': 'IN', 'indian': 'IN', 'delhi': 'IN', 'mumbai': 'IN', 'bangalore': 'IN', 'cert-in': 'IN',
+  'singapore': 'SG', 'singaporean': 'SG',
+  'south korea': 'KR', 'korean': 'KR', 'seoul': 'KR',
+  'china': 'CN', 'chinese': 'CN', 'beijing': 'CN', 'shanghai': 'CN',
+  'taiwan': 'TW', 'taiwanese': 'TW', 'taipei': 'TW',
+  'indonesia': 'ID', 'indonesian': 'ID', 'jakarta': 'ID',
+  'malaysia': 'MY', 'malaysian': 'MY', 'kuala lumpur': 'MY',
+  'thailand': 'TH', 'thai': 'TH', 'bangkok': 'TH',
+  'vietnam': 'VN', 'vietnamese': 'VN', 'hanoi': 'VN',
+  'philippines': 'PH', 'filipino': 'PH', 'manila': 'PH',
+  'pakistan': 'PK', 'pakistani': 'PK',
+  'bangladesh': 'BD', 'bangladeshi': 'BD',
+  'new zealand': 'NZ', 'new zealand': 'NZ', 'auckland': 'NZ',
+  'hong kong': 'HK',
+  'north korea': 'KP', 'pyongyang': 'KP', 'dprk': 'KP',
+  'asia': 'SG',
+  // Middle East & Africa
+  'russia': 'RU', 'russian': 'RU', 'moscow': 'RU', 'kremlin': 'RU',
+  'turkey': 'TR', 'turkish': 'TR', 'ankara': 'TR', 'istanbul': 'TR',
+  'iran': 'IR', 'iranian': 'IR', 'tehran': 'IR',
+  'israel': 'IL', 'israeli': 'IL', 'tel aviv': 'IL', 'jerusalem': 'IL',
+  'uae': 'AE', 'emirates': 'AE', 'dubai': 'AE', 'abu dhabi': 'AE',
+  'saudi': 'SA', 'saudi arabia': 'SA', 'riyadh': 'SA',
+  'qatar': 'QA', 'doha': 'QA',
+  'egypt': 'EG', 'egyptian': 'EG', 'cairo': 'EG',
+  'kuwait': 'KW', 'kuwaiti': 'KW',
+  'bahrain': 'BH', 'bahraini': 'BH',
+  'oman': 'OM', 'omani': 'OM',
+  'jordan': 'JO', 'jordanian': 'JO',
+  'iraq': 'IQ', 'iraqi': 'IQ',
+  'lebanon': 'LB', 'lebanese': 'LB',
+  'south africa': 'ZA', 'south african': 'ZA', 'johannesburg': 'ZA',
+  'nigeria': 'NG', 'nigerian': 'NG', 'lagos': 'NG',
+  'kenya': 'KE', 'kenyan': 'KE', 'nairobi': 'KE',
+  'morocco': 'MA', 'moroccan': 'MA',
+  'tunisia': 'TN', 'tunisian': 'TN',
+  'algeria': 'DZ', 'algerian': 'DZ',
+  'ghana': 'GH', 'ghanaian': 'GH',
+  'ethiopia': 'ET', 'ethiopian': 'ET',
+  'middle east': 'AE', 'gcc': 'AE', 'gulf states': 'AE',
+  'africa': 'ZA', 'african': 'ZA',
+  // Latin America
+  'brazil': 'BR', 'brazilian': 'BR', 'sao paulo': 'BR',
+  'argentina': 'AR', 'argentinian': 'AR', 'buenos aires': 'AR',
+  'colombia': 'CO', 'colombian': 'CO', 'bogota': 'CO',
+  'chile': 'CL', 'chilean': 'CL', 'santiago': 'CL',
+  'peru': 'PE', 'peruvian': 'PE', 'lima': 'PE',
+  'costa rica': 'CR',
+  'panama': 'PA',
+  'ecuador': 'EC', 'ecuadorian': 'EC',
+  'venezuela': 'VE', 'venezuelan': 'VE',
+  'uruguay': 'UY',
+  'latin america': 'BR', 'south america': 'BR',
+};
+
+const COUNTRY_NAMES = {
+  US:'United States',CA:'Canada',MX:'Mexico',
+  DE:'Germany',GB:'United Kingdom',FR:'France',UA:'Ukraine',NL:'Netherlands',
+  PL:'Poland',IT:'Italy',ES:'Spain',SE:'Sweden',NO:'Norway',FI:'Finland',
+  DK:'Denmark',CH:'Switzerland',AT:'Austria',BE:'Belgium',PT:'Portugal',
+  IE:'Ireland',CZ:'Czechia',RO:'Romania',HU:'Hungary',GR:'Greece',
+  HR:'Croatia',BG:'Bulgaria',SK:'Slovakia',LT:'Lithuania',LV:'Latvia',EE:'Estonia',
+  EU:'Europe',
+  JP:'Japan',AU:'Australia',IN:'India',SG:'Singapore',KR:'South Korea',
+  CN:'China',TW:'Taiwan',ID:'Indonesia',MY:'Malaysia',TH:'Thailand',
+  VN:'Vietnam',PH:'Philippines',PK:'Pakistan',BD:'Bangladesh',NZ:'New Zealand',
+  HK:'Hong Kong',KP:'North Korea',
+  RU:'Russia',TR:'Turkey',IR:'Iran',IL:'Israel',AE:'UAE',SA:'Saudi Arabia',
+  QA:'Qatar',EG:'Egypt',KW:'Kuwait',BH:'Bahrain',OM:'Oman',JO:'Jordan',
+  IQ:'Iraq',LB:'Lebanon',
+  ZA:'South Africa',NG:'Nigeria',KE:'Kenya',MA:'Morocco',TN:'Tunisia',
+  DZ:'Algeria',GH:'Ghana',ET:'Ethiopia',
+  BR:'Brazil',AR:'Argentina',CO:'Colombia',CL:'Chile',PE:'Peru',
+  CR:'Costa Rica',PA:'Panama',EC:'Ecuador',VE:'Venezuela',UY:'Uruguay',
+};
+
+function extractCountries(title, desc) {
+  const text = ((title || '') + ' ' + (desc || '')).toLowerCase();
+  const found = [];
+  const seen = new Set();
+  for (const [kw, cc] of Object.entries(COUNTRY_KEYWORDS)) {
+    if (text.includes(kw) && !seen.has(cc)) {
+      seen.add(cc);
+      found.push(cc);
+    }
+  }
+  return found;
+}
+
+/* ============================================================= */
+/* FETCH HELPER                                                   */
+/* ============================================================= */
+async function fetchJSON(url, opts = {}, timeout = 5000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(url, { ...opts, signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
+/* ============================================================= */
+/* STATE                                                          */
+/* ============================================================= */
+const state = {
+  newsItems: [],
+  allItems: [],      // Full dataset from server
+  displayedCount: 0, // How many cards currently rendered
+  prevTitles: new Set(),
+  activeFilter: 'all',
+  activeRegion: 'all',
+  activeSector: null,   // {name, re} or null
+  activeActor: null,    // {name, re} or null
+  activeCategory: null, // {name, re} or null — chart category drilldown
+  selectedItem: null,
+  feedStatus: { threatdigest: false },
+  pipelineStats: null,
+  _etag: null,
+};
+
+/* Region → country code mappings */
+const REGION_MAP = {
+  na:   ['US','CA','MX'],
+  emea: ['GB','DE','FR','IT','ES','NL','SE','NO','DK','FI','IE','PT','GR','AT','CH','BE','CZ','PL','RO','BG','HU','UA','RU','ZA','NG','KE','EG','EU'],
+  mena: ['AE','SA','QA','EG','IL','IR','TR','BH','KW','OM','JO','LB','IQ'],
+  apac: ['JP','KR','CN','TW','HK','SG','AU','IN','MY','TH','VN','PH','ID','BD','PK','NZ'],
+  latam:['BR','AR','CL','CO','MX','PE','EC','VE','CR','PA'],
+};
+
+/* Feed region label → filter region mapping (from YAML config region field) */
+const FEED_REGION_TO_FILTER = {
+  'US': 'na', 'Canada': 'na', 'Mexico': 'na', 'NA': 'na',
+  'UK': 'emea', 'Germany': 'emea', 'France': 'emea', 'Italy': 'emea', 'Spain': 'emea',
+  'Netherlands': 'emea', 'EU': 'emea', 'EMEA': 'emea', 'Europe': 'emea',
+  'South Africa': 'emea', 'Africa': 'emea',
+  'UAE': 'mena', 'Saudi Arabia': 'mena', 'Middle East': 'mena', 'MENA': 'mena', 'Turkey': 'mena',
+  'Japan': 'apac', 'South Korea': 'apac', 'Singapore': 'apac', 'Australia': 'apac',
+  'India': 'apac', 'China': 'apac', 'Southeast Asia': 'apac', 'APAC': 'apac',
+  'Brazil': 'latam', 'Argentina': 'latam', 'LATAM': 'latam',
+};
+
+const REGION_NAMES = {
+  all: 'Global', na: 'North America', emea: 'EMEA',
+  mena: 'Middle East & North Africa', apac: 'Asia-Pacific', latam: 'Latin America',
+};
+
+/* ============================================================= */
+/* CLOCK                                                          */
+/* ============================================================= */
+/* ============================================================= */
+/* THEME TOGGLE                                                   */
+/* ============================================================= */
+function toggleTheme() {
+  const html = document.documentElement;
+  const btn = document.getElementById('theme-toggle');
+  if (html.getAttribute('data-theme') === 'light') {
+    html.removeAttribute('data-theme');
+    btn.textContent = 'LIGHT';
+    try { localStorage.setItem('tw-theme', 'dark'); } catch {}
+  } else {
+    html.setAttribute('data-theme', 'light');
+    btn.textContent = 'DARK';
+    try { localStorage.setItem('tw-theme', 'light'); } catch {}
+  }
+}
+
+// Restore saved theme
+(function() {
+  try {
+    const saved = localStorage.getItem('tw-theme');
+    if (saved === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+      const btn = document.getElementById('theme-toggle');
+      if (btn) btn.textContent = 'DARK';
+    }
+  } catch {}
+})();
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toUTCString().slice(17, 25) + ' UTC';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ============================================================= */
+/* CENTER — INSIGHTS GENERATION                                   */
+/* ============================================================= */
+/* ============================================================= */
+/* CENTER — INTELLIGENCE ANALYSIS ENGINE                          */
+/* ============================================================= */
+
+/* Threat actor & malware family extraction patterns */
+const ACTOR_PATTERNS = [
+  // --- Nation-State: Russia ---
+  { re: /\bAPT28\b|Fancy\s*Bear|Sofacy|Forest\s*Blizzard/i, name: 'APT28', type: 'Nation-State', origin: 'Russia' },
+  { re: /\bAPT29\b|Cozy\s*Bear|Midnight\s*Blizzard|Nobelium/i, name: 'APT29', type: 'Nation-State', origin: 'Russia' },
+  { re: /Sandworm|Voodoo\s*Bear|Seashell\s*Blizzard/i, name: 'Sandworm', type: 'Nation-State', origin: 'Russia' },
+  { re: /Gamaredon|Primitive\s*Bear|Shuckworm/i, name: 'Gamaredon', type: 'Nation-State', origin: 'Russia' },
+  { re: /\bTurla\b|Venomous\s*Bear|Snake\s*group/i, name: 'Turla', type: 'Nation-State', origin: 'Russia' },
+  { re: /Star\s*Blizzard|Callisto|Cold\s*River/i, name: 'Star Blizzard', type: 'Nation-State', origin: 'Russia' },
+  // --- Nation-State: China ---
+  { re: /\bAPT41\b|Winnti|Double\s*Dragon|Barium/i, name: 'APT41', type: 'Nation-State', origin: 'China' },
+  { re: /\bAPT40\b|Leviathan|Kryptonite\s*Panda/i, name: 'APT40', type: 'Nation-State', origin: 'China' },
+  { re: /\bAPT31\b|Zirconium|Judgment\s*Panda/i, name: 'APT31', type: 'Nation-State', origin: 'China' },
+  { re: /\bAPT10\b|Stone\s*Panda|MenuPass/i, name: 'APT10', type: 'Nation-State', origin: 'China' },
+  { re: /Volt\s*Typhoon/i, name: 'Volt Typhoon', type: 'Nation-State', origin: 'China' },
+  { re: /Salt\s*Typhoon/i, name: 'Salt Typhoon', type: 'Nation-State', origin: 'China' },
+  { re: /Flax\s*Typhoon/i, name: 'Flax Typhoon', type: 'Nation-State', origin: 'China' },
+  { re: /Silk\s*Typhoon|Hafnium/i, name: 'Silk Typhoon', type: 'Nation-State', origin: 'China' },
+  { re: /Mustang\s*Panda|Bronze\s*President/i, name: 'Mustang Panda', type: 'Nation-State', origin: 'China' },
+  // --- Nation-State: North Korea ---
+  { re: /Lazarus|Hidden\s*Cobra|Labyrinth\s*Chollima/i, name: 'Lazarus Group', type: 'Nation-State', origin: 'North Korea' },
+  { re: /Kimsuky|Velvet\s*Chollima|Emerald\s*Sleet/i, name: 'Kimsuky', type: 'Nation-State', origin: 'North Korea' },
+  { re: /Andariel|Onyx\s*Sleet/i, name: 'Andariel', type: 'Nation-State', origin: 'North Korea' },
+  { re: /BlueNoroff|Sapphire\s*Sleet/i, name: 'BlueNoroff', type: 'Nation-State', origin: 'North Korea' },
+  // --- Nation-State: Iran ---
+  { re: /MuddyWater|Mercury|Mango\s*Sandstorm/i, name: 'MuddyWater', type: 'Nation-State', origin: 'Iran' },
+  { re: /Charming\s*Kitten|APT35|Mint\s*Sandstorm/i, name: 'Charming Kitten', type: 'Nation-State', origin: 'Iran' },
+  { re: /\bAPT33\b|Elfin|Peach\s*Sandstorm|Refined\s*Kitten/i, name: 'APT33', type: 'Nation-State', origin: 'Iran' },
+  { re: /\bAPT34\b|OilRig|Helix\s*Kitten/i, name: 'APT34/OilRig', type: 'Nation-State', origin: 'Iran' },
+  { re: /CyberAv3ngers/i, name: 'CyberAv3ngers', type: 'Nation-State', origin: 'Iran' },
+  // --- Cybercrime Groups ---
+  { re: /Scattered\s*Spider|UNC3944|Octo\s*Tempest/i, name: 'Scattered Spider', type: 'Cybercrime', origin: 'Unknown' },
+  { re: /\bFIN7\b|Carbanak|Sangria\s*Tempest/i, name: 'FIN7', type: 'Cybercrime', origin: 'Unknown' },
+  { re: /\bFIN11\b/i, name: 'FIN11', type: 'Cybercrime', origin: 'Unknown' },
+  { re: /\bFIN12\b|Pistachio\s*Tempest/i, name: 'FIN12', type: 'Cybercrime', origin: 'Unknown' },
+  { re: /\bLapsus\$?\b/i, name: 'Lapsus$', type: 'Cybercrime', origin: 'Unknown' },
+  // --- Ransomware Groups ---
+  { re: /LockBit/i, name: 'LockBit', type: 'Ransomware', origin: 'Criminal' },
+  { re: /BlackCat|ALPHV/i, name: 'BlackCat/ALPHV', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bCl0p\b|Clop/i, name: 'Cl0p', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bAkira\b/i, name: 'Akira', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bPlay\s+ransomware\b/i, name: 'Play', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bRhysida\b/i, name: 'Rhysida', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bBlack\s*Basta\b/i, name: 'Black Basta', type: 'Ransomware', origin: 'Criminal' },
+  { re: /RansomHub/i, name: 'RansomHub', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bMedusa\b.*(?:ransom|gang|group)/i, name: 'Medusa', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bBianLian\b/i, name: 'BianLian', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bRoyal\b.*ransomware|BlackSuit/i, name: 'Royal/BlackSuit', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\b8Base\b/i, name: '8Base', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bQilin\b|Agenda\s*ransomware/i, name: 'Qilin', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bBlackByte\b/i, name: 'BlackByte', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bVice\s*Society\b/i, name: 'Vice Society', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bNoEscape\b/i, name: 'NoEscape', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bHunters?\s*International\b/i, name: 'Hunters International', type: 'Ransomware', origin: 'Criminal' },
+  { re: /\bCactus\b.*ransomware/i, name: 'Cactus', type: 'Ransomware', origin: 'Criminal' },
+  // --- Malware & Tools ---
+  { re: /Emotet/i, name: 'Emotet', type: 'Malware', origin: 'Criminal' },
+  { re: /QakBot|Qbot/i, name: 'QakBot', type: 'Malware', origin: 'Criminal' },
+  { re: /TrickBot/i, name: 'TrickBot', type: 'Malware', origin: 'Criminal' },
+  { re: /Cobalt\s*Strike/i, name: 'Cobalt Strike', type: 'Tool', origin: 'Dual-use' },
+  { re: /\bSliver\b.*(?:c2|framework|beacon)/i, name: 'Sliver', type: 'Tool', origin: 'Dual-use' },
+  { re: /\bBrute\s*Ratel\b/i, name: 'Brute Ratel', type: 'Tool', origin: 'Dual-use' },
+  { re: /RedLine\s*Stealer|RedLine\s*malware/i, name: 'RedLine', type: 'Stealer', origin: 'Criminal' },
+  { re: /Raccoon\s*Stealer/i, name: 'Raccoon', type: 'Stealer', origin: 'Criminal' },
+  { re: /Lumma\s*Stealer|LummaC2/i, name: 'Lumma', type: 'Stealer', origin: 'Criminal' },
+  { re: /Vidar\s*Stealer|Vidar\s*malware|\bVidar\b/i, name: 'Vidar', type: 'Stealer', origin: 'Criminal' },
+  { re: /\bAmadey\b/i, name: 'Amadey', type: 'Loader', origin: 'Criminal' },
+  { re: /BumbleBee/i, name: 'BumbleBee', type: 'Loader', origin: 'Criminal' },
+  { re: /IcedID|BokBot/i, name: 'IcedID', type: 'Malware', origin: 'Criminal' },
+  { re: /\bMirai\b/i, name: 'Mirai', type: 'Botnet', origin: 'Criminal' },
+  { re: /\bMozi\b.*botnet/i, name: 'Mozi', type: 'Botnet', origin: 'Criminal' },
+  { re: /\bPikabot\b/i, name: 'Pikabot', type: 'Loader', origin: 'Criminal' },
+  { re: /\bDarkGate\b/i, name: 'DarkGate', type: 'Loader', origin: 'Criminal' },
+  { re: /\bSystemBC\b/i, name: 'SystemBC', type: 'Proxy', origin: 'Criminal' },
+  { re: /\bRemcos\b/i, name: 'Remcos', type: 'RAT', origin: 'Criminal' },
+  { re: /\bAsyncRAT\b/i, name: 'AsyncRAT', type: 'RAT', origin: 'Criminal' },
+  { re: /\bAgent\s*Tesla\b/i, name: 'Agent Tesla', type: 'Stealer', origin: 'Criminal' },
+  { re: /\bFormBook\b|XLoader/i, name: 'FormBook', type: 'Stealer', origin: 'Criminal' },
+  { re: /\bSmokeLoader\b/i, name: 'SmokeLoader', type: 'Loader', origin: 'Criminal' },
+  // --- Hacktivist Groups ---
+  { re: /\bAnonymous\b.*(?:hack|attack|claim|target)/i, name: 'Anonymous', type: 'Hacktivist', origin: 'Decentralized' },
+  { re: /KillNet|Killnet/i, name: 'KillNet', type: 'Hacktivist', origin: 'Russia' },
+  { re: /NoName057/i, name: 'NoName057(16)', type: 'Hacktivist', origin: 'Russia' },
+];
+
+// Pre-compile global-flag variants for match counting
+ACTOR_PATTERNS.forEach(a => { a._reGlobal = new RegExp(a.re.source, 'gi'); });
+
+const SECTOR_PATTERNS = [
+  { re: /\b(bank|banking|financial|finance|fintech|payment|credit\s*card|swift)\b/i, name: 'Finance', icon: '\uD83C\uDFE6' },
+  { re: /\b(hospital|health|medical|pharma|patient|clinical|NHS)\b/i, name: 'Healthcare', icon: '\uD83C\uDFE5' },
+  { re: /\b(government|federal|municipal|military|defense|ministry|diplomatic)\b/i, name: 'Government', icon: '\uD83C\uDFDB' },
+  { re: /\b(energy|power\s*grid|oil|gas|pipeline|utility|nuclear|electric)\b/i, name: 'Energy', icon: '\u26A1' },
+  { re: /\b(telecom|ISP|5G|carrier|mobile\s*network|telecommunications)\b/i, name: 'Telecom', icon: '\uD83D\uDCF6' },
+  { re: /\b(education|university|school|college|academic|student)\b/i, name: 'Education', icon: '\uD83C\uDF93' },
+  { re: /\b(retail|e-commerce|shopping|POS|point.of.sale|merchant)\b/i, name: 'Retail', icon: '\uD83D\uDED2' },
+  { re: /\b(manufacturing|factory|industrial|ICS|SCADA|OT\b|plant)\b/i, name: 'Manufacturing', icon: '\uD83C\uDFED' },
+  { re: /\b(transport|aviation|airline|airport|shipping|logistics|railway)\b/i, name: 'Transport', icon: '\u2708' },
+  { re: /\b(crypto|blockchain|exchange|defi|wallet|bitcoin|ethereum)\b/i, name: 'Crypto', icon: '\uD83E\uDE99' },
+  { re: /\b(cloud|AWS|Azure|GCP|SaaS|kubernetes|container)\b/i, name: 'Cloud/Tech', icon: '\u2601' },
+  { re: /\b(water|treatment|wastewater|dam)\b/i, name: 'Water', icon: '\uD83D\uDCA7' },
+  { re: /\b(media|news|broadcast|journalism|press)\b/i, name: 'Media', icon: '\uD83D\uDCFA' },
+  { re: /\b(insurance|underwriting)\b/i, name: 'Insurance', icon: '\uD83D\uDEE1' },
+  { re: /\b(legal|law\s*firm|attorney|court)\b/i, name: 'Legal', icon: '\u2696' },
+];
+
+function getRegionItems(items) {
+  const region = state.activeRegion;
+  if (region === 'all') return items;
+
+  const codes = REGION_MAP[region] || [];
+  if (codes.length === 0) return items;
+
+  return items.filter(item => {
+    // Check 1: Does the feed source region match? (supports comma-separated multi-region)
+    if (item.feedRegion) {
+      const regions = item.feedRegion.split(',');
+      for (const r of regions) {
+        const mapped = FEED_REGION_TO_FILTER[r.trim()];
+        if (mapped === region) return true;
+      }
+    }
+    // Check 2: Does the article text mention a country in this region?
+    const countries = extractCountries(item.title, item.description);
+    return countries.some(cc => codes.includes(cc));
+  });
+}
+
+function analyzeIntelligence() {
+  const allItems = state.newsItems;
+  if (allItems.length === 0) return;
+
+  const items = getRegionItems(allItems);
+  const allText = items.map(i => (i.title || '') + ' ' + (i.description || ''));
+
+  // --- Section 1: Threat Briefing ---
+  renderBriefing(items, allText, allItems.length);
+
+  // --- Section 2: Key Incidents ---
+  renderKeyIncidents(items);
+
+  // --- Section 3: Threat Actor Spotlight ---
+  renderActorSpotlight(items, allText);
+
+  // --- Section 4: Sector Impact ---
+  renderSectorImpact(items, allText);
+}
+
+const debouncedAnalyze = debounce(analyzeIntelligence, 150);
+
+function renderBriefing(items, allText, globalTotal) {
+  const container = document.getElementById('ai-briefing-content');
+  const region = state.activeRegion;
+  const regionName = REGION_NAMES[region] || 'Global';
+  const isFiltered = region !== 'all';
+
+  if (items.length === 0) {
+    container.innerHTML = `<div class="briefing-text" style="color:var(--text-muted)">No threat intelligence available for the <span class="b-hl">${regionName}</span> region at this time. Switch to GLOBAL for the full briefing.</div>`;
+    return;
+  }
+
+  const critCount = items.filter(i => i.severity === 'CRITICAL').length;
+  const highCount = items.filter(i => i.severity === 'HIGH').length;
+  const total = items.length;
+  const now = Date.now();
+  const last24h = items.filter(i => (now - new Date(i.pubDate).getTime()) < 86400000).length;
+
+  // Category breakdown
+  const catCounts = {};
+  items.forEach(i => { const c = i.aiCategory || i.type; catCounts[c] = (catCounts[c] || 0) + 1; });
+  const topCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+
+  // Actors mentioned
+  const actorsFound = [];
+  const combined = allText.join(' ');
+  ACTOR_PATTERNS.forEach(a => { if (a.re.test(combined)) actorsFound.push(a); });
+
+  // Countries
+  const countryCounts = {};
+  items.forEach(i => {
+    extractCountries(i.title, i.description).forEach(cc => { countryCounts[cc] = (countryCounts[cc] || 0) + 1; });
+  });
+  const topCountries = Object.entries(countryCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  // Sector analysis
+  const sectorHits = [];
+  SECTOR_PATTERNS.forEach(s => {
+    const m = combined.match(new RegExp(s.re, 'gi'));
+    if (m) sectorHits.push({ name: s.name, icon: s.icon, count: m.length });
+  });
+  sectorHits.sort((a, b) => b.count - a.count);
+
+  // Malware / stealer / loader / RAT families
+  const malwareFound = actorsFound.filter(a => ['Malware','Stealer','Loader','RAT','Botnet','Tool','Proxy'].includes(a.type));
+
+  // Build narrative briefing
+  const threatLevel = critCount > 5 ? 'ELEVATED' : critCount > 2 ? 'MODERATE' : highCount > 5 ? 'GUARDED' : 'STABLE';
+  const tlClass = critCount > 5 ? 'b-crit' : critCount > 2 ? 'b-warn' : highCount > 5 ? 'b-warn' : 'b-green';
+
+  let b = '';
+
+  // Para 1: Scope and threat level
+  if (isFiltered) {
+    b += `The <span class="b-hl">${regionName}</span> cyber threat posture is assessed as <span class="${tlClass}">${threatLevel}</span>. `;
+    b += `<span class="b-hl">${total}</span> of ${globalTotal} tracked incidents reference this region`;
+  } else {
+    b += `The global cyber threat posture is assessed as <span class="${tlClass}">${threatLevel}</span>. `;
+    b += `Our threat intelligence pipeline is tracking <span class="b-hl">${total} active incidents</span> across <span class="b-hl">${Object.keys(catCounts).length}</span> threat categories`;
+  }
+  if (last24h > 0) {
+    b += `, with <span class="b-hl">${last24h}</span> reported in the past 24 hours. `;
+  } else {
+    b += ` from recent intelligence feeds. `;
+  }
+  if (critCount > 0 || highCount > 0) {
+    const parts = [];
+    if (critCount > 0) parts.push(`<span class="b-crit">${critCount} CRITICAL</span>`);
+    if (highCount > 0) parts.push(`<span class="b-warn">${highCount} HIGH</span>`);
+    b += `Severity breakdown includes ${parts.join(' and ')} priority incidents requiring attention. `;
+  }
+
+  // Para 2: Dominant threat categories
+  if (topCats.length >= 3) {
+    b += `The dominant threat categories are <span class="b-hl">${escapeHTML(topCats[0][0])}</span> (${topCats[0][1]}), <span class="b-hl">${escapeHTML(topCats[1][0])}</span> (${topCats[1][1]}), and <span class="b-hl">${escapeHTML(topCats[2][0])}</span> (${topCats[2][1]})${isFiltered ? ' in this region' : ''}. `;
+  } else if (topCats.length >= 2) {
+    b += `<span class="b-hl">${escapeHTML(topCats[0][0])}</span> (${topCats[0][1]}) and <span class="b-hl">${escapeHTML(topCats[1][0])}</span> (${topCats[1][1]}) are the leading threat categories${isFiltered ? ' in this region' : ''}. `;
+  } else if (topCats.length === 1) {
+    b += `<span class="b-hl">${escapeHTML(topCats[0][0])}</span> is the primary threat category${isFiltered ? ' in this region' : ''}. `;
+  }
+
+  // Para 3: Sector impact
+  if (sectorHits.length >= 2) {
+    b += `The most targeted sectors are ${sectorHits.slice(0, 3).map(s => `<span class="b-hl">${s.icon} ${s.name}</span>`).join(', ')}. `;
+  } else if (sectorHits.length === 1) {
+    b += `The <span class="b-hl">${sectorHits[0].icon} ${sectorHits[0].name}</span> sector shows concentrated targeting. `;
+  }
+
+  // Para 4: Actor callout
+  const nationState = actorsFound.filter(a => a.type === 'Nation-State');
+  const ransomGroups = actorsFound.filter(a => a.type === 'Ransomware');
+  const hacktivists = actorsFound.filter(a => a.type === 'Hacktivist');
+  if (nationState.length > 0 || ransomGroups.length > 0 || malwareFound.length > 0) {
+    const parts = [];
+    if (nationState.length > 0) {
+      const origins = [...new Set(nationState.map(a => a.origin))];
+      parts.push(`nation-state actors from ${origins.join(', ')} including <span class="b-crit">${nationState.map(a => a.name).slice(0, 3).join('</span>, <span class="b-crit">')}</span>`);
+    }
+    if (ransomGroups.length > 0) parts.push(`ransomware operators <span class="b-warn">${ransomGroups.map(a => a.name).slice(0, 3).join('</span>, <span class="b-warn">')}</span>`);
+    if (malwareFound.length > 0) parts.push(`malware families ${malwareFound.map(a => a.name).slice(0, 3).join(', ')}`);
+    b += `Active threat actors include ${parts.join('; alongside ')}. `;
+  }
+  if (hacktivists.length > 0) {
+    b += `Hacktivist activity detected from <span class="b-warn">${hacktivists.map(a => a.name).slice(0, 2).join('</span>, <span class="b-warn">')}</span>. `;
+  }
+
+  // Para 5: Geographic focus
+  if (topCountries.length > 0) {
+    const topGeo = topCountries.slice(0, 5);
+    b += `${isFiltered ? 'Within this region, ' : 'Geographically, '}${topGeo.map(([cc, cnt]) => `${FLAG(cc)} ${COUNTRY_NAMES[cc] || cc} (${cnt})`).join(', ')} ${isFiltered ? 'are most impacted' : 'are the most referenced in current threat reporting'}. `;
+  }
+
+  // Para 6: Context-aware recommended actions
+  const topCatNames = topCats.map(c => c[0]);
+  const actions = [];
+  if (critCount > 0) actions.push(`<span class="b-crit">Review ${critCount} critical advisories immediately</span> and assess organizational exposure`);
+  if (topCatNames.includes('Ransomware')) actions.push('Verify offline backup integrity, test restoration procedures, and audit RDP/VPN access controls');
+  if (topCatNames.includes('Phishing') || topCatNames.includes('BEC')) actions.push('Reinforce email security controls and issue staff awareness reminders for credential harvesting campaigns');
+  if (topCatNames.includes('Zero-Day Exploit') || topCatNames.includes('Vulnerability Disclosure')) actions.push('Accelerate patch management cycles and review exposure to disclosed vulnerabilities');
+  if (nationState.length > 0) actions.push(`Conduct threat hunting for ${nationState.slice(0, 2).map(a => a.name).join('/')} TTPs and validate detection signatures`);
+  if (topCatNames.includes('Data Breach')) actions.push('Audit data access controls, review DLP policies, and verify incident response playbooks');
+  if (topCatNames.includes('Supply Chain Attack')) actions.push('Review third-party vendor access, validate software supply chain integrity, and audit dependency sources');
+  if (sectorHits.length > 0 && !actions.some(a => a.includes('sector'))) {
+    const topSector = sectorHits[0];
+    actions.push(`${topSector.icon} ${topSector.name} sector organizations should heighten monitoring given concentrated targeting`);
+  }
+  if (malwareFound.length > 0 && !actions.some(a => a.includes('detection'))) actions.push(`Update endpoint detection signatures for ${malwareFound.slice(0, 2).map(m => m.name).join(', ')} activity`);
+  if (actions.length === 0) actions.push(`Maintain baseline monitoring across all threat categories${isFiltered ? ' for ' + regionName : ''}`);
+
+  b += `<br><br><strong>Recommended Actions:</strong><ul style="margin:4px 0 0 16px;padding:0;font-size:inherit;line-height:1.6">${
+    actions.slice(0, 5).map(a => `<li>${a}</li>`).join('')
+  }</ul>`;
+
+  container.innerHTML = `
+    <div class="briefing-text">${b}</div>
+    <div class="briefing-timestamp">GENERATED ${new Date().toUTCString().slice(0, 25)} UTC | REGION: ${regionName.toUpperCase()} | ${total} ARTICLES ANALYZED</div>
+  `;
+}
+
+function renderKeyIncidents(items) {
+  const container = document.getElementById('key-incidents-content');
+  const key = items.filter(i => i.severity === 'CRITICAL' || i.severity === 'HIGH').slice(0, 5);
+
+  if (key.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px">No critical or high-severity incidents at this time.</div>';
+    return;
+  }
+
+  container.innerHTML = key.map(item => {
+    const isCrit = item.severity === 'CRITICAL';
+    const sevClass = isCrit ? 'crit' : 'high';
+    const cardClass = isCrit ? '' : ' sev-high';
+
+    // Generate analyst context from the description
+    let context = item.description || '';
+    if (context.length > 150) context = context.slice(0, 147) + '...';
+
+    return `<div class="incident-card${cardClass}" onclick="selectItem(state.newsItems.find(i => i._id === '${item._id}'))">
+      <div class="incident-header">
+        <span class="incident-sev ${sevClass}">${item.severity}</span>
+        <span class="incident-type">${item.icon || ''} ${item.type}</span>
+        <span style="margin-left:auto;font-size:9px;color:var(--text-muted);font-family:var(--font-mono)">${timeAgo(item.pubDate)}</span>
+      </div>
+      <div class="incident-title">${escapeHTML(item.title)}</div>
+      <div class="incident-context">${escapeHTML(context)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderActorSpotlight(items, allText) {
+  const container = document.getElementById('actor-spotlight-content');
+  const combined = allText.join(' ');
+
+  // Find actors mentioned and count occurrences
+  const found = [];
+  ACTOR_PATTERNS.forEach((actor, idx) => {
+    actor._reGlobal.lastIndex = 0;
+    const matches = combined.match(actor._reGlobal);
+    if (matches) {
+      found.push({ ...actor, count: matches.length, idx });
+    }
+  });
+
+  found.sort((a, b) => b.count - a.count);
+
+  if (found.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px">No named threat actors or malware families detected in current intelligence.</div>';
+    return;
+  }
+
+  const activeName = state.activeActor ? state.activeActor.name : null;
+
+  let html = '';
+  if (activeName) {
+    html += `<div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px;color:var(--cyan);font-family:var(--font-mono)">Filtered: ${escapeHTML(activeName)}</span>
+      <button onclick="clearActorFilter()" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
+    </div>`;
+  }
+
+  html += `<div class="actor-grid">${found.slice(0, 8).map(actor => {
+    const isActive = activeName === actor.name;
+    const typeColor = actor.type === 'Nation-State' ? 'var(--red)' :
+                      actor.type === 'Ransomware' ? 'var(--amber)' :
+                      actor.type === 'Malware' || actor.type === 'Stealer' || actor.type === 'Loader' ? '#ff8c00' :
+                      actor.type === 'Botnet' ? 'var(--purple)' : 'var(--text-muted)';
+    return `<div class="actor-tag${isActive ? ' active' : ''}" onclick="toggleActorFilter(${actor.idx})">
+      <div>
+        <div class="actor-name" style="color:${typeColor}">${escapeHTML(actor.name)}</div>
+        <div class="actor-type">${actor.type} | ${actor.origin}</div>
+      </div>
+      <div class="actor-count">${actor.count}x</div>
+    </div>`;
+  }).join('')}</div>`;
+
+  container.innerHTML = html;
+}
+
+function toggleActorFilter(idx) {
+  const actor = ACTOR_PATTERNS[idx];
+  if (state.activeActor && state.activeActor.name === actor.name) {
+    state.activeActor = null;
+  } else {
+    state.activeActor = { name: actor.name, re: actor.re };
+  }
+  renderFeedCards();
+  const items = getRegionItems(state.newsItems);
+  const allText = items.map(i => (i.title || '') + ' ' + (i.description || ''));
+  renderActorSpotlight(items, allText);
+}
+
+function clearActorFilter() {
+  state.activeActor = null;
+  renderFeedCards();
+  const items = getRegionItems(state.newsItems);
+  const allText = items.map(i => (i.title || '') + ' ' + (i.description || ''));
+  renderActorSpotlight(items, allText);
+}
+
+function renderSectorImpact(items, allText) {
+  const container = document.getElementById('sector-impact-content');
+  const combined = allText.join(' ');
+
+  const found = [];
+  SECTOR_PATTERNS.forEach((sector, idx) => {
+    const matches = combined.match(new RegExp(sector.re, 'gi'));
+    if (matches) {
+      found.push({ ...sector, count: matches.length, idx });
+    }
+  });
+
+  found.sort((a, b) => b.count - a.count);
+
+  if (found.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px">Analyzing sector impact...</div>';
+    return;
+  }
+
+  const activeName = state.activeSector ? state.activeSector.name : null;
+
+  let html = '';
+  if (activeName) {
+    html += `<div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px;color:var(--amber);font-family:var(--font-mono)">Filtered: ${escapeHTML(activeName)}</span>
+      <button onclick="clearSectorFilter()" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
+    </div>`;
+  }
+
+  html += `<div class="sector-grid">${found.slice(0, 9).map(sector => {
+    const isActive = activeName === sector.name;
+    return `<div class="sector-tag${isActive ? ' active' : ''}" data-sector-idx="${sector.idx}" onclick="toggleSectorFilter(${sector.idx})">
+      <span class="sector-icon">${sector.icon}</span>
+      <span class="sector-name">${escapeHTML(sector.name)}</span>
+      <span class="sector-count">${sector.count} mention${sector.count > 1 ? 's' : ''}</span>
+    </div>`;
+  }).join('')}</div>`;
+
+  container.innerHTML = html;
+}
+
+function toggleSectorFilter(idx) {
+  const sector = SECTOR_PATTERNS[idx];
+  if (state.activeSector && state.activeSector.name === sector.name) {
+    state.activeSector = null;
+  } else {
+    state.activeSector = { name: sector.name, re: sector.re, icon: sector.icon };
+  }
+  renderFeedCards();
+  // Re-render sector tags to update active state
+  const items = getRegionItems(state.newsItems);
+  const allText = items.map(i => (i.title || '') + ' ' + (i.description || ''));
+  renderSectorImpact(items, allText);
+}
+
+function clearSectorFilter() {
+  state.activeSector = null;
+  renderFeedCards();
+  const items = getRegionItems(state.newsItems);
+  const allText = items.map(i => (i.title || '') + ' ' + (i.description || ''));
+  renderSectorImpact(items, allText);
+}
+
+/* ============================================================= */
+/* SSR DATA — Read embedded server data (zero fetch on load)      */
+/* ============================================================= */
+function loadSSRData() {
+  const el = document.getElementById('ssr-data');
+  if (!el) return null;
+  try { return JSON.parse(el.textContent); }
+  catch { return null; }
+}
+
+/* ============================================================= */
+/* TRANSFORM ARTICLES — Map backend data to display format        */
+/* ============================================================= */
+function transformArticles(articles) {
+  if (!Array.isArray(articles)) return [];
+  return articles.map((article, i) => {
+    const cat = article.category || 'Unknown';
+    const mapped = TD_CATEGORY_MAP[cat] || classifyItem(article.translated_title || article.title, article.summary || '');
+    const isDarkweb = article.darkweb === true;
+    return {
+      title: article.translated_title || article.title,
+      description: (article.summary || '').slice(0, 400),
+      link: article.link,
+      pubDate: article.published || article.timestamp || new Date().toISOString(),
+      source: isDarkweb ? 'DARK WEB' : 'THREATDIGEST',
+      sourceClass: isDarkweb ? 'darkweb' : 'threatdigest',
+      type: mapped.type || 'THREAT INTEL',
+      icon: isDarkweb ? '\uD83D\uDD76' : (mapped.icon || '\uD83D\uDEE1'),
+      severity: isDarkweb ? 'HIGH' : (mapped.severity || 'LOW'),
+      cssType: mapped.cssType || 'threat-intel',
+      isCISA: false,
+      cveID: null,
+      cvss: null,
+      requiredAction: null,
+      confidence: article.confidence || 0,
+      aiCategory: cat,
+      feedRegion: article.feed_region || null,
+      isDarkweb: isDarkweb,
+      darkwebGroup: article.darkweb_group || null,
+      darkwebSource: article.darkweb_source || null,
+      _id: 'td-' + (article.hash || i)
+    };
+  });
+}
+
+/* ============================================================= */
+/* THREATDIGEST — LLM-CLASSIFIED ARTICLES                        */
+/* ============================================================= */
+const TD_CATEGORY_MAP = {
+  'Ransomware': { type: 'RANSOMWARE', icon: '\uD83D\uDD12', severity: 'CRITICAL', cssType: 'ransomware' },
+  'Zero-Day Exploit': { type: 'ZERO-DAY', icon: '\u26A1', severity: 'CRITICAL', cssType: 'zero-day' },
+  'Nation-State Attack': { type: 'APT', icon: '\uD83C\uDFAF', severity: 'CRITICAL', cssType: 'apt' },
+  'Cyber Espionage': { type: 'APT', icon: '\uD83C\uDFAF', severity: 'CRITICAL', cssType: 'apt' },
+  'Critical Infrastructure Attack': { type: 'ICS/OT', icon: '\u26A0', severity: 'CRITICAL', cssType: 'apt' },
+  'Supply Chain Attack': { type: 'SUPPLY CHAIN', icon: '\u26D3', severity: 'HIGH', cssType: 'supply-chain' },
+  'Data Breach': { type: 'BREACH', icon: '\uD83D\uDD13', severity: 'HIGH', cssType: 'breach' },
+  'Malware': { type: 'MALWARE', icon: '\uD83E\uDDA0', severity: 'HIGH', cssType: 'malware' },
+  'Insider Threat': { type: 'BREACH', icon: '\uD83D\uDD13', severity: 'HIGH', cssType: 'breach' },
+  'Account Takeover': { type: 'BREACH', icon: '\uD83D\uDD13', severity: 'HIGH', cssType: 'breach' },
+  'Cryptocurrency/Blockchain Theft': { type: 'CRYPTO THEFT', icon: '\uD83E\uDE99', severity: 'HIGH', cssType: 'breach' },
+  'Cloud Security Incident': { type: 'CLOUD', icon: '\u2601', severity: 'HIGH', cssType: 'breach' },
+  'IoT/OT Security': { type: 'ICS/OT', icon: '\uD83C\uDFED', severity: 'HIGH', cssType: 'malware' },
+  'DDoS': { type: 'DDOS', icon: '\uD83D\uDCA5', severity: 'MEDIUM', cssType: 'ddos' },
+  'DDoS Attack': { type: 'DDOS', icon: '\uD83D\uDCA5', severity: 'MEDIUM', cssType: 'ddos' },
+  'Phishing': { type: 'PHISHING', icon: '\uD83C\uDFA3', severity: 'MEDIUM', cssType: 'phishing' },
+  'Vulnerability': { type: 'VULN', icon: '\uD83D\uDD0D', severity: 'MEDIUM', cssType: 'vuln' },
+  'Vulnerability Disclosure': { type: 'VULN', icon: '\uD83D\uDD0D', severity: 'MEDIUM', cssType: 'vuln' },
+  'Patch/Security Update': { type: 'PATCH', icon: '\uD83D\uDEE0', severity: 'MEDIUM', cssType: 'vuln' },
+  'Hacktivism': { type: 'HACKTIVISM', icon: '\u270A', severity: 'MEDIUM', cssType: 'ddos' },
+  'Disinformation/Influence Operation': { type: 'DISINFO', icon: '\uD83D\uDCE2', severity: 'MEDIUM', cssType: 'apt' },
+  'Security Policy/Regulation': { type: 'POLICY', icon: '\uD83D\uDCDC', severity: 'LOW', cssType: 'advisory' },
+  'Threat Intelligence Report': { type: 'INTEL REPORT', icon: '\uD83D\uDCCA', severity: 'LOW', cssType: 'advisory' },
+};
+
+/* ============================================================= */
+/* FETCH ARTICLES (API fallback if SSR data is stale)             */
+/* ============================================================= */
+async function fetchArticlesFromAPI() {
+  try {
+    const data = await fetchJSON(THREATDIGEST_API);
+    if (!Array.isArray(data)) return [];
+    state.feedStatus.threatdigest = true;
+    return transformArticles(data);
+  } catch {
+    state.feedStatus.threatdigest = false;
+    return [];
+  }
+}
+
+/* ============================================================= */
+/* RENDER NEWS FEED CARDS (LEFT PANEL)                            */
+/* ============================================================= */
+function filterMatchesItem(filter, item) {
+  // Category filter
+  let catMatch = true;
+  if (filter !== 'all') {
+    if (filter === 'breach') catMatch = item.cssType === 'breach';
+    else if (filter === 'ransomware') catMatch = item.cssType === 'ransomware';
+    else if (filter === 'ddos') catMatch = item.cssType === 'ddos';
+    else if (filter === 'apt') catMatch = item.cssType === 'apt';
+    else if (filter === 'phishing') catMatch = item.cssType === 'phishing';
+    else if (filter === 'malware') catMatch = item.cssType === 'malware';
+    else if (filter === 'zero-day') catMatch = item.cssType === 'zero-day';
+    else if (filter === 'vuln') catMatch = item.cssType === 'vuln' || item.cssType === 'cve' || item.cssType === 'cisa-kev';
+    else if (filter === 'darkweb') catMatch = item.isDarkweb === true;
+  }
+  // Drilldown filters (sector, actor, category chart)
+  if (state.activeSector || state.activeActor || state.activeCategory) {
+    const text = (item.title || '') + ' ' + (item.description || '');
+    if (state.activeSector && !state.activeSector.re.test(text)) return false;
+    if (state.activeActor && !state.activeActor.re.test(text)) return false;
+    if (state.activeCategory && !state.activeCategory.re.test(text)) return false;
+  }
+  return catMatch;
+}
+
+function buildCardHTML(item) {
+  const sevClass = 'sev-' + item.severity.toLowerCase();
+  const activeClass = state.selectedItem && state.selectedItem._id === item._id ? ' active' : '';
+  const newBadge = item.isNew ? '<span class="card-new-badge">NEW</span>' : '';
+  const icon = item.icon || '';
+
+  const countries = extractCountries(item.title, item.description);
+  let countryHTML = '';
+  if (countries.length > 0) {
+    const first = countries[0];
+    const name = COUNTRY_NAMES[first] || first;
+    const flag = FLAG(first);
+    countryHTML = `<span class="card-country">${flag} ${escapeHTML(name)}${countries.length > 1 ? ' +' + (countries.length - 1) + ' more' : ''}</span>`;
+  }
+
+  const sevDotColor = item.severity === 'CRITICAL' ? 'var(--red)' :
+                      item.severity === 'HIGH' ? '#ff8c00' :
+                      item.severity === 'MEDIUM' ? 'var(--amber)' : '#556';
+
+  const confBadge = item.confidence ? `<span class="badge" style="background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.2);font-size:8px">${item.confidence}%</span>` : '';
+
+  return `<div class="feed-card ${sevClass}${activeClass}" data-id="${item._id}">
+    ${newBadge}
+    <div class="card-badges">
+      <span class="badge badge-src ${item.sourceClass}">${item.source}</span>
+      ${item.isDarkweb && item.darkwebGroup ? `<span class="badge" style="background:rgba(224,64,251,0.1);color:#e040fb;border:1px solid rgba(224,64,251,0.3);font-size:8px">${escapeHTML(item.darkwebGroup)}</span>` : ''}
+      <span class="type-badge ${item.cssType}">${icon} ${item.type}</span>
+      ${confBadge}
+      <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;background:${sevDotColor};flex-shrink:0"></span>
+    </div>
+    <div class="card-title">${escapeHTML(item.title)}</div>
+    <div class="card-desc">${escapeHTML(item.description)}</div>
+    <hr class="card-divider">
+    <div class="card-footer">
+      <span class="card-time">\uD83D\uDD50 ${timeAgo(item.pubDate)}</span>
+      ${countryHTML}
+      <span class="card-readmore">\u2197 READ</span>
+    </div>
+  </div>`;
+}
+
+function renderFeedCards(reset = true) {
+  const container = document.getElementById('threat-feed');
+  const filter = state.activeFilter;
+  const filtered = state.newsItems.filter(item => filterMatchesItem(filter, item));
+
+  // Update header count
+  const countBadge = document.getElementById('feed-count-badge');
+  const hasDrilldown = state.activeSector || state.activeActor || state.activeCategory;
+  if (filter === 'all' && !hasDrilldown) {
+    countBadge.textContent = '[' + state.newsItems.length + ' items]';
+  } else {
+    const labels = [];
+    if (state.activeCategory) labels.push(state.activeCategory.name);
+    if (state.activeActor) labels.push(state.activeActor.name);
+    if (state.activeSector) labels.push(state.activeSector.name);
+    if (filter !== 'all' && !labels.length) labels.push(filter.toUpperCase());
+    const label = labels.join(' + ');
+    countBadge.textContent = '[' + filtered.length + ' ' + label + ' of ' + state.newsItems.length + ']';
+  }
+
+  if (reset) {
+    state.displayedCount = 0;
+    container.innerHTML = '';
+  }
+
+  // Render next batch
+  const batch = filtered.slice(state.displayedCount, state.displayedCount + CARDS_PER_PAGE);
+  if (batch.length === 0 && state.displayedCount === 0) {
+    container.innerHTML = '<div style="color:#445;font-size:11px;padding:20px;text-align:center">No articles available. Run the pipeline to fetch data.</div>';
+    return;
+  }
+
+  const html = batch.map(buildCardHTML).join('');
+  container.insertAdjacentHTML('beforeend', html);
+  state.displayedCount += batch.length;
+
+  // Attach click handlers to new cards
+  batch.forEach(item => {
+    const card = container.querySelector(`[data-id="${item._id}"]`);
+    if (card) card.onclick = () => selectItem(item);
+  });
+
+  // Show/hide load-more sentinel
+  updateLoadMoreSentinel(state.displayedCount < filtered.length);
+}
+
+function loadMoreCards() {
+  renderFeedCards(false);
+}
+
+function updateLoadMoreSentinel(show) {
+  const container = document.getElementById('threat-feed');
+  let btn = document.getElementById('load-more-btn');
+
+  if (show) {
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'load-more-btn';
+      btn.className = 'load-more-btn';
+      btn.onclick = () => loadMoreCards();
+      container.appendChild(btn);
+    }
+    const filter = state.activeFilter;
+    const filtered = state.newsItems.filter(item => filterMatchesItem(filter, item));
+    const remaining = filtered.length - state.displayedCount;
+    btn.textContent = `LOAD MORE (${remaining} remaining)`;
+  } else {
+    if (btn) btn.remove();
+  }
+}
+
+/* ============================================================= */
+/* IOC EXTRACTION                                                 */
+/* ============================================================= */
+const IOC_PATTERNS = {
+  cve:    /\bCVE-\d{4}-\d{4,7}\b/gi,
+  ipv4:   /\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b/g,
+  md5:    /\b[a-fA-F0-9]{32}\b/g,
+  sha1:   /\b[a-fA-F0-9]{40}\b/g,
+  sha256: /\b[a-fA-F0-9]{64}\b/g,
+  domain: /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|net|org|io|co|info|biz|xyz|top|ru|cn|de|uk|fr|nl|br|in|au|it|es|kr|jp|se|no|fi|dk|ch|at|be|pt|ie|cz|ro|hu|gr|pl|za|ng|ke|mx|ar|cl|pe|onion)\b/gi,
+  url:    /https?:\/\/[^\s<>"')\]]+/gi,
+  email:  /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g,
+};
+
+// Common false positives to filter out
+const IOC_EXCLUDE = new Set([
+  '127.0.0.1', '0.0.0.0', '255.255.255.255', '192.168.0.1', '10.0.0.1',
+  'google.com', 'twitter.com', 'facebook.com', 'linkedin.com', 'github.com',
+  'youtube.com', 'reddit.com', 'wikipedia.org', 'microsoft.com', 'apple.com',
+  'amazon.com', 'cloudflare.com', 'example.com', 'localhost',
+]);
+
+function extractIOCs(text) {
+  if (!text || text.length < 10) return null;
+
+  const iocs = { cves: [], ips: [], hashes: [], domains: [], urls: [], emails: [] };
+
+  // CVEs
+  const cves = text.match(IOC_PATTERNS.cve);
+  if (cves) iocs.cves = [...new Set(cves.map(c => c.toUpperCase()))];
+
+  // IPs
+  const ips = text.match(IOC_PATTERNS.ipv4);
+  if (ips) iocs.ips = [...new Set(ips)].filter(ip => !IOC_EXCLUDE.has(ip));
+
+  // Hashes (check longest first to avoid substring matches)
+  const sha256 = text.match(IOC_PATTERNS.sha256);
+  if (sha256) iocs.hashes.push(...[...new Set(sha256)].map(h => ({ type: 'SHA256', value: h })));
+  const sha256Values = new Set((sha256 || []).map(h => h.toLowerCase()));
+
+  const sha1 = text.match(IOC_PATTERNS.sha1);
+  if (sha1) {
+    const unique = [...new Set(sha1)].filter(h => !sha256Values.has(h.toLowerCase()) && ![...sha256Values].some(s => s.includes(h.toLowerCase())));
+    iocs.hashes.push(...unique.map(h => ({ type: 'SHA1', value: h })));
+  }
+
+  const md5 = text.match(IOC_PATTERNS.md5);
+  if (md5) {
+    const existingHashes = new Set(iocs.hashes.map(h => h.value.toLowerCase()));
+    const unique = [...new Set(md5)].filter(h => !existingHashes.has(h.toLowerCase()) && ![...existingHashes].some(e => e.includes(h.toLowerCase())));
+    iocs.hashes.push(...unique.map(h => ({ type: 'MD5', value: h })));
+  }
+
+  // Domains
+  const domains = text.match(IOC_PATTERNS.domain);
+  if (domains) iocs.domains = [...new Set(domains.map(d => d.toLowerCase()))].filter(d => !IOC_EXCLUDE.has(d));
+
+  // Emails
+  const emails = text.match(IOC_PATTERNS.email);
+  if (emails) iocs.emails = [...new Set(emails.map(e => e.toLowerCase()))];
+
+  const total = iocs.cves.length + iocs.ips.length + iocs.hashes.length + iocs.domains.length + iocs.emails.length;
+  return total > 0 ? iocs : null;
+}
+
+function renderIOCSection(item) {
+  const text = (item.title || '') + ' ' + (item.description || '');
+  const iocs = extractIOCs(text);
+  if (!iocs) return '';
+
+  let html = '<div class="ioc-section"><div class="ioc-section-title">INDICATORS OF COMPROMISE</div>';
+
+  if (iocs.cves.length > 0) {
+    html += `<div class="ioc-group"><div class="ioc-group-label">CVE IDs</div><div class="ioc-list">${
+      iocs.cves.map(c => `<span class="ioc-chip ioc-cve" onclick="copyIOC('${c}', this)">${c} <span class="ioc-copy">COPY</span></span>`).join('')
+    }</div></div>`;
+  }
+  if (iocs.ips.length > 0) {
+    html += `<div class="ioc-group"><div class="ioc-group-label">IP ADDRESSES</div><div class="ioc-list">${
+      iocs.ips.map(ip => `<span class="ioc-chip ioc-ip" onclick="copyIOC('${ip}', this)">${ip} <span class="ioc-copy">COPY</span></span>`).join('')
+    }</div></div>`;
+  }
+  if (iocs.hashes.length > 0) {
+    html += `<div class="ioc-group"><div class="ioc-group-label">FILE HASHES</div><div class="ioc-list">${
+      iocs.hashes.slice(0, 10).map(h => `<span class="ioc-chip ioc-hash" onclick="copyIOC('${h.value}', this)" title="${h.type}: ${h.value}">${h.type}: ${h.value.slice(0, 16)}... <span class="ioc-copy">COPY</span></span>`).join('')
+    }</div></div>`;
+  }
+  if (iocs.domains.length > 0) {
+    html += `<div class="ioc-group"><div class="ioc-group-label">DOMAINS</div><div class="ioc-list">${
+      iocs.domains.slice(0, 15).map(d => `<span class="ioc-chip ioc-domain" onclick="copyIOC('${escapeHTML(d)}', this)">${escapeHTML(d)} <span class="ioc-copy">COPY</span></span>`).join('')
+    }</div></div>`;
+  }
+  if (iocs.emails.length > 0) {
+    html += `<div class="ioc-group"><div class="ioc-group-label">EMAIL ADDRESSES</div><div class="ioc-list">${
+      iocs.emails.slice(0, 10).map(e => `<span class="ioc-chip ioc-domain" onclick="copyIOC('${escapeHTML(e)}', this)">${escapeHTML(e)} <span class="ioc-copy">COPY</span></span>`).join('')
+    }</div></div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function copyIOC(value, el) {
+  navigator.clipboard.writeText(value).then(() => {
+    const toast = document.createElement('div');
+    toast.className = 'ioc-copied';
+    toast.textContent = 'Copied: ' + value;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 1500);
+  }).catch(() => {});
+}
+
+function escapeHTML(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ============================================================= */
+/* DETAIL PANEL (RIGHT — on card click)                           */
+/* ============================================================= */
+function selectItem(item) {
+  state.selectedItem = item;
+
+  // Close mobile menu if open
+  if (window.innerWidth <= 1024) {
+    const leftPanel = document.getElementById('left-panel');
+    const overlay = document.getElementById('mobile-overlay');
+    if (leftPanel) leftPanel.classList.remove('open');
+    if (overlay) overlay.classList.remove('visible');
+  }
+
+  // Highlight active card without full re-render
+  document.querySelectorAll('.feed-card.active').forEach(c => c.classList.remove('active'));
+  const cards = document.querySelectorAll('.feed-card');
+  cards.forEach(c => {
+    if (c.dataset.id === item._id) c.classList.add('active');
+  });
+
+  // Build detail view
+  const container = document.getElementById('detail-content');
+
+  let cveBlock = '';
+  if (item.cveID) {
+    const cvssClass = item.cvss >= 9.0 ? 'cvss-critical' : 'cvss-high';
+    cveBlock = `
+      <div class="detail-cve-info">
+        <div><strong>CVE:</strong> <span class="cve-id">${escapeHTML(item.cveID)}</span></div>
+        ${item.cvss !== null ? `<div><strong>CVSS:</strong> <span class="cvss-score ${cvssClass}">${item.cvss}</span></div>` : ''}
+        ${item.requiredAction ? `<div><strong>Required Action:</strong> ${escapeHTML(item.requiredAction)}</div>` : ''}
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="detail-badges">
+      <span class="badge badge-src ${item.sourceClass}">${item.source}</span>
+      <span class="type-badge ${item.cssType}">${item.icon || ''} ${item.type}</span>
+      <span class="badge" style="background:rgba(255,255,255,0.05);color:${
+        item.severity === 'CRITICAL' ? 'var(--red)' :
+        item.severity === 'HIGH' ? '#ff8c00' :
+        item.severity === 'MEDIUM' ? 'var(--amber)' : '#778'
+      }">${item.severity}</span>
+    </div>
+    <div class="detail-headline">${escapeHTML(item.title)}</div>
+    <div class="detail-meta">
+      <div><strong>Source:</strong> ${escapeHTML(item.source)}</div>
+      <div><strong>Published:</strong> ${new Date(item.pubDate).toUTCString()}</div>
+      <div><strong>Classification:</strong> ${item.type} / ${item.severity}</div>
+      ${item.confidence ? `<div><strong>Confidence:</strong> <span style="color:var(--green)">${item.confidence}%</span></div>` : ''}
+      ${item.aiCategory ? `<div><strong>Category:</strong> <span style="color:var(--cyan)">${escapeHTML(item.aiCategory)}</span></div>` : ''}
+      ${item.isDarkweb && item.darkwebGroup ? `<div><strong>Threat Group:</strong> <span style="color:#e040fb;font-weight:700">${escapeHTML(item.darkwebGroup)}</span></div>` : ''}
+      ${item.isDarkweb ? `<div><strong>Intel Source:</strong> <span style="color:#e040fb">${escapeHTML(item.darkwebSource || 'Dark Web Monitor')}</span></div>` : ''}
+    </div>
+    <div class="detail-divider"></div>
+    <div class="detail-body">${escapeHTML(item.description)}</div>
+    ${cveBlock}
+    ${renderIOCSection(item)}
+    <a class="detail-open-link" href="${escapeHTML(item.link)}" target="_blank" rel="noopener">OPEN ARTICLE &rarr;</a>
+  `;
+
+  // Show detail in center, hide all sections
+  document.querySelectorAll('.center-section').forEach(s => s.style.display = 'none');
+  document.getElementById('detail-article-center').style.display = 'block';
+}
+
+function closeDetail() {
+  state.selectedItem = null;
+  document.querySelectorAll('.center-section').forEach(s => s.style.display = '');
+  document.getElementById('detail-article-center').style.display = 'none';
+  renderFeedCards();
+}
+
+/* ============================================================= */
+/* FILTER BUTTONS                                                 */
+/* ============================================================= */
+document.getElementById('feed-filters').addEventListener('click', (e) => {
+  if (!e.target.classList.contains('filter-btn')) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  state.activeFilter = e.target.dataset.filter;
+  state.activeSector = null; // clear all drilldowns on category change
+  state.activeActor = null;
+  state.activeCategory = null;
+  renderFeedCards();
+  buildThreatCategoryChart([], state.newsItems);
+  debouncedAnalyze(); // refresh drilldown active states
+});
+
+/* Region filter — controls center panel analysis */
+document.getElementById('region-filters').addEventListener('click', (e) => {
+  if (!e.target.classList.contains('region-btn')) return;
+  document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  state.activeRegion = e.target.dataset.region;
+  state.activeSector = null; // clear all drilldowns on region change
+  state.activeActor = null;
+  state.activeCategory = null;
+  // Close detail view and restore briefing sections
+  document.querySelectorAll('.center-section').forEach(s => s.style.display = '');
+  document.getElementById('detail-article-center').style.display = 'none';
+  state.selectedItem = null;
+  debouncedAnalyze();
+});
+
+/* ============================================================= */
+/* RIGHT PANEL — OVERVIEW STATS                                   */
+/* ============================================================= */
+function animateCounter(el, target) {
+  const current = parseInt(el.textContent) || 0;
+  if (current === target) return;
+  const diff = target - current;
+  const steps = 30;
+  const inc = diff / steps;
+  let step = 0;
+  function tick() {
+    step++;
+    if (step >= steps) { el.textContent = target; return; }
+    el.textContent = Math.round(current + inc * step);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function updateOverviewStats() {
+  const items = state.newsItems;
+  const critical = items.filter(i => i.severity === 'CRITICAL').length;
+  const high = items.filter(i => i.severity === 'HIGH').length;
+
+  animateCounter(document.getElementById('stat-critical'), critical);
+  animateCounter(document.getElementById('stat-high'), high);
+  animateCounter(document.getElementById('stat-total'), items.length);
+
+  // Count backend pipeline feed sources from stats
+  const stats = state.pipelineStats || {};
+  const latest = stats.latest || {};
+  const feedsLoaded = latest.feeds_loaded || 0;
+  animateCounter(document.getElementById('stat-sources'), feedsLoaded);
+
+  // Feed status — show pipeline stats + single ThreatDigest source
+  const statusContainer = document.getElementById('feed-sources-status');
+
+  let pipelineHTML = '';
+  if (latest.feeds_loaded) {
+    pipelineHTML = `
+      <div style="margin-bottom:10px;padding:8px;background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.08);border-radius:4px;font-size:10px;">
+        <div style="font-family:var(--font-title);font-size:11px;color:var(--cyan);letter-spacing:1px;margin-bottom:6px">BACKEND PIPELINE</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+          <span style="color:#556">Feeds loaded:</span><span style="color:var(--cyan);text-align:right">${latest.feeds_loaded}</span>
+          <span style="color:#556">Articles fetched:</span><span style="color:var(--cyan);text-align:right">${latest.articles_fetched || 'N/A'}</span>
+          <span style="color:#556">After dedup:</span><span style="color:var(--cyan);text-align:right">${latest.articles_after_dedup || 'N/A'}</span>
+          <span style="color:#556">Cyber articles:</span><span style="color:var(--green);text-align:right">${latest.cyber_articles || 'N/A'}</span>
+          <span style="color:#556">Scrape success:</span><span style="color:var(--amber);text-align:right">${latest.scrape_successes || 0}/${(latest.scrape_successes || 0) + (latest.scrape_failures || 0)}</span>
+          <span style="color:#556">Total runs:</span><span style="color:var(--cyan);text-align:right">${(stats.runs || []).length}</span>
+        </div>
+      </div>`;
+  }
+
+  const tdOnline = state.feedStatus.threatdigest;
+  statusContainer.innerHTML = pipelineHTML + `
+    <div class="source-status">
+      <span><span class="dot ${tdOnline ? 'online' : 'offline'}"></span>ThreatDigest Pipeline</span>
+      <span style="color:${tdOnline ? 'var(--green)' : '#555'}">${tdOnline ? 'ONLINE' : 'OFFLINE'}</span>
+    </div>
+    <div style="font-size:9px;color:var(--text-muted);padding:4px 0 0 16px">
+      ${feedsLoaded} RSS/news sources aggregated server-side
+    </div>`;
+}
+
+/* ============================================================= */
+/* RIGHT PANEL — THREAT CATEGORIES CHART (Pure CSS)               */
+/* ============================================================= */
+const CAT_COLORS = {
+  'Ransomware': '#ff2b2b', 'Zero-Day': '#ff4444', 'Data Breach': '#ff6600',
+  'APT': '#cc44ff', 'DDoS': '#ff8800', 'Phishing': '#ffaa00',
+  'Malware': '#ff3366', 'Supply Chain': '#ff0055', 'Vulnerability': '#00aaff',
+  'BEC': '#ffcc00', 'ICS/OT': '#ff5500', 'Cloud': '#0099ff',
+  'Crypto': '#f7931a', 'Hacktivism': '#44cc44', 'Patch': '#00ccaa',
+};
+
+const CAT_KEYWORDS = {
+  'Ransomware':    /ransomware|encrypted\s+files|ransom\s+demand|lockbit|blackcat|cl0p|akira|play\s+ransomware/i,
+  'Zero-Day':      /zero.?day|0day|0-day|actively\s+exploited|in\s+the\s+wild|no\s+patch|unpatched/i,
+  'Data Breach':   /breach|breached|leaked|exposed|stolen\s+data|data\s+dump|database\s+exposed|records\s+stolen/i,
+  'APT':           /\bapt\b|apt28|apt29|apt41|nation.?state|state.?sponsored|espionage|lazarus|volt\s*typhoon|sandworm|charming\s*kitten|scattered\s*spider/i,
+  'DDoS':          /ddos|denial\s+of\s+service|disruption|outage|flood\s+attack|bandwidth\s+attack|layer\s+7/i,
+  'Phishing':      /phishing|spearphish|credential\s+harvest|fake\s+login|lookalike\s+domain|email\s+lure/i,
+  'Malware':       /malware|trojan|backdoor|rat\s|stealer|infostealer|loader|dropper|botnet|worm|emotet|qakbot|cobalt\s+strike|sliver/i,
+  'Supply Chain':  /supply\s*chain|third.party|software\s+update|dependency|npm\s+package|pypi|github\s+action/i,
+  'Vulnerability': /vulnerability|cve-|cvss|patch\s+tuesday|security\s+update|\brce\b|privilege\s+escalation/i,
+  'BEC':           /\bbec\b|business\s+email|wire\s+transfer\s+fraud|ceo\s+fraud|invoice\s+fraud/i,
+  'ICS/OT':        /\bics\b|\bscada\b|\bot\s|critical\s+infrastructure|power\s+grid|water\s+treatment|pipeline\s+attack/i,
+  'Cloud':         /cloud\s+security|aws\s+breach|azure\s+incident|gcp|saas\s+attack|kubernetes|container\s+escape|s3\s+bucket/i,
+  'Crypto':        /crypto\s+theft|bitcoin\s+stolen|blockchain\s+hack|defi\s+exploit|exchange\s+hack|wallet\s+drain|nft\s+scam/i,
+  'Hacktivism':    /hacktivist|hacktivism|anonymous|defacement|politically\s+motivated|cyber\s+protest/i,
+  'Patch':         /security\s+patch|hotfix|firmware\s+update|critical\s+update|emergency\s+patch|out-of-band/i,
+};
+
+function buildThreatCategoryChart(geoEvents, feedItems) {
+  const allItems = [...(feedItems || state.newsItems)];
+  const counts = {};
+  for (const key of Object.keys(CAT_KEYWORDS)) counts[key] = 0;
+
+  allItems.forEach(item => {
+    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
+    for (const [cat, re] of Object.entries(CAT_KEYWORDS)) {
+      if (re.test(text)) counts[cat]++;
+    }
+  });
+
+  // Sort descending, top 8
+  const sorted = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+
+  const maxCount = sorted.length > 0 ? Math.max(sorted[0][1], 1) : 1;
+  const container = document.getElementById('chart-categories');
+  const countLabel = document.getElementById('cat-item-count');
+  countLabel.textContent = '[' + allItems.length + ' items analyzed]';
+
+  if (allItems.length === 0) {
+    // Show skeleton bars
+    container.innerHTML = Array.from({length: 6}, () =>
+      `<div class="cat-skeleton-row">
+        <div class="cat-shimmer cat-skeleton-label"></div>
+        <div class="cat-shimmer cat-skeleton-bar"></div>
+        <div class="cat-shimmer cat-skeleton-count"></div>
+      </div>`
+    ).join('');
+    return;
+  }
+
+  const activeCatName = state.activeCategory ? state.activeCategory.name : null;
+
+  let chartHtml = '';
+  if (activeCatName) {
+    chartHtml += `<div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px;color:#00e5ff;font-family:var(--font-mono)">Filtered: ${escapeHTML(activeCatName)}</span>
+      <button onclick="clearCategoryFilter()" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
+    </div>`;
+  }
+
+  chartHtml += sorted.map(([label, count]) => {
+    const pct = Math.round((count / maxCount) * 100);
+    const color = CAT_COLORS[label] || '#00aaff';
+    const isActive = activeCatName === label;
+    return `<div class="cat-row${isActive ? ' active' : ''}" onclick="toggleCategoryFilter('${escapeHTML(label)}')">
+      <div class="cat-label">${escapeHTML(label)}</div>
+      <div class="cat-bar-track">
+        <div class="cat-bar" style="background:${color}" data-count="${count}" data-pct="${pct}"></div>
+      </div>
+      <div class="cat-count">${count}</div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = chartHtml;
+
+  // Animate bars after DOM insertion
+  setTimeout(() => {
+    container.querySelectorAll('.cat-bar').forEach(bar => {
+      bar.style.width = bar.dataset.pct + '%';
+    });
+  }, 100);
+}
+
+function toggleCategoryFilter(catName) {
+  if (state.activeCategory && state.activeCategory.name === catName) {
+    state.activeCategory = null;
+  } else {
+    const re = CAT_KEYWORDS[catName];
+    if (!re) return;
+    state.activeCategory = { name: catName, re: re };
+  }
+  renderFeedCards();
+  buildThreatCategoryChart([], state.newsItems);
+}
+
+function clearCategoryFilter() {
+  state.activeCategory = null;
+  renderFeedCards();
+  buildThreatCategoryChart([], state.newsItems);
+}
+
+/* ============================================================= */
+/* THREAT LEVEL COMPUTATION                                       */
+/* ============================================================= */
+function updateThreatLevel() {
+  const critCount = state.newsItems.filter(i => i.severity === 'CRITICAL').length;
+  const el = document.getElementById('threat-level');
+  el.className = '';
+
+  if (critCount === 0) { el.className = 'low'; el.textContent = 'THREAT: LOW'; }
+  else if (critCount <= 3) { el.className = 'medium'; el.textContent = 'THREAT: MEDIUM'; }
+  else if (critCount <= 9) { el.className = 'high'; el.textContent = 'THREAT: HIGH'; }
+  else { el.className = 'critical'; el.textContent = 'THREAT: CRITICAL'; }
+}
+
+/* ============================================================= */
+/* BOTTOM MARQUEE                                                 */
+/* ============================================================= */
+function updateMarquee() {
+  const items = state.newsItems.slice(0, 30).map(item => {
+    const sevClass = item.severity === 'CRITICAL' ? 'sev-crit' : item.severity === 'HIGH' ? 'sev-high' : '';
+    return `<span class="sep">&bull;</span> ` +
+      `<span class="${sevClass}">[${item.type}]</span> ` +
+      `<span class="headline">${escapeHTML(item.title.slice(0, 80))}</span> ` +
+      `<span class="src">&mdash; ${item.source}</span>`;
+  });
+
+  if (items.length === 0) return;
+  const content = items.join(' &nbsp;&nbsp; ');
+  document.getElementById('marquee-track').innerHTML = `<span>${content}</span><span>${content}</span>`;
+}
+
+/* ============================================================= */
+/* DATA MANAGEMENT                                                */
+/* ============================================================= */
+function applyData(items) {
+  // Sort by date descending
+  items.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+
+  // Mark new items
+  const newTitles = new Set(items.map(i => i.title));
+  items.forEach(item => {
+    item.isNew = state.prevTitles.size > 0 && !state.prevTitles.has(item.title);
+  });
+  state.prevTitles = newTitles;
+
+  state.newsItems = items;
+  state.feedStatus.threatdigest = items.length > 0;
+
+  renderFeedCards();
+  updateOverviewStats();
+  buildThreatCategoryChart([], state.newsItems);
+  debouncedAnalyze();
+  updateThreatLevel();
+  updateMarquee();
+  document.getElementById('last-refresh').textContent =
+    'Updated ' + new Date().toUTCString().slice(17, 25) + ' UTC';
+  document.getElementById('badge-feeds').classList.toggle('visible', items.length === 0);
+}
+
+async function refreshData() {
+  try {
+    const res = await fetch(THREATDIGEST_API, { headers: { 'If-None-Match': state._etag || '' } });
+    if (res.status === 304) return; // No changes
+    const etag = res.headers.get('ETag');
+    if (etag) state._etag = etag;
+    const data = await res.json();
+    if (!Array.isArray(data)) return;
+    state.feedStatus.threatdigest = true;
+    const items = transformArticles(data);
+    if (items.length > 0) applyData(items);
+  } catch { state.feedStatus.threatdigest = false; }
+}
+
+/* ============================================================= */
+/* INITIALIZATION                                                 */
+/* ============================================================= */
+function init() {
+  // Phase 1: Read SSR-embedded data (instant — zero network requests)
+  const ssr = loadSSRData();
+  if (ssr) {
+    const items = transformArticles(ssr.articles || []);
+    state.pipelineStats = ssr.stats || null;
+    if (items.length > 0) {
+      applyData(items);
+    }
+  }
+
+  // Phase 2: If no SSR data, fetch from API (fallback)
+  if (!ssr || !(ssr.articles || []).length) {
+    refreshData();
+  }
+
+  // Phase 3: Schedule periodic refresh (local API only — fast)
+  setInterval(refreshData, REFRESH_INTERVAL);
+}
+
+/* ============================================================= */
+/* MOBILE MENU TOGGLE                                             */
+/* ============================================================= */
+function toggleMobileMenu() {
+  const leftPanel = document.getElementById('left-panel');
+  const overlay = document.getElementById('mobile-overlay');
+  const isOpen = leftPanel.classList.contains('open');
+
+  if (isOpen) {
+    leftPanel.classList.remove('open');
+    overlay.classList.remove('visible');
+  } else {
+    leftPanel.classList.add('open');
+    overlay.classList.add('visible');
+  }
+}
+
+function showMobileDetail() {
+  const rightPanel = document.getElementById('right-panel');
+  if (window.innerWidth <= 768 && rightPanel) {
+    rightPanel.classList.add('mobile-visible');
+  }
+}
+
+function hideMobileDetail() {
+  const rightPanel = document.getElementById('right-panel');
+  if (rightPanel) {
+    rightPanel.classList.remove('mobile-visible');
+  }
+}
+
+/* Close mobile menu on resize to desktop */
+window.addEventListener('resize', function() {
+  if (window.innerWidth > 1024) {
+    const leftPanel = document.getElementById('left-panel');
+    const overlay = document.getElementById('mobile-overlay');
+    const rightPanel = document.getElementById('right-panel');
+    if (leftPanel) leftPanel.classList.remove('open');
+    if (overlay) overlay.classList.remove('visible');
+    if (rightPanel) rightPanel.classList.remove('mobile-visible');
+  }
+});
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

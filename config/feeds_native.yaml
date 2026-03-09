@@ -1,0 +1,257 @@
+# Native cybersecurity news feeds - high-quality, curated sources
+
+# Tier 1: Top security news outlets
+- url: https://feeds.feedburner.com/TheHackersNews
+  category: Native
+  region: Global
+
+- url: https://www.securityweek.com/feed
+  category: Native
+  region: US
+
+- url: https://www.darkreading.com/rss.xml
+  category: Native
+  region: Global
+
+- url: https://www.bleepingcomputer.com/feed/
+  category: Native
+  region: Global
+
+- url: https://krebsonsecurity.com/feed/
+  category: Native
+  region: US
+
+- url: https://threatpost.com/feed/
+  category: Native
+  region: Global
+
+# Tier 2: Government and institutional
+- url: https://www.cisa.gov/news.xml
+  category: Native
+  region: US
+
+- url: https://www.ncsc.gov.uk/api/1/services/v1/report-rss-feed.xml
+  category: Native
+  region: UK
+
+- url: https://us-cert.cisa.gov/ncas/alerts.xml
+  category: Native
+  region: US
+
+# Tier 3: Research and analysis
+- url: https://www.schneier.com/feed/
+  category: Native
+  region: Global
+
+- url: https://blog.talosintelligence.com/rss/
+  category: Native
+  region: Global
+
+- url: https://www.welivesecurity.com/en/rss/feed/
+  category: Native
+  region: Global
+
+- url: https://feeds.feedburner.com/eset/blog
+  category: Native
+  region: Global
+
+- url: https://securelist.com/feed/
+  category: Native
+  region: Global
+
+- url: https://www.sentinelone.com/feed/
+  category: Native
+  region: Global
+
+- url: https://blog.qualys.com/feed
+  category: Native
+  region: Global
+
+- url: https://research.checkpoint.com/feed/
+  category: Native
+  region: Global
+
+- url: https://www.mandiant.com/resources/blog/rss.xml
+  category: Native
+  region: Global
+
+- url: https://www.recordedfuture.com/feed
+  category: Native
+  region: Global
+
+# Tier 4: Industry specific
+- url: https://cyberscoop.com/feed/
+  category: Native
+  region: US
+
+- url: https://www.infosecurity-magazine.com/rss/news/
+  category: Native
+  region: UK
+
+- url: https://www.tripwire.com/state-of-security/feed
+  category: Native
+  region: US
+
+- url: https://www.helpnetsecurity.com/feed/
+  category: Native
+  region: Global
+
+# Tier 5: APT & Threat Research
+- url: https://unit42.paloaltonetworks.com/feed/
+  category: Native
+  region: Global
+
+- url: https://www.elastic.co/security-labs/rss/feed.xml
+  category: Native
+  region: Global
+
+- url: https://www.crowdstrike.com/blog/feed/
+  category: Native
+  region: Global
+
+- url: https://www.malwarebytes.com/blog/feed
+  category: Native
+  region: Global
+
+- url: https://www.proofpoint.com/us/blog/rss.xml
+  category: Native
+  region: US
+
+- url: https://www.zscaler.com/blogs/security-research/rss
+  category: Native
+  region: Global
+
+- url: https://www.trendmicro.com/en_us/research.rss.html
+  category: Native
+  region: Global
+
+# Tier 6: Government & CERT (expanded)
+- url: https://www.cisa.gov/uscert/ics/advisories/advisories.xml
+  category: Native
+  region: US
+
+- url: https://cert.europa.eu/publications/security-advisories/rss
+  category: Native
+  region: EU
+
+- url: https://www.cyber.gov.au/about-us/view-all-content/alerts-and-advisories/rss.xml
+  category: Native
+  region: Australia
+
+# Tier 7: Ransomware & Malware specific
+- url: https://www.nomoreransom.org/en/rss.xml
+  category: Native
+  region: Global
+
+- url: https://www.virustotal.com/blog/feed/
+  category: Native
+  region: Global
+
+# Tier 8: Supply chain & open source security
+- url: https://github.blog/tag/security/feed/
+  category: Native
+  region: Global
+
+- url: https://snyk.io/blog/feed/
+  category: Native
+  region: Global
+
+# Tier 9: Vendor Security Advisories
+- url: https://msrc.microsoft.com/blog/feed
+  category: Native
+  region: Global
+
+- url: https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml
+  category: Native
+  region: Global
+
+- url: https://www.fortiguard.com/rss/ir.xml
+  category: Native
+  region: Global
+
+- url: https://support.f5.com/csp/article/K000137028/rss
+  category: Native
+  region: Global
+
+- url: https://www.ivanti.com/blog/topics/security/rss
+  category: Native
+  region: Global
+
+- url: https://www.vmware.com/security/advisories.xml
+  category: Native
+  region: Global
+
+# Tier 10: CVE & Vulnerability Feeds
+- url: https://github.com/advisories.atom
+  category: Native
+  region: Global
+
+- url: https://www.tenable.com/blog/feed
+  category: Native
+  region: Global
+
+- url: https://www.rapid7.com/blog/rss/
+  category: Native
+  region: Global
+
+- url: https://www.wordfence.com/blog/feed/
+  category: Native
+  region: Global
+
+# Tier 11: Regional CERTs
+- url: https://www.jpcert.or.jp/english/rss/jpcert-en.rdf
+  category: Native
+  region: Japan
+
+- url: https://www.cert-in.org.in/Rss.jsp
+  category: Native
+  region: India
+
+- url: https://www.csa.gov.sg/api/alerts-and-advisories/rss
+  category: Native
+  region: Singapore
+
+- url: https://www.cert.ssi.gouv.fr/feed/
+  category: Native
+  region: France
+
+- url: https://www.bsi.bund.de/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed.xml
+  category: Native
+  region: Germany
+
+- url: https://www.cccs-cccs.gc.ca/en/rss-feeds/cyber-centre-alerts-advisories.xml
+  category: Native
+  region: Canada
+
+# Tier 12: Industry Blogs & Analysis
+- url: https://www.sophos.com/en-us/blog.xml
+  category: Native
+  region: Global
+
+- url: https://www.arcticwolf.com/resources/blog/feed/
+  category: Native
+  region: Global
+
+- url: https://blog.sucuri.net/feed/
+  category: Native
+  region: Global
+
+- url: https://www.volexity.com/blog/feed/
+  category: Native
+  region: Global
+
+- url: https://therecord.media/feed
+  category: Native
+  region: Global
+
+- url: https://blog.cloudflare.com/tag/security/rss/
+  category: Native
+  region: Global
+
+- url: https://www.dragos.com/blog/feed/
+  category: Native
+  region: Global
+
+- url: https://www.nozominetworks.com/blog/feed/
+  category: Native
+  region: Global

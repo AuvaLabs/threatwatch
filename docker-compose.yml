@@ -1,0 +1,45 @@
+services:
+  pipeline:
+    build: .
+    container_name: threatwatch-pipeline
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SITE_DOMAIN=${SITE_DOMAIN:-threatdigest.cyberonehq.com}
+      - FEED_CUTOFF_DAYS=${FEED_CUTOFF_DAYS:-7}
+      - DAILY_BUDGET_USD=${DAILY_BUDGET_USD:-2.00}
+    volumes:
+      - threatwatch-data:/app/data
+    command: >
+      sh -c '
+        echo "Starting pipeline (initial run)..." &&
+        python threatdigest_main.py;
+        while true; do
+          echo "Sleeping 1800s until next run..." &&
+          sleep 1800 &&
+          echo "Starting pipeline run at $$(date -u +%Y-%m-%dT%H:%M:%SZ)..." &&
+          python threatdigest_main.py;
+        done
+      '
+
+  server:
+    build: .
+    container_name: threatwatch-server
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - PORT=${PORT:-8098}
+      - SITE_DOMAIN=${SITE_DOMAIN:-threatdigest.cyberonehq.com}
+    ports:
+      - "${PORT:-8098}:8098"
+    volumes:
+      - threatwatch-data:/app/data
+    depends_on:
+      - pipeline
+    command: ["python", "serve_threatwatch.py"]
+
+volumes:
+  threatwatch-data:

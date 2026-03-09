@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00e5ff;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#00ff88;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="#060a0d"/>
+  <rect x="2" y="2" width="60" height="60" rx="10" fill="none" stroke="url(#g)" stroke-width="1.5" opacity="0.4"/>
+  <!-- Shield -->
+  <path d="M32 10 L48 18 V34 C48 44 40 52 32 56 C24 52 16 44 16 34 V18 Z" fill="none" stroke="url(#g)" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Eye/scan circle -->
+  <circle cx="32" cy="30" r="8" fill="none" stroke="#00e5ff" stroke-width="2"/>
+  <circle cx="32" cy="30" r="3" fill="#00e5ff"/>
+  <!-- Scan lines -->
+  <line x1="24" y1="30" x2="18" y2="30" stroke="#00e5ff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="40" y1="30" x2="46" y2="30" stroke="#00e5ff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="32" y1="22" x2="32" y2="16" stroke="#00e5ff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="32" y1="38" x2="32" y2="44" stroke="#00e5ff" stroke-width="1.5" opacity="0.6"/>
+  <!-- TW text -->
+  <text x="32" y="53" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="7" fill="#00e5ff" opacity="0.7">TW</text>
+</svg>

@@ -1,0 +1,103 @@
+# Bing News RSS Search - complementary to Google for broader coverage
+
+- url: https://www.bing.com/news/search?q=cyber+attack&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=cybersecurity+hacks&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=ransomware+attack&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=data+breach&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=zero+day+exploit&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=malware+campaign&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=phishing+attack&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=supply+chain+cyber+attack&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=APT+nation+state+hacking&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=critical+CVE+vulnerability&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=cybersecurity+incident+response&format=rss
+  category: Bing
+  region: Global
+
+# Reddit & Twitter cyber content (validated via Bing)
+- url: https://www.bing.com/news/search?q=site%3Areddit.com+cybersecurity+hack&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=site%3Ax.com+cybersecurity+breach&format=rss
+  category: Bing
+  region: Global
+
+# Vendor & ICS/OT
+- url: https://www.bing.com/news/search?q=ICS+SCADA+cyber+attack+OT+security&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=Microsoft+Cisco+Fortinet+security+patch+advisory&format=rss
+  category: Bing
+  region: Global
+
+- url: https://www.bing.com/news/search?q=cloud+security+breach+AWS+Azure+GCP&format=rss
+  category: Bing
+  region: Global
+
+# EMEA
+- url: https://www.bing.com/news/search?q=cyber+attack+Europe+UK+Germany+France&format=rss
+  category: Bing
+  region: EMEA
+
+- url: https://www.bing.com/news/search?q=data+breach+Africa+South+Africa+Nigeria&format=rss
+  category: Bing
+  region: Africa
+
+# MENA
+- url: https://www.bing.com/news/search?q=cyber+attack+Middle+East+Saudi+Arabia+UAE+Qatar&format=rss
+  category: Bing
+  region: MENA
+
+- url: https://www.bing.com/news/search?q=cyber+attack+Iran+Israel+Turkey&format=rss
+  category: Bing
+  region: MENA
+
+# APAC
+- url: https://www.bing.com/news/search?q=cyber+attack+Asia+India+Japan+China+Korea&format=rss
+  category: Bing
+  region: APAC
+
+- url: https://www.bing.com/news/search?q=cyber+attack+Australia+Singapore+Philippines&format=rss
+  category: Bing
+  region: APAC
+
+# LATAM
+- url: https://www.bing.com/news/search?q=cyber+attack+Latin+America+Brazil+Mexico+Argentina&format=rss
+  category: Bing
+  region: LATAM
+
+- url: https://www.bing.com/news/search?q=ciberataque+ransomware+Am%C3%A9rica+Latina&format=rss
+  category: Bing
+  region: LATAM

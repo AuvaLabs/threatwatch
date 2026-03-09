@@ -1,0 +1,245 @@
+# Google News RSS Search - different keywords catch different incident types
+# Each query targets a specific threat category for broader coverage
+
+# Broad cyber attack queries
+- url: https://news.google.com/rss/search?q=cyber+attack&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=cybersecurity+breach&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=cybersecurity&hl=en-GB&gl=GB&ceid=GB:en
+  category: Google
+  region: UK
+
+- url: https://news.google.com/rss/search?q=cyber+incident&hl=en-AU&gl=AU&ceid=AU:en
+  category: Google
+  region: Australia
+
+# Targeted threat queries
+- url: https://news.google.com/rss/search?q=ransomware+attack&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=data+breach+hack&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=zero+day+vulnerability+exploit&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=phishing+campaign&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=supply+chain+attack+software&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=DDoS+attack&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=nation+state+cyber+espionage&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+# Regional coverage
+- url: https://news.google.com/rss/search?q=cyber+attack&hl=en-CA&gl=CA&ceid=CA:en
+  category: Google
+  region: Canada
+
+- url: https://news.google.com/rss/search?q=cyber+attack&hl=en-IN&gl=IN&ceid=IN:en
+  category: Google
+  region: India
+
+- url: https://news.google.com/rss/search?q=cyberattack&hl=de&gl=DE&ceid=DE:de
+  category: Google
+  region: Germany
+
+- url: https://news.google.com/rss/search?q=cyberattaque&hl=fr&gl=FR&ceid=FR:fr
+  category: Google
+  region: France
+
+# Middle East & APAC coverage
+- url: https://news.google.com/rss/search?q=cyber+attack&hl=en-SG&gl=SG&ceid=SG:en
+  category: Google
+  region: Singapore
+
+- url: https://news.google.com/rss/search?q=cyber+attack&hl=en-AE&gl=AE&ceid=AE:en
+  category: Google
+  region: UAE
+
+- url: https://news.google.com/rss/search?q=cyber+attack&hl=ja&gl=JP&ceid=JP:ja
+  category: Google
+  region: Japan
+
+- url: https://news.google.com/rss/search?q=cyber+attack&hl=ko&gl=KR&ceid=KR:ko
+  category: Google
+  region: South Korea
+
+- url: https://news.google.com/rss/search?q=cyber+attack&hl=pt-BR&gl=BR&ceid=BR:pt-419
+  category: Google
+  region: Brazil
+
+# Additional threat-specific
+- url: https://news.google.com/rss/search?q=critical+vulnerability+CVE&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=APT+threat+actor+campaign&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+# Reddit & Twitter cyber content (validated via search)
+- url: https://news.google.com/rss/search?q=site%3Areddit.com+cybersecurity+breach&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=site%3Areddit.com+ransomware+attack&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=site%3Ax.com+OR+site%3Atwitter.com+cybersecurity+zero+day&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=site%3Ax.com+OR+site%3Atwitter.com+data+breach+hacked&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+# Vendor advisory searches
+- url: https://news.google.com/rss/search?q=Microsoft+security+advisory+patch&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=Cisco+Fortinet+Palo+Alto+security+advisory&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=critical+infrastructure+cyber+attack+ICS+OT&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+# ============================================================
+# EXPANDED REGIONAL COVERAGE
+# ============================================================
+
+# EMEA — Europe
+- url: https://news.google.com/rss/search?q=cyber+attack+Europe&hl=en-GB&gl=GB&ceid=GB:en
+  category: Google
+  region: UK
+
+- url: https://news.google.com/rss/search?q=ransomware+Europe+UK&hl=en-GB&gl=GB&ceid=GB:en
+  category: Google
+  region: UK
+
+- url: https://news.google.com/rss/search?q=data+breach+Europe&hl=en-GB&gl=GB&ceid=GB:en
+  category: Google
+  region: UK
+
+- url: https://news.google.com/rss/search?q=Cyberangriff+Deutschland&hl=de&gl=DE&ceid=DE:de
+  category: Google
+  region: Germany
+
+- url: https://news.google.com/rss/search?q=cyberattaque+France&hl=fr&gl=FR&ceid=FR:fr
+  category: Google
+  region: France
+
+- url: https://news.google.com/rss/search?q=attacco+informatico+Italia&hl=it&gl=IT&ceid=IT:it
+  category: Google
+  region: Italy
+
+- url: https://news.google.com/rss/search?q=ciberataque+Espa%C3%B1a&hl=es&gl=ES&ceid=ES:es
+  category: Google
+  region: Spain
+
+- url: https://news.google.com/rss/search?q=cyber+attack+Netherlands+Belgium&hl=en-GB&gl=GB&ceid=GB:en
+  category: Google
+  region: Netherlands
+
+- url: https://news.google.com/rss/search?q=cyber+attack+Africa+South+Africa+Nigeria+Kenya&hl=en&gl=ZA&ceid=ZA:en
+  category: Google
+  region: South Africa
+
+# MENA — Middle East & North Africa
+- url: https://news.google.com/rss/search?q=cyber+attack+Middle+East&hl=en-AE&gl=AE&ceid=AE:en
+  category: Google
+  region: UAE
+
+- url: https://news.google.com/rss/search?q=cyber+attack+Saudi+Arabia&hl=en-AE&gl=AE&ceid=AE:en
+  category: Google
+  region: Saudi Arabia
+
+- url: https://news.google.com/rss/search?q=cyber+attack+Iran+Israel&hl=en&gl=US&ceid=US:en
+  category: Google
+  region: Middle East
+
+- url: https://news.google.com/rss/search?q=ransomware+Middle+East+Gulf&hl=en-AE&gl=AE&ceid=AE:en
+  category: Google
+  region: UAE
+
+- url: https://news.google.com/rss/search?q=%D9%87%D8%AC%D9%88%D9%85+%D8%B3%D9%8A%D8%A8%D8%B1%D8%A7%D9%86%D9%8A&hl=ar&gl=AE&ceid=AE:ar
+  category: Google
+  region: UAE
+
+- url: https://news.google.com/rss/search?q=siber+sald%C4%B1r%C4%B1+T%C3%BCrkiye&hl=tr&gl=TR&ceid=TR:tr
+  category: Google
+  region: Turkey
+
+# APAC — Asia Pacific
+- url: https://news.google.com/rss/search?q=cyber+attack+Asia+Pacific&hl=en-SG&gl=SG&ceid=SG:en
+  category: Google
+  region: Singapore
+
+- url: https://news.google.com/rss/search?q=ransomware+attack+Asia&hl=en-SG&gl=SG&ceid=SG:en
+  category: Google
+  region: Singapore
+
+- url: https://news.google.com/rss/search?q=data+breach+India&hl=en-IN&gl=IN&ceid=IN:en
+  category: Google
+  region: India
+
+- url: https://news.google.com/rss/search?q=cyber+attack+China+Taiwan&hl=en&gl=US&ceid=US:en
+  category: Google
+  region: China
+
+- url: https://news.google.com/rss/search?q=cyber+attack+Philippines+Indonesia+Thailand&hl=en-SG&gl=SG&ceid=SG:en
+  category: Google
+  region: Southeast Asia
+
+- url: https://news.google.com/rss/search?q=%E3%82%B5%E3%82%A4%E3%83%90%E3%83%BC%E6%94%BB%E6%92%83&hl=ja&gl=JP&ceid=JP:ja
+  category: Google
+  region: Japan
+
+- url: https://news.google.com/rss/search?q=cyber+attack+Australia+New+Zealand&hl=en-AU&gl=AU&ceid=AU:en
+  category: Google
+  region: Australia
+
+# LATAM — Latin America
+- url: https://news.google.com/rss/search?q=ataque+cibern%C3%A9tico+Am%C3%A9rica+Latina&hl=es&gl=MX&ceid=MX:es
+  category: Google
+  region: Mexico
+
+- url: https://news.google.com/rss/search?q=ciberataque+M%C3%A9xico&hl=es&gl=MX&ceid=MX:es
+  category: Google
+  region: Mexico
+
+- url: https://news.google.com/rss/search?q=ataque+cibern%C3%A9tico+Argentina+Colombia+Chile&hl=es&gl=AR&ceid=AR:es
+  category: Google
+  region: Argentina
+
+- url: https://news.google.com/rss/search?q=ataque+cibern%C3%A9tico+Brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419
+  category: Google
+  region: Brazil
+
+- url: https://news.google.com/rss/search?q=ransomware+Latin+America+Brazil+Mexico&hl=en&gl=US&ceid=US:en
+  category: Google
+  region: LATAM
+
+- url: https://news.google.com/rss/search?q=data+breach+Latin+America&hl=en&gl=US&ceid=US:en
+  category: Google
+  region: LATAM

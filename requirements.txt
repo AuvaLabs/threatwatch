@@ -1,0 +1,12 @@
+feedparser
+feedgen
+anthropic>=0.40.0
+httpx>=0.25.0
+newspaper3k
+requests
+beautifulsoup4
+readability-lxml
+python-dotenv
+pyyaml
+langdetect
+pytest>=7.0

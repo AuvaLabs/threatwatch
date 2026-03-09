@@ -1,0 +1,35 @@
+# Runtime data
+data/logs/
+data/output/
+data/state/
+
+# Keep directory structure
+!data/.gitkeep
+!data/logs/.gitkeep
+!data/output/.gitkeep
+!data/state/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Environment
+.env
+!.env.example
+
+# OS
+*.swp
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+docker-compose.override.yml
+data/enrich_errors/

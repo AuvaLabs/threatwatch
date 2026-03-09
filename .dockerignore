@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+
+# Runtime data (mounted as volume instead)
+data/
+
+# Python caches
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# Virtual environments
+.venv
+venv
+
+# IDE / OS
+.vscode
+.idea
+.DS_Store
+*.swp
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docs and tests
+docs/
+tests/
+
+# Claude config
+.claude/
+
+# Environment files (passed via docker-compose env_file)
+.env
+.env.*
