@@ -18,13 +18,11 @@ Monitor the global threat landscape from your own infrastructure — no API keys
 
 ---
 
-## 📸 Screenshots
+## 📸 Dashboard Preview
 
-<!-- Add screenshots of the dashboard here -->
-<!-- ![Dashboard](docs/screenshots/dashboard.png) -->
-<!-- ![Drilldown](docs/screenshots/drilldown.png) -->
+![ThreatWatch Dashboard](docs/preview.gif)
 
-_Screenshots coming soon._
+![Dashboard Screenshot](docs/screenshot.png)
 
 ---
 
@@ -149,24 +147,7 @@ ThreatWatch works fully without any API keys. Optionally, set `ANTHROPIC_API_KEY
 
 ## 🏗️ Architecture
 
-```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│  142 RSS     │────▶│  Fetch       │────▶│  Deduplicate │
-│  Feeds       │     │  (8 threads) │     │  (shingle)   │
-└─────────────┘     └──────────────┘     └──────┬───────┘
-                                                │
-                    ┌──────────────┐     ┌──────▼───────┐
-                    │  Classify    │◀────│  Scrape      │
-                    │  (keyword)   │     │  (full text)  │
-                    └──────┬───────┘     └──────────────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │  JSON    │ │  RSS     │ │  Dashboard│
-        │  Output  │ │  Feed    │ │  (SSR)    │
-        └──────────┘ └──────────┘ └──────────┘
-```
+![Architecture](docs/architecture.svg)
 
 **Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify → Output
 
