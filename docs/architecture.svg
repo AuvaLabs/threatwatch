@@ -1,0 +1,238 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="10" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,3 L0,6 Z" fill="#00e5ff" opacity="0.8"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="10" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,3 L0,6 Z" fill="#00ff88" opacity="0.8"/>
+    </marker>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <linearGradient id="headerGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#00ff88" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="600" fill="#0a0e17" rx="0"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.04" stroke="#00e5ff">
+    <line x1="0" y1="0" x2="0" y2="600" stroke-width="0.5"/><line x1="40" y1="0" x2="40" y2="600" stroke-width="0.5"/>
+    <line x1="80" y1="0" x2="80" y2="600" stroke-width="0.5"/><line x1="120" y1="0" x2="120" y2="600" stroke-width="0.5"/>
+    <line x1="160" y1="0" x2="160" y2="600" stroke-width="0.5"/><line x1="200" y1="0" x2="200" y2="600" stroke-width="0.5"/>
+    <line x1="240" y1="0" x2="240" y2="600" stroke-width="0.5"/><line x1="280" y1="0" x2="280" y2="600" stroke-width="0.5"/>
+    <line x1="320" y1="0" x2="320" y2="600" stroke-width="0.5"/><line x1="360" y1="0" x2="360" y2="600" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="400" y2="600" stroke-width="0.5"/><line x1="440" y1="0" x2="440" y2="600" stroke-width="0.5"/>
+    <line x1="480" y1="0" x2="480" y2="600" stroke-width="0.5"/><line x1="520" y1="0" x2="520" y2="600" stroke-width="0.5"/>
+    <line x1="560" y1="0" x2="560" y2="600" stroke-width="0.5"/><line x1="600" y1="0" x2="600" y2="600" stroke-width="0.5"/>
+    <line x1="640" y1="0" x2="640" y2="600" stroke-width="0.5"/><line x1="680" y1="0" x2="680" y2="600" stroke-width="0.5"/>
+    <line x1="720" y1="0" x2="720" y2="600" stroke-width="0.5"/><line x1="760" y1="0" x2="760" y2="600" stroke-width="0.5"/>
+    <line x1="800" y1="0" x2="800" y2="600" stroke-width="0.5"/><line x1="840" y1="0" x2="840" y2="600" stroke-width="0.5"/>
+    <line x1="880" y1="0" x2="880" y2="600" stroke-width="0.5"/><line x1="920" y1="0" x2="920" y2="600" stroke-width="0.5"/>
+    <line x1="960" y1="0" x2="960" y2="600" stroke-width="0.5"/><line x1="1000" y1="0" x2="1000" y2="600" stroke-width="0.5"/>
+    <line x1="1040" y1="0" x2="1040" y2="600" stroke-width="0.5"/><line x1="1080" y1="0" x2="1080" y2="600" stroke-width="0.5"/>
+    <line x1="1120" y1="0" x2="1120" y2="600" stroke-width="0.5"/><line x1="1160" y1="0" x2="1160" y2="600" stroke-width="0.5"/>
+    <line x1="0" y1="40" x2="1200" y2="40" stroke-width="0.5"/><line x1="0" y1="80" x2="1200" y2="80" stroke-width="0.5"/>
+    <line x1="0" y1="120" x2="1200" y2="120" stroke-width="0.5"/><line x1="0" y1="160" x2="1200" y2="160" stroke-width="0.5"/>
+    <line x1="0" y1="200" x2="1200" y2="200" stroke-width="0.5"/><line x1="0" y1="240" x2="1200" y2="240" stroke-width="0.5"/>
+    <line x1="0" y1="280" x2="1200" y2="280" stroke-width="0.5"/><line x1="0" y1="320" x2="1200" y2="320" stroke-width="0.5"/>
+    <line x1="0" y1="360" x2="1200" y2="360" stroke-width="0.5"/><line x1="0" y1="400" x2="1200" y2="400" stroke-width="0.5"/>
+    <line x1="0" y1="440" x2="1200" y2="440" stroke-width="0.5"/><line x1="0" y1="480" x2="1200" y2="480" stroke-width="0.5"/>
+    <line x1="0" y1="520" x2="1200" y2="520" stroke-width="0.5"/><line x1="0" y1="560" x2="1200" y2="560" stroke-width="0.5"/>
+  </g>
+
+  <!-- Title -->
+  <text x="600" y="38" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="20" font-weight="700" fill="#00e5ff" filter="url(#glow)">ThreatWatch</text>
+  <text x="600" y="56" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="10" fill="#5a6a8a" letter-spacing="3">ARCHITECTURE OVERVIEW</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION: DATA SOURCES (left)               -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <!-- Section label -->
+  <text x="115" y="90" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#00e5ff" opacity="0.6" letter-spacing="2">DATA SOURCES</text>
+
+  <!-- RSS Feeds box -->
+  <rect x="20" y="110" width="190" height="120" rx="6" fill="#0d1220" stroke="#1a2744" stroke-width="1"/>
+  <rect x="20" y="110" width="190" height="26" rx="6" fill="url(#headerGrad)"/>
+  <rect x="20" y="130" width="190" height="6" fill="#0d1220"/>
+  <circle cx="34" cy="123" r="4" fill="#00e5ff" opacity="0.7"/>
+  <text x="46" y="127" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="11" font-weight="600" fill="#e0e8f8">50+ RSS Feeds</text>
+
+  <text x="36" y="155" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#5a6a8a">&#x25B8; Bing News API</text>
+  <text x="36" y="172" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#5a6a8a">&#x25B8; Google News RSS</text>
+  <text x="36" y="189" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#5a6a8a">&#x25B8; Native Security Feeds</text>
+  <text x="36" y="206" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#5a6a8a">&#x25B8; CERT Advisories</text>
+
+  <!-- Dark Web Intel box -->
+  <rect x="20" y="260" width="190" height="120" rx="6" fill="#0d1220" stroke="#1a2744" stroke-width="1"/>
+  <rect x="20" y="260" width="190" height="26" rx="6" fill="#0d1220"/>
+  <rect x="20" y="260" width="190" height="26" rx="6" fill="#ff4444" opacity="0.08"/>
+  <rect x="20" y="280" width="190" height="6" fill="#0d1220"/>
+  <circle cx="34" cy="273" r="4" fill="#ff6b6b" opacity="0.7"/>
+  <text x="46" y="277" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="11" font-weight="600" fill="#e0e8f8">Dark Web Intel</text>
+
+  <text x="36" y="305" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#5a6a8a">&#x25B8; ThreatFox IOCs</text>
+  <text x="36" y="322" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#5a6a8a">&#x25B8; ransomware.live</text>
+  <text x="36" y="339" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#5a6a8a">&#x25B8; C2-Tracker</text>
+  <text x="36" y="356" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#5a6a8a">&#x25B8; Abuse.ch Feeds</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION: PROCESSING PIPELINE (center)       -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <text x="570" y="90" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#00e5ff" opacity="0.6" letter-spacing="2">PROCESSING PIPELINE</text>
+
+  <!-- Pipeline background -->
+  <rect x="245" y="100" width="650" height="150" rx="8" fill="#0b1020" stroke="#131d35" stroke-width="1" stroke-dasharray="4,4" opacity="0.6"/>
+
+  <!-- Feed Fetcher -->
+  <rect x="265" y="130" width="100" height="46" rx="5" fill="#0d1220" stroke="#00e5ff" stroke-width="1" opacity="0.9"/>
+  <text x="315" y="150" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00e5ff">Feed</text>
+  <text x="315" y="165" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00e5ff">Fetcher</text>
+
+  <!-- Arrow 1 -->
+  <line x1="370" y1="153" x2="395" y2="153" stroke="#00e5ff" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.7"/>
+
+  <!-- Deduplicator -->
+  <rect x="400" y="130" width="100" height="46" rx="5" fill="#0d1220" stroke="#00e5ff" stroke-width="1" opacity="0.9"/>
+  <text x="450" y="150" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00e5ff">Dedup-</text>
+  <text x="450" y="165" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00e5ff">licator</text>
+
+  <!-- Arrow 2 -->
+  <line x1="505" y1="153" x2="530" y2="153" stroke="#00e5ff" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.7"/>
+
+  <!-- Keyword Classifier -->
+  <rect x="535" y="130" width="100" height="46" rx="5" fill="#0d1220" stroke="#00e5ff" stroke-width="1" opacity="0.9"/>
+  <text x="585" y="150" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00e5ff">Keyword</text>
+  <text x="585" y="165" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00e5ff">Classifier</text>
+
+  <!-- Arrow 3 -->
+  <line x1="640" y1="153" x2="665" y2="153" stroke="#00e5ff" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.7"/>
+
+  <!-- Article Scraper -->
+  <rect x="670" y="130" width="100" height="46" rx="5" fill="#0d1220" stroke="#00e5ff" stroke-width="1" opacity="0.9"/>
+  <text x="720" y="150" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00e5ff">Article</text>
+  <text x="720" y="165" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00e5ff">Scraper</text>
+
+  <!-- Arrow 4 -->
+  <line x1="775" y1="153" x2="800" y2="153" stroke="#00e5ff" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.7"/>
+
+  <!-- Output Writer -->
+  <rect x="805" y="130" width="100" height="46" rx="5" fill="#0d1220" stroke="#00ff88" stroke-width="1" opacity="0.9"/>
+  <text x="855" y="150" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00ff88">Output</text>
+  <text x="855" y="165" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" font-weight="600" fill="#00ff88">Writer</text>
+
+  <!-- Pipeline description -->
+  <text x="570" y="215" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#3a4a6a">fetch &#x2192; normalize &#x2192; deduplicate &#x2192; classify &#x2192; enrich &#x2192; persist</text>
+  <text x="570" y="232" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#2a3a5a">Python 3.x  |  feedparser  |  newspaper3k  |  jinja2</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ARROWS: Sources to Pipeline                 -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <!-- RSS feeds to Feed Fetcher -->
+  <path d="M210,170 C235,170 240,153 260,153" fill="none" stroke="#00e5ff" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.5"/>
+
+  <!-- Dark Web to Feed Fetcher -->
+  <path d="M210,310 C240,310 240,153 260,153" fill="none" stroke="#00e5ff" stroke-width="1.2" opacity="0.5"/>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION: OUTPUT (right side, below pipeline)-->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <text x="570" y="280" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#00ff88" opacity="0.6" letter-spacing="2">OUTPUT</text>
+
+  <!-- Arrow from Output Writer down to outputs -->
+  <line x1="855" y1="180" x2="855" y2="270" stroke="#00ff88" stroke-width="1.2" opacity="0.4"/>
+
+  <!-- JSON Data Files -->
+  <rect x="270" y="300" width="170" height="50" rx="5" fill="#0d1220" stroke="#00ff88" stroke-width="1" opacity="0.8"/>
+  <rect x="270" y="300" width="170" height="22" rx="5" fill="#00ff88" opacity="0.06"/>
+  <rect x="270" y="318" width="170" height="4" fill="#0d1220"/>
+  <text x="283" y="316" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="10" font-weight="600" fill="#00ff88">&#x1F4C4; JSON Data Files</text>
+  <text x="283" y="339" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#4a5a7a">articles.json, summary.md</text>
+
+  <!-- RSS Feed -->
+  <rect x="480" y="300" width="170" height="50" rx="5" fill="#0d1220" stroke="#00ff88" stroke-width="1" opacity="0.8"/>
+  <rect x="480" y="300" width="170" height="22" rx="5" fill="#00ff88" opacity="0.06"/>
+  <rect x="480" y="318" width="170" height="4" fill="#0d1220"/>
+  <text x="493" y="316" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="10" font-weight="600" fill="#00ff88">&#x1F4E1; RSS Feed</text>
+  <text x="493" y="339" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#4a5a7a">feed.xml (Atom/RSS)</text>
+
+  <!-- HTML Dashboard -->
+  <rect x="690" y="300" width="170" height="50" rx="5" fill="#0d1220" stroke="#00ff88" stroke-width="1" opacity="0.8"/>
+  <rect x="690" y="300" width="170" height="22" rx="5" fill="#00ff88" opacity="0.06"/>
+  <rect x="690" y="318" width="170" height="4" fill="#0d1220"/>
+  <text x="703" y="316" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="10" font-weight="600" fill="#00ff88">&#x1F310; HTML Dashboard</text>
+  <text x="703" y="339" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#4a5a7a">SSR via Jinja2</text>
+
+  <!-- Arrows from Output Writer to each output -->
+  <path d="M855,270 L855,285 L355,285 L355,296" fill="none" stroke="#00ff88" stroke-width="1" marker-end="url(#arrow-green)" opacity="0.4"/>
+  <path d="M855,270 L855,285 L565,285 L565,296" fill="none" stroke="#00ff88" stroke-width="1" marker-end="url(#arrow-green)" opacity="0.4"/>
+  <path d="M855,270 L855,285 L775,285 L775,296" fill="none" stroke="#00ff88" stroke-width="1" marker-end="url(#arrow-green)" opacity="0.4"/>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION: DEPLOYMENT (bottom)                -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <text x="570" y="400" text-anchor="middle" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#8855ff" opacity="0.6" letter-spacing="2">DEPLOYMENT</text>
+
+  <!-- GitHub Pages -->
+  <rect x="160" y="420" width="220" height="65" rx="5" fill="#0d1220" stroke="#8855ff" stroke-width="1" opacity="0.7"/>
+  <rect x="160" y="420" width="220" height="22" rx="5" fill="#8855ff" opacity="0.06"/>
+  <rect x="160" y="438" width="220" height="4" fill="#0d1220"/>
+  <text x="175" y="436" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="10" font-weight="600" fill="#a577ff">GitHub Pages</text>
+  <text x="175" y="457" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#4a5a7a">Static site hosting</text>
+  <text x="175" y="472" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#4a5a7a">HTML + JSON + RSS artifacts</text>
+
+  <!-- Local Server -->
+  <rect x="420" y="420" width="220" height="65" rx="5" fill="#0d1220" stroke="#8855ff" stroke-width="1" opacity="0.7"/>
+  <rect x="420" y="420" width="220" height="22" rx="5" fill="#8855ff" opacity="0.06"/>
+  <rect x="420" y="438" width="220" height="4" fill="#0d1220"/>
+  <text x="435" y="436" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="10" font-weight="600" fill="#a577ff">Local Server</text>
+  <text x="435" y="457" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#4a5a7a">Live API endpoint</text>
+  <text x="435" y="472" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#4a5a7a">python -m http.server</text>
+
+  <!-- Cron Schedule -->
+  <rect x="680" y="420" width="220" height="65" rx="5" fill="#0d1220" stroke="#8855ff" stroke-width="1" opacity="0.7"/>
+  <rect x="680" y="420" width="220" height="22" rx="5" fill="#8855ff" opacity="0.06"/>
+  <rect x="680" y="438" width="220" height="4" fill="#0d1220"/>
+  <text x="695" y="436" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="10" font-weight="600" fill="#a577ff">Cron Scheduler</text>
+  <text x="695" y="457" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#4a5a7a">Every 30 minutes</text>
+  <text x="695" y="472" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#4a5a7a">*/30 * * * * python main.py</text>
+
+  <!-- Arrows from outputs down to deployment -->
+  <path d="M355,354 L355,375 L270,375 L270,416" fill="none" stroke="#8855ff" stroke-width="0.8" marker-end="url(#arrow)" opacity="0.3" stroke-dasharray="3,3"/>
+  <path d="M565,354 L565,375 L530,375 L530,416" fill="none" stroke="#8855ff" stroke-width="0.8" marker-end="url(#arrow)" opacity="0.3" stroke-dasharray="3,3"/>
+  <path d="M775,354 L775,375 L790,375 L790,416" fill="none" stroke="#8855ff" stroke-width="0.8" marker-end="url(#arrow)" opacity="0.3" stroke-dasharray="3,3"/>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- DATA FLOW LEGEND                            -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <rect x="20" y="420" width="120" height="65" rx="5" fill="#0d1220" stroke="#1a2744" stroke-width="1" opacity="0.6"/>
+  <text x="32" y="438" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#5a6a8a" font-weight="600">LEGEND</text>
+  <line x1="32" y1="452" x2="62" y2="452" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="70" y="455" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="7" fill="#5a6a8a">Ingest</text>
+  <line x1="32" y1="466" x2="62" y2="466" stroke="#00ff88" stroke-width="1.5"/>
+  <text x="70" y="469" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="7" fill="#5a6a8a">Output</text>
+  <line x1="32" y1="480" x2="62" y2="480" stroke="#8855ff" stroke-width="1.5" stroke-dasharray="3,3"/>
+  <text x="70" y="483" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="7" fill="#5a6a8a">Deploy</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- STATS BAR (bottom)                          -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <rect x="20" y="510" width="1160" height="34" rx="5" fill="#080c14" stroke="#131d35" stroke-width="1"/>
+  <text x="40" y="531" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="9" fill="#3a4a6a">
+    <tspan fill="#00e5ff">50+</tspan> feeds  |  <tspan fill="#00e5ff">30min</tspan> refresh  |  <tspan fill="#00ff88">3</tspan> output formats  |  <tspan fill="#a577ff">3</tspan> deploy targets  |  <tspan fill="#5a6a8a">100% open source</tspan>
+  </text>
+
+  <!-- Footer -->
+  <text x="1160" y="580" text-anchor="end" font-family="'SF Mono', 'Fira Code', 'Cascadia Code', monospace" font-size="8" fill="#1a2744">ThreatWatch v1.0 Architecture</text>
+</svg>
