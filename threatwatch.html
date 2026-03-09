@@ -659,6 +659,39 @@ body::before {
 .briefing-text .b-warn { color: var(--amber); font-weight: 600; }
 .briefing-text .b-green { color: var(--green); font-weight: 600; }
 
+.action-drilldown-list {
+  margin: 4px 0 0 16px;
+  padding: 0;
+  font-size: inherit;
+  line-height: 1.6;
+}
+.action-drilldown-list li.action-drilldown {
+  cursor: pointer;
+  padding: 3px 4px;
+  margin: 2px -4px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+  border-left: 2px solid transparent;
+}
+.action-drilldown-list li.action-drilldown:hover {
+  background: rgba(0,229,255,0.06);
+  border-left-color: var(--cyan);
+  color: #e0e8f8;
+}
+.action-drilldown-list li.action-drilldown .action-arrow {
+  color: var(--cyan);
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.action-drilldown-list li.action-drilldown:hover .action-arrow {
+  opacity: 1;
+}
+.action-drilldown-list li.action-drilldown.active-action {
+  background: rgba(0,229,255,0.1);
+  border-left-color: var(--cyan);
+}
+
 .briefing-timestamp {
   font-size: 9px;
   color: var(--text-muted);
@@ -1777,6 +1810,7 @@ const state = {
   activeSector: null,   // {name, re} or null
   activeActor: null,    // {name, re} or null
   activeCategory: null, // {name, re} or null — chart category drilldown
+  _actionDrilldown: null, // {type, value, label} — recommended action drilldown
   selectedItem: null,
   feedStatus: { threatdigest: false },
   pipelineStats: null,
@@ -2117,25 +2151,58 @@ function renderBriefing(items, allText, globalTotal) {
     b += `${isFiltered ? 'Within this region, ' : 'Geographically, '}${topGeo.map(([cc, cnt]) => `${FLAG(cc)} ${COUNTRY_NAMES[cc] || cc} (${cnt})`).join(', ')} ${isFiltered ? 'are most impacted' : 'are the most referenced in current threat reporting'}. `;
   }
 
-  // Para 6: Context-aware recommended actions
+  // Para 6: Context-aware recommended actions (with drilldown)
   const topCatNames = topCats.map(c => c[0]);
-  const actions = [];
-  if (critCount > 0) actions.push(`<span class="b-crit">Review ${critCount} critical advisories immediately</span> and assess organizational exposure`);
-  if (topCatNames.includes('Ransomware')) actions.push('Verify offline backup integrity, test restoration procedures, and audit RDP/VPN access controls');
-  if (topCatNames.includes('Phishing') || topCatNames.includes('BEC')) actions.push('Reinforce email security controls and issue staff awareness reminders for credential harvesting campaigns');
-  if (topCatNames.includes('Zero-Day Exploit') || topCatNames.includes('Vulnerability Disclosure')) actions.push('Accelerate patch management cycles and review exposure to disclosed vulnerabilities');
-  if (nationState.length > 0) actions.push(`Conduct threat hunting for ${nationState.slice(0, 2).map(a => a.name).join('/')} TTPs and validate detection signatures`);
-  if (topCatNames.includes('Data Breach')) actions.push('Audit data access controls, review DLP policies, and verify incident response playbooks');
-  if (topCatNames.includes('Supply Chain Attack')) actions.push('Review third-party vendor access, validate software supply chain integrity, and audit dependency sources');
-  if (sectorHits.length > 0 && !actions.some(a => a.includes('sector'))) {
+  const actions = []; // { html, drilldown: {type, value} }
+  if (critCount > 0) actions.push({
+    html: `<span class="b-crit">Review ${critCount} critical advisories immediately</span> and assess organizational exposure`,
+    drilldown: { type: 'severity', value: 'CRITICAL' }
+  });
+  if (topCatNames.includes('Ransomware')) actions.push({
+    html: 'Verify offline backup integrity, test restoration procedures, and audit RDP/VPN access controls',
+    drilldown: { type: 'category', value: 'Ransomware' }
+  });
+  if (topCatNames.includes('Phishing') || topCatNames.includes('BEC')) actions.push({
+    html: 'Reinforce email security controls and issue staff awareness reminders for credential harvesting campaigns',
+    drilldown: { type: 'category', value: topCatNames.includes('Phishing') ? 'Phishing' : 'BEC' }
+  });
+  if (topCatNames.includes('Zero-Day Exploit') || topCatNames.includes('Vulnerability Disclosure')) actions.push({
+    html: 'Accelerate patch management cycles and review exposure to disclosed vulnerabilities',
+    drilldown: { type: 'category', value: topCatNames.includes('Zero-Day Exploit') ? 'Zero-Day' : 'Vulnerability' }
+  });
+  if (nationState.length > 0) actions.push({
+    html: `Conduct threat hunting for ${nationState.slice(0, 2).map(a => a.name).join('/')} TTPs and validate detection signatures`,
+    drilldown: { type: 'actor', value: nationState[0].name }
+  });
+  if (topCatNames.includes('Data Breach')) actions.push({
+    html: 'Audit data access controls, review DLP policies, and verify incident response playbooks',
+    drilldown: { type: 'category', value: 'Data Breach' }
+  });
+  if (topCatNames.includes('Supply Chain Attack')) actions.push({
+    html: 'Review third-party vendor access, validate software supply chain integrity, and audit dependency sources',
+    drilldown: { type: 'category', value: 'Supply Chain' }
+  });
+  if (sectorHits.length > 0 && !actions.some(a => a.html.includes('sector'))) {
     const topSector = sectorHits[0];
-    actions.push(`${topSector.icon} ${topSector.name} sector organizations should heighten monitoring given concentrated targeting`);
+    actions.push({
+      html: `${topSector.icon} ${topSector.name} sector organizations should heighten monitoring given concentrated targeting`,
+      drilldown: { type: 'sector', value: topSector.name }
+    });
   }
-  if (malwareFound.length > 0 && !actions.some(a => a.includes('detection'))) actions.push(`Update endpoint detection signatures for ${malwareFound.slice(0, 2).map(m => m.name).join(', ')} activity`);
-  if (actions.length === 0) actions.push(`Maintain baseline monitoring across all threat categories${isFiltered ? ' for ' + regionName : ''}`);
+  if (malwareFound.length > 0 && !actions.some(a => a.html.includes('detection'))) actions.push({
+    html: `Update endpoint detection signatures for ${malwareFound.slice(0, 2).map(m => m.name).join(', ')} activity`,
+    drilldown: { type: 'actor', value: malwareFound[0].name }
+  });
+  if (actions.length === 0) actions.push({
+    html: `Maintain baseline monitoring across all threat categories${isFiltered ? ' for ' + regionName : ''}`,
+    drilldown: null
+  });
 
-  b += `<br><br><strong>Recommended Actions:</strong><ul style="margin:4px 0 0 16px;padding:0;font-size:inherit;line-height:1.6">${
-    actions.slice(0, 5).map(a => `<li>${a}</li>`).join('')
+  b += `<br><br><strong>Recommended Actions:</strong><ul class="action-drilldown-list">${
+    actions.slice(0, 5).map((a, i) => {
+      const dd = a.drilldown ? ` onclick="drilldownAction('${a.drilldown.type}','${a.drilldown.value.replace(/'/g, "\\'")}')" class="action-drilldown"` : '';
+      return `<li${dd}>${a.html}<span class="action-arrow">${a.drilldown ? ' &#8594;' : ''}</span></li>`;
+    }).join('')
   }</ul>`;
 
   container.innerHTML = `
@@ -2413,6 +2480,10 @@ function filterMatchesItem(filter, item) {
     else if (filter === 'vuln') catMatch = item.cssType === 'vuln' || item.cssType === 'cve' || item.cssType === 'cisa-kev';
     else if (filter === 'darkweb') catMatch = item.isDarkweb === true;
   }
+  // Severity drilldown from recommended actions
+  if (state._actionDrilldown && state._actionDrilldown.type === 'severity') {
+    if (item.severity !== state._actionDrilldown.value) return false;
+  }
   // Drilldown filters (sector, actor, category chart)
   if (state.activeSector || state.activeActor || state.activeCategory) {
     const text = (item.title || '') + ' ' + (item.description || '');
@@ -2471,7 +2542,7 @@ function renderFeedCards(reset = true) {
 
   // Update header count
   const countBadge = document.getElementById('feed-count-badge');
-  const hasDrilldown = state.activeSector || state.activeActor || state.activeCategory;
+  const hasDrilldown = state.activeSector || state.activeActor || state.activeCategory || state._actionDrilldown;
   if (filter === 'all' && !hasDrilldown) {
     countBadge.textContent = '[' + state.newsItems.length + ' items]';
   } else {
@@ -2479,6 +2550,7 @@ function renderFeedCards(reset = true) {
     if (state.activeCategory) labels.push(state.activeCategory.name);
     if (state.activeActor) labels.push(state.activeActor.name);
     if (state.activeSector) labels.push(state.activeSector.name);
+    if (state._actionDrilldown && !labels.length) labels.push(state._actionDrilldown.label);
     if (filter !== 'all' && !labels.length) labels.push(filter.toUpperCase());
     const label = labels.join(' + ');
     countBadge.textContent = '[' + filtered.length + ' ' + label + ' of ' + state.newsItems.length + ']';
@@ -2738,6 +2810,7 @@ document.getElementById('feed-filters').addEventListener('click', (e) => {
   state.activeSector = null; // clear all drilldowns on category change
   state.activeActor = null;
   state.activeCategory = null;
+  state._actionDrilldown = null;
   renderFeedCards();
   buildThreatCategoryChart([], state.newsItems);
   debouncedAnalyze(); // refresh drilldown active states
@@ -2752,6 +2825,7 @@ document.getElementById('region-filters').addEventListener('click', (e) => {
   state.activeSector = null; // clear all drilldowns on region change
   state.activeActor = null;
   state.activeCategory = null;
+  state._actionDrilldown = null;
   // Close detail view and restore briefing sections
   document.querySelectorAll('.center-section').forEach(s => s.style.display = '');
   document.getElementById('detail-article-center').style.display = 'none';
@@ -2935,6 +3009,80 @@ function clearCategoryFilter() {
   state.activeCategory = null;
   renderFeedCards();
   buildThreatCategoryChart([], state.newsItems);
+}
+
+/* ============================================================= */
+/* RECOMMENDED ACTION DRILLDOWN                                    */
+/* ============================================================= */
+function drilldownAction(type, value) {
+  // Clear existing drilldowns first
+  state.activeSector = null;
+  state.activeActor = null;
+  state.activeCategory = null;
+  state.activeFilter = 'all';
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  const allBtn = document.querySelector('[data-filter="all"]');
+  if (allBtn) allBtn.classList.add('active');
+
+  if (type === 'severity') {
+    // Filter by severity — use a special regex that matches severity-appropriate items
+    // We use activeCategory as the vehicle, with a custom matcher
+    state._actionDrilldown = { type, value, label: `${value} Severity` };
+    renderFeedCards();
+    scrollToFeed();
+    highlightActiveAction(value);
+    return;
+  }
+
+  if (type === 'category') {
+    const re = CAT_KEYWORDS[value];
+    if (re) {
+      state.activeCategory = { name: value, re };
+      state._actionDrilldown = { type, value, label: value };
+    }
+  } else if (type === 'actor') {
+    const actor = ACTOR_PATTERNS.find(a => a.name === value);
+    if (actor) {
+      state.activeActor = { name: actor.name, re: actor.re };
+      state._actionDrilldown = { type, value, label: actor.name };
+    }
+  } else if (type === 'sector') {
+    const sector = SECTOR_PATTERNS.find(s => s.name === value);
+    if (sector) {
+      state.activeSector = { name: sector.name, re: sector.re, icon: sector.icon };
+      state._actionDrilldown = { type, value, label: sector.name };
+    }
+  }
+
+  renderFeedCards();
+  buildThreatCategoryChart([], state.newsItems);
+  scrollToFeed();
+  highlightActiveAction(value);
+}
+
+function scrollToFeed() {
+  const feed = document.getElementById('threat-feed');
+  if (feed) feed.scrollTo({ top: 0, behavior: 'smooth' });
+  // On mobile, open left panel to show results
+  if (window.innerWidth <= 1024) {
+    const leftPanel = document.getElementById('left-panel');
+    const overlay = document.getElementById('mobile-overlay');
+    if (leftPanel) leftPanel.classList.add('open');
+    if (overlay) overlay.classList.add('visible');
+  }
+}
+
+function highlightActiveAction(value) {
+  document.querySelectorAll('.action-drilldown').forEach(li => {
+    li.classList.remove('active-action');
+  });
+  // Find the matching action by onclick content
+  document.querySelectorAll('.action-drilldown').forEach(li => {
+    const onclick = li.getAttribute('onclick') || '';
+    if (onclick.includes(`'${value.replace(/'/g, "\\'")}'`)) {
+      li.classList.add('active-action');
+    }
+  });
 }
 
 /* ============================================================= */
