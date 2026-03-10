@@ -74,5 +74,9 @@ DAILY_BUDGET_USD = float(os.getenv("DAILY_BUDGET_USD", "2.00"))
 def validate_config():
     if not ANTHROPIC_API_KEY:
         logging.info(
-            "ANTHROPIC_API_KEY not set — using keyword classifier (zero cost)."
+            "ANTHROPIC_API_KEY not set — keyword classifier only (zero cost)."
+        )
+    else:
+        logging.info(
+            "ANTHROPIC_API_KEY set — hybrid mode (keyword + AI escalation)."
         )
