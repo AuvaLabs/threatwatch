@@ -14,7 +14,7 @@ from modules.feed_fetcher import fetch_articles
 from modules.deduplicator import deduplicate_articles
 from modules.language_tools import detect_language
 from modules.article_scraper import process_urls_in_parallel
-from modules.keyword_classifier import classify_article
+from modules.hybrid_classifier import classify_article
 from modules.logger_utils import setup_logger, log_article_summary
 from modules.run_stats import RunStats
 from modules.output_writer import (
@@ -53,6 +53,8 @@ def enrich_articles(articles, summarize=False, stats=None):
                 stats.cache_hits += 1
             else:
                 stats.cache_misses += 1
+            if result.get("_ai_enhanced"):
+                stats.ai_escalations = getattr(stats, "ai_escalations", 0) + 1
 
         enriched_article = {
             **article,
