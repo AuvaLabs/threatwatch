@@ -7,7 +7,12 @@ from modules.feed_fetcher import fetch_articles
 class TestFetchArticles:
     @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x: x)
     @patch("modules.feed_fetcher.feedparser.parse")
-    def test_returns_articles_from_feeds(self, mock_parse, mock_resolve):
+    @patch("modules.feed_fetcher._get_session")
+    def test_returns_articles_from_feeds(self, mock_get_session, mock_parse, mock_resolve):
+        mock_http_resp = MagicMock()
+        mock_http_resp.content = b""
+        mock_get_session.return_value.get.return_value = mock_http_resp
+
         mock_entry = MagicMock()
         mock_entry.title = "Test Article"
         mock_entry.link = "https://example.com/article"
@@ -27,7 +32,12 @@ class TestFetchArticles:
 
     @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x: x)
     @patch("modules.feed_fetcher.feedparser.parse")
-    def test_no_global_state_accumulation(self, mock_parse, mock_resolve):
+    @patch("modules.feed_fetcher._get_session")
+    def test_no_global_state_accumulation(self, mock_get_session, mock_parse, mock_resolve):
+        mock_http_resp = MagicMock()
+        mock_http_resp.content = b""
+        mock_get_session.return_value.get.return_value = mock_http_resp
+
         mock_entry = MagicMock()
         mock_entry.title = "Article"
         mock_entry.link = "https://example.com/1"

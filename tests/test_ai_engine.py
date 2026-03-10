@@ -24,8 +24,10 @@ class TestExtractJson:
 
 
 class TestAnalyzeArticle:
+    @patch("modules.ai_engine.track_usage")
+    @patch("modules.ai_engine.check_daily_budget", return_value=True)
     @patch("modules.ai_engine._get_client")
-    def test_successful_analysis(self, mock_get_client):
+    def test_successful_analysis(self, mock_get_client, mock_budget, mock_track):
         mock_response = MagicMock()
         mock_response.content = [MagicMock()]
         mock_response.content[0].text = json.dumps({

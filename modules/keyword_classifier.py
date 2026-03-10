@@ -92,7 +92,8 @@ _RULES = [
             r"\bmalware\b|trojan|backdoor|\brat\b|stealer|infostealer"
             r"|loader|dropper|\bbotnet\b|\bworm\b|emotet|qakbot|trickbot"
             r"|cobalt\s*strike|sliver\s+c2|redline\s+stealer|raccoon"
-            r"|bumblebee|icedid|lumma\s*stealer|vidar|amadey",
+            r"|bumblebee|icedid|lumma\s*stealer|vidar|amadey"
+            r"|rootkit|spyware|keylogger|wiper|cryptojack",
             re.IGNORECASE,
         ),
         "confidence": 87,
@@ -226,6 +227,72 @@ _RULES = [
     },
 ]
 
+# Noise patterns — match articles that pass the cyber keyword check
+# but are NOT actual threat intelligence (jobs, funding, PR, etc.)
+_NOISE_PATTERNS = [
+    # Job listings / career content
+    re.compile(
+        r"cybersecurity\s+jobs?\s+(available|listing|opening|posted)"
+        r"|jobs?\s+available\s+right\s+now"
+        r"|clearance\s*jobs\s+(available|listing|opening|posted)"
+        r"|cybersecurity\s+(career|workforce|talent)\s+(path|shortage|gap|pipeline|crisis)"
+        r"|(salary|pay|compensation)\s+(guide|survey|report|trends?)"
+        r"|skills?\s+(gap|shortage)\s+(report|survey|crisis)"
+        r"|cybersecurity\s+hiring\s+(trends?|challenges?|crisis)",
+        re.IGNORECASE,
+    ),
+    # Workforce diversity opinion pieces (not threat intel)
+    re.compile(
+        r"(women|gender|diversity|inclusion)\s+(in|say|are\s+shaping|shaping)\s+.{0,20}(cyber|security|infosec)"
+        r"|welcoming\s+career"
+        r"|turning\s+expertise\s+into\s+opportunity",
+        re.IGNORECASE,
+    ),
+    # Vendor funding rounds
+    re.compile(
+        r"\b(raises?|lands?|secures?|closes?)\s+\$\d+[\d.]*\s*(million|m\b|billion|b\b)"
+        r"|series\s+[A-D]\s+(funding|round|raise)"
+        r"|seed\s+round|funding\s+round",
+        re.IGNORECASE,
+    ),
+    # Conference / event marketing
+    re.compile(
+        r"(register\s+now|join\s+us)\s+(for|at)\s+"
+        r"|webinar\s+(guide|for\s+security\s+leaders)",
+        re.IGNORECASE,
+    ),
+    # Celebrity / entertainment using 'cyber attack' loosely
+    re.compile(
+        r"(apologises?|apologizes?)\s+to\s+\w+\s+for\s+cyber"
+        r"|mammootty|bollywood.*cyber",
+        re.IGNORECASE,
+    ),
+    # M&A / business deals (not threat intel)
+    re.compile(
+        r"cybersecurity\s+M&A\s+roundup"
+        r"|venture\s+investor.*cyber|dark\s+horse\s+for\s+venture"
+        r"|cyber\s+insurance\s+premium",
+        re.IGNORECASE,
+    ),
+    # Networking / career events (not threat intel)
+    re.compile(
+        r"networking\s+breakfast"
+        r"|talent\s+under\s+one\s+roof"
+        r"|expanding\s+the\s+pool\s+of\s+.*talent"
+        r"|arts?\s+graduate\s+ended\s+up\s+managing\s+cyber",
+        re.IGNORECASE,
+    ),
+    # Non-cyber social/political (matched cyber keywords loosely)
+    re.compile(
+        r"\bban\s+children\b.*social\s+media"
+        r"|arrests?\s+\d+\s+people\s+for\s+sharing"
+        r"|\bkids\b.*digital\s+safety\s+act",
+        re.IGNORECASE,
+    ),
+]
+
+logger = logging.getLogger(__name__)
+
 # Broad cybersecurity relevance check
 _CYBER_KEYWORDS = re.compile(
     r"cyber|hack|breach|malware|ransomware|phishing|vulnerability|exploit"
@@ -233,7 +300,8 @@ _CYBER_KEYWORDS = re.compile(
     r"|data\s+leak|threat\s+actor|attack|infosec|cisa|ncsc"
     r"|patch\s+tuesday|critical\s+vuln|backdoor|credential"
     r"|authentication|encryption|firewall|endpoint\s+security"
-    r"|soc\s+|siem|penetration\s+test|bug\s+bounty|dark\s+web",
+    r"|soc\s+|siem|penetration\s+test|bug\s+bounty|dark\s+web"
+    r"|rootkit|spyware|keylogger|wiper|cryptojack",
     re.IGNORECASE,
 )
 
@@ -252,8 +320,20 @@ def classify_article(title, content=None, source_language="en"):
 
     text = title + " " + (content or "")
 
-    # Check if cybersecurity-related
-    is_cyber = bool(_CYBER_KEYWORDS.search(text))
+    # Classify by first matching rule
+    category = "General Cyber Threat"
+    confidence = 60
+    rule_matched = False
+
+    for rule in _RULES:
+        if rule["re"].search(text):
+            category = rule["category"]
+            confidence = rule["confidence"]
+            rule_matched = True
+            break
+
+    # Check if cybersecurity-related (broad keywords OR specific rule match)
+    is_cyber = rule_matched or bool(_CYBER_KEYWORDS.search(text))
 
     if not is_cyber:
         result = {
@@ -266,15 +346,19 @@ def classify_article(title, content=None, source_language="en"):
         cache_result(cache_key, result)
         return result
 
-    # Classify by first matching rule
-    category = "General Cyber Threat"
-    confidence = 60
-
-    for rule in _RULES:
-        if rule["re"].search(text):
-            category = rule["category"]
-            confidence = rule["confidence"]
-            break
+    # Filter out noise — passes cyber check but is not threat intel
+    for noise_re in _NOISE_PATTERNS:
+        if noise_re.search(text):
+            logger.debug("Noise filtered: %s", title[:80])
+            result = {
+                "is_cyber_attack": False,
+                "category": "Noise",
+                "confidence": 0,
+                "translated_title": title,
+                "summary": "",
+            }
+            cache_result(cache_key, result)
+            return result
 
     # Use RSS summary as the article summary (free, no AI needed)
     summary = ""

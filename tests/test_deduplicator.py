@@ -1,5 +1,5 @@
 import pytest
-from modules.deduplicator import normalize_title, is_fuzzy_duplicate, deduplicate_articles
+from modules.deduplicator import normalize_title, deduplicate_articles
 
 
 class TestNormalizeTitle:
@@ -20,27 +20,6 @@ class TestNormalizeTitle:
 
     def test_empty_string(self):
         assert normalize_title("") == ""
-
-
-class TestIsFuzzyDuplicate:
-    def test_exact_match(self):
-        assert is_fuzzy_duplicate("hello world", ["hello world"])
-
-    def test_near_match(self):
-        assert is_fuzzy_duplicate(
-            "major data breach at company x",
-            ["major data breach at company x reported"],
-            threshold=0.80,
-        )
-
-    def test_not_duplicate(self):
-        assert not is_fuzzy_duplicate(
-            "ransomware attack on hospital",
-            ["phishing campaign targets banks"],
-        )
-
-    def test_empty_seen_list(self):
-        assert not is_fuzzy_duplicate("anything", [])
 
 
 class TestDeduplicateArticles:

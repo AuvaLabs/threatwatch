@@ -7,7 +7,7 @@ services:
       - .env
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - SITE_DOMAIN=${SITE_DOMAIN:-threatdigest.cyberonehq.com}
+      - SITE_DOMAIN=${SITE_DOMAIN:-localhost:8098}
       - FEED_CUTOFF_DAYS=${FEED_CUTOFF_DAYS:-7}
       - DAILY_BUDGET_USD=${DAILY_BUDGET_USD:-2.00}
     volumes:
@@ -32,7 +32,7 @@ services:
       - .env
     environment:
       - PORT=${PORT:-8098}
-      - SITE_DOMAIN=${SITE_DOMAIN:-threatdigest.cyberonehq.com}
+      - SITE_DOMAIN=${SITE_DOMAIN:-localhost:8098}
     ports:
       - "${PORT:-8098}:8098"
     volumes:

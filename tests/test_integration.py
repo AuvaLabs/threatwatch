@@ -14,13 +14,13 @@ class TestEnrichArticles:
             "source": "https://feed.example.com",
         }
 
-    @patch("threatdigest_main.analyze_article")
+    @patch("threatdigest_main.classify_article")
     @patch("threatdigest_main.process_urls_in_parallel")
     @patch("threatdigest_main.detect_language", return_value="en")
-    def test_uses_parallel_scrape_results(self, mock_lang, mock_parallel, mock_ai):
+    def test_uses_parallel_scrape_results(self, mock_lang, mock_parallel, mock_classify):
         article = self._make_article("Ransomware Attack", "https://example.com/1")
         mock_parallel.return_value = {"https://example.com/1": "Full article content here"}
-        mock_ai.return_value = {
+        mock_classify.return_value = {
             "is_cyber_attack": True,
             "category": "Ransomware",
             "confidence": 95,
@@ -31,17 +31,17 @@ class TestEnrichArticles:
         result = enrich_articles([article], summarize=True)
 
         mock_parallel.assert_called_once()
-        mock_ai.assert_called_once()
+        mock_classify.assert_called_once()
         assert len(result) == 1
         assert result[0]["full_content"] == "Full article content here"
 
-    @patch("threatdigest_main.analyze_article")
+    @patch("threatdigest_main.classify_article")
     @patch("threatdigest_main.process_urls_in_parallel")
     @patch("threatdigest_main.detect_language", return_value="en")
-    def test_filters_non_cyber_articles(self, mock_lang, mock_parallel, mock_ai):
+    def test_filters_non_cyber_articles(self, mock_lang, mock_parallel, mock_classify):
         article = self._make_article("Sports News", "https://example.com/2")
         mock_parallel.return_value = {"https://example.com/2": "Sports content"}
-        mock_ai.return_value = {
+        mock_classify.return_value = {
             "is_cyber_attack": False,
             "category": "General Cyber Threat",
             "confidence": 10,
@@ -52,13 +52,13 @@ class TestEnrichArticles:
         result = enrich_articles([article], summarize=True)
         assert len(result) == 0
 
-    @patch("threatdigest_main.analyze_article")
+    @patch("threatdigest_main.classify_article")
     @patch("threatdigest_main.process_urls_in_parallel")
     @patch("threatdigest_main.detect_language", return_value="en")
-    def test_handles_no_content(self, mock_lang, mock_parallel, mock_ai):
+    def test_handles_no_content(self, mock_lang, mock_parallel, mock_classify):
         article = self._make_article("DDoS Attack", "https://example.com/3")
         mock_parallel.return_value = {}
-        mock_ai.return_value = {
+        mock_classify.return_value = {
             "is_cyber_attack": True,
             "category": "DDoS",
             "confidence": 80,
@@ -70,14 +70,14 @@ class TestEnrichArticles:
         assert len(result) == 1
         assert result[0]["full_content"] is None
 
-    @patch("threatdigest_main.analyze_article")
+    @patch("threatdigest_main.classify_article")
     @patch("threatdigest_main.process_urls_in_parallel")
     @patch("threatdigest_main.detect_language", return_value="en")
-    def test_immutable_original_article(self, mock_lang, mock_parallel, mock_ai):
+    def test_immutable_original_article(self, mock_lang, mock_parallel, mock_classify):
         article = self._make_article("Test", "https://example.com/4")
         original_keys = set(article.keys())
         mock_parallel.return_value = {}
-        mock_ai.return_value = {
+        mock_classify.return_value = {
             "is_cyber_attack": True,
             "category": "Malware",
             "confidence": 90,

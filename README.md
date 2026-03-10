@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛡️ ThreatWatch
+# ThreatWatch
 
 **Zero-cost, self-hosted cyber threat intelligence platform**
 
@@ -10,82 +10,80 @@
 [![Zero Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)]()
 [![Feeds](https://img.shields.io/badge/feeds-142-blue)]()
 
-Monitor the global threat landscape from your own infrastructure — no API keys, no subscriptions, no third-party dependencies.
+Aggregates threat intelligence from 142 RSS feeds, classifies articles by category, and serves a live dashboard. Runs on your own infrastructure. No API keys required.
 
-[Features](#-features) · [Quick Start](#-quick-start) · [Dashboard](#-dashboard) · [Architecture](#-architecture) · [API](#-api-endpoints) · [Contributing](#-contributing)
+[Features](#features) · [Quick start](#quick-start) · [Dashboard](#dashboard) · [Architecture](#architecture) · [API](#api-endpoints) · [Contributing](#contributing)
 
 </div>
 
 ---
 
-## 📸 Dashboard Preview
+## Dashboard preview
 
 ![ThreatWatch Dashboard](docs/preview.gif)
 
 ---
 
-## ✨ Features
+## Features
 
-### Intelligence Collection
-- **142 RSS feeds** — security blogs, Google News, Bing News, CERTs worldwide
-- **30-minute refresh cycle** — always up to date
-- **8-thread parallel fetching** — processes all feeds in seconds
-- **Rolling 7-day window** with merge across pipeline runs
+### Collection
+- 142 RSS feeds (security blogs, Google News, Bing News, CERTs worldwide)
+- 30-minute refresh cycle
+- 8-thread parallel fetching, processes all feeds in seconds
+- Rolling 7-day window with merge across pipeline runs
 
-### Classification & Enrichment
-- **22 threat categories** — ransomware, zero-day, APT, DDoS, supply chain, and more
-- **75+ threat actors & malware families** — APT28, LockBit, Lazarus Group, and others
-- **80+ countries** with geo-attribution
-- **15 industry sectors** under attack
-- **Zero-cost keyword classifier** — regex-based, no API calls required
+### Classification
+- 22 threat categories: ransomware, zero-day, APT, DDoS, supply chain, etc.
+- 75+ threat actors and malware families (APT28, LockBit, Lazarus Group, etc.)
+- 80+ countries with geo-attribution
+- 15 industry sectors
+- Regex-based keyword classifier, no API calls needed
 
 ### Deduplication
-- **Fuzzy matching** using word-shingle inverted index
-- **24x faster** than naive pairwise comparison
-- Catches near-duplicate articles across different sources
+- Fuzzy matching with a word-shingle inverted index
+- 24x faster than naive pairwise comparison
+- Catches near-duplicate articles across sources
 
 ### Dashboard
-- **Server-side rendered** — instant load (<1 second)
-- **Single HTML file** — no build step, no framework, no node_modules
-- **Threat Intelligence Briefing** — auto-generated narrative summary
-- **Key Incidents** panel with direct article links
-- **Threat Actor Spotlight** with drilldown filtering
-- **Sector Impact Analysis** with drilldown filtering
-- **Threat Category Chart** with interactive drilldown
-- **Region filters** — Global, NA, EMEA, MENA, APAC, LATAM
-- **Category filters** — Ransomware, Breach, DDoS, APT, and more
-- **Article detail view** with IOC extraction
-- **Light/dark theme** toggle
+- Server-side rendered, loads in under a second
+- Single HTML file, no build step, no framework
+- Auto-generated threat intelligence briefing
+- Key incidents panel with direct article links
+- Threat actor spotlight and sector impact panels with drilldown
+- Region filters (Global, NA, EMEA, MENA, APAC, LATAM)
+- Category filters (Ransomware, Breach, DDoS, APT, etc.)
+- Article detail view with IOC extraction
+- Light and dark theme
 
 ### Integration
-- **RSS feed output** — subscribe from any feed reader or SIEM
-- **JSON API** — programmatic access to all articles and stats
-- **CORS enabled** — embed in other dashboards
+- RSS feed output for feed readers and SIEMs
+- JSON API for programmatic access
+- CORS enabled for embedding in other dashboards
 
 ---
 
-## 🚀 Quick Start
+## Quick start
 
 ### Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/your-org/threatwatch.git
+git clone https://github.com/CyberOneHQ/threatwatch.git
 cd threatwatch
 
-# Create .env file (optional — works without it)
+# Create .env file (optional, works without it)
 cp .env.example .env
 
 # Start everything
 docker compose up -d
 ```
 
-The pipeline runs immediately on startup, then every 30 minutes. The dashboard is available at **http://localhost:8098**.
+The pipeline runs immediately on startup, then every 30 minutes. Dashboard is at **http://localhost:8098**.
 
-### Manual Setup
+### Manual setup
 
 ```bash
 # Clone
-git clone https://github.com/your-org/threatwatch.git
+git clone https://github.com/CyberOneHQ/threatwatch.git
 cd threatwatch
 
 # Install dependencies
@@ -105,7 +103,7 @@ python threatdigest_main.py
 python serve_threatwatch.py
 ```
 
-Set up a cron job for automatic refresh:
+For automatic refresh, add a cron job:
 
 ```cron
 */30 * * * * cd /path/to/threatwatch && /path/to/venv/bin/python threatdigest_main.py >> data/logs/cron.log 2>&1
@@ -113,19 +111,19 @@ Set up a cron job for automatic refresh:
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-### Environment Variables
+### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8098` | Dashboard server port |
-| `SITE_DOMAIN` | `threatdigest.cyberonehq.com` | Domain for RSS feed links |
+| `SITE_DOMAIN` | `localhost:8098` | Domain for RSS feed links |
 | `FEED_CUTOFF_DAYS` | `7` | Rolling window for articles |
 | `DAILY_BUDGET_USD` | `2.00` | Daily budget cap for optional AI classification |
-| `ANTHROPIC_API_KEY` | _(empty)_ | Optional — enables AI-enhanced classification |
+| `ANTHROPIC_API_KEY` | _(empty)_ | Optional, enables AI-powered classification |
 
-### Feed Configuration
+### Feed configuration
 
 Feeds are defined in YAML files under `config/`:
 
@@ -135,27 +133,27 @@ Feeds are defined in YAML files under `config/`:
 | `feeds_google.yaml` | Google News search queries |
 | `feeds_bing.yaml` | Bing News search queries |
 
-Add or remove feeds by editing these files. No restart required — changes take effect on the next pipeline run.
+Edit these files to add or remove feeds. No restart needed. Changes apply on the next pipeline run.
 
-### Optional: AI-Enhanced Classification
+### Optional: AI classification
 
-ThreatWatch works fully without any API keys. Optionally, set `ANTHROPIC_API_KEY` to enable Claude-powered classification for improved accuracy. The system enforces a daily budget cap and caches results to minimize cost.
+ThreatWatch works without any API keys. If you set `ANTHROPIC_API_KEY`, it uses Claude for classification instead of the regex classifier. A daily budget cap and result cache keep costs low.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ![Architecture](docs/architecture.svg)
 
-**Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify → Output
+**Pipeline** (`threatdigest_main.py`): Feeds > Fetch > Deduplicate > Scrape > Classify > Output
 
-**Server** (`serve_threatwatch.py`): Python HTTP server with SSR, ETag caching, gzip compression, and CORS
+**Server** (`serve_threatwatch.py`): Python HTTP server with SSR, ETag caching, gzip, CORS
 
-**Frontend** (`threatwatch.html`): Single HTML file — no build step, no framework, no dependencies
+**Frontend** (`threatwatch.html`): Single HTML file. No build step, no framework.
 
-**Storage**: File-based JSON — no database, no Redis, no message queue
+**Storage**: Flat JSON files. No database, no Redis, no message queue.
 
-### Project Structure
+### Project structure
 
 ```
 threatdigest_main.py     # Pipeline orchestrator
@@ -193,9 +191,9 @@ Dockerfile               # Python 3.11-slim based
 
 ---
 
-## 🔌 API Endpoints
+## API endpoints
 
-The server exposes the following endpoints on port **8098**:
+The server runs on port **8098** by default:
 
 | Method | Path | Description |
 |---|---|---|
@@ -206,11 +204,11 @@ The server exposes the following endpoints on port **8098**:
 | `GET` | `/api/stats` | Pipeline run statistics |
 | `GET` | `/api/rss` | RSS feed (XML) |
 
-All JSON endpoints support **CORS**, **ETag** conditional requests, and **gzip** compression.
+All JSON endpoints support CORS, ETag conditional requests, and gzip compression.
 
 ---
 
-## 🧪 Running Tests
+## Running tests
 
 ```bash
 # Install dev dependencies
@@ -225,37 +223,36 @@ pytest tests/ --cov=modules --cov-report=term-missing
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome! Here's how to get started:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details. The short version:
 
-1. **Fork** the repository
-2. **Create a branch** — `git checkout -b feat/your-feature`
-3. **Write tests** — maintain 80%+ coverage
-4. **Make your changes** — follow existing code style
-5. **Run the test suite** — `pytest tests/ -v`
-6. **Commit** — use [conventional commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, etc.)
-7. **Open a Pull Request** with a clear description
+1. Fork the repo
+2. Create a branch (`git checkout -b feat/your-feature`)
+3. Write tests, keep coverage above 80%
+4. Follow existing code style
+5. Run `pytest tests/ -v`
+6. Commit using [conventional commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, etc.)
+7. Open a PR
 
-### Areas for Contribution
+### Good first contributions
 
-- Additional RSS feed sources
-- New threat actor/malware family patterns
+- New RSS feed sources
+- Threat actor or malware family patterns
 - Dashboard visualizations
-- STIX/TAXII export support
-- Webhook/notification integrations
-- Performance improvements
+- STIX/TAXII export
+- Webhook or notification integrations
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT](LICENSE)
 
 ---
 
 <div align="center">
 
-**ThreatWatch** — Threat intelligence that costs nothing and trusts no one.
+by [Nicholai Imbong](https://github.com/nicholaiimbong)
 
 </div>
