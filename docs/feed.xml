@@ -1,8 +1,20 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>ThreatDigest Hub - Curated Cyber Incidents</title><link>https://threatdigest.cyberonehq.com</link><description>A curated list of recent cyber incidents, attacks, and security threats.</description><atom:link href="https://threatdigest.cyberonehq.com" rel="self"/><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><language>en</language><lastBuildDate>Tue, 10 Mar 2026 23:34:21 +0000</lastBuildDate><item><title>[DARK WEB] ThreatFox: ValleyRAT — 9 new IOCs detected</title><link>https://threatfox.abuse.ch/browse/malware/valleyrat/</link><description>ThreatFox Database
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>ThreatDigest Hub - Curated Cyber Incidents</title><link>https://threatdigest.cyberonehq.com</link><description>A curated list of recent cyber incidents, attacks, and security threats.</description><atom:link href="https://threatdigest.cyberonehq.com" rel="self"/><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><language>en</language><lastBuildDate>Wed, 11 Mar 2026 00:05:02 +0000</lastBuildDate><item><title>[DARK WEB] C2 Tracker: 2380 active command &amp; control servers detected</title><link>https://github.com/montysecurity/C2-Tracker</link><description>C2 Tracker
 
-Indicators of Compromise (IOCs) on ThreatFox are associated with a certain malware fas. A malware sample can be associated with only one malware family. The page below gives you an overview on indicators of compromise associated with valleyrat .</description><pubDate>Tue, 10 Mar 2026 19:39:08 +0000</pubDate></item><item><title>[DARK WEB] ThreatFox: XWorm — 2 new IOCs detected</title><link>https://threatfox.abuse.ch/browse/malware/xworm/</link><description>ThreatFox Database
+C2 Tracker is a free-to-use-community-driven IOC feed that uses Shodan and Censys searches to collect IP addresses of known malware/botnet/C2 infrastructure. Honorable Mentions
 
-Indicators of Compromise (IOCs) on ThreatFox are associated with a certain malware fas. A malware sample can be associated with only one malware family. The page below gives you an overview on indicators of compromise associated with xworm .</description><pubDate>Tue, 10 Mar 2026 23:01:42 +0000</pubDate></item><item><title>[DARK WEB] ThreatFox: ClearFake — 10 new IOCs detected</title><link>https://threatfox.abuse.ch/browse/malware/clearfake/</link><description>ThreatFox Database
+Many of the queries have been sourced from other CTI researchers:
 
-Indicators of Compromise (IOCs) on ThreatFox are associated with a certain malware fas. A malware sample can be associated with only one malware family. The page below gives you an overview on indicators of compromise associated with clearfake .</description><pubDate>Tue, 10 Mar 2026 23:29:54 +0000</pubDate></item></channel></rss>
+Huge shoutout to them! Thanks to BertJanCyber for creating the KQL query for ingesting this feed
+
+And finally, thanks to Y_nexro for creating C2Live in order to visualize the data and the website version at c2tracker.com
+
+Usage
+
+The most re...</description><pubDate>Wed, 11 Mar 2026 00:04:58 +0000</pubDate></item><item><title>[DARK WEB] ThreatFox: ValleyRAT — 6 new IOCs detected</title><link>https://threatfox.abuse.ch/browse/malware/valleyrat/</link><description>ThreatFox Database
+
+Indicators of Compromise (IOCs) on ThreatFox are associated with a certain malware fas. A malware sample can be associated with only one malware family. The page below gives you an overview on indicators of compromise associated with valleyrat .</description><pubDate>Tue, 10 Mar 2026 19:39:08 +0000</pubDate></item><item><title>[DARK WEB] ThreatFox: StrelaStealer — 10 new IOCs detected</title><link>https://threatfox.abuse.ch/browse/malware/strelastealer/</link><description>ThreatFox Database
+
+Indicators of Compromise (IOCs) on ThreatFox are associated with a certain malware fas. A malware sample can be associated with only one malware family. The page below gives you an overview on indicators of compromise associated with strelastealer .</description><pubDate>Tue, 10 Mar 2026 23:55:17 +0000</pubDate></item><item><title>[DARK WEB] ThreatFox: ClearFake — 10 new IOCs detected</title><link>https://threatfox.abuse.ch/browse/malware/clearfake/</link><description>ThreatFox Database
+
+Indicators of Compromise (IOCs) on ThreatFox are associated with a certain malware fas. A malware sample can be associated with only one malware family. The page below gives you an overview on indicators of compromise associated with clearfake .</description><pubDate>Tue, 10 Mar 2026 23:57:50 +0000</pubDate></item></channel></rss>
