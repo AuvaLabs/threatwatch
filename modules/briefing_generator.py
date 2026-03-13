@@ -1,7 +1,14 @@
 """AI-powered threat intelligence briefing generator.
 
-Generates one briefing per pipeline run using Claude Haiku.
-Cost: ~$0.01-0.02 per run ($0.50-1.00/day at 30-min intervals).
+Generates one briefing per pipeline run using any LLM provider.
+Supports OpenAI-compatible APIs (OpenAI, Groq, Together, Ollama, Mistral, DeepSeek)
+and Anthropic SDK as a fallback.
+
+Configure via environment variables:
+  LLM_API_KEY    — API key (falls back to OPENAI_API_KEY, then ANTHROPIC_API_KEY)
+  LLM_BASE_URL   — API base URL (default: https://api.openai.com/v1)
+  LLM_MODEL      — Model name (default: gpt-4o-mini)
+  LLM_PROVIDER   — auto|openai|anthropic|ollama (default: auto)
 """
 
 import json
@@ -9,8 +16,13 @@ import logging
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.request import Request, urlopen
+from urllib.error import URLError
 
-from modules.config import ANTHROPIC_API_KEY, MAX_CONTENT_CHARS, OUTPUT_DIR
+from modules.config import (
+    LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER,
+    ANTHROPIC_API_KEY, MAX_CONTENT_CHARS, OUTPUT_DIR,
+)
 from modules.ai_cache import get_cached_result, cache_result
 
 BRIEFING_PATH = OUTPUT_DIR / "briefing.json"
@@ -41,28 +53,108 @@ Respond ONLY with valid JSON (no markdown, no explanation):
 }"""
 
 
+def _detect_provider():
+    """Auto-detect the LLM provider from config."""
+    if LLM_PROVIDER != "auto":
+        return LLM_PROVIDER
+    if not LLM_API_KEY:
+        return None
+    base = LLM_BASE_URL.lower()
+    if "anthropic" in base:
+        return "anthropic"
+    if "localhost" in base or "127.0.0.1" in base:
+        return "ollama"
+    # Default to openai-compatible (works with OpenAI, Groq, Together, Mistral, etc.)
+    return "openai"
+
+
+def _build_digest(articles):
+    """Build compact article digest for the prompt."""
+    lines = []
+    for a in articles[:60]:
+        title = a.get("translated_title") or a.get("title", "")
+        category = a.get("category", "Unknown")
+        region = a.get("feed_region", "Global")
+        summary = (a.get("summary") or "")[:200]
+        lines.append(f"- [{category}] [{region}] {title}")
+        if summary:
+            lines.append(f"  Summary: {summary}")
+    return "\n".join(lines)
+
+
+def _call_openai_compatible(user_content):
+    """Call any OpenAI-compatible API using stdlib (no dependencies)."""
+    url = f"{LLM_BASE_URL.rstrip('/')}/chat/completions"
+    payload = json.dumps({
+        "model": LLM_MODEL,
+        "max_tokens": 1000,
+        "temperature": 0.3,
+        "messages": [
+            {"role": "system", "content": _BRIEFING_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+    }).encode("utf-8")
+
+    headers = {"Content-Type": "application/json"}
+    if LLM_API_KEY:
+        headers["Authorization"] = f"Bearer {LLM_API_KEY}"
+
+    req = Request(url, data=payload, headers=headers, method="POST")
+    with urlopen(req, timeout=90) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+
+    return data["choices"][0]["message"]["content"].strip()
+
+
+def _call_anthropic(user_content):
+    """Call Anthropic API using the SDK."""
+    import anthropic
+    import httpx
+
+    client = anthropic.Anthropic(
+        api_key=ANTHROPIC_API_KEY,
+        timeout=httpx.Timeout(90.0, connect=15.0),
+        max_retries=2,
+    )
+
+    response = client.messages.create(
+        model=LLM_MODEL if "claude" in LLM_MODEL else "claude-haiku-4-5-20251001",
+        max_tokens=1000,
+        system=[{
+            "type": "text",
+            "text": _BRIEFING_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        }],
+        messages=[{"role": "user", "content": user_content}],
+        temperature=0.3,
+    )
+
+    # Track cost if available
+    try:
+        from modules.cost_tracker import track_usage
+        track_usage(response)
+    except Exception:
+        pass
+
+    return response.content[0].text.strip()
+
+
 def generate_briefing(articles):
-    """Generate an AI briefing from enriched articles. One API call per run."""
-    if not ANTHROPIC_API_KEY:
-        logging.info("No API key — skipping AI briefing generation.")
+    """Generate an AI briefing from enriched articles.
+
+    Works with any LLM provider configured via environment variables.
+    Returns the briefing dict or None if unavailable.
+    """
+    provider = _detect_provider()
+    if not provider:
+        logging.info("No LLM API key configured — skipping AI briefing.")
         return None
 
     if not articles:
         logging.info("No articles to brief on.")
         return None
 
-    # Build compact article digest for the prompt
-    digest_lines = []
-    for a in articles[:60]:  # Cap at 60 articles to control token usage
-        title = a.get("translated_title") or a.get("title", "")
-        category = a.get("category", "Unknown")
-        region = a.get("feed_region", "Global")
-        summary = (a.get("summary") or "")[:200]
-        digest_lines.append(f"- [{category}] [{region}] {title}")
-        if summary:
-            digest_lines.append(f"  Summary: {summary}")
-
-    digest = "\n".join(digest_lines)
+    digest = _build_digest(articles)
     cache_key = hashlib.sha256(digest[:MAX_CONTENT_CHARS].encode()).hexdigest()
 
     # Check cache
@@ -72,55 +164,34 @@ def generate_briefing(articles):
         _save_briefing(cached)
         return cached
 
+    user_content = (
+        f"Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"
+        f"Total incidents tracked: {len(articles)}\n\n"
+        f"ARTICLES:\n{digest}"
+    )
+
     try:
-        import anthropic
-        import httpx
+        if provider == "anthropic":
+            reply = _call_anthropic(user_content)
+        else:
+            reply = _call_openai_compatible(user_content)
 
-        client = anthropic.Anthropic(
-            api_key=ANTHROPIC_API_KEY,
-            timeout=httpx.Timeout(90.0, connect=15.0),
-            max_retries=2,
-        )
-
-        user_content = (
-            f"Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"
-            f"Total incidents tracked: {len(articles)}\n\n"
-            f"ARTICLES:\n{digest}"
-        )
-
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1000,
-            system=[{
-                "type": "text",
-                "text": _BRIEFING_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            }],
-            messages=[{"role": "user", "content": user_content}],
-            temperature=0.3,
-        )
-
-        # Track cost
-        from modules.cost_tracker import track_usage
-        track_usage(response)
-
-        reply = response.content[0].text.strip()
         briefing = _parse_json(reply)
-
         if briefing is None:
             logging.warning("Failed to parse AI briefing response.")
             return None
 
         briefing["generated_at"] = datetime.now(timezone.utc).isoformat()
         briefing["articles_analyzed"] = len(articles)
+        briefing["provider"] = f"{provider}/{LLM_MODEL}"
 
         cache_result(cache_key, briefing)
         _save_briefing(briefing)
-        logging.info("AI briefing generated successfully.")
+        logging.info(f"AI briefing generated via {provider}/{LLM_MODEL}.")
         return briefing
 
     except Exception as e:
-        logging.error(f"AI briefing generation failed: {e}")
+        logging.error(f"AI briefing generation failed ({provider}): {e}")
         return None
 
 

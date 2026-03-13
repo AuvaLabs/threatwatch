@@ -136,6 +136,13 @@ def main():
     write_daily_output(enriched_articles)
     write_rss_output(enriched_articles)
 
+    # AI briefing (optional — only runs if ANTHROPIC_API_KEY is set)
+    try:
+        from modules.briefing_generator import generate_briefing
+        generate_briefing(enriched_articles)
+    except Exception as e:
+        logging.debug(f"AI briefing skipped: {e}")
+
     stats.finalize()
 
     try:

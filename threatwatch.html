@@ -103,6 +103,68 @@ html, body {
 .theme-toggle:hover { background: rgba(0,212,255,0.08); }
 [data-theme="light"] .theme-toggle:hover { background: rgba(0,119,204,0.08); }
 
+.briefing-mode-toggle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+.briefing-mode-toggle:hover { background: rgba(0,212,255,0.08); color: var(--accent); }
+.briefing-mode-toggle.ai-active {
+  border-color: var(--purple);
+  color: var(--purple);
+  background: rgba(168,85,247,0.08);
+}
+.briefing-ai-notice {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--purple);
+  background: rgba(168,85,247,0.08);
+  border: 1px solid rgba(168,85,247,0.2);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-left: 8px;
+  letter-spacing: 0.5px;
+}
+.ai-briefing-section { margin-bottom: 12px; }
+.ai-briefing-section .ai-section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--purple);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.ai-briefing-section .ai-section-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+.ai-briefing-section .ai-section-body li {
+  margin-bottom: 4px;
+}
+.ai-threat-level {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 3px;
+  letter-spacing: 1px;
+}
+.ai-threat-level.CRITICAL { background: rgba(255,71,87,0.15); color: var(--danger); }
+.ai-threat-level.ELEVATED { background: rgba(255,165,2,0.15); color: var(--warning); }
+.ai-threat-level.MODERATE { background: rgba(0,212,255,0.1); color: var(--accent); }
+.ai-threat-level.GUARDED { background: rgba(46,213,115,0.1); color: var(--success); }
+.ai-threat-level.LOW { background: rgba(46,213,115,0.1); color: var(--success); }
+
 /* Topbar right group — threat level, theme, signature, coffee */
 .topbar-right {
   display: flex;
@@ -1623,7 +1685,10 @@ html, body {
     <div class="center-content">
       <!-- Intelligence sections -->
       <div class="center-section" id="section-briefing">
-        <div class="center-section-title"><span class="section-icon">&#x1F4E1;</span> Threat Briefing</div>
+        <div class="center-section-title">
+          <span class="section-icon">&#x1F4E1;</span> Threat Briefing
+          <button class="briefing-mode-toggle" id="briefing-mode-toggle" onclick="toggleBriefingMode()">NORMAL</button>
+        </div>
         <div id="ai-briefing-content"></div>
       </div>
       <div class="center-section" id="section-incidents">
@@ -1918,6 +1983,8 @@ const state = {
   selectedItem: null,
   feedStatus: { threatdigest: false },
   pipelineStats: null,
+  aiBriefing: null,       // AI briefing JSON from server
+  briefingMode: 'normal', // 'normal' or 'ai'
   _etag: null,
 };
 
@@ -2100,26 +2167,31 @@ const SECTOR_PATTERNS = [
   { re: /\b(legal|law\s*firm|attorney|court)\b/i, name: 'Legal', icon: '\u2696' },
 ];
 
+function _itemMatchesRegion(item, region) {
+  const codes = REGION_MAP[region] || [];
+  if (codes.length === 0) return false;
+
+  // Content-first: if article text mentions specific countries, use those as authority
+  const countries = extractCountries(item.title, item.description);
+  if (countries.length > 0) {
+    return countries.some(cc => codes.includes(cc));
+  }
+
+  // Fallback: use feed_region only when no countries detected in text
+  if (item.feedRegion) {
+    const regions = item.feedRegion.split(',');
+    for (const r of regions) {
+      const mapped = FEED_REGION_TO_FILTER[r.trim()];
+      if (mapped === region) return true;
+    }
+  }
+  return false;
+}
+
 function getRegionItems(items) {
   const region = state.activeRegion;
   if (region === 'all') return items;
-
-  const codes = REGION_MAP[region] || [];
-  if (codes.length === 0) return items;
-
-  return items.filter(item => {
-    // Check 1: Does the feed source region match? (supports comma-separated multi-region)
-    if (item.feedRegion) {
-      const regions = item.feedRegion.split(',');
-      for (const r of regions) {
-        const mapped = FEED_REGION_TO_FILTER[r.trim()];
-        if (mapped === region) return true;
-      }
-    }
-    // Check 2: Does the article text mention a country in this region?
-    const countries = extractCountries(item.title, item.description);
-    return countries.some(cc => codes.includes(cc));
-  });
+  return items.filter(item => _itemMatchesRegion(item, region));
 }
 
 function analyzeIntelligence() {
@@ -2130,7 +2202,11 @@ function analyzeIntelligence() {
   const allText = items.map(i => (i.title || '') + ' ' + (i.description || ''));
 
   // --- Section 1: Threat Briefing ---
-  renderBriefing(items, allText, allItems.length);
+  if (state.briefingMode === 'ai') {
+    renderAIBriefing(document.getElementById('ai-briefing-content'));
+  } else {
+    renderBriefing(items, allText, allItems.length);
+  }
 
   // --- Section 2: Key Incidents ---
   renderKeyIncidents(items);
@@ -2313,6 +2389,116 @@ function renderBriefing(items, allText, globalTotal) {
     <div class="briefing-text">${b}</div>
     <div class="briefing-timestamp">GENERATED ${new Date().toUTCString().slice(0, 25)} UTC | REGION: ${regionName.toUpperCase()} | ${total} ARTICLES ANALYZED</div>
   `;
+}
+
+/* Briefing mode toggle — Normal vs AI-Driven */
+function toggleBriefingMode() {
+  const btn = document.getElementById('briefing-mode-toggle');
+  if (state.briefingMode === 'normal') {
+    state.briefingMode = 'ai';
+    btn.textContent = 'AI';
+    btn.classList.add('ai-active');
+    try { localStorage.setItem('tw-briefing-mode', 'ai'); } catch {}
+  } else {
+    state.briefingMode = 'normal';
+    btn.textContent = 'NORMAL';
+    btn.classList.remove('ai-active');
+    try { localStorage.setItem('tw-briefing-mode', 'normal'); } catch {}
+  }
+  debouncedAnalyze();
+}
+
+// Restore briefing mode preference
+(function() {
+  try {
+    const saved = localStorage.getItem('tw-briefing-mode');
+    if (saved === 'ai') {
+      state.briefingMode = 'ai';
+      const btn = document.getElementById('briefing-mode-toggle');
+      if (btn) { btn.textContent = 'AI'; btn.classList.add('ai-active'); }
+    }
+  } catch {}
+})();
+
+function renderAIBriefing(container) {
+  const b = state.aiBriefing;
+  if (!b) {
+    container.innerHTML = `<div class="briefing-text" style="color:var(--text-muted)">
+      No AI briefing available. Configure any LLM provider and restart the pipeline:<br><br>
+      <code style="font-size:11px;color:var(--accent)">
+        LLM_API_KEY=your-key<br>
+        LLM_BASE_URL=https://api.openai.com/v1  <span style="color:var(--text-muted)"># or Groq, Together, Ollama, etc.</span><br>
+        LLM_MODEL=gpt-4o-mini  <span style="color:var(--text-muted)"># any model</span>
+      </code>
+      <br><br>Toggle back to <strong>NORMAL</strong> for the automated briefing.
+    </div>`;
+    return;
+  }
+
+  let html = '';
+
+  // Threat level badge
+  const tl = (b.threat_level || 'MODERATE').toUpperCase();
+  html += `<div style="margin-bottom:12px"><span class="ai-threat-level ${tl}">${tl}</span>`;
+  html += `<span class="briefing-ai-notice">AI GENERATED</span></div>`;
+
+  // Executive summary
+  if (b.executive_summary) {
+    html += `<div class="ai-briefing-section">
+      <div class="ai-section-label">Executive Summary</div>
+      <div class="ai-section-body">${escapeHTML(b.executive_summary)}</div>
+    </div>`;
+  }
+
+  // Key developments
+  if (b.key_developments && b.key_developments.length > 0) {
+    html += `<div class="ai-briefing-section">
+      <div class="ai-section-label">Key Developments</div>
+      <div class="ai-section-body"><ul>${b.key_developments.map(d => `<li>${escapeHTML(d)}</li>`).join('')}</ul></div>
+    </div>`;
+  }
+
+  // Active threats
+  if (b.active_threats) {
+    const at = b.active_threats;
+    html += `<div class="ai-briefing-section">
+      <div class="ai-section-label">Active Threats</div>
+      <div class="ai-section-body">`;
+    if (at.nation_state) html += `<p><strong>Nation-State:</strong> ${escapeHTML(at.nation_state)}</p>`;
+    if (at.ransomware) html += `<p><strong>Ransomware:</strong> ${escapeHTML(at.ransomware)}</p>`;
+    if (at.emerging) html += `<p><strong>Emerging:</strong> ${escapeHTML(at.emerging)}</p>`;
+    html += `</div></div>`;
+  }
+
+  // Sector risk
+  if (b.sector_risk && b.sector_risk.length > 0) {
+    html += `<div class="ai-briefing-section">
+      <div class="ai-section-label">Sector Risk</div>
+      <div class="ai-section-body"><ul>${b.sector_risk.map(s => `<li>${escapeHTML(s)}</li>`).join('')}</ul></div>
+    </div>`;
+  }
+
+  // Recommended actions
+  if (b.recommended_actions && b.recommended_actions.length > 0) {
+    html += `<div class="ai-briefing-section">
+      <div class="ai-section-label">Recommended Actions</div>
+      <div class="ai-section-body"><ul>${b.recommended_actions.map(a => `<li>${escapeHTML(a)}</li>`).join('')}</ul></div>
+    </div>`;
+  }
+
+  // Outlook
+  if (b.outlook) {
+    html += `<div class="ai-briefing-section">
+      <div class="ai-section-label">Outlook</div>
+      <div class="ai-section-body">${escapeHTML(b.outlook)}</div>
+    </div>`;
+  }
+
+  // Timestamp
+  const genAt = b.generated_at ? new Date(b.generated_at).toUTCString().slice(0, 25) : 'N/A';
+  html += `<div class="briefing-timestamp">AI BRIEFING GENERATED ${genAt} UTC | ${b.articles_analyzed || '?'} ARTICLES ANALYZED</div>`;
+
+  container.innerHTML = html;
 }
 
 function renderKeyIncidents(items) {
@@ -2516,6 +2702,11 @@ const _NOISE_FILTERS = [
   /\bban\s+children\b.*social\s+media/i,
   /arrests?\s+\d+\s+people\s+for\s+sharing/i,
   /\bkids\b.*digital\s+safety\s+act/i,
+  /(infosec|cybersecurity|security)\s+products?\s+of\s+the\s+(week|month)/i,
+  /new\s+(infosec|cybersecurity|security)\s+products?/i,
+  /products?\s+(launch|announc|releas|unveil|introduc)/i,
+  /top\s+\d+\s+(infosec|cybersecurity|security)\s+(tools?|products?|solutions?)/i,
+  /vendor\s+spotlight|product\s+review\s+roundup/i,
 ];
 
 function _isNoise(title, summary) {
@@ -2607,6 +2798,10 @@ async function fetchArticlesFromAPI() {
 /* RENDER NEWS FEED CARDS (LEFT PANEL)                            */
 /* ============================================================= */
 function filterMatchesItem(filter, item) {
+  // Region filter — apply to left panel too
+  if (state.activeRegion && state.activeRegion !== 'all') {
+    if (!_itemMatchesRegion(item, state.activeRegion)) return false;
+  }
   // Category filter
   let catMatch = true;
   if (filter !== 'all') {
@@ -2736,12 +2931,15 @@ function updateLoadMoreSentinel(show) {
       btn.id = 'load-more-btn';
       btn.className = 'load-more-btn';
       btn.onclick = () => loadMoreCards();
-      container.appendChild(btn);
     }
+    // Always re-append so it stays at the bottom after new cards
+    container.appendChild(btn);
     const filter = state.activeFilter;
     const filtered = state.newsItems.filter(item => filterMatchesItem(filter, item));
     const remaining = filtered.length - state.displayedCount;
     btn.textContent = `LOAD MORE (${remaining} remaining)`;
+    // Scroll button into view
+    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } else {
     if (btn) btn.remove();
   }
@@ -2767,7 +2965,37 @@ const IOC_EXCLUDE = new Set([
   'google.com', 'twitter.com', 'facebook.com', 'linkedin.com', 'github.com',
   'youtube.com', 'reddit.com', 'wikipedia.org', 'microsoft.com', 'apple.com',
   'amazon.com', 'cloudflare.com', 'example.com', 'localhost',
+  // Common security vendor / tech company domains (not IOCs)
+  'mend.io', 'opswat.com', 'singulr.ai', 'socprime.com', 'vicarius.io',
+  'crowdstrike.com', 'paloaltonetworks.com', 'fortinet.com', 'cisco.com',
+  'sentinelone.com', 'trendmicro.com', 'sophos.com', 'kaspersky.com',
+  'checkpoint.com', 'mandiant.com', 'fireeye.com', 'symantec.com',
+  'qualys.com', 'tenable.com', 'rapid7.com', 'splunk.com', 'elastic.co',
+  'zscaler.com', 'proofpoint.com', 'mimecast.com', 'darktrace.com',
+  'cybereason.com', 'carbonblack.com', 'mcafee.com', 'bitdefender.com',
+  'malwarebytes.com', 'avast.com', 'eset.com', 'nortonlifelock.com',
+  'terra.security', 'binarydefense.com', 'wiz.io', 'snyk.io', 'lacework.com',
+  'nist.gov', 'cisa.gov', 'ncsc.gov.uk', 'enisa.europa.eu',
+  // Major tech / cloud / SaaS
+  'aws.amazon.com', 'azure.com', 'cloud.google.com', 'oracle.com',
+  'salesforce.com', 'adobe.com', 'vmware.com', 'ibm.com', 'dell.com',
+  'hp.com', 'intel.com', 'nvidia.com', 'zoom.us', 'slack.com',
+  'dropbox.com', 'atlassian.com', 'github.io', 'gitlab.com',
+  // Media / news sources
+  'bleepingcomputer.com', 'therecord.media', 'securityweek.com',
+  'helpnetsecurity.com', 'thehackernews.com', 'darkreading.com',
+  'krebsonsecurity.com', 'arstechnica.com', 'zdnet.com', 'wired.com',
+  'bbc.com', 'bbc.co.uk', 'reuters.com', 'cnn.com', 'nytimes.com',
+  'washingtonpost.com', 'theguardian.com', 'techcrunch.com', 'forbes.com',
 ]);
+
+// Skip IOC extraction entirely for articles that look promotional
+const IOC_SKIP_PATTERNS = [
+  /(infosec|cybersecurity|security)\s+products?\s+of\s+the\s+(week|month)/i,
+  /new\s+(infosec|cybersecurity|security)\s+products?/i,
+  /products?\s+(launch|announc|releas|unveil|introduc)/i,
+  /vendor\s+spotlight|product\s+review\s+roundup/i,
+];
 
 function extractIOCs(text) {
   if (!text || text.length < 10) return null;
@@ -2814,6 +3042,8 @@ function extractIOCs(text) {
 
 function renderIOCSection(item) {
   const text = (item.title || '') + ' ' + (item.description || '');
+  // Skip IOC extraction for promotional / product announcement articles
+  if (IOC_SKIP_PATTERNS.some(re => re.test(text))) return '';
   const iocs = extractIOCs(text);
   if (!iocs) return '';
 
@@ -2976,6 +3206,7 @@ document.getElementById('region-filters').addEventListener('click', (e) => {
   document.querySelectorAll('.overview-section').forEach(s => s.style.display = '');
   document.getElementById('detail-article-center').style.display = 'none';
   state.selectedItem = null;
+  renderFeedCards();
   debouncedAnalyze();
 });
 
@@ -3295,10 +3526,11 @@ function updateLeftFooter(items) {
   const darkwebCount = items.filter(i => i.isDarkweb).length;
   const sources = new Set(items.map(i => i.source)).size;
   const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-  el('lf-reviewed', state.pipelineStats ? state.pipelineStats.news_reviewed || items.length : items.length);
+  const ps = state.pipelineStats?.latest || state.pipelineStats || {};
+  el('lf-reviewed', ps.news_reviewed || items.length);
   el('lf-darkweb', darkwebCount);
   el('lf-sources', sources);
-  el('lf-feeds', state.pipelineStats ? state.pipelineStats.feeds_loaded || '--' : '--');
+  el('lf-feeds', ps.feeds_loaded || '--');
 }
 
 async function refreshData() {
@@ -3313,6 +3545,11 @@ async function refreshData() {
     const items = transformArticles(data);
     if (items.length > 0) applyData(items);
   } catch { state.feedStatus.threatdigest = false; }
+  // Refresh AI briefing
+  try {
+    const b = await fetchJSON('/api/briefing');
+    if (b && b.executive_summary) state.aiBriefing = b;
+  } catch {}
 }
 
 /* ============================================================= */
@@ -3324,6 +3561,7 @@ function init() {
   if (ssr) {
     const items = transformArticles(ssr.articles || []);
     state.pipelineStats = ssr.stats || null;
+    state.aiBriefing = ssr.briefing || null;
     if (items.length > 0) {
       applyData(items);
     }
