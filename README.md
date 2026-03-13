@@ -9,6 +9,9 @@
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![Zero Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)]()
 [![Feeds](https://img.shields.io/badge/feeds-142-blue)]()
+[![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/threatwatch?style=social)](https://github.com/AuvaLabs/threatwatch)
+
+**[Live Demo](https://threatwatch.auvalabs.com)** · **[GitHub Pages](https://auvalabs.github.io/threatwatch/)**
 
 Aggregates threat intelligence from 142 RSS feeds and dark web sources, classifies articles by category, and serves a live dashboard. Runs on your own infrastructure. No API keys required.
 
@@ -252,14 +255,28 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details. The short version:
 
 ---
 
+## Security
+
+See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnerabilities.
+
+---
+
+## Code of Conduct
+
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+
+---
+
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — free for personal and commercial use.
 
 ---
 
 <div align="center">
 
 by [Nicholai Imbong](https://github.com/nicholaiimbong) · [AuvaLabs](https://github.com/AuvaLabs)
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/nicholaiimbong)
 
 </div>
