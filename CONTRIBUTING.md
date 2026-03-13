@@ -1,5 +1,9 @@
 # Contributing to ThreatWatch
 
+Thank you for your interest in contributing to ThreatWatch! This project is open source under the [MIT License](LICENSE). All contributions are welcome.
+
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+
 ## Setup
 
 ```bash
