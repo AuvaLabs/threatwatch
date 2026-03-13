@@ -289,6 +289,15 @@ _NOISE_PATTERNS = [
         r"|\bkids\b.*digital\s+safety\s+act",
         re.IGNORECASE,
     ),
+    # Product announcements / roundups (not threat intel)
+    re.compile(
+        r"(infosec|cybersecurity|security)\s+products?\s+of\s+the\s+(week|month)"
+        r"|new\s+(infosec|cybersecurity|security)\s+products?"
+        r"|products?\s+(launch|announc|releas|unveil|introduc)"
+        r"|top\s+\d+\s+(infosec|cybersecurity|security)\s+(tools?|products?|solutions?)"
+        r"|vendor\s+spotlight|product\s+review\s+roundup",
+        re.IGNORECASE,
+    ),
 ]
 
 logger = logging.getLogger(__name__)

@@ -9,6 +9,14 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
+# Provider-agnostic LLM config for AI briefing
+# Supports any OpenAI-compatible API (OpenAI, Groq, Together, Ollama, Mistral, DeepSeek, etc.)
+# Falls back to Anthropic SDK if LLM_PROVIDER=anthropic
+LLM_API_KEY = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or ANTHROPIC_API_KEY
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "auto")  # auto, openai, anthropic, ollama
+
 SITE_DOMAIN = os.getenv("SITE_DOMAIN", "threatdigest.cyberonehq.com")
 SITE_URL = f"https://{SITE_DOMAIN}"
 
@@ -80,3 +88,9 @@ def validate_config():
         logging.info(
             "ANTHROPIC_API_KEY set — hybrid mode (keyword + AI escalation)."
         )
+    if LLM_API_KEY:
+        logging.info(
+            f"LLM configured — AI briefing enabled ({LLM_PROVIDER}/{LLM_MODEL} via {LLM_BASE_URL})."
+        )
+    else:
+        logging.info("No LLM API key — AI briefing disabled (zero cost).")
