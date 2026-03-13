@@ -118,7 +118,7 @@ def _call_anthropic(user_content):
     )
 
     response = client.messages.create(
-        model=LLM_MODEL if "claude" in LLM_MODEL else "claude-haiku-4-5-20251001",
+        model=LLM_MODEL,
         max_tokens=1000,
         system=[{
             "type": "text",

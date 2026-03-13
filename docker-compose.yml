@@ -6,10 +6,12 @@ services:
     env_file:
       - .env
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - SITE_DOMAIN=${SITE_DOMAIN:-localhost:8098}
       - FEED_CUTOFF_DAYS=${FEED_CUTOFF_DAYS:-7}
-      - DAILY_BUDGET_USD=${DAILY_BUDGET_USD:-2.00}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
     volumes:
       - threatwatch-data:/app/data
     command: >
@@ -17,8 +19,8 @@ services:
         echo "Starting pipeline (initial run)..." &&
         python threatdigest_main.py;
         while true; do
-          echo "Sleeping 1800s until next run..." &&
-          sleep 1800 &&
+          echo "Sleeping 600s until next run..." &&
+          sleep 600 &&
           echo "Starting pipeline run at $$(date -u +%Y-%m-%dT%H:%M:%SZ)..." &&
           python threatdigest_main.py;
         done

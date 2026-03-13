@@ -17,7 +17,7 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "auto")  # auto, openai, anthropic, ollama
 
-SITE_DOMAIN = os.getenv("SITE_DOMAIN", "threatdigest.cyberonehq.com")
+SITE_DOMAIN = os.getenv("SITE_DOMAIN", "threatwatch.auvalabs.com")
 SITE_URL = f"https://{SITE_DOMAIN}"
 
 BASE_DIR = Path(__file__).parent.parent

@@ -30,7 +30,7 @@ docker-compose.yml
 docs/
 tests/
 
-# Claude config
+# Editor / tool config
 .claude/
 
 # Environment files (passed via docker-compose env_file)

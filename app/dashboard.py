@@ -384,7 +384,7 @@ footer {{
     html += """</div>
 
 <footer>
-    ThreatDigest Hub by CyberOneHQ
+    ThreatWatch by AuvaLabs
 </footer>
 </div>
 

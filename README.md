@@ -10,7 +10,7 @@
 [![Zero Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)]()
 [![Feeds](https://img.shields.io/badge/feeds-142-blue)]()
 
-Aggregates threat intelligence from 142 RSS feeds, classifies articles by category, and serves a live dashboard. Runs on your own infrastructure. No API keys required.
+Aggregates threat intelligence from 142 RSS feeds and dark web sources, classifies articles by category, and serves a live dashboard. Runs on your own infrastructure. No API keys required.
 
 [Features](#features) · [Quick start](#quick-start) · [Dashboard](#dashboard) · [Architecture](#architecture) · [API](#api-endpoints) · [Contributing](#contributing)
 
@@ -28,7 +28,8 @@ Aggregates threat intelligence from 142 RSS feeds, classifies articles by catego
 
 ### Collection
 - 142 RSS feeds (security blogs, Google News, Bing News, CERTs worldwide)
-- 30-minute refresh cycle
+- Dark web monitoring (ThreatFox IOCs, ransomware victim tracking, C2 server IPs)
+- 10-minute refresh cycle with automatic GitHub Pages deployment
 - 8-thread parallel fetching, processes all feeds in seconds
 - Rolling 7-day window with merge across pipeline runs
 
@@ -37,22 +38,24 @@ Aggregates threat intelligence from 142 RSS feeds, classifies articles by catego
 - 75+ threat actors and malware families (APT28, LockBit, Lazarus Group, etc.)
 - 80+ countries with geo-attribution
 - 15 industry sectors
+- Noise filtering: product announcements, job listings, funding rounds auto-excluded
 - Regex-based keyword classifier, no API calls needed
 
 ### Deduplication
 - Fuzzy matching with a word-shingle inverted index
 - 24x faster than naive pairwise comparison
-- Catches near-duplicate articles across sources
+- Cross-region merge with content-first region attribution
 
 ### Dashboard
 - Server-side rendered, loads in under a second
 - Single HTML file, no build step, no framework
-- Auto-generated threat intelligence briefing
+- Auto-generated threat intelligence briefing (Normal mode)
+- Optional AI-powered briefing (any LLM provider — toggle in UI)
 - Key incidents panel with direct article links
 - Threat actor spotlight and sector impact panels with drilldown
-- Region filters (Global, NA, EMEA, MENA, APAC, LATAM)
+- Region filters (Global, NA, EMEA, MENA, APAC, LATAM) — content-aware
 - Category filters (Ransomware, Breach, DDoS, APT, etc.)
-- Article detail view with IOC extraction
+- Article detail view with IOC extraction (CVEs, IPs, hashes, domains)
 - Light and dark theme
 
 ### Integration
@@ -67,7 +70,7 @@ Aggregates threat intelligence from 142 RSS feeds, classifies articles by catego
 ### Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/CyberOneHQ/threatwatch.git
+git clone https://github.com/AuvaLabs/threatwatch.git
 cd threatwatch
 
 # Create .env file (optional, works without it)
@@ -77,13 +80,13 @@ cp .env.example .env
 docker compose up -d
 ```
 
-The pipeline runs immediately on startup, then every 30 minutes. Dashboard is at **http://localhost:8098**.
+The pipeline runs immediately on startup, then every 10 minutes. Dashboard is at **http://localhost:8098**.
 
 ### Manual setup
 
 ```bash
 # Clone
-git clone https://github.com/CyberOneHQ/threatwatch.git
+git clone https://github.com/AuvaLabs/threatwatch.git
 cd threatwatch
 
 # Install dependencies
@@ -106,7 +109,7 @@ python serve_threatwatch.py
 For automatic refresh, add a cron job:
 
 ```cron
-*/30 * * * * cd /path/to/threatwatch && /path/to/venv/bin/python threatdigest_main.py >> data/logs/cron.log 2>&1
+*/10 * * * * cd /path/to/threatwatch && /path/to/venv/bin/python threatdigest_main.py >> data/logs/cron.log 2>&1
 ```
 
 ---
@@ -120,8 +123,19 @@ For automatic refresh, add a cron job:
 | `PORT` | `8098` | Dashboard server port |
 | `SITE_DOMAIN` | `localhost:8098` | Domain for RSS feed links |
 | `FEED_CUTOFF_DAYS` | `7` | Rolling window for articles |
-| `DAILY_BUDGET_USD` | `2.00` | Daily budget cap for optional AI classification |
-| `ANTHROPIC_API_KEY` | _(empty)_ | Optional, enables AI-powered classification |
+
+### Optional: AI-powered briefing
+
+ThreatWatch works without any API keys. To enable AI-powered briefings, configure any OpenAI-compatible LLM provider:
+
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_API_KEY` | _(empty)_ | API key for your LLM provider |
+| `LLM_BASE_URL` | `https://api.openai.com/v1` | API base URL |
+| `LLM_MODEL` | `gpt-4o-mini` | Model name |
+| `LLM_PROVIDER` | `auto` | `auto`, `openai`, `anthropic`, `ollama` |
+
+Works with OpenAI, Groq, Together, Ollama (free/local), Mistral, DeepSeek, and any OpenAI-compatible API.
 
 ### Feed configuration
 
@@ -135,17 +149,11 @@ Feeds are defined in YAML files under `config/`:
 
 Edit these files to add or remove feeds. No restart needed. Changes apply on the next pipeline run.
 
-### Optional: AI classification
-
-ThreatWatch works without any API keys. If you set `ANTHROPIC_API_KEY`, it uses Claude for classification instead of the regex classifier. A daily budget cap and result cache keep costs low.
-
 ---
 
 ## Architecture
 
-![Architecture](docs/architecture.svg)
-
-**Pipeline** (`threatdigest_main.py`): Feeds > Fetch > Deduplicate > Scrape > Classify > Output
+**Pipeline** (`threatdigest_main.py`): Feeds > Fetch > Deduplicate > Scrape > Classify > AI Briefing (optional) > Output
 
 **Server** (`serve_threatwatch.py`): Python HTTP server with SSR, ETag caching, gzip, CORS
 
@@ -165,8 +173,8 @@ modules/
   ├── deduplicator.py    # Fuzzy dedup (word-shingle index)
   ├── article_scraper.py # Full-text extraction
   ├── keyword_classifier.py  # Zero-cost regex classifier
-  ├── ai_engine.py       # Optional AI classification
-  ├── briefing_generator.py  # Narrative summary builder
+  ├── briefing_generator.py  # AI briefing (any LLM provider)
+  ├── darkweb_monitor.py     # Dark web intel aggregation
   ├── output_writer.py   # JSON/RSS output
   ├── config.py          # Global configuration
   └── ...
@@ -174,15 +182,14 @@ config/
   ├── feeds_native.yaml  # Security blogs & CERTs
   ├── feeds_google.yaml  # Google News feeds
   └── feeds_bing.yaml    # Bing News feeds
-app/
-  └── dashboard.py       # Dashboard data builder
 scripts/
+  ├── deploy_gh_pages.py # GitHub Pages static deploy
   ├── validate_feeds.py  # Feed health checker
   ├── cleanup.py         # Data cleanup utility
   └── weekly_digest.py   # Weekly summary generator
 data/
   ├── output/            # JSON + RSS output files
-  ├── state/             # Pipeline state & AI cache
+  ├── state/             # Pipeline state & cache
   └── logs/              # Run logs & summaries
 tests/                   # Test suite
 docker-compose.yml       # Two-service deployment
@@ -253,6 +260,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details. The short version:
 
 <div align="center">
 
-by [Nicholai Imbong](https://github.com/nicholaiimbong)
+by [Nicholai Imbong](https://github.com/nicholaiimbong) · [AuvaLabs](https://github.com/AuvaLabs)
 
 </div>

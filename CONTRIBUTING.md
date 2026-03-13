@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-git clone https://github.com/CyberOneHQ/threatwatch.git
+git clone https://github.com/AuvaLabs/threatwatch.git
 cd threatwatch
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
