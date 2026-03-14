@@ -6,7 +6,7 @@
 
 - **Live Threat Intelligence Feed** — left panel streaming curated threat news, filtered by type (breach, ransomware, APT, phishing, malware, zero-day, vuln, dark web)
 - **Threat Intelligence Briefing** — AI-generated executive summary, key incidents, active threat actors, and sector impact analysis
-- **IOC Tracker** — dedicated panel for ThreatFox/abuse.ch IOC data, grouped by malware family, filterable by IP / Hash / Domain / URL / CVE; copy-to-clipboard chips
+- **Ransomware Tracker** — group intelligence grid showing victim posts (ransomware.live) and news per group; filter by ALL / VICTIMS / NEWS; click any group to drilldown
 - **APT Tracker** — actor intelligence grid tracking Lazarus Group, Volt Typhoon, APT28/Sandworm, APT29/Cozy Bear, APT41, Charming Kitten, Scattered Spider, Salt Typhoon, Kimsuky and more; click any actor to cross-filter the news feed
 - **Region filtering** — GLOBAL / NA / EMEA / MENA / APAC / LATAM
 - **Server-side rendering** — zero-latency page load via embedded JSON data

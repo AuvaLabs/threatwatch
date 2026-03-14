@@ -8,12 +8,12 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![Zero Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)]()
-[![Feeds](https://img.shields.io/badge/feeds-142-blue)]()
+[![Feeds](https://img.shields.io/badge/feeds-155+-blue)]()
 [![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/threatwatch?style=social)](https://github.com/AuvaLabs/threatwatch)
 
 **[Live Demo](https://threatwatch.auvalabs.com)** · **[GitHub Pages](https://auvalabs.github.io/threatwatch/)**
 
-Aggregates threat intelligence from 142 RSS feeds and dark web sources, classifies articles by category, and serves a live dashboard. Runs on your own infrastructure. No API keys required.
+Aggregates threat intelligence from 155+ RSS feeds and dark web sources, classifies articles by category, and serves a live dashboard. Runs on your own infrastructure. No API keys required.
 
 [Features](#features) · [Quick start](#quick-start) · [Dashboard](#dashboard) · [Architecture](#architecture) · [API](#api-endpoints) · [Contributing](#contributing)
 
@@ -30,7 +30,7 @@ Aggregates threat intelligence from 142 RSS feeds and dark web sources, classifi
 ## Features
 
 ### Collection
-- 142 RSS feeds (security blogs, Google News, Bing News, CERTs worldwide)
+- 155+ RSS feeds (security blogs, Google News, Bing News, CERTs worldwide)
 - Dark web monitoring (ThreatFox IOCs, ransomware victim tracking, C2 server IPs)
 - 10-minute refresh cycle with automatic GitHub Pages deployment
 - 8-thread parallel fetching, processes all feeds in seconds
@@ -59,6 +59,8 @@ Aggregates threat intelligence from 142 RSS feeds and dark web sources, classifi
 - Region filters (Global, NA, EMEA, MENA, APAC, LATAM) — content-aware
 - Category filters (Ransomware, Breach, DDoS, APT, etc.)
 - Article detail view with IOC extraction (CVEs, IPs, hashes, domains)
+- Ransomware Tracker tab: victim posts from ransomware.live + ransomware news, grouped by threat actor
+- APT Tracker tab: actor intelligence grid with drilldown into news articles
 - Light and dark theme
 
 ### Integration
