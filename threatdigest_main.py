@@ -25,6 +25,7 @@ from modules.output_writer import (
 from app.dashboard import build_dashboard
 from modules.cost_tracker import get_today_spend, get_total_spend
 from modules.darkweb_monitor import fetch_darkweb_intel
+from modules.feed_health import log_health_summary
 
 
 def enrich_articles(articles, summarize=False, stats=None):
@@ -101,6 +102,7 @@ def main():
         return
 
     raw_articles = fetch_articles(all_feeds)
+    log_health_summary()
 
     # Dark web monitoring (zero cost — clearnet aggregators)
     try:

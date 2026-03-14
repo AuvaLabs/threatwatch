@@ -1,0 +1,86 @@
+# Feed discovery sources — used by scripts/discover_feeds.py
+# Each entry is an OPML file or plaintext URL list that aggregates security RSS feeds.
+# The script parses these, cross-references against existing config, validates live,
+# and writes candidates to data/state/feed_candidates.yaml for human review.
+#
+# Format:
+#   - url: <URL>        # OPML file or plaintext (one URL per line)
+#     format: opml      # opml | txt
+#     label: <label>    # human label for the source
+
+sources:
+  # Curated security blog / threat intel OPML lists on GitHub
+  - url: "https://raw.githubusercontent.com/nicehash/nicehash-blog/master/feeds.opml"
+    format: opml
+    label: "NiceHash security feeds"
+
+  - url: "https://raw.githubusercontent.com/AboutSecurity/Threat-Intelligence-RSS-Feeds/main/feeds.opml"
+    format: opml
+    label: "Threat Intelligence RSS Feeds"
+
+  - url: "https://raw.githubusercontent.com/hslatman/awesome-threat-intelligence/master/README.md"
+    format: txt_urls
+    label: "Awesome Threat Intelligence (URL extraction)"
+
+  # MISP galaxy and project feed references
+  - url: "https://raw.githubusercontent.com/MISP/misp-book/main/using-the-system/README.md"
+    format: txt_urls
+    label: "MISP project resources"
+
+# Manual candidate seeds — URLs to test even if not in any aggregator source.
+# Add feeds here that you want evaluated and potentially added to the config.
+manual_candidates:
+  - url: "https://www.cisa.gov/cybersecurity-advisories/all.xml"
+    label: "CISA All Advisories"
+  - url: "https://www.ncsc.gov.uk/api/1/services/v1/report-rss-feed.xml"
+    label: "NCSC UK Reports"
+  - url: "https://feeds.feedburner.com/TheHackersNews"
+    label: "The Hacker News (feedburner)"
+  - url: "https://www.darkreading.com/rss.xml"
+    label: "Dark Reading"
+  - url: "https://www.infosecurity-magazine.com/rss/news/"
+    label: "Infosecurity Magazine"
+  - url: "https://www.csoonline.com/news/index.rss"
+    label: "CSO Online"
+  - url: "https://www.securityweek.com/feed/"
+    label: "SecurityWeek"
+  - url: "https://www.tripwire.com/state-of-security/feed"
+    label: "Tripwire State of Security"
+  - url: "https://blog.malwarebytes.com/feed/"
+    label: "Malwarebytes Blog"
+  - url: "https://www.trendmicro.com/en_us/research.rss"
+    label: "Trend Micro Research"
+  - url: "https://www.rapid7.com/blog/feed/"
+    label: "Rapid7 Blog"
+  - url: "https://www.crowdstrike.com/blog/feed/"
+    label: "CrowdStrike Blog"
+  - url: "https://www.elastic.co/security-labs/rss/feed.xml"
+    label: "Elastic Security Labs"
+  - url: "https://blog.talosintelligence.com/rss/"
+    label: "Talos Intelligence Blog"
+  - url: "https://www.proofpoint.com/us/blog/threat-insight/rss.xml"
+    label: "Proofpoint Threat Insight"
+  - url: "https://www.mandiant.com/resources/blog/rss.xml"
+    label: "Mandiant Blog"
+  - url: "https://securelist.com/feed/"
+    label: "Kaspersky Securelist"
+  - url: "https://decoded.avast.io/feed/"
+    label: "Avast Decoded"
+  - url: "https://www.welivesecurity.com/en/rss/feed/"
+    label: "WeLiveSecurity (ESET)"
+  - url: "https://research.checkpoint.com/feed/"
+    label: "Check Point Research"
+  - url: "https://unit42.paloaltonetworks.com/feed/"
+    label: "Palo Alto Unit 42"
+  - url: "https://www.fortinet.com/blog/threat-research.rss"
+    label: "Fortinet Threat Research"
+  - url: "https://www.akamai.com/blog/security.rss"
+    label: "Akamai Security Blog"
+  - url: "https://www.imperva.com/blog/category/threat-research/feed/"
+    label: "Imperva Threat Research"
+  - url: "https://www.varonis.com/blog/category/data-security/feed/"
+    label: "Varonis Data Security"
+  - url: "https://portswigger.net/research/rss"
+    label: "PortSwigger Research"
+  - url: "https://www.zerodayinitiative.com/blog/rss.xml"
+    label: "Zero Day Initiative Blog"
