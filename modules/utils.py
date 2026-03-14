@@ -1,25 +1,25 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import os
 import logging
 
 # Time slugs
 def get_current_hour_slug():
-    return datetime.utcnow().strftime("%Y-%m-%d_%H")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d_%H")
 
 def get_today_slug():
-    return datetime.utcnow().strftime("%Y-%m-%d")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 def get_week_slug(dt=None):
-    dt = dt or datetime.utcnow()
+    dt = dt or datetime.now(timezone.utc)
     return dt.strftime("%Y-W%U")  # Week number of the year
 
 def get_month_slug(dt=None):
-    dt = dt or datetime.utcnow()
+    dt = dt or datetime.now(timezone.utc)
     return dt.strftime("%Y-%m")
 
 def get_year_slug(dt=None):
-    dt = dt or datetime.utcnow()
+    dt = dt or datetime.now(timezone.utc)
     return dt.strftime("%Y")
 
 # Output path generator

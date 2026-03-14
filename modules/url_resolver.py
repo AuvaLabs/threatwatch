@@ -1,7 +1,9 @@
 # ==== Module Imports ====
 import base64
+import ipaddress
 import logging
 import re
+import socket
 import requests
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
@@ -33,6 +35,36 @@ def is_clearnet_url(url: str) -> bool:
         return bool(host)
     except Exception:
         return False
+
+
+def is_safe_url(url: str) -> bool:
+    """Return True only if url is safe to fetch — clearnet AND resolves to a
+    public IP address.
+
+    Blocks all SSRF targets:
+    - RFC-1918 private ranges (10.x, 172.16-31.x, 192.168.x, 100.64.x)
+    - Loopback (127.x, ::1)
+    - Link-local (169.254.x — includes cloud metadata endpoint 169.254.169.254)
+    - Reserved, unspecified, and multicast addresses
+
+    Fails closed: returns False on any DNS or parsing error.
+    """
+    if not is_clearnet_url(url):
+        return False
+    try:
+        hostname = urlparse(url).hostname or ""
+        if not hostname:
+            return False
+        for addr_info in socket.getaddrinfo(hostname, None):
+            ip_str = addr_info[4][0]
+            ip = ipaddress.ip_address(ip_str)
+            if (ip.is_private or ip.is_loopback or ip.is_link_local
+                    or ip.is_reserved or ip.is_unspecified or ip.is_multicast):
+                logging.warning(f"SSRF blocked: {url} resolves to non-public IP {ip_str}")
+                return False
+    except Exception:
+        return False
+    return True
 
 
 # ==== Google News URL Decoding ====
@@ -72,19 +104,25 @@ def extract_embedded_url(url):
 
 # ==== Redirect Resolution via HEAD ====
 def follow_redirects(url):
+    if not is_safe_url(url):
+        logging.debug(f"follow_redirects: blocked unsafe URL {url}")
+        return None
     try:
         response = requests.head(url, allow_redirects=True, timeout=5)
         if response.status_code in [301, 302] and 'Location' in response.headers:
             return response.headers['Location']
         final = response.url
-        # Never return a Tor or I2P address even if a redirect leads there
-        return final if is_clearnet_url(final) else None
+        # Never return a Tor, I2P, or private-network address after redirect
+        return final if is_safe_url(final) else None
     except requests.RequestException as e:
         logging.warning(f"Redirect failed for {url}: {e}")
         return None
 
 # ==== Canonical URL Extraction from HTML ====
 def extract_canonical_from_html(url):
+    if not is_safe_url(url):
+        logging.debug(f"extract_canonical: blocked unsafe URL {url}")
+        return url
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         resp = requests.get(url, headers=headers, timeout=8)

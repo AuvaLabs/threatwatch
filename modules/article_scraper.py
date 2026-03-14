@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from modules.url_resolver import resolve_original_url
+from modules.url_resolver import resolve_original_url, is_safe_url
 from modules.config import MAX_SCRAPER_THREADS
 
 USER_AGENTS = [
@@ -46,6 +46,9 @@ def _get_headers():
 
 
 def extract_with_newspaper(url):
+    if not is_safe_url(url):
+        logging.debug(f"extract_with_newspaper: blocked unsafe URL {url}")
+        return None
     try:
         article = Article(url)
         article.download()
@@ -58,6 +61,9 @@ def extract_with_newspaper(url):
 
 
 def extract_with_fallback(url):
+    if not is_safe_url(url):
+        logging.debug(f"extract_with_fallback: blocked unsafe URL {url}")
+        return None
     try:
         response = _session.get(url, headers=_get_headers(), timeout=10)
         response.raise_for_status()
