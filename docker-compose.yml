@@ -20,24 +20,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 120s
-    command: >
-      sh -c '
-        echo "Starting pipeline (initial run)..." &&
-        python scripts/cleanup.py &&
-        python threatdigest_main.py;
-        RUN_COUNT=0;
-        while true; do
-          RUN_COUNT=$$((RUN_COUNT + 1));
-          echo "Sleeping 600s until next run..." &&
-          sleep 600 &&
-          echo "Starting pipeline run at $$(date -u +%Y-%m-%dT%H:%M:%SZ)..." &&
-          python threatdigest_main.py;
-          if [ $$((RUN_COUNT % 144)) -eq 0 ]; then
-            echo "Running daily cleanup..." &&
-            python scripts/cleanup.py;
-          fi;
-        done
-      '
+    command: ["python", "scripts/run_pipeline.py"]
 
   server:
     build: .

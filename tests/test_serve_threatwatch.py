@@ -108,6 +108,44 @@ class TestLoadHelpers:
 
 # ── render_page XSS guard ─────────────────────────────────────────────────────
 
+class TestHealthEndpoint:
+    def setup_method(self):
+        sw._cache.clear()
+
+    def test_health_returns_valid_json(self, tmp_path):
+        with patch("serve_threatwatch.load_stats", return_value={"latest": {"completed_at": "2026-01-01T00:00:00+00:00", "articles_fetched": 42, "cyber_articles": 20, "api_cost_today": 0.05}}), \
+             patch("serve_threatwatch.BASE_DIR", tmp_path):
+            body = sw.build_health()
+        data = json.loads(body)
+        assert data["status"] == "ok"
+        assert "uptime_s" in data
+        assert data["articles_total"] == 42
+        assert data["articles_cyber"] == 20
+
+    def test_health_handles_missing_stats(self, tmp_path):
+        with patch("serve_threatwatch.load_stats", return_value={}), \
+             patch("serve_threatwatch.BASE_DIR", tmp_path):
+            body = sw.build_health()
+        data = json.loads(body)
+        assert data["status"] == "ok"
+        assert data["articles_total"] == 0
+
+    def test_health_includes_feed_summary(self, tmp_path):
+        state_dir = tmp_path / "data" / "state"
+        state_dir.mkdir(parents=True)
+        fh_data = {
+            "https://a.example.com": {"status": "ok"},
+            "https://b.example.com": {"status": "dead"},
+        }
+        (state_dir / "feed_health.json").write_text(json.dumps(fh_data))
+        with patch("serve_threatwatch.load_stats", return_value={}), \
+             patch("serve_threatwatch.BASE_DIR", tmp_path):
+            body = sw.build_health()
+        data = json.loads(body)
+        assert data["feed_health"].get("ok", 0) == 1
+        assert data["feed_health"].get("dead", 0) == 1
+
+
 class TestRenderPageXssGuard:
     def setup_method(self):
         sw._cache.clear()

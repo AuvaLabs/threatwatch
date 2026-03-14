@@ -110,6 +110,39 @@ def load_briefing():
         return None
 
 
+_SERVER_START = time.time()
+
+
+def build_health() -> bytes:
+    """Build /api/health payload — not cached (always fresh)."""
+    stats = load_stats()
+    latest_run = stats.get("latest", {})
+
+    # Feed health summary from state file
+    feed_summary: dict[str, int] = {}
+    feed_health_path = BASE_DIR / "data" / "state" / "feed_health.json"
+    try:
+        fh_raw = feed_health_path.read_bytes()
+        fh_data = json.loads(fh_raw)
+        for entry in fh_data.values():
+            s = entry.get("status", "ok")
+            feed_summary[s] = feed_summary.get(s, 0) + 1
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+
+    payload = {
+        "status": "ok",
+        "uptime_s": int(time.time() - _SERVER_START),
+        "last_run_at": latest_run.get("completed_at"),
+        "articles_total": latest_run.get("articles_fetched", 0),
+        "articles_cyber": latest_run.get("cyber_articles", 0),
+        "api_cost_today_usd": latest_run.get("api_cost_today", 0),
+        "feed_health": feed_summary,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
 def build_ssr_data():
     """Build the server-side rendered data payload to embed in HTML.
 
@@ -303,6 +336,12 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Render error")
                 return
             self._send_body("text/html; charset=utf-8", body, head_only)
+            return
+
+        # Route: /api/health — liveness + stats
+        if path == "/api/health":
+            body = build_health()
+            self._send_body("application/json; charset=utf-8", body, head_only)
             return
 
         # Route: /api/articles — with pagination support
