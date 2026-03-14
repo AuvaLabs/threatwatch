@@ -100,7 +100,7 @@ def write_digest_markdown(digest, week_start):
     md_path = DIGEST_DIR / f"digest-{week_slug}.md"
 
     lines = [
-        f"# ThreatDigest Weekly Report",
+        "# ThreatDigest Weekly Report",
         f"**Week of {digest['week_start']} to {digest['week_end']}**\n",
         f"Generated: {digest['generated_at']} UTC\n",
         "---\n",

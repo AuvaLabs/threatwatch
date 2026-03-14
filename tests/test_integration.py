@@ -75,7 +75,6 @@ class TestEnrichArticles:
     @patch("threatdigest_main.detect_language", return_value="en")
     def test_immutable_original_article(self, mock_lang, mock_parallel, mock_classify):
         article = self._make_article("Test", "https://example.com/4")
-        original_keys = set(article.keys())
         mock_parallel.return_value = {}
         mock_classify.return_value = {
             "is_cyber_attack": True,

@@ -81,7 +81,6 @@ class TestLoadHelpers:
         sw._cache.clear()
 
     def test_load_articles_returns_empty_list_when_file_missing(self, tmp_path):
-        missing = tmp_path / "nonexistent.json"
         with patch("serve_threatwatch.BASE_DIR", tmp_path):
             result = sw.load_articles()
         assert result == []

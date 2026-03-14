@@ -262,7 +262,7 @@ def _parse_c2_tracker(resp, source, cutoff):
     try:
         lines = resp.text.strip().split("\n")
         # Only report if there's a significant list
-        ip_count = len([l for l in lines if l.strip() and not l.startswith("#")])
+        ip_count = len([ln for ln in lines if ln.strip() and not ln.startswith("#")])
 
         if ip_count > 0:
             article_hash = hashlib.sha256(
@@ -270,7 +270,7 @@ def _parse_c2_tracker(resp, source, cutoff):
             ).hexdigest()
 
             # Extract sample IPs for the summary
-            sample_ips = [l.strip() for l in lines if l.strip() and not l.startswith("#")][:10]
+            sample_ips = [ln.strip() for ln in lines if ln.strip() and not ln.startswith("#")][:10]
 
             articles.append({
                 "title": f"C2 Tracker: {ip_count} active command & control servers detected",

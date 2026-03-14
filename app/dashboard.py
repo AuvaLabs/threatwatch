@@ -536,11 +536,11 @@ def _extract_source_name(url):
 
 
 def build_dashboard():
-    html = generate_dashboard_html()
+    html_content = generate_dashboard_html()
     output_path = OUTPUT_DIR / "dashboard.html"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write(html)
+        f.write(html_content)
     logging.info(f"Dashboard generated at {output_path}")
 
     docs_path = BASE_DIR / "docs" / "index.html"
