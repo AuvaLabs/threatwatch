@@ -2614,9 +2614,28 @@ function renderAIBriefing(container) {
   container.innerHTML = html;
 }
 
+function _incidentWordSet(title) {
+  const stop = new Set(['a','an','the','and','or','in','on','at','to','for','of','with','by','is','are','was','has','that','this','it','not','new','says','say']);
+  return new Set(title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 1 && !stop.has(w)));
+}
+function _incidentSimilar(a, b) {
+  const sa = _incidentWordSet(a), sb = _incidentWordSet(b);
+  const inter = [...sa].filter(w => sb.has(w)).length;
+  const smaller = Math.min(sa.size, sb.size);
+  return smaller >= 3 ? inter / smaller : 0;
+}
+
 function renderKeyIncidents(items) {
   const container = document.getElementById('key-incidents-content');
-  const key = items.filter(i => i.severity === 'CRITICAL' || i.severity === 'HIGH').slice(0, 5);
+  const candidates = items.filter(i => i.severity === 'CRITICAL' || i.severity === 'HIGH');
+
+  // Deduplicate by title similarity — keep the first (highest-scored) of near-duplicate stories
+  const key = [];
+  for (const item of candidates) {
+    if (key.length >= 5) break;
+    const isDup = key.some(k => _incidentSimilar(item.title, k.title) >= 0.55);
+    if (!isDup) key.push(item);
+  }
 
   if (key.length === 0) {
     container.innerHTML = '<div style="color:var(--text-muted);font-size:11px">No critical or high-severity incidents at this time.</div>';
