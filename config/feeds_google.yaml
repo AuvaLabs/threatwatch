@@ -111,6 +111,23 @@
   category: Google
   region: US
 
+# Emerging threat actors & ransomware groups (2024-2026)
+- url: https://news.google.com/rss/search?q=Scattered+Spider+UNC3944+cybercrime&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=Salt+Typhoon+Volt+Typhoon+Silk+Typhoon+China+cyber&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=Hunters+International+Qilin+INC+Ransom+ransomware&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
+- url: https://news.google.com/rss/search?q=RansomHub+Akira+Play+ransomware+attack&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: US
+
 # Vendor advisory searches
 - url: https://news.google.com/rss/search?q=Microsoft+security+advisory+patch&hl=en-US&gl=US&ceid=US:en
   category: Google
