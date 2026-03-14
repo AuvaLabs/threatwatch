@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import re
 import string
 from pathlib import Path
 
@@ -15,6 +16,14 @@ SEEN_TITLES_FILE = STATE_DIR / "seen_titles.txt"
 
 _STRIP_TABLE = str.maketrans("", "", string.punctuation)
 _PREFIXES = ("breaking:", "update:", "exclusive:", "just in:", "alert:")
+
+# CVE identifiers — articles with different CVEs are always distinct incidents
+_CVE_RE = re.compile(r"CVE-\d{4}-\d+", re.IGNORECASE)
+
+# Minimum number of meaningful words (post-stop-word) required to attempt fuzzy
+# matching. Titles shorter than this use exact-match only, preventing false dedup
+# on very short headings.
+_MIN_FUZZY_WORDS = 3
 
 # Stop words filtered out for better word-shingle matching
 _STOP_WORDS = frozenset({
@@ -60,25 +69,39 @@ class ShingleIndex:
         self._shingle_to_indices = {}
         self._title_shingles = []
         self._normalized_titles = []
+        self._raw_titles = []      # original (pre-normalize) for CVE extraction
+        self._word_counts = []     # meaningful word count (post-stop-word) for each entry
 
-    def add(self, normalized_title):
+    def add(self, normalized_title, raw_title=None):
         idx = len(self._normalized_titles)
         shingles = _make_word_shingles(normalized_title)
+        word_count = len([w for w in normalized_title.split() if w not in _STOP_WORDS])
         self._title_shingles.append(shingles)
         self._normalized_titles.append(normalized_title)
+        self._raw_titles.append(raw_title or normalized_title)
+        self._word_counts.append(word_count)
         for s in shingles:
             if s not in self._shingle_to_indices:
                 self._shingle_to_indices[s] = []
             self._shingle_to_indices[s].append(idx)
         return idx
 
-    def is_fuzzy_duplicate(self, normalized_title, threshold=FUZZY_DEDUP_THRESHOLD):
+    def _incoming_word_count(self, normalized_title):
+        return len([w for w in normalized_title.split() if w not in _STOP_WORDS])
+
+    def is_fuzzy_duplicate(self, normalized_title, raw_title=None,
+                           threshold=FUZZY_DEDUP_THRESHOLD):
         shingles = _make_word_shingles(normalized_title)
-        if not shingles:
-            # Very short title — check exact match only
+
+        # Too few meaningful words in the incoming title — exact match only
+        if self._incoming_word_count(normalized_title) < _MIN_FUZZY_WORDS:
             return normalized_title in self._normalized_titles
 
-        # Gather candidates: titles sharing at least one word bigram
+        incoming_cves = set(
+            m.upper() for m in _CVE_RE.findall(raw_title or normalized_title)
+        )
+
+        # Gather candidates: titles sharing at least one word shingle
         candidate_set = set()
         for s in shingles:
             for idx in self._shingle_to_indices.get(s, ()):
@@ -88,6 +111,21 @@ class ShingleIndex:
             existing = self._normalized_titles[idx]
             if normalized_title == existing:
                 return True
+
+            # Skip stored entries that are too short — a 2-word stored title would
+            # match everything that mentions those 2 words (containment false positives)
+            if self._word_counts[idx] < _MIN_FUZZY_WORDS:
+                continue
+
+            # CVE guard: if both titles have CVE IDs and they differ, these are
+            # distinct vulnerability reports — never merge them as duplicates
+            if incoming_cves:
+                existing_cves = set(
+                    m.upper() for m in _CVE_RE.findall(self._raw_titles[idx])
+                )
+                if existing_cves and incoming_cves != existing_cves:
+                    continue
+
             similarity = _word_overlap_ratio(shingles, self._title_shingles[idx])
             if similarity >= threshold:
                 logging.info(
@@ -97,11 +135,15 @@ class ShingleIndex:
                 return True
         return False
 
-    def find_best_match_index(self, normalized_title, start_idx,
+    def find_best_match_index(self, normalized_title, start_idx, raw_title=None,
                               threshold=FUZZY_DEDUP_THRESHOLD):
         shingles = _make_word_shingles(normalized_title)
-        if not shingles:
+        if self._incoming_word_count(normalized_title) < _MIN_FUZZY_WORDS:
             return -1
+
+        incoming_cves = set(
+            m.upper() for m in _CVE_RE.findall(raw_title or normalized_title)
+        )
 
         candidate_set = set()
         for s in shingles:
@@ -115,6 +157,18 @@ class ShingleIndex:
             existing = self._normalized_titles[idx]
             if normalized_title == existing:
                 return idx - start_idx
+
+            if self._word_counts[idx] < _MIN_FUZZY_WORDS:
+                continue
+
+            # CVE guard
+            if incoming_cves:
+                existing_cves = set(
+                    m.upper() for m in _CVE_RE.findall(self._raw_titles[idx])
+                )
+                if existing_cves and incoming_cves != existing_cves:
+                    continue
+
             similarity = _word_overlap_ratio(shingles, self._title_shingles[idx])
             if similarity >= threshold and similarity > best_score:
                 best_score = similarity
@@ -142,13 +196,16 @@ def _save_lines(filepath, lines, max_lines=None):
 
 
 def deduplicate_articles(articles):
-    seen_hashes = set(_load_lines(SEEN_HASHES_FILE))
+    # Load hashes as ordered list (preserves insertion order for correct LRU eviction)
+    # and also as a set for O(1) lookup.
+    seen_hashes_ordered = _load_lines(SEEN_HASHES_FILE)
+    seen_hashes = set(seen_hashes_ordered)
     seen_titles = _load_lines(SEEN_TITLES_FILE)
 
-    # Build shingle index from previously seen titles
+    # Build shingle index from previously seen titles (raw title = normalized for old entries)
     index = ShingleIndex()
     for t in seen_titles:
-        index.add(normalize_title(t))
+        index.add(normalize_title(t), raw_title=t)
 
     batch_start_idx = len(index)
 
@@ -173,25 +230,29 @@ def deduplicate_articles(articles):
             logging.debug(f"Hash duplicate skipped: {article['link']}")
             continue
 
-        normalized = normalize_title(article["title"])
+        raw_title = article["title"]
+        normalized = normalize_title(raw_title)
 
         # Skip fuzzy dedup for dark web articles (structured titles with shared words)
         is_darkweb = article.get("darkweb", False)
-        if not is_darkweb and index.is_fuzzy_duplicate(normalized):
-            logging.info(f"Fuzzy duplicate skipped: {article['title']}")
-            _add_related(unique_articles, article, index, normalized, batch_start_idx)
+        if not is_darkweb and index.is_fuzzy_duplicate(normalized, raw_title=raw_title):
+            logging.info(f"Fuzzy duplicate skipped: {raw_title}")
+            _add_related(unique_articles, article, index, normalized,
+                         raw_title, batch_start_idx)
             seen_hashes.add(raw_hash)
             new_hashes.append(raw_hash)
             continue
 
         hash_to_idx[raw_hash] = len(unique_articles)
         unique_articles.append(article)
-        index.add(normalized)
+        index.add(normalized, raw_title=raw_title)
         seen_hashes.add(raw_hash)
         new_hashes.append(raw_hash)
-        new_titles.append(article["title"])
+        new_titles.append(raw_title)
 
-    all_hashes = list(seen_hashes)
+    # Preserve insertion order: old hashes first, new appended at end.
+    # _save_lines trims from the front (oldest) when over MAX_SEEN_HASHES.
+    all_hashes = seen_hashes_ordered + new_hashes
     _save_lines(SEEN_HASHES_FILE, all_hashes, max_lines=MAX_SEEN_HASHES)
 
     all_titles = seen_titles + new_titles
@@ -216,9 +277,9 @@ def _merge_region(original, duplicate):
 
 
 def _add_related(unique_articles, duplicate_article, index, dup_normalized,
-                 batch_start_idx):
+                 dup_raw_title, batch_start_idx):
     match_offset = index.find_best_match_index(
-        dup_normalized, batch_start_idx
+        dup_normalized, batch_start_idx, raw_title=dup_raw_title
     )
     if 0 <= match_offset < len(unique_articles):
         original = unique_articles[match_offset]
