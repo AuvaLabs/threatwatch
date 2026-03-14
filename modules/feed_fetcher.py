@@ -9,7 +9,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from modules.config import FEED_CUTOFF_DAYS
-from modules.url_resolver import resolve_original_url
+from modules.url_resolver import resolve_original_url, is_clearnet_url
 
 _FEED_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -47,7 +47,15 @@ def _fetch_feed(url, region="Global"):
         results = []
 
         for entry in parsed.entries:
-            clean_link = resolve_original_url(entry.link)
+            raw_link = getattr(entry, "link", "") or ""
+            # Drop articles whose primary link is a Tor/I2P address
+            if not is_clearnet_url(raw_link):
+                logging.debug(f"Non-clearnet link skipped: {raw_link[:80]}")
+                continue
+            clean_link = resolve_original_url(raw_link)
+            # Resolved URL might have redirected to a .onion — guard again
+            if not is_clearnet_url(clean_link):
+                clean_link = raw_link
             article_hash = hashlib.sha256(
                 (entry.title + url + clean_link).encode()
             ).hexdigest()

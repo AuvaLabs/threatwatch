@@ -15,6 +15,7 @@ from datetime import datetime, timezone, timedelta
 import requests
 
 from modules.config import FEED_CUTOFF_DAYS
+from modules.url_resolver import is_clearnet_url
 
 _SESSION = None
 _TOR_SESSION = None
@@ -166,7 +167,7 @@ def _parse_ransomware_live(resp, source, cutoff):
 
             articles.append({
                 "title": title,
-                "link": url if url and url.startswith("http") else f"https://ransomware.live/#/victims",
+                "link": url if is_clearnet_url(url) else "https://ransomware.live/#/victims",
                 "published": discovered or datetime.now(timezone.utc).isoformat(),
                 "summary": (
                     f"Ransomware group {group} posted new victim '{name}' "

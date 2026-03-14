@@ -7,6 +7,32 @@ from bs4 import BeautifulSoup
 _CACHE: dict[str, str] = {}
 _CACHE_MAX = 1000
 
+
+def is_clearnet_url(url: str) -> bool:
+    """Return True only if url is a regular clearnet http/https address.
+
+    Rejects:
+    - .onion domains (Tor hidden services)
+    - .i2p domains (I2P network)
+    - non-http/https schemes
+    - empty or non-string values
+    """
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        host = (parsed.hostname or "").lower()
+        if host.endswith(".onion") or host == "onion":
+            return False
+        if host.endswith(".i2p") or host == "i2p":
+            return False
+        return bool(host)
+    except Exception:
+        return False
+
+
 # ==== Embedded URL Extraction ====
 def extract_embedded_url(url):
     parsed = urlparse(url)
@@ -19,7 +45,9 @@ def follow_redirects(url):
         response = requests.head(url, allow_redirects=True, timeout=5)
         if response.status_code in [301, 302] and 'Location' in response.headers:
             return response.headers['Location']
-        return response.url
+        final = response.url
+        # Never return a Tor or I2P address even if a redirect leads there
+        return final if is_clearnet_url(final) else None
     except requests.RequestException as e:
         logging.warning(f"Redirect failed for {url}: {e}")
         return None
