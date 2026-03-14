@@ -156,7 +156,7 @@ def _parse_ransomware_live(resp, source, cutoff):
             if pub_dt and pub_dt < cutoff:
                 continue
 
-            title = f"[DARK WEB] {group} ransomware: new victim '{name}'"
+            title = f"{group} ransomware: new victim '{name}'"
             if country:
                 title += f" ({country})"
 
@@ -225,7 +225,7 @@ def _parse_threatfox(resp, source, cutoff):
                 i["value"] for i in info["iocs"][:5]
             )
             title = (
-                f"[DARK WEB] ThreatFox: {malware} — "
+                f"ThreatFox: {malware} — "
                 f"{ioc_count} new IOC{'s' if ioc_count != 1 else ''} detected"
             )
             article_hash = hashlib.sha256(
@@ -272,7 +272,7 @@ def _parse_c2_tracker(resp, source, cutoff):
             sample_ips = [l.strip() for l in lines if l.strip() and not l.startswith("#")][:10]
 
             articles.append({
-                "title": f"[DARK WEB] C2 Tracker: {ip_count} active command & control servers detected",
+                "title": f"C2 Tracker: {ip_count} active command & control servers detected",
                 "link": "https://github.com/montysecurity/C2-Tracker",
                 "published": datetime.now(timezone.utc).isoformat(),
                 "summary": (

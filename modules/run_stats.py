@@ -40,9 +40,23 @@ class RunStats:
         self.cyber_articles = 0
         self.non_cyber_articles = 0
         self.analysis_failures = 0
+        self.budget_exceeded = False
 
     def finalize(self):
         stats = _load_stats()
+
+        try:
+            from modules.ai_engine import get_failure_stats
+            failure_stats = get_failure_stats()
+            self.budget_exceeded = failure_stats.get("budget_skips", 0) > 0
+        except Exception:
+            pass
+
+        if self.budget_exceeded:
+            logging.warning(
+                "AI budget was exceeded this run — some articles used keyword classification only."
+            )
+
         run = {
             "started_at": self.started_at,
             "completed_at": datetime.now(timezone.utc).isoformat(),
@@ -58,6 +72,7 @@ class RunStats:
             "cyber_articles": self.cyber_articles,
             "non_cyber_articles": self.non_cyber_articles,
             "analysis_failures": self.analysis_failures,
+            "budget_exceeded": self.budget_exceeded,
             "api_cost_today": round(get_today_spend(), 4),
             "api_cost_total": round(get_total_spend(), 4),
         }

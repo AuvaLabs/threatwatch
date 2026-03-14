@@ -2,9 +2,11 @@ import feedparser
 import hashlib
 import logging
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from email.utils import parsedate_to_datetime
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from modules.config import FEED_CUTOFF_DAYS
 from modules.url_resolver import resolve_original_url
@@ -24,6 +26,15 @@ def _get_session():
     if _session is None:
         _session = requests.Session()
         _session.headers.update(_FEED_HEADERS)
+        retry = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET"],
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        _session.mount("https://", adapter)
+        _session.mount("http://", adapter)
     return _session
 
 
@@ -38,7 +49,7 @@ def _fetch_feed(url, region="Global"):
         for entry in parsed.entries:
             clean_link = resolve_original_url(entry.link)
             article_hash = hashlib.sha256(
-                (entry.title + clean_link).encode()
+                (entry.title + url + clean_link).encode()
             ).hexdigest()
             results.append({
                 "title": entry.title,
@@ -50,14 +61,14 @@ def _fetch_feed(url, region="Global"):
                 "feed_region": region,
             })
 
-        cutoff = datetime.now() - timedelta(days=FEED_CUTOFF_DAYS)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=FEED_CUTOFF_DAYS)
         filtered = []
         for r in results:
             pub = r.get("published", "")
             if pub:
                 try:
                     pub_dt = parsedate_to_datetime(pub)
-                    if pub_dt.replace(tzinfo=None) < cutoff:
+                    if pub_dt < cutoff:
                         continue
                 except (ValueError, TypeError):
                     pass

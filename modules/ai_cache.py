@@ -1,3 +1,4 @@
+import fcntl
 import json
 import logging
 from datetime import datetime, timezone, timedelta
@@ -36,6 +37,7 @@ def cache_result(content_hash, result):
     path = _cache_path(content_hash)
     try:
         with open(path, "w", encoding="utf-8") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
             json.dump(entry, f, ensure_ascii=False)
     except Exception as e:
         logging.error(f"Failed to cache result for {content_hash[:12]}: {e}")

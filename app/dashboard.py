@@ -1,3 +1,4 @@
+import html
 import json
 import logging
 from datetime import datetime, timezone
@@ -56,26 +57,29 @@ def generate_dashboard_html():
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ThreatDigest Hub</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 :root {{
     --bg: #ffffff;
-    --surface: #f8f9fa;
-    --border: #e2e6ea;
-    --border-light: #f0f1f3;
-    --text: #1a1a2e;
-    --text-secondary: #495057;
-    --text-muted: #868e96;
-    --accent: #2563eb;
-    --accent-light: #eff6ff;
-    --danger: #dc2626;
-    --danger-light: #fef2f2;
-    --warning: #d97706;
-    --warning-light: #fffbeb;
-    --success: #059669;
-    --success-light: #ecfdf5;
+    --surface: #f7f7f7;
+    --border: rgba(0,0,0,0.08);
+    --border-light: rgba(0,0,0,0.05);
+    --text: #111111;
+    --text-secondary: rgba(17,17,17,0.55);
+    --text-muted: rgba(17,17,17,0.32);
+    --accent: #1a56db;
+    --accent-light: rgba(26,86,219,0.06);
+    --danger: #c0392b;
+    --danger-light: rgba(192,57,43,0.06);
+    --warning: #b7791f;
+    --warning-light: rgba(183,121,31,0.06);
+    --success: #1e7e4e;
+    --success-light: rgba(30,126,78,0.06);
+    --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'DM Mono', 'JetBrains Mono', monospace;
 }}
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
 body {{
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-body);
     background: var(--bg);
     color: var(--text);
     line-height: 1.5;
@@ -117,16 +121,17 @@ header .subtitle {{
 }}
 .stat-card .label {{
     color: var(--text-muted);
-    font-size: 11px;
+    font-family: var(--font-mono);
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
-    font-weight: 600;
+    letter-spacing: 0.5px;
+    font-weight: 400;
 }}
 .stat-card .value {{
-    font-size: 32px;
+    font-size: 26px;
     font-weight: 700;
     margin-top: 6px;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.3px;
 }}
 .stat-card .value.accent {{ color: var(--accent); }}
 .stat-card .value.warning {{ color: var(--warning); }}
@@ -135,11 +140,13 @@ header .subtitle {{
 
 .section {{ margin-bottom: 36px; }}
 .section h2 {{
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     margin-bottom: 14px;
-    letter-spacing: -0.1px;
 }}
 
 .categories {{
@@ -361,9 +368,9 @@ footer {{
 
             conf_class = "conf-high" if confidence >= 80 else ("conf-med" if confidence >= 50 else "conf-low")
 
-            title_escaped = title.replace('"', '&quot;').replace("'", "&#39;").replace("<", "&lt;").replace(">", "&gt;")
-            summary_escaped = summary.replace('"', '&quot;').replace("'", "&#39;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", " ")
-            title_display = title.replace("<", "&lt;").replace(">", "&gt;")
+            title_escaped = html.escape(title, quote=True)
+            summary_escaped = html.escape(summary.replace("\n", " "), quote=True)
+            title_display = html.escape(title)
 
             html += f'            <tr data-category="{category}" data-title="{title_escaped.lower()}">\n'
             html += f'                <td><a href="{link}" target="_blank" rel="noopener">{title_display}</a>'
@@ -379,6 +386,14 @@ footer {{
 
         html += """        </tbody>
     </table>
+    <div style="text-align:center;padding:16px 0">
+        <button id="show-more-btn" onclick="showMore()"
+            style="background:var(--surface);border:1px solid var(--border);border-radius:6px;
+                   padding:8px 24px;font-size:13px;color:var(--text-secondary);
+                   cursor:pointer;font-family:var(--font-mono);letter-spacing:0.3px;display:none">
+            SHOW MORE
+        </button>
+    </div>
 """
 
     html += """</div>
@@ -389,20 +404,54 @@ footer {{
 </div>
 
 <script>
+const PAGE_SIZE = 100;
+let _activeCategory = 'all';
+let _activeQuery = '';
+let _visibleCount = PAGE_SIZE;
+
+function _getRows() {
+    return Array.from(document.querySelectorAll('#articles-body tr'));
+}
+
+function _applyFilters() {
+    const rows = _getRows();
+    let shown = 0;
+    rows.forEach(row => {
+        const catMatch = _activeCategory === 'all' || row.dataset.category === _activeCategory;
+        const qMatch = !_activeQuery || row.dataset.title.includes(_activeQuery);
+        const withinPage = catMatch && qMatch && shown < _visibleCount;
+        row.style.display = withinPage ? '' : 'none';
+        if (withinPage) shown++;
+    });
+    const total = rows.filter(r => {
+        const catMatch = _activeCategory === 'all' || r.dataset.category === _activeCategory;
+        const qMatch = !_activeQuery || r.dataset.title.includes(_activeQuery);
+        return catMatch && qMatch;
+    }).length;
+    const btn = document.getElementById('show-more-btn');
+    if (btn) btn.style.display = shown < total ? '' : 'none';
+}
+
 function filterCategory(cat) {
+    _activeCategory = cat;
+    _visibleCount = PAGE_SIZE;
     document.querySelectorAll('.cat-badge').forEach(b => b.classList.remove('active'));
     event.target.closest('.cat-badge').classList.add('active');
-    document.querySelectorAll('#articles-body tr').forEach(row => {
-        row.style.display = (cat === 'all' || row.dataset.category === cat) ? '' : 'none';
-    });
+    _applyFilters();
 }
 
 function searchArticles(query) {
-    const q = query.toLowerCase();
-    document.querySelectorAll('#articles-body tr').forEach(row => {
-        row.style.display = row.dataset.title.includes(q) ? '' : 'none';
-    });
+    _activeQuery = query.toLowerCase();
+    _visibleCount = PAGE_SIZE;
+    _applyFilters();
 }
+
+function showMore() {
+    _visibleCount += PAGE_SIZE;
+    _applyFilters();
+}
+
+_applyFilters();
 </script>
 </body>
 </html>"""

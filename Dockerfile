@@ -30,5 +30,8 @@ RUN mkdir -p data/output/hourly data/output/daily \
 
 EXPOSE 8098
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8098/ || exit 1
+
 # Default command (overridden by docker-compose per service)
 CMD ["python", "serve_threatwatch.py"]

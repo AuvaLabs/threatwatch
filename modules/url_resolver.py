@@ -1,8 +1,11 @@
 # ==== Module Imports ====
+import logging
 import requests
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
-import logging
+
+_CACHE: dict[str, str] = {}
+_CACHE_MAX = 1000
 
 # ==== Embedded URL Extraction ====
 def extract_embedded_url(url):
@@ -36,13 +39,20 @@ def extract_canonical_from_html(url):
 
 # ==== Final URL Resolver ====
 def resolve_original_url(url):
+    if url in _CACHE:
+        return _CACHE[url]
+
     embedded = extract_embedded_url(url)
     if embedded:
-        return embedded
+        result = embedded
+    else:
+        redirected = follow_redirects(url)
+        if redirected and redirected != url:
+            result = redirected
+        else:
+            result = extract_canonical_from_html(url) or url
 
-    redirected = follow_redirects(url)
-    if redirected and redirected != url:
-        return redirected
-
-    canonical = extract_canonical_from_html(url)
-    return canonical or url
+    if len(_CACHE) >= _CACHE_MAX:
+        _CACHE.pop(next(iter(_CACHE)))
+    _CACHE[url] = result
+    return result
