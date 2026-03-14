@@ -1,7 +1,37 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from modules.article_scraper import extract_with_fallback, process_urls_in_parallel
+from modules.article_scraper import extract_with_fallback, extract_with_trafilatura, process_urls_in_parallel
+
+
+class TestExtractWithTrafilatura:
+    def test_returns_content_when_trafilatura_extracts(self):
+        long_text = "A" * 150
+        with patch("modules.article_scraper.trafilatura.fetch_url", return_value="<html/>"), \
+             patch("modules.article_scraper.trafilatura.extract", return_value=long_text):
+            result = extract_with_trafilatura("https://example.com/article")
+        assert result == long_text
+
+    def test_returns_none_when_fetch_returns_nothing(self):
+        with patch("modules.article_scraper.trafilatura.fetch_url", return_value=None):
+            result = extract_with_trafilatura("https://example.com/article")
+        assert result is None
+
+    def test_returns_none_when_text_too_short(self):
+        with patch("modules.article_scraper.trafilatura.fetch_url", return_value="<html/>"), \
+             patch("modules.article_scraper.trafilatura.extract", return_value="short"):
+            result = extract_with_trafilatura("https://example.com/article")
+        assert result is None
+
+    def test_returns_none_on_exception(self):
+        with patch("modules.article_scraper.trafilatura.fetch_url", side_effect=RuntimeError("oops")):
+            result = extract_with_trafilatura("https://example.com/article")
+        assert result is None
+
+    def test_blocks_unsafe_url(self):
+        with patch("modules.article_scraper.is_safe_url", return_value=False):
+            result = extract_with_trafilatura("http://192.168.1.1/")
+        assert result is None
 
 
 class TestExtractWithFallback:

@@ -2,7 +2,7 @@ import time
 import random
 import logging
 import requests
-from newspaper import Article
+import trafilatura
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.adapters import HTTPAdapter
@@ -45,18 +45,18 @@ def _get_headers():
     return {"User-Agent": random.choice(USER_AGENTS)}
 
 
-def extract_with_newspaper(url):
+def extract_with_trafilatura(url):
     if not is_safe_url(url):
-        logging.debug(f"extract_with_newspaper: blocked unsafe URL {url}")
+        logging.debug(f"extract_with_trafilatura: blocked unsafe URL {url}")
         return None
     try:
-        article = Article(url)
-        article.download()
-        article.parse()
-        text = article.text.strip()
-        return text if len(text) > 100 else None
+        downloaded = trafilatura.fetch_url(url)
+        if not downloaded:
+            return None
+        text = trafilatura.extract(downloaded, include_comments=False, include_tables=False)
+        return text if text and len(text) > 100 else None
     except Exception as e:
-        logging.warning(f"Newspaper3k failed for {url}: {e}")
+        logging.warning(f"trafilatura failed for {url}: {e}")
         return None
 
 
@@ -84,7 +84,7 @@ def extract_with_fallback(url):
 def extract_article_content(raw_url):
     clean_url = resolve_original_url(raw_url)
 
-    content = extract_with_newspaper(clean_url)
+    content = extract_with_trafilatura(clean_url)
     if content:
         logging.info(f"Extracted {len(content)} chars from {clean_url}")
         return clean_url, content

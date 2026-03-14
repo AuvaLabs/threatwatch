@@ -1,3 +1,6 @@
+# Source of truth — use pip-compile to generate requirements.txt
+# pip install pip-tools && pip-compile requirements.in
+
 feedparser
 feedgen
 anthropic>=0.40.0
@@ -9,6 +12,9 @@ readability-lxml>=0.8
 python-dotenv>=1.0
 pyyaml>=6.0
 lingua-language-detector>=2.0
+
+# Dev / CI
 pytest>=7.0
 pytest-cov>=4.0
 ruff>=0.4
+pip-audit>=2.7

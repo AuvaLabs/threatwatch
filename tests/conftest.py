@@ -49,22 +49,48 @@ def _make_feedparser_mock():
     return mod
 
 
-def _make_newspaper_mock():
-    """Minimal newspaper3k mock."""
-    mod = types.ModuleType("newspaper")
+def _make_trafilatura_mock():
+    """Minimal trafilatura mock — fetch_url returns None, extract returns None."""
+    mod = types.ModuleType("trafilatura")
 
-    class Article:
-        def __init__(self, url, **kwargs):
-            self.url = url
-            self.text = ""
+    def fetch_url(url, **kwargs):
+        return None
 
-        def download(self):
-            pass
+    def extract(content, **kwargs):
+        return None
 
-        def parse(self):
-            pass
+    mod.fetch_url = fetch_url
+    mod.extract = extract
+    return mod
 
-    mod.Article = Article
+
+def _make_lingua_mock():
+    """Minimal lingua mock — always detects English."""
+    mod = types.ModuleType("lingua")
+
+    class _IsoCode639_1:
+        name = "EN"
+
+    class _Language:
+        iso_code_639_1 = _IsoCode639_1()
+
+    class _Detector:
+        def detect_language_of(self, text):
+            return _Language()
+
+    class _Builder:
+        def build(self):
+            return _Detector()
+
+        def with_preloaded_language_models(self):
+            return self
+
+    class LanguageDetectorBuilder:
+        @classmethod
+        def from_all_languages(cls):
+            return _Builder()
+
+    mod.LanguageDetectorBuilder = LanguageDetectorBuilder
     return mod
 
 
@@ -128,26 +154,14 @@ if "anthropic" not in sys.modules:
 if "feedparser" not in sys.modules:
     sys.modules["feedparser"] = _make_feedparser_mock()
 
-if "newspaper" not in sys.modules:
-    sys.modules["newspaper"] = _make_newspaper_mock()
+if "trafilatura" not in sys.modules:
+    sys.modules["trafilatura"] = _make_trafilatura_mock()
 
-def _make_langdetect_mock():
-    """Minimal langdetect mock — always returns English."""
-    mod = types.ModuleType("langdetect")
-
-    def detect(text):
-        return "en"
-
-    mod.detect = detect
-    mod.LangDetectException = Exception
-    return mod
-
+if "lingua" not in sys.modules:
+    sys.modules["lingua"] = _make_lingua_mock()
 
 if "bs4" not in sys.modules:
     sys.modules["bs4"] = _make_bs4_mock()
 
 if "feedgen" not in sys.modules:
     sys.modules["feedgen"] = _make_feedgen_mock()
-
-if "langdetect" not in sys.modules:
-    sys.modules["langdetect"] = _make_langdetect_mock()
