@@ -29,7 +29,15 @@ _RULES = [
             r"ransomware|encrypted\s+files|ransom\s+demand|lockbit|blackcat"
             r"|cl0p|clop|akira\s+ransom|play\s+ransomware|alphv|rhysida"
             r"|medusa\s+ransom|black\s*basta|royal\s+ransom|hive\s+ransom"
-            r"|conti\s+ransom|ransomhub|bianlian",
+            r"|conti\s+ransom|ransomhub|bianlian"
+            # Newer ransomware groups (2024-2026)
+            r"|hunters\s+international|qilin\s+ransom|agenda\s+ransom"
+            r"|inc\s+ransom|incransom|embargo\s+ransom|interlock\s+ransom"
+            r"|brain.?cipher|fog\s+ransom|lynx\s+ransom|safepay\s+ransom"
+            r"|3am\s+ransom|three\s*am\s+ransom|dragonforce\s+ransom"
+            r"|underground\s+team\s+ransom|abyss\s+locker|space\s+bears"
+            r"|hellcat\s+ransom|cloak\s+ransom|eldorado\s+ransom"
+            r"|beast\s+ransom|sarcoma\s+ransom|meow\s+ransom|cicada3301",
             re.IGNORECASE,
         ),
         "confidence": 92,
@@ -41,7 +49,16 @@ _RULES = [
             r"|lazarus|volt\s*typhoon|salt\s*typhoon|sandworm|fancy\s*bear"
             r"|cozy\s*bear|midnight\s*blizzard|charming\s*kitten|muddywater"
             r"|kimsuky|hidden\s*cobra|apt28|apt29|apt41|winnti|turla"
-            r"|gamaredon|star\s*blizzard",
+            r"|gamaredon|star\s*blizzard"
+            # Additional APT groups and aliases (2024-2026)
+            r"|scattered\s+spider|unc3944|silk\s+typhoon|forest\s+blizzard"
+            r"|ghost\s*emperor|ghost\s*writer|goldenj\s*ackal|golden\s+jackal"
+            r"|bluenoroff|andariel|lazarus\s+group|storm-\d{4}|storm\s+\d{4}"
+            r"|earth\s+kasha|redjuliett|red\s+juliet|emerald\s+sleet"
+            r"|jade\s+sleet|onyx\s+sleet|citrine\s+sleet|raspberry\s+robin"
+            r"|damselfly|nespresso\s+malware|unc3886|unc2529"
+            r"|hafnium|peach\s+sandstorm|mint\s+sandstorm|crimson\s+sandstorm"
+            r"|seashell\s+blizzard|aqua\s+blizzard|cadet\s+blizzard",
             re.IGNORECASE,
         ),
         "confidence": 88,
@@ -296,6 +313,30 @@ _NOISE_PATTERNS = [
         r"|products?\s+(launch|announc|releas|unveil|introduc)"
         r"|top\s+\d+\s+(infosec|cybersecurity|security)\s+(tools?|products?|solutions?)"
         r"|vendor\s+spotlight|product\s+review\s+roundup",
+        re.IGNORECASE,
+    ),
+    # Certification / training content (not threat intel)
+    re.compile(
+        r"(get|earn|obtain|achieve|pass)\s+(your\s+)?(cissp|cism|ceh|comptia|ccna|oscp|gcih|gsec|gpen|sans\s+course)"
+        r"|(cissp|cism|ceh|oscp|security\+|cloud\+)\s+(certification|exam|prep|study|course|bootcamp|training)"
+        r"|cybersecurity\s+(training|bootcamp|course|certification|degree|program)\s+(for|online|now)"
+        r"|learn\s+(ethical\s+hacking|penetration\s+testing|cybersecurity)\s+(online|today|for\s+free)"
+        r"|free\s+cybersecurity\s+(course|training|tutorial|resources?)",
+        re.IGNORECASE,
+    ),
+    # Generic cybersecurity advice / tips (not incident reporting)
+    re.compile(
+        r"^(top|best|essential)\s+\d+\s+(tips?|ways?|steps?|practices?|strategies?|tools?)\s+(to|for)\s+(protect|secure|stay|prevent|avoid)"
+        r"|how\s+to\s+(protect|secure|stay\s+safe)\s+(your|against|from)\s+.{0,40}(cyber|hack|threat|attack|phish)"
+        r"|(protect|secure)\s+your(self|business|company|organization)\s+(from|against)\s+(cyber|hack|ransomware|phishing)"
+        r"|cybersecurity\s+awareness\s+(month|week|day|tips?|best\s+practices?)",
+        re.IGNORECASE,
+    ),
+    # Crypto/NFT investment content falsely matching theft keywords
+    re.compile(
+        r"(buy|sell|invest(ing)?|trading|portfolio|hodl|bullish|bearish)\s+(bitcoin|ethereum|crypto|nft|defi|altcoin)"
+        r"|(bitcoin|ethereum|crypto)\s+(price|rally|surge|dip|prediction|forecast|bull\s+run|bear\s+market)"
+        r"|crypto\s+(market|exchange|wallet)\s+(update|news|analysis|review|report)\b(?!.*hack)(?!.*breach)(?!.*exploit)",
         re.IGNORECASE,
     ),
 ]

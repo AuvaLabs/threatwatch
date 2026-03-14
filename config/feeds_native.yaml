@@ -51,10 +51,6 @@
   category: Native
   region: Global
 
-- url: https://feeds.feedburner.com/eset/blog
-  category: Native
-  region: Global
-
 - url: https://securelist.com/feed/
   category: Native
   region: Global
@@ -78,6 +74,18 @@
 - url: https://www.recordedfuture.com/feed
   category: Native
   region: Global
+
+# SANS Internet Storm Center — daily diary + alerts from security handlers
+- url: https://isc.sans.edu/rssfeed_full.xml
+  category: Native
+  region: Global
+
+# Google Project Zero — in-depth zero-day research from Google's bug hunters
+- url: https://googleprojectzero.blogspot.com/feeds/posts/default
+  category: Native
+  region: Global
+
+# NCC Group Research RSS returned empty (verified 2026-03-14)
 
 # Tier 4: Industry specific
 - url: https://cyberscoop.com/feed/
@@ -125,25 +133,40 @@
   category: Native
   region: Global
 
+# The DFIR Report — detailed incident response case studies with TTPs
+- url: https://thedfirreport.com/feed/
+  category: Native
+  region: Global
+
+# Red Canary — threat detection research and annual threat report coverage
+- url: https://redcanary.com/blog/rss/
+  category: Native
+  region: Global
+
+# Huntress Labs — SMB-focused threat hunting and ransomware incident research
+- url: https://www.huntress.com/blog/rss.xml
+  category: Native
+  region: US
+
+# Sekoia TI blog returns 403 (verified 2026-03-14)
+# WithSecure Labs RSS returns empty feed (verified 2026-03-14)
+# Lumen Black Lotus Labs feed returned empty (verified 2026-03-14)
+
 # Tier 6: Government & CERT (expanded)
 - url: https://www.cisa.gov/uscert/ics/advisories/advisories.xml
   category: Native
   region: US
 
-- url: https://cert.europa.eu/publications/security-advisories/rss
-  category: Native
-  region: EU
+# CERT-EU advisory RSS feed is retired (all known URLs return 404)
 
 - url: https://www.cyber.gov.au/about-us/view-all-content/alerts-and-advisories/rss.xml
   category: Native
   region: Australia
 
 # Tier 7: Ransomware & Malware specific
-- url: https://www.nomoreransom.org/en/rss.xml
-  category: Native
-  region: Global
+# No More Ransom RSS returns empty feed (all URL variants tested, none have entries)
 
-- url: https://www.virustotal.com/blog/feed/
+- url: https://blog.virustotal.com/feeds/posts/default
   category: Native
   region: Global
 
@@ -169,17 +192,13 @@
   category: Native
   region: Global
 
-- url: https://support.f5.com/csp/article/K000137028/rss
-  category: Native
-  region: Global
+# F5 advisory RSS retired — article-specific RSS URL no longer valid
 
 - url: https://www.ivanti.com/blog/topics/security/rss
   category: Native
   region: Global
 
-- url: https://www.vmware.com/security/advisories.xml
-  category: Native
-  region: Global
+# VMware (Broadcom) advisories feed retired — no working public RSS available
 
 # Tier 10: CVE & Vulnerability Feeds
 - url: https://github.com/advisories.atom
@@ -197,6 +216,14 @@
 - url: https://www.wordfence.com/blog/feed/
   category: Native
   region: Global
+
+# Exploit Database — public exploit disclosures and PoC releases
+- url: https://www.exploit-db.com/rss.xml
+  category: Native
+  region: Global
+
+# AttackerKB RSS returns 404 (verified 2026-03-14)
+# Akamai Security blog RSS returns 403 (verified 2026-03-14)
 
 # Tier 11: Regional CERTs
 - url: https://www.jpcert.or.jp/english/rss/jpcert-en.rdf
@@ -222,6 +249,16 @@
 - url: https://www.cccs-cccs.gc.ca/en/rss-feeds/cyber-centre-alerts-advisories.xml
   category: Native
   region: Canada
+
+# CERT-UA RSS returns 404 (all tested URLs fail, verified 2026-03-14)
+
+# CERT Polska (CERT-PL) — Polish national CERT, strong Eastern European coverage
+- url: https://www.cert.pl/en/feed
+  category: Native
+  region: Poland
+
+# ENISA RSS returns 404 (verified 2026-03-14)
+# CERT-NZ advisory RSS returns 404 (verified 2026-03-14)
 
 # Tier 12: Industry Blogs & Analysis
 - url: https://www.sophos.com/en-us/blog.xml
