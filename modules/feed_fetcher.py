@@ -10,6 +10,7 @@ from urllib3.util.retry import Retry
 
 from modules.config import FEED_CUTOFF_DAYS
 from modules.url_resolver import resolve_original_url, is_clearnet_url
+from modules.feed_health import record_fetch
 
 _FEED_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -84,10 +85,12 @@ def _fetch_feed(url, region="Global"):
 
         skipped = len(results) - len(filtered)
         logging.info(f"Fetched {len(filtered)} articles from {url} ({skipped} older than {FEED_CUTOFF_DAYS} days filtered)")
+        record_fetch(url, success=True, entry_count=len(filtered))
         return filtered
 
     except Exception as e:
         logging.error(f"Error fetching {url}: {e}")
+        record_fetch(url, success=False, entry_count=0)
         return []
 
 
