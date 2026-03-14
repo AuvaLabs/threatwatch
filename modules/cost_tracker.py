@@ -1,11 +1,13 @@
 import json
 import logging
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
 from modules.config import STATE_DIR, DAILY_BUDGET_USD
 
-COST_FILE = STATE_DIR / "api_costs.json"
+COST_FILE  = STATE_DIR / "api_costs.json"
+_cost_lock = threading.Lock()
 
 # Haiku 4.5 pricing per million tokens (USD)
 PRICE_INPUT_PER_MTOK = 0.80
@@ -60,35 +62,36 @@ def track_usage(response):
     cost, inp, out, cache_r, cache_w = _calculate_cost(usage)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    data = _load_costs()
-    day_data = data.get("daily", {}).get(today, {
-        "cost_usd": 0.0,
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "api_calls": 0,
-    })
+    with _cost_lock:
+        data = _load_costs()
+        day_data = data.get("daily", {}).get(today, {
+            "cost_usd": 0.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "api_calls": 0,
+        })
 
-    day_data["cost_usd"] = round(day_data["cost_usd"] + cost, 6)
-    day_data["input_tokens"] += inp
-    day_data["output_tokens"] += out
-    day_data["cache_read_tokens"] += cache_r
-    day_data["cache_write_tokens"] += cache_w
-    day_data["api_calls"] += 1
+        day_data["cost_usd"] = round(day_data["cost_usd"] + cost, 6)
+        day_data["input_tokens"] += inp
+        day_data["output_tokens"] += out
+        day_data["cache_read_tokens"] += cache_r
+        day_data["cache_write_tokens"] += cache_w
+        day_data["api_calls"] += 1
 
-    if "daily" not in data:
-        data["daily"] = {}
-    data["daily"][today] = day_data
-    data["total_usd"] = round(data.get("total_usd", 0.0) + cost, 6)
+        if "daily" not in data:
+            data["daily"] = {}
+        data["daily"][today] = day_data
+        data["total_usd"] = round(data.get("total_usd", 0.0) + cost, 6)
 
-    # Keep only last 90 days
-    sorted_days = sorted(data["daily"].keys())
-    if len(sorted_days) > 90:
-        for old_day in sorted_days[:-90]:
-            del data["daily"][old_day]
+        # Keep only last 90 days
+        sorted_days = sorted(data["daily"].keys())
+        if len(sorted_days) > 90:
+            for old_day in sorted_days[:-90]:
+                del data["daily"][old_day]
 
-    _save_costs(data)
+        _save_costs(data)
 
     logging.debug(
         f"API cost: ${cost:.4f} (in:{inp} out:{out} "

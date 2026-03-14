@@ -28,6 +28,11 @@ RUN mkdir -p data/output/hourly data/output/daily \
              data/state/ai_cache \
              data/logs/run_logs data/logs/summaries
 
+# Run as non-root for container security
+RUN adduser --disabled-password --gecos '' --uid 1001 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8098
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

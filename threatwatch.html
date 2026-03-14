@@ -2336,7 +2336,7 @@ const debouncedAnalyze = debounce(analyzeIntelligence, 150);
 function renderBriefing(items, allText, globalTotal) {
   const container = document.getElementById('ai-briefing-content');
   const region = state.activeRegion;
-  const regionName = REGION_NAMES[region] || 'Global';
+  const regionName = escapeHTML(REGION_NAMES[region] || 'Global');
   const isFiltered = region !== 'all';
 
   if (items.length === 0) {
@@ -3200,17 +3200,17 @@ function renderIOCSection(item) {
 
   if (iocs.cves.length > 0) {
     html += `<div class="ioc-group"><div class="ioc-group-label">CVE IDs</div><div class="ioc-list">${
-      iocs.cves.map(c => `<span class="ioc-chip ioc-cve" onclick="copyIOC('${c}', this)">${c} <span class="ioc-copy">COPY</span></span>`).join('')
+      iocs.cves.map(c => `<span class="ioc-chip ioc-cve" onclick="copyIOC('${escapeHTML(c)}', this)">${escapeHTML(c)} <span class="ioc-copy">COPY</span></span>`).join('')
     }</div></div>`;
   }
   if (iocs.ips.length > 0) {
     html += `<div class="ioc-group"><div class="ioc-group-label">IP ADDRESSES</div><div class="ioc-list">${
-      iocs.ips.map(ip => `<span class="ioc-chip ioc-ip" onclick="copyIOC('${ip}', this)">${ip} <span class="ioc-copy">COPY</span></span>`).join('')
+      iocs.ips.map(ip => `<span class="ioc-chip ioc-ip" onclick="copyIOC('${escapeHTML(ip)}', this)">${escapeHTML(ip)} <span class="ioc-copy">COPY</span></span>`).join('')
     }</div></div>`;
   }
   if (iocs.hashes.length > 0) {
     html += `<div class="ioc-group"><div class="ioc-group-label">FILE HASHES</div><div class="ioc-list">${
-      iocs.hashes.slice(0, 10).map(h => `<span class="ioc-chip ioc-hash" onclick="copyIOC('${h.value}', this)" title="${h.type}: ${h.value}">${h.type}: ${h.value.slice(0, 16)}... <span class="ioc-copy">COPY</span></span>`).join('')
+      iocs.hashes.slice(0, 10).map(h => `<span class="ioc-chip ioc-hash" onclick="copyIOC('${escapeHTML(h.value)}', this)" title="${escapeHTML(h.type)}: ${escapeHTML(h.value)}">${escapeHTML(h.type)}: ${escapeHTML(h.value.slice(0, 16))}... <span class="ioc-copy">COPY</span></span>`).join('')
     }</div></div>`;
   }
   if (iocs.domains.length > 0) {

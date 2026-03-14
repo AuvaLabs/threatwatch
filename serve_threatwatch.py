@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Lightweight threaded HTTP server for ThreatWatch dashboard with server-side rendering."""
 
+import collections
 import gzip
 import hashlib
 import html
@@ -25,6 +26,42 @@ SSR_PLACEHOLDER = "<!-- __SSR_DATA__ -->"
 
 _cache = {}
 _ssr_lock = threading.Lock()
+
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+_RATE_WINDOW  = 60   # seconds
+_RATE_LIMIT   = 120  # requests per window per IP
+_rate_buckets: dict = {}
+_rate_lock    = threading.Lock()
+
+def _is_rate_limited(ip: str) -> bool:
+    """Sliding-window rate limiter. Returns True if the IP has exceeded the limit."""
+    now = time.monotonic()
+    with _rate_lock:
+        dq = _rate_buckets.setdefault(ip, collections.deque())
+        while dq and dq[0] < now - _RATE_WINDOW:
+            dq.popleft()
+        if len(dq) >= _RATE_LIMIT:
+            return True
+        dq.append(now)
+        return False
+
+# ── Security headers ──────────────────────────────────────────────────────────
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "font-src 'self'; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none';"
+)
+_SECURITY_HEADERS = {
+    "Content-Security-Policy":   _CSP,
+    "X-Frame-Options":           "DENY",
+    "X-Content-Type-Options":    "nosniff",
+    "Referrer-Policy":           "no-referrer",
+    "Permissions-Policy":        "camera=(), microphone=(), geolocation=()",
+}
 
 
 def read_cached(file_path):
@@ -173,16 +210,26 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         logger.info("%s %s", self.address_string(), fmt % args)
 
+    def _is_api_path(self) -> bool:
+        return urlparse(self.path).path.startswith("/api/")
+
+    def _send_security_headers(self):
+        for name, value in _SECURITY_HEADERS.items():
+            self.send_header(name, value)
+
     def _send_cors_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        """CORS only on /api/* routes — not on the HTML page."""
+        if self._is_api_path():
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def _send_error_json(self, status, message):
         payload = json.dumps({"error": message}).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
+        self._send_security_headers()
         self._send_cors_headers()
         self.end_headers()
         self.wfile.write(payload)
@@ -197,6 +244,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         if if_none_match == etag:
             self.send_response(HTTPStatus.NOT_MODIFIED)
             self.send_header("ETag", etag)
+            self._send_security_headers()
             self._send_cors_headers()
             self.end_headers()
             return
@@ -214,6 +262,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "public, max-age=30")
         self.send_header("ETag", etag)
         self.send_header("Last-Modified", formatdate(timeval=time.time(), usegmt=True))
+        self._send_security_headers()
         self._send_cors_headers()
         self.end_headers()
         if not head_only:
@@ -221,6 +270,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(HTTPStatus.NO_CONTENT)
+        self._send_security_headers()
         self._send_cors_headers()
         self.end_headers()
 
@@ -231,6 +281,12 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         self._handle_request(head_only=False)
 
     def _handle_request(self, head_only=False):
+        client_ip = self.client_address[0]
+        if _is_rate_limited(client_ip):
+            self._send_error_json(HTTPStatus.TOO_MANY_REQUESTS,
+                                  "Rate limit exceeded — max 120 requests per minute")
+            return
+
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         params = parse_qs(parsed.query)
