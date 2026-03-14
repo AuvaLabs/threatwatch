@@ -400,10 +400,31 @@ html, body {
   padding: 8px 14px;
   flex-shrink: 0;
 }
-.left-footer-stats { display: none; }
-.lf-stat { display: none; }
-.lf-label { display: none; }
-.lf-value { display: none; }
+.left-footer-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0 6px;
+}
+.lf-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.lf-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.lf-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
 .left-footer-links {
   display: flex;
   align-items: center;
@@ -466,8 +487,14 @@ html, body {
   text-transform: uppercase;
 }
 
-/* Source badges — hidden in feed list */
+/* Source badges — hidden in feed list, except dark web */
 .badge-src { display: none; }
+.badge-src.darkweb {
+  display: inline-flex;
+  background: rgba(192,57,43,0.07);
+  color: var(--danger);
+  border: 1px solid rgba(192,57,43,0.18);
+}
 
 /* Type badges — muted, on white */
 .type-badge {
@@ -1282,6 +1309,7 @@ html, body {
         <div class="lf-stat"><span class="lf-label">DARK WEB</span><span class="lf-value" id="lf-darkweb">--</span></div>
         <div class="lf-stat"><span class="lf-label">SOURCES</span><span class="lf-value" id="lf-sources">--</span></div>
         <div class="lf-stat"><span class="lf-label">FEEDS</span><span class="lf-value" id="lf-feeds">--</span></div>
+        <div class="lf-stat"><span class="lf-label">API COST TODAY</span><span class="lf-value" id="lf-cost">--</span></div>
       </div>
       <div class="left-footer-links">
         <a href="https://auvalabs.github.io/threatwatch/feed.xml" target="_blank" rel="noopener" title="RSS Feed">RSS</a>
@@ -2360,14 +2388,14 @@ function transformArticles(articles) {
     const mapped = TD_CATEGORY_MAP[cat] || classifyItem(article.translated_title || article.title, article.summary || '');
     const isDarkweb = article.darkweb === true;
     return {
-      title: article.translated_title || article.title,
+      title: article.translated_title || article.title || '',
       description: (article.summary || '').slice(0, 400),
       link: article.link,
       pubDate: article.published || article.timestamp || new Date().toISOString(),
       source: isDarkweb ? 'DARK WEB' : 'THREATDIGEST',
       sourceClass: isDarkweb ? 'darkweb' : 'threatdigest',
       type: mapped.type || 'THREAT INTEL',
-      icon: isDarkweb ? '\uD83D\uDD76' : (mapped.icon || '\uD83D\uDEE1'),
+      icon: isDarkweb ? '' : (mapped.icon || '\uD83D\uDEE1'),
       severity: isDarkweb ? 'HIGH' : (mapped.severity || 'LOW'),
       cssType: mapped.cssType || 'threat-intel',
       isCISA: false,
@@ -2483,13 +2511,13 @@ function buildCardHTML(item) {
                       item.severity === 'HIGH' ? '#ff8c00' :
                       item.severity === 'MEDIUM' ? 'var(--amber)' : '#556';
 
-  const confBadge = item.confidence ? `<span class="badge" style="background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.2);font-size:8px">${item.confidence}%</span>` : '';
+  const confBadge = item.confidence ? `<span class="badge" style="background:rgba(30,126,78,0.07);color:var(--green);border:1px solid rgba(30,126,78,0.15);font-size:8px">${item.confidence}%</span>` : '';
 
   return `<div class="feed-card ${sevClass}${activeClass}" data-id="${item._id}">
     ${newBadge}
     <div class="card-badges">
       <span class="badge badge-src ${item.sourceClass}">${item.source}</span>
-      ${item.isDarkweb && item.darkwebGroup ? `<span class="badge" style="background:rgba(224,64,251,0.1);color:#e040fb;border:1px solid rgba(224,64,251,0.3);font-size:8px">${escapeHTML(item.darkwebGroup)}</span>` : ''}
+      ${item.isDarkweb && item.darkwebGroup ? `<span class="badge" style="background:rgba(192,57,43,0.07);color:var(--danger);border:1px solid rgba(192,57,43,0.18);font-size:8px">${escapeHTML(item.darkwebGroup)}</span>` : ''}
       <span class="type-badge ${item.cssType}">${icon} ${item.type}</span>
       ${confBadge}
       <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;background:${sevDotColor};flex-shrink:0"></span>
@@ -2550,10 +2578,17 @@ function renderFeedCards(reset = true) {
 
   // Show/hide load-more sentinel
   updateLoadMoreSentinel(state.displayedCount < filtered.length);
+
+  // Scroll to top after all DOM mutations (reset or load more)
+  if (reset) {
+    container.scrollTop = 0;
+  }
 }
 
 function loadMoreCards() {
   renderFeedCards(false);
+  const container = document.getElementById('threat-feed');
+  if (container) requestAnimationFrame(() => { container.scrollTop = 0; });
 }
 
 function updateLoadMoreSentinel(show) {
@@ -2573,8 +2608,7 @@ function updateLoadMoreSentinel(show) {
     const filtered = state.newsItems.filter(item => filterMatchesItem(filter, item));
     const remaining = filtered.length - state.displayedCount;
     btn.textContent = `LOAD MORE (${remaining} remaining)`;
-    // Scroll button into view
-    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Do not auto-scroll to button — user controls scroll position
   } else {
     if (btn) btn.remove();
   }
@@ -2782,8 +2816,8 @@ function selectItem(item) {
       <div><strong>Classification:</strong> ${item.type} / ${item.severity}</div>
       ${item.confidence ? `<div><strong>Confidence:</strong> <span style="color:var(--green)">${item.confidence}%</span></div>` : ''}
       ${item.aiCategory ? `<div><strong>Category:</strong> <span style="color:var(--cyan)">${escapeHTML(item.aiCategory)}</span></div>` : ''}
-      ${item.isDarkweb && item.darkwebGroup ? `<div><strong>Threat Group:</strong> <span style="color:#e040fb;font-weight:700">${escapeHTML(item.darkwebGroup)}</span></div>` : ''}
-      ${item.isDarkweb ? `<div><strong>Intel Source:</strong> <span style="color:#e040fb">${escapeHTML(item.darkwebSource || 'Dark Web Monitor')}</span></div>` : ''}
+      ${item.isDarkweb && item.darkwebGroup ? `<div><strong>Threat Group:</strong> <span style="color:var(--danger);font-weight:700">${escapeHTML(item.darkwebGroup)}</span></div>` : ''}
+      ${item.isDarkweb ? `<div><strong>Intel Source:</strong> <span style="color:var(--danger)">${escapeHTML(item.darkwebSource || 'Dark Web Monitor')}</span></div>` : ''}
     </div>
     <div class="detail-divider"></div>
     <div class="detail-body">${escapeHTML(item.description)}</div>
@@ -3166,6 +3200,8 @@ function updateLeftFooter(items) {
   el('lf-darkweb', darkwebCount);
   el('lf-sources', sources);
   el('lf-feeds', ps.feeds_loaded || '--');
+  const cost = ps.api_cost_today;
+  el('lf-cost', cost != null ? '$' + Number(cost).toFixed(4) : '--');
 }
 
 async function refreshData() {

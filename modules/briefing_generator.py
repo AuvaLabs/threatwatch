@@ -16,8 +16,10 @@ import logging
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.request import Request, urlopen
-from urllib.error import URLError
+
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from modules.config import (
     LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER,
@@ -82,10 +84,25 @@ def _build_digest(articles):
     return "\n".join(lines)
 
 
+def _get_http_session():
+    """Return a requests session with retry logic for transient errors."""
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        backoff_factor=2,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["POST"],
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
+
+
 def _call_openai_compatible(user_content):
-    """Call any OpenAI-compatible API using stdlib (no dependencies)."""
+    """Call any OpenAI-compatible API using requests with retry."""
     url = f"{LLM_BASE_URL.rstrip('/')}/chat/completions"
-    payload = json.dumps({
+    payload = {
         "model": LLM_MODEL,
         "max_tokens": 1000,
         "temperature": 0.3,
@@ -93,16 +110,16 @@ def _call_openai_compatible(user_content):
             {"role": "system", "content": _BRIEFING_PROMPT},
             {"role": "user", "content": user_content},
         ],
-    }).encode("utf-8")
+    }
 
     headers = {"Content-Type": "application/json"}
     if LLM_API_KEY:
         headers["Authorization"] = f"Bearer {LLM_API_KEY}"
 
-    req = Request(url, data=payload, headers=headers, method="POST")
-    with urlopen(req, timeout=90) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-
+    session = _get_http_session()
+    resp = session.post(url, json=payload, headers=headers, timeout=90)
+    resp.raise_for_status()
+    data = resp.json()
     return data["choices"][0]["message"]["content"].strip()
 
 

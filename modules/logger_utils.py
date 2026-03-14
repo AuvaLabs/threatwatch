@@ -2,7 +2,7 @@
 import os
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # ==== Centralized Log Setup ====
@@ -10,7 +10,7 @@ def setup_logger():
     log_dir = Path("data/logs")
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    log_file = log_dir / f"run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.log"
+    log_file = log_dir / f"run_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.log"
 
     logging.basicConfig(
         level=logging.INFO,
@@ -29,12 +29,12 @@ def log_article_summary(article_link, summary_text):
     try:
         summary_dir = Path("data/logs/summaries")
         summary_dir.mkdir(parents=True, exist_ok=True)
-        summary_file = summary_dir / f"summary_{datetime.utcnow().date()}.jsonl"
+        summary_file = summary_dir / f"summary_{datetime.now(timezone.utc).date()}.jsonl"
 
         entry = {
             "url": article_link,
             "summary": summary_text,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         with open(summary_file, "a", encoding="utf-8") as f:
