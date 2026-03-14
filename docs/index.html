@@ -1178,10 +1178,10 @@ html, body {
 .main-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* ============================================================= */
-/* IOC TRACKER                                                    */
+/* RANSOMWARE TRACKER                                             */
 /* ============================================================= */
-#tab-ioc { display: none; }
-.ioc-tracker-stats {
+#tab-ransom { display: none; }
+.ransom-tracker-stats {
   display: flex;
   gap: 20px;
   padding: 12px 28px;
@@ -1190,14 +1190,13 @@ html, body {
   flex-wrap: wrap;
   flex-shrink: 0;
 }
-.ioc-stat-val {
+.ransom-stat-header-val {
   font-family: var(--font-mono);
   font-size: 20px;
   font-weight: 700;
-  color: var(--danger);
   line-height: 1;
 }
-.ioc-stat-label {
+.ransom-stat-header-label {
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.5px;
@@ -1205,7 +1204,7 @@ html, body {
   text-transform: uppercase;
   margin-top: 3px;
 }
-.ioc-source-badge {
+.ransom-source-badge {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 9px;
@@ -1215,50 +1214,14 @@ html, body {
   border: 1px solid rgba(192,57,43,0.18);
   border-radius: 3px;
 }
-.ioc-export-btns { display: flex; gap: 4px; }
-.ioc-export-btn {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.5px;
-  padding: 3px 9px;
-  border: 1px solid var(--panel-border);
-  border-radius: 3px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.ioc-export-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
-.ioc-new-badge {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  padding: 1px 5px;
-  background: rgba(30,126,78,0.1);
-  color: var(--green);
-  border: 1px solid rgba(30,126,78,0.3);
-  border-radius: 3px;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-}
-.apt-critical-badge {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  padding: 1px 5px;
-  background: rgba(192,57,43,0.1);
-  color: var(--danger);
-  border: 1px solid rgba(192,57,43,0.3);
-  border-radius: 3px;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-}
-.ioc-type-filters {
+.ransom-type-filters {
   display: flex;
   gap: 4px;
   padding: 8px 28px;
   border-bottom: 1px solid var(--panel-border);
   flex-shrink: 0;
 }
-.ioc-type-btn {
+.ransom-type-btn {
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.5px;
@@ -1270,83 +1233,135 @@ html, body {
   cursor: pointer;
   transition: all 0.15s;
 }
-.ioc-type-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
-.ioc-type-btn.active { background: rgba(192,57,43,0.08); color: var(--danger); border-color: rgba(192,57,43,0.3); }
-.ioc-tracker-feed {
-  padding: 12px 28px 20px;
+.ransom-type-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+.ransom-type-btn.active { background: rgba(192,57,43,0.08); color: var(--danger); border-color: rgba(192,57,43,0.3); }
+.ransom-tracker-feed { padding: 16px 28px 20px; }
+.ransom-group-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
 }
-.ioc-family-card {
+.ransom-group-card {
   border: 1px solid var(--panel-border);
-  border-left: 3px solid var(--danger);
   border-radius: 4px;
   padding: 12px 14px;
-  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
-.ioc-family-header {
+.ransom-group-card:hover { border-color: var(--danger); background: var(--surface); }
+.ransom-group-card.ransom-active { border-left: 3px solid var(--danger); }
+.ransom-group-card.ransom-selected { background: rgba(192,57,43,0.04); border-color: var(--danger); }
+.ransom-group-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.ransom-group-stats { display: flex; gap: 16px; margin-bottom: 6px; }
+.ransom-group-stat-val {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+.ransom-group-stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}
+.ransom-activity-bar {
+  height: 2px;
+  background: rgba(192,57,43,0.1);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.ransom-activity-fill {
+  height: 100%;
+  background: var(--danger);
+  border-radius: 1px;
+  transition: width 0.6s ease-out;
+}
+.ransom-articles-section { margin-top: 4px; }
+.ransom-section-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
 }
-.ioc-family-name {
-  font-family: var(--font-mono);
+.ransom-section-count {
+  background: var(--surface);
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+.ransom-article-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--panel-border);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.ransom-article-row:hover { opacity: 0.75; }
+.ransom-article-row:last-child { border-bottom: none; }
+.ransom-article-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.ransom-article-dot.ransom-dot-victim { background: var(--danger); }
+.ransom-article-body { flex: 1; min-width: 0; }
+.ransom-article-title {
   font-size: 12px;
-  font-weight: 600;
-  color: var(--danger);
-  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  line-height: 1.4;
 }
-.ioc-family-src {
+.ransom-article-group {
   font-family: var(--font-mono);
   font-size: 9px;
-  padding: 2px 6px;
-  background: rgba(192,57,43,0.07);
   color: var(--danger);
-  border: 1px solid rgba(192,57,43,0.18);
-  border-radius: 3px;
+  margin-top: 2px;
+  letter-spacing: 0.3px;
 }
-.ioc-family-time {
+.ransom-article-time {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
-  margin-left: auto;
+  flex-shrink: 0;
 }
-.ioc-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 5px;
-}
-.ioc-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  user-select: all;
-}
-.ioc-chip:hover { opacity: 0.7; }
-.ioc-chip-type {
-  font-size: 8px;
-  letter-spacing: 0.5px;
-  opacity: 0.65;
-  text-transform: uppercase;
-}
-.ioc-chip.ioc-ip     { background: rgba(30,126,78,0.08); color: var(--green); border: 1px solid rgba(30,126,78,0.2); }
-.ioc-chip.ioc-hash   { background: rgba(183,121,31,0.08); color: var(--amber); border: 1px solid rgba(183,121,31,0.2); }
-.ioc-chip.ioc-domain { background: rgba(26,86,219,0.07); color: var(--accent); border: 1px solid rgba(26,86,219,0.15); }
-.ioc-chip.ioc-url    { background: rgba(0,0,0,0.04); color: var(--text-secondary); border: 1px solid var(--panel-border); }
-.ioc-chip.ioc-cve    { background: rgba(192,57,43,0.07); color: var(--danger); border: 1px solid rgba(192,57,43,0.18); font-weight: 700; }
-.ioc-empty {
+.ransom-empty {
   text-align: center;
   padding: 60px 20px;
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.8;
+}
+.apt-critical-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  padding: 1px 5px;
+  background: rgba(192,57,43,0.1);
+  color: var(--danger);
+  border: 1px solid rgba(192,57,43,0.3);
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  font-weight: 700;
 }
 
 /* ============================================================= */
@@ -1475,9 +1490,9 @@ html, body {
   line-height: 1.8;
 }
 @media (max-width: 768px) {
-  .apt-actor-grid { grid-template-columns: 1fr; }
-  .ioc-tracker-feed, .apt-tracker-feed { padding: 10px 16px 16px; }
-  .ioc-tracker-stats, .ioc-type-filters { padding: 10px 16px; }
+  .apt-actor-grid, .ransom-group-grid { grid-template-columns: 1fr; }
+  .ransom-tracker-feed, .apt-tracker-feed { padding: 10px 16px 16px; }
+  .ransom-tracker-stats, .ransom-type-filters { padding: 10px 16px; }
 }
 
 #signature {
@@ -1593,9 +1608,8 @@ html, body {
   #clock { font-size: 11px; }
   #threat-level { font-size: 9px; padding: 2px 7px; }
   .feed-filters { flex-wrap: wrap; }
-  .ioc-tracker-stats { flex-wrap: wrap; gap: 10px; }
-  .ioc-export-btns { margin-left: 0; }
-  .ioc-source-badge { margin-left: 0; }
+  .ransom-tracker-stats { flex-wrap: wrap; gap: 10px; }
+  .ransom-source-badge { margin-left: 0; }
   .region-filters { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
   .region-filters::-webkit-scrollbar { display: none; }
   .region-btn { flex-shrink: 0; }
@@ -1712,7 +1726,7 @@ html, body {
     <div class="center-header" id="center-panel">
       <div class="main-tabs">
         <button class="main-tab active" data-tab="briefing" onclick="switchMainTab('briefing')">BRIEFING</button>
-        <button class="main-tab" data-tab="ioc" onclick="switchMainTab('ioc')">IOC TRACKER</button>
+        <button class="main-tab" data-tab="ransom" onclick="switchMainTab('ransom')">RANSOMWARE</button>
         <button class="main-tab" data-tab="apt" onclick="switchMainTab('apt')">APT TRACKER</button>
       </div>
       <div class="region-filters" id="region-filters">
@@ -1774,28 +1788,21 @@ html, body {
       <div class="overview-section" id="signature" style="display:none"></div>
     </div>
 
-    <!-- IOC TRACKER TAB (inside #main-content) -->
-    <div id="tab-ioc">
-      <div class="ioc-tracker-stats" id="ioc-tracker-stats">
-        <div><div class="ioc-stat-val" id="ioc-stat-families">—</div><div class="ioc-stat-label">Malware Families</div></div>
-        <div><div class="ioc-stat-val" id="ioc-stat-total" style="color:var(--amber)">—</div><div class="ioc-stat-label">IOCs Detected</div></div>
-        <div><div class="ioc-stat-val" id="ioc-stat-fresh" style="color:var(--green)">—</div><div class="ioc-stat-label">Fresh (&lt;24h)</div></div>
-        <span class="ioc-source-badge">ThreatFox / abuse.ch</span>
-        <div class="ioc-export-btns">
-          <button class="ioc-export-btn" onclick="copyAllIOCs(this)">COPY ALL</button>
-          <button class="ioc-export-btn" onclick="downloadIOCsCSV()">CSV ↓</button>
-        </div>
+    <!-- RANSOMWARE TRACKER TAB (inside #main-content) -->
+    <div id="tab-ransom">
+      <div class="ransom-tracker-stats" id="ransom-tracker-stats">
+        <div><div class="ransom-stat-header-val" id="ransom-stat-groups" style="color:var(--danger)">—</div><div class="ransom-stat-header-label">Active Groups</div></div>
+        <div><div class="ransom-stat-header-val" id="ransom-stat-victims" style="color:var(--amber)">—</div><div class="ransom-stat-header-label">Victims Posted</div></div>
+        <div><div class="ransom-stat-header-val" id="ransom-stat-news">—</div><div class="ransom-stat-header-label">News Articles</div></div>
+        <span class="ransom-source-badge">ransomware.live</span>
       </div>
-      <div class="ioc-type-filters">
-        <button class="ioc-type-btn active" data-type="all" onclick="setIocFilter('all')">ALL</button>
-        <button class="ioc-type-btn" data-type="ip" onclick="setIocFilter('ip')">IPs</button>
-        <button class="ioc-type-btn" data-type="hash" onclick="setIocFilter('hash')">HASHES</button>
-        <button class="ioc-type-btn" data-type="domain" onclick="setIocFilter('domain')">DOMAINS</button>
-        <button class="ioc-type-btn" data-type="url" onclick="setIocFilter('url')">URLs</button>
-        <button class="ioc-type-btn" data-type="cve" onclick="setIocFilter('cve')">CVEs</button>
+      <div class="ransom-type-filters">
+        <button class="ransom-type-btn active" data-type="all" onclick="setRansomFilter('all')">ALL</button>
+        <button class="ransom-type-btn" data-type="victims" onclick="setRansomFilter('victims')">VICTIMS</button>
+        <button class="ransom-type-btn" data-type="news" onclick="setRansomFilter('news')">NEWS</button>
       </div>
-      <div class="ioc-tracker-feed" id="ioc-tracker-content">
-        <div class="ioc-empty">Switch to this tab to load IOC data</div>
+      <div class="ransom-tracker-feed" id="ransom-tracker-content">
+        <div class="ransom-empty">Switch to this tab to load ransomware data</div>
       </div>
     </div>
 
@@ -2073,7 +2080,8 @@ async function fetchJSON(url, opts = {}, timeout = 5000) {
 /* ============================================================= */
 const state = {
   newsItems: [],
-  iocItems: [],      // ThreatFox IOC articles (separated from news feed)
+  iocItems: [],        // ThreatFox IOC articles (separated from news feed)
+  ransomVictims: [],   // ransomware.live victim posts (separated from news feed)
   allItems: [],      // Full dataset from server
   displayedCount: 0, // How many cards currently rendered
   prevTitles: new Set(),
@@ -3629,9 +3637,13 @@ function applyData(items) {
   });
   state.prevTitles = newTitles;
 
-  // Separate ThreatFox IOC dumps from readable news articles
+  // Separate ThreatFox IOC dumps and ransomware.live victim posts from the news feed
   state.iocItems = items.filter(i => i.isDarkweb && i.darkwebSource === 'threatfox');
-  state.newsItems = items.filter(i => !(i.isDarkweb && i.darkwebSource === 'threatfox'));
+  state.ransomVictims = items.filter(i => i.isDarkweb && i.darkwebSource === 'ransomware.live');
+  state.newsItems = items.filter(i =>
+    !(i.isDarkweb && i.darkwebSource === 'threatfox') &&
+    !(i.isDarkweb && i.darkwebSource === 'ransomware.live')
+  );
   state.feedStatus.threatdigest = items.length > 0;
 
   renderFeedCards();
@@ -3647,7 +3659,7 @@ function applyData(items) {
 }
 
 function updateLeftFooter(items) {
-  const darkwebCount = items.filter(i => i.isDarkweb).length + state.iocItems.length;
+  const darkwebCount = items.filter(i => i.isDarkweb).length + state.iocItems.length + state.ransomVictims.length;
   const sources = new Set(items.map(i => i.source)).size;
   const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
   const ps = state.pipelineStats?.latest || state.pipelineStats || {};
@@ -3687,7 +3699,7 @@ function switchMainTab(tab) {
   const briefingEl = document.querySelector('.center-content');
   const statsBar   = document.querySelector('.stats-bar');
   const regionBar  = document.getElementById('region-filters');
-  const iocEl      = document.getElementById('tab-ioc');
+  const ransomEl   = document.getElementById('tab-ransom');
   const aptEl      = document.getElementById('tab-apt');
 
   const showBriefing = tab === 'briefing';
@@ -3695,26 +3707,27 @@ function switchMainTab(tab) {
   if (statsBar)   statsBar.style.display   = showBriefing ? '' : 'none';
   if (regionBar)  regionBar.style.display  = showBriefing ? '' : 'none';
 
-  iocEl.style.display = tab === 'ioc' ? 'block' : 'none';
-  aptEl.style.display = tab === 'apt' ? 'block' : 'none';
+  ransomEl.style.display = tab === 'ransom' ? 'block' : 'none';
+  aptEl.style.display    = tab === 'apt'    ? 'block' : 'none';
 
   // Scroll main panel back to top on tab switch
   const main = document.getElementById('main-content');
   if (main) main.scrollTop = 0;
 
-  if (tab === 'ioc') renderIOCTracker();
-  if (tab === 'apt') renderAPTTracker();
+  if (tab === 'ransom') renderRansomTracker();
+  if (tab === 'apt')    renderAPTTracker();
 }
 
 /* ============================================================= */
-/* IOC TRACKER                                                    */
+/* RANSOMWARE TRACKER                                             */
 /* ============================================================= */
-let _activeIocFilter = 'all';
+let _selectedRansomGroup = null;
+let _ransomFilter = 'all';
 
-function setIocFilter(type) {
-  _activeIocFilter = type;
-  document.querySelectorAll('.ioc-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
-  renderIOCTracker();
+function setRansomFilter(type) {
+  _ransomFilter = type;
+  document.querySelectorAll('.ransom-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+  renderRansomTracker();
 }
 
 function _timeAgo(dateStr) {
@@ -3726,128 +3739,140 @@ function _timeAgo(dateStr) {
   return Math.floor(h / 24) + 'd ago';
 }
 
-function renderIOCTracker() {
-  const container = document.getElementById('ioc-tracker-content');
-  const items = state.iocItems;
+function renderRansomTracker() {
+  const container = document.getElementById('ransom-tracker-content');
+  const victimItems = state.ransomVictims;
+  const ransomNews  = state.newsItems.filter(i => i.cssType === 'ransomware');
 
   // Update stats
-  const now = Date.now();
-  const freshCount = items.filter(i => (now - new Date(i.pubDate).getTime()) < 86400000).length;
-  const totalIOCs = items.reduce((acc, item) => {
-    const m = item.description.match(/IOCs \((\d+) total\)/i);
-    return acc + (m ? parseInt(m[1]) : 0);
-  }, 0);
   const el = id => document.getElementById(id);
-  if (el('ioc-stat-families')) el('ioc-stat-families').textContent = items.length;
-  if (el('ioc-stat-total'))    el('ioc-stat-total').textContent    = totalIOCs || '—';
-  if (el('ioc-stat-fresh'))    el('ioc-stat-fresh').textContent    = freshCount;
+  const groupSet = new Set(victimItems.map(i => i.darkwebGroup).filter(Boolean));
+  if (el('ransom-stat-groups'))  el('ransom-stat-groups').textContent  = groupSet.size  || '—';
+  if (el('ransom-stat-victims')) el('ransom-stat-victims').textContent = victimItems.length || '—';
+  if (el('ransom-stat-news'))    el('ransom-stat-news').textContent    = ransomNews.length || '—';
 
-  if (!items.length) {
-    container.innerHTML = '<div class="ioc-empty">No IOC data available.<br>Run the pipeline to fetch ThreatFox data.</div>';
+  if (!victimItems.length && !ransomNews.length) {
+    container.innerHTML = '<div class="ransom-empty">No ransomware data available.<br>Run the pipeline to fetch threat intelligence.</div>';
     return;
   }
 
-  // Group by malware family
-  const families = {};
-  items.forEach(item => {
-    const fam = item.darkwebGroup || 'Unknown';
-    if (!families[fam]) families[fam] = [];
-    families[fam].push(item);
+  // Build per-group data from victim posts
+  const groupMap = {};
+  victimItems.forEach(item => {
+    const g = item.darkwebGroup || 'Unknown';
+    if (!groupMap[g]) groupMap[g] = { victims: [], news: [] };
+    groupMap[g].victims.push(item);
   });
 
-  let html = '';
-  const sorted = Object.entries(families).sort((a, b) => {
-    const latA = Math.max(...a[1].map(i => new Date(i.pubDate).getTime()));
-    const latB = Math.max(...b[1].map(i => new Date(i.pubDate).getTime()));
-    return latB - latA; // Most recent first
+  // Match ransomware news articles to groups
+  ransomNews.forEach(item => {
+    let matched = false;
+    Object.keys(groupMap).forEach(g => {
+      if (g !== 'Unknown' && item.title.toLowerCase().includes(g.toLowerCase())) {
+        groupMap[g].news.push(item);
+        matched = true;
+      }
+    });
+    if (!matched) {
+      if (!groupMap['_unmatched']) groupMap['_unmatched'] = { victims: [], news: [] };
+      groupMap['_unmatched'].news.push(item);
+    }
   });
 
-  for (const [family, famItems] of sorted) {
-    const allText = famItems.map(i => i.title + ' ' + i.description).join(' ');
-    const iocs = extractIOCs(allText) || {};
-    const ips = iocs.ips || [], hashes = iocs.hashes || [], domains = iocs.domains || [];
-    const urls = iocs.urls || [], cves = iocs.cves || [];
+  // Sort by victims first, then news
+  const sortedGroups = Object.entries(groupMap)
+    .sort((a, b) => {
+      const sA = a[1].victims.length * 3 + a[1].news.length;
+      const sB = b[1].victims.length * 3 + b[1].news.length;
+      return sB - sA;
+    });
 
-    const f = _activeIocFilter;
-    const showIP     = (f === 'all' || f === 'ip')     && ips.length;
-    const showHash   = (f === 'all' || f === 'hash')   && hashes.length;
-    const showDomain = (f === 'all' || f === 'domain') && domains.length;
-    const showURL    = (f === 'all' || f === 'url')    && urls.length;
-    const showCVE    = (f === 'all' || f === 'cve')    && cves.length;
+  const maxScore = Math.max(...sortedGroups.map(([, d]) => d.victims.length * 3 + d.news.length), 1);
 
-    if (!showIP && !showHash && !showDomain && !showURL && !showCVE) continue;
+  let html = '<div class="ransom-group-grid">';
+  sortedGroups.slice(0, 16).forEach(([group, data]) => {
+    const displayName = group === '_unmatched' ? 'Other News' : group;
+    const score = data.victims.length * 3 + data.news.length;
+    const pct   = Math.round((score / maxScore) * 100);
+    const isSelected = _selectedRansomGroup === group;
+    const isActive   = data.victims.length > 0;
+    const allTimes   = [...data.victims, ...data.news].map(i => new Date(i.pubDate).getTime()).filter(Boolean);
+    const lastTime   = allTimes.length ? Math.max(...allTimes) : 0;
+    const lastSeen   = lastTime ? _timeAgo(new Date(lastTime).toISOString()) : '—';
 
-    const latestDate = famItems.sort((a,b) => new Date(b.pubDate)-new Date(a.pubDate))[0].pubDate;
-    const isNewFamily = (now - new Date(latestDate).getTime()) < 7200000; // < 2h
+    html += `<div class="ransom-group-card ${isActive ? 'ransom-active' : ''} ${isSelected ? 'ransom-selected' : ''}"
+        onclick="selectRansomGroup('${escapeHTML(group)}')">
+      <div class="ransom-group-name">${escapeHTML(displayName)}</div>
+      <div class="ransom-group-stats">
+        <div><div class="ransom-group-stat-val" style="color:var(--danger)">${data.victims.length}</div><div class="ransom-group-stat-label">VICTIMS</div></div>
+        <div><div class="ransom-group-stat-val" style="color:var(--accent)">${data.news.length}</div><div class="ransom-group-stat-label">ARTICLES</div></div>
+        <div><div class="ransom-group-stat-val" style="font-size:11px;padding-top:3px">${lastSeen}</div><div class="ransom-group-stat-label">LAST SEEN</div></div>
+      </div>
+      <div class="ransom-activity-bar"><div class="ransom-activity-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+  html += '</div>';
 
-    html += `<div class="ioc-family-card">
-      <div class="ioc-family-header">
-        <span class="ioc-family-name">&#x1F9A0; ${escapeHTML(family)}</span>
-        ${isNewFamily ? '<span class="ioc-new-badge">NEW</span>' : ''}
-        <span class="ioc-family-src">ThreatFox</span>
-        <span class="ioc-family-time">${_timeAgo(latestDate)}</span>
-      </div>`;
-
-    if (showIP) html += `<div class="ioc-chips">${ips.slice(0,10).map(v =>
-      `<span class="ioc-chip ioc-ip" onclick="copyIOCChip(this,${JSON.stringify(v)})" title="Click to copy"><span class="ioc-chip-type">ip</span>${escapeHTML(v)}</span>`).join('')}</div>`;
-    if (showHash) html += `<div class="ioc-chips">${hashes.slice(0,8).map(v =>
-      `<span class="ioc-chip ioc-hash" onclick="copyIOCChip(this,${JSON.stringify(v)})" title="Click to copy"><span class="ioc-chip-type">hash</span>${escapeHTML(v.slice(0,18))}…</span>`).join('')}</div>`;
-    if (showDomain) html += `<div class="ioc-chips">${domains.slice(0,8).map(v =>
-      `<span class="ioc-chip ioc-domain" onclick="copyIOCChip(this,${JSON.stringify(v)})" title="Click to copy"><span class="ioc-chip-type">domain</span>${escapeHTML(v)}</span>`).join('')}</div>`;
-    if (showURL) html += `<div class="ioc-chips">${urls.slice(0,4).map(v =>
-      `<span class="ioc-chip ioc-url" onclick="copyIOCChip(this,${JSON.stringify(v.slice(0,60))})" title="Click to copy"><span class="ioc-chip-type">url</span>${escapeHTML(v.slice(0,45))}${v.length>45?'…':''}</span>`).join('')}</div>`;
-    if (showCVE) html += `<div class="ioc-chips">${cves.slice(0,6).map(v =>
-      `<span class="ioc-chip ioc-cve" onclick="copyIOCChip(this,${JSON.stringify(v)})" title="Click to copy"><span class="ioc-chip-type">cve</span>${escapeHTML(v)}</span>`).join('')}</div>`;
-
-    html += '</div>';
+  // Article/victim list filtered by group + type
+  let displayItems;
+  if (_selectedRansomGroup) {
+    const data = groupMap[_selectedRansomGroup] || { victims: [], news: [] };
+    if (_ransomFilter === 'victims')      displayItems = data.victims;
+    else if (_ransomFilter === 'news')    displayItems = data.news;
+    else displayItems = [...data.victims, ...data.news].sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  } else {
+    if (_ransomFilter === 'victims')      displayItems = victimItems;
+    else if (_ransomFilter === 'news')    displayItems = ransomNews;
+    else {
+      const seen = new Set();
+      displayItems = [...victimItems, ...ransomNews]
+        .filter(i => { if (seen.has(i._id)) return false; seen.add(i._id); return true; })
+        .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    }
   }
 
-  container.innerHTML = html || '<div class="ioc-empty">No IOCs match the current filter.</div>';
-}
+  const groupLabel = _selectedRansomGroup
+    ? (_selectedRansomGroup === '_unmatched' ? 'Other News' : _selectedRansomGroup)
+    : 'All Groups';
+  const label = `${groupLabel} — ${displayItems.length} item${displayItems.length !== 1 ? 's' : ''}`;
 
-function copyIOCChip(el, text) {
-  navigator.clipboard.writeText(text).catch(() => {});
-  const prev = el.style.opacity;
-  el.style.opacity = '0.35';
-  setTimeout(() => { el.style.opacity = prev || ''; }, 400);
-}
+  html += `<div class="ransom-articles-section">
+    <div class="ransom-section-title">
+      ${escapeHTML(label)}
+      ${_selectedRansomGroup ? `<span class="ransom-section-count" style="cursor:pointer" onclick="selectRansomGroup(null)">CLEAR ×</span>` : ''}
+    </div>`;
 
-function _collectAllIOCValues() {
-  const values = [];
-  state.iocItems.forEach(item => {
-    const iocs = extractIOCs(item.title + ' ' + item.description) || {};
-    ['ips','hashes','domains','urls','cves'].forEach(k => (iocs[k] || []).forEach(v => values.push(v)));
+  displayItems.slice(0, 40).forEach(item => {
+    const isVictim = item.isDarkweb && item.darkwebSource === 'ransomware.live';
+    html += `<div class="ransom-article-row" onclick="selectItemById('${item._id}')">
+      <div class="ransom-article-dot ${isVictim ? 'ransom-dot-victim' : ''}"></div>
+      <div class="ransom-article-body">
+        <div class="ransom-article-title">${escapeHTML(item.title)}</div>
+        ${isVictim && item.darkwebGroup ? `<div class="ransom-article-group">${escapeHTML(item.darkwebGroup)}</div>` : ''}
+      </div>
+      <div class="ransom-article-time">${_timeAgo(item.pubDate)}</div>
+    </div>`;
   });
-  return [...new Set(values)];
-}
 
-function copyAllIOCs(btn) {
-  const values = _collectAllIOCValues();
-  if (!values.length) return;
-  navigator.clipboard.writeText(values.join('\n')).catch(() => {});
-  const orig = btn.textContent;
-  btn.textContent = 'COPIED ✓';
-  setTimeout(() => { btn.textContent = orig; }, 1500);
-}
+  if (!displayItems.length) {
+    html += '<div class="ransom-empty">No items match the current filter.</div>';
+  }
 
-function downloadIOCsCSV() {
-  const rows = [['type','value','family','source','date']];
-  state.iocItems.forEach(item => {
-    const fam = item.darkwebGroup || 'Unknown';
-    const date = item.pubDate || '';
-    const iocs = extractIOCs(item.title + ' ' + item.description) || {};
-    (iocs.ips || []).forEach(v => rows.push(['ip', v, fam, 'ThreatFox', date]));
-    (iocs.hashes || []).forEach(v => rows.push(['hash', v, fam, 'ThreatFox', date]));
-    (iocs.domains || []).forEach(v => rows.push(['domain', v, fam, 'ThreatFox', date]));
-    (iocs.urls || []).forEach(v => rows.push(['url', v, fam, 'ThreatFox', date]));
-    (iocs.cves || []).forEach(v => rows.push(['cve', v, fam, 'ThreatFox', date]));
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Animate activity bars
+  requestAnimationFrame(() => {
+    container.querySelectorAll('.ransom-activity-fill').forEach(bar => {
+      const w = bar.style.width; bar.style.width = '0';
+      requestAnimationFrame(() => { bar.style.width = w; });
+    });
   });
-  const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'threatwatch_iocs.csv'; a.click();
-  URL.revokeObjectURL(url);
+}
+
+function selectRansomGroup(name) {
+  _selectedRansomGroup = (_selectedRansomGroup === name || name === null) ? null : name;
+  renderRansomTracker();
 }
 
 /* ============================================================= */
@@ -3965,7 +3990,7 @@ function selectAPTActor(name) {
 }
 
 function selectItemById(id) {
-  const item = state.newsItems.find(i => i._id === id) || state.iocItems.find(i => i._id === id);
+  const item = state.newsItems.find(i => i._id === id) || state.ransomVictims.find(i => i._id === id);
   if (item) selectItem(item);
 }
 
