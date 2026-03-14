@@ -59,6 +59,21 @@
   category: Native
   region: Global
 
+# SentinelLabs research — focused APT attribution, malware reversals, nation-state campaigns
+- url: https://www.sentinelone.com/labs/feed/
+  category: Native
+  region: Global
+
+# Google/Mandiant Threat Intelligence — M-Trends data, UNC group tracking, zero-day campaigns
+- url: https://cloudblog.withgoogle.com/topics/threat-intelligence/rss/
+  category: Native
+  region: Global
+
+# Google Online Security Blog — Chrome/Android/Gmail threat research, supply chain findings
+- url: http://feeds.feedburner.com/GoogleOnlineSecurityBlog
+  category: Native
+  region: Global
+
 - url: https://blog.qualys.com/feed
   category: Native
   region: Global
@@ -157,7 +172,15 @@
   category: Native
   region: US
 
-# CERT-EU advisory RSS feed is retired (all known URLs return 404)
+# CERT-EU — EU institutional CERT security advisories (patched URL found)
+- url: https://cert.europa.eu/publications/security-advisories-rss
+  category: Native
+  region: EU
+
+# CERT-EU — threat intelligence reports and Cyber Briefs on APT campaigns
+- url: https://cert.europa.eu/publications/threat-intelligence-rss
+  category: Native
+  region: EU
 
 - url: https://www.cyber.gov.au/about-us/view-all-content/alerts-and-advisories/rss.xml
   category: Native
@@ -250,7 +273,10 @@
   category: Native
   region: Canada
 
-# CERT-UA RSS returns 404 (all tested URLs fail, verified 2026-03-14)
+# CERT-UA — Ukraine national CERT, ground-truth for Russian APT activity (Sandworm, APT28)
+- url: https://cert.gov.ua/api/articles/rss
+  category: Native
+  region: Ukraine
 
 # CERT Polska (CERT-PL) — Polish national CERT, strong Eastern European coverage
 - url: https://www.cert.pl/en/feed
