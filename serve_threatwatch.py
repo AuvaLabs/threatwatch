@@ -208,6 +208,12 @@ def render_page():
     return body
 
 
+def load_ioc_items() -> list:
+    """Load IOC (ThreatFox) items from the full article list."""
+    articles = load_articles()
+    return [a for a in articles if a.get("isDarkweb") and a.get("darkwebSource") == "threatfox"]
+
+
 STATIC_ROUTES = {
     "/api/briefing": {
         "file": BASE_DIR / "data" / "output" / "briefing.json",
@@ -342,6 +348,21 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         if path == "/api/health":
             body = build_health()
             self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        # Route: /api/stix — STIX 2.1 bundle export
+        if path == "/api/stix":
+            try:
+                from modules.stix_output import build_stix_bytes
+                articles = [a for a in load_articles()
+                            if not (a.get("isDarkweb") and a.get("darkwebSource") == "threatfox")]
+                ioc_items = load_ioc_items()
+                body = build_stix_bytes(articles, ioc_items)
+            except Exception as exc:
+                logger.error("STIX generation error: %s", exc)
+                self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "STIX generation failed")
+                return
+            self._send_body("application/stix+json; charset=utf-8", body, head_only)
             return
 
         # Route: /api/articles — with pagination support

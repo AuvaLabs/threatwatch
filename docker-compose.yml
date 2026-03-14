@@ -12,6 +12,8 @@ services:
       - LLM_BASE_URL=${LLM_BASE_URL:-}
       - LLM_MODEL=${LLM_MODEL:-}
       - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - WEBHOOK_MIN_CONF=${WEBHOOK_MIN_CONF:-80}
     volumes:
       - threatwatch-data:/app/data
     healthcheck:

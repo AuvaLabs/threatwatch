@@ -26,6 +26,7 @@ from app.dashboard import build_dashboard
 from modules.cost_tracker import get_today_spend, get_total_spend
 from modules.darkweb_monitor import fetch_darkweb_intel
 from modules.feed_health import log_health_summary
+from modules.webhook import dispatch as webhook_dispatch
 
 
 def enrich_articles(articles, summarize=False, stats=None):
@@ -137,6 +138,12 @@ def main():
     write_hourly_output(enriched_articles)
     write_daily_output(enriched_articles)
     write_rss_output(enriched_articles)
+
+    # Webhook alerts (optional — only runs if WEBHOOK_URL is configured)
+    try:
+        webhook_dispatch(enriched_articles)
+    except Exception as e:
+        logging.debug(f"Webhook dispatch skipped: {e}")
 
     # AI briefing (optional — only runs if ANTHROPIC_API_KEY is set)
     try:
