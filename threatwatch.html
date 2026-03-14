@@ -342,13 +342,10 @@ html, body {
 .feed-filters {
   display: flex;
   gap: 3px;
+  row-gap: 4px;
   margin-top: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
-.feed-filters::-webkit-scrollbar { display: none; }
 
 .filter-btn {
   font-family: var(--font-mono);
@@ -1595,7 +1592,7 @@ html, body {
   .topbar-right { gap: 6px; }
   #clock { font-size: 11px; }
   #threat-level { font-size: 9px; padding: 2px 7px; }
-  .feed-filters { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .feed-filters { flex-wrap: wrap; }
   .ioc-tracker-stats { flex-wrap: wrap; gap: 10px; }
   .ioc-export-btns { margin-left: 0; }
   .ioc-source-badge { margin-left: 0; }
@@ -1639,7 +1636,7 @@ html, body {
   <header id="topbar">
     <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Toggle menu">&#9776;</button>
     <div class="topbar-left">
-      <div class="logo">THREATWATCH <span>Cyber Threat Intelligence</span></div>
+      <a href="https://threatwatch.auvalabs.com" style="text-decoration:none;color:inherit"><div class="logo">THREATWATCH <span>Cyber Threat Intelligence</span></div></a>
       <div id="clock">--:--:-- UTC</div>
     </div>
     <div class="topbar-right">
