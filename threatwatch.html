@@ -393,6 +393,7 @@ html, body {
   overflow-y: auto;
   padding: 6px 4px;
   -webkit-overflow-scrolling: touch;
+  overflow-anchor: none;
 }
 
 #left-footer {
@@ -1102,6 +1103,297 @@ html, body {
 /* RIGHT PANEL — hidden */
 #right-panel { display: none !important; }
 
+/* ============================================================= */
+/* MAIN PANEL TABS                                                */
+/* ============================================================= */
+.main-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.main-tab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 4px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.main-tab:hover { background: var(--surface); color: var(--text-primary); }
+.main-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ============================================================= */
+/* IOC TRACKER                                                    */
+/* ============================================================= */
+#tab-ioc { display: none; }
+.ioc-tracker-stats {
+  display: flex;
+  gap: 20px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--panel-border);
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.ioc-stat-val {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--danger);
+  line-height: 1;
+}
+.ioc-stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+.ioc-source-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 3px 8px;
+  background: rgba(192,57,43,0.07);
+  color: var(--danger);
+  border: 1px solid rgba(192,57,43,0.18);
+  border-radius: 3px;
+}
+.ioc-type-filters {
+  display: flex;
+  gap: 4px;
+  padding: 8px 28px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.ioc-type-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ioc-type-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+.ioc-type-btn.active { background: rgba(192,57,43,0.08); color: var(--danger); border-color: rgba(192,57,43,0.3); }
+.ioc-tracker-feed {
+  padding: 12px 28px 20px;
+}
+.ioc-family-card {
+  border: 1px solid var(--panel-border);
+  border-left: 3px solid var(--danger);
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.ioc-family-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ioc-family-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger);
+  letter-spacing: 0.3px;
+}
+.ioc-family-src {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 2px 6px;
+  background: rgba(192,57,43,0.07);
+  color: var(--danger);
+  border: 1px solid rgba(192,57,43,0.18);
+  border-radius: 3px;
+}
+.ioc-family-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.ioc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+.ioc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  user-select: all;
+}
+.ioc-chip:hover { opacity: 0.7; }
+.ioc-chip-type {
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  opacity: 0.65;
+  text-transform: uppercase;
+}
+.ioc-chip.ioc-ip     { background: rgba(30,126,78,0.08); color: var(--green); border: 1px solid rgba(30,126,78,0.2); }
+.ioc-chip.ioc-hash   { background: rgba(183,121,31,0.08); color: var(--amber); border: 1px solid rgba(183,121,31,0.2); }
+.ioc-chip.ioc-domain { background: rgba(26,86,219,0.07); color: var(--accent); border: 1px solid rgba(26,86,219,0.15); }
+.ioc-chip.ioc-url    { background: rgba(0,0,0,0.04); color: var(--text-secondary); border: 1px solid var(--panel-border); }
+.ioc-chip.ioc-cve    { background: rgba(192,57,43,0.07); color: var(--danger); border: 1px solid rgba(192,57,43,0.18); font-weight: 700; }
+.ioc-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+/* ============================================================= */
+/* APT TRACKER                                                    */
+/* ============================================================= */
+#tab-apt { display: none; }
+.apt-tracker-feed {
+  padding: 16px 28px 20px;
+}
+.apt-actor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.apt-actor-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.apt-actor-card:hover { border-color: var(--accent); background: var(--surface); }
+.apt-actor-card.apt-selected { border-left: 3px solid var(--accent); background: rgba(26,86,219,0.04); }
+.apt-actor-card.apt-critical { border-left: 3px solid var(--danger); }
+.apt-actor-card.apt-critical.apt-selected { border-color: var(--danger); background: rgba(192,57,43,0.04); }
+.apt-actor-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.apt-actor-origin {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+}
+.apt-actor-stats { display: flex; gap: 16px; margin-bottom: 6px; }
+.apt-stat-val {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.apt-actor-card.apt-critical .apt-stat-val { color: var(--danger); }
+.apt-stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}
+.apt-activity-bar {
+  height: 2px;
+  background: rgba(26,86,219,0.1);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.apt-activity-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 1px;
+  transition: width 0.6s ease-out;
+}
+.apt-actor-card.apt-critical .apt-activity-fill { background: var(--danger); }
+.apt-section-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.apt-section-count {
+  background: var(--surface);
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+.apt-article-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--panel-border);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.apt-article-row:hover { opacity: 0.75; }
+.apt-article-row:last-child { border-bottom: none; }
+.apt-article-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.apt-article-title {
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  flex: 1;
+}
+.apt-article-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.apt-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.8;
+}
+@media (max-width: 768px) {
+  .apt-actor-grid { grid-template-columns: 1fr; }
+  .ioc-tracker-feed, .apt-tracker-feed { padding: 10px 16px 16px; }
+  .ioc-tracker-stats, .ioc-type-filters { padding: 10px 16px; }
+}
+
 #signature {
   display: flex;
   flex-direction: column;
@@ -1262,7 +1554,7 @@ html, body {
       <div id="threat-level" class="low">THREAT: LOW</div>
       <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">LIGHT</button>
       <span class="topbar-sep"></span>
-      <span class="author-name">by Nicholai Imbong</span>
+      <a href="https://nicholai.me" target="_blank" rel="noopener" class="author-name" style="text-decoration:none;color:inherit">nicholai.me</a>
       <a href="https://buymeacoffee.com/nicholaiimbong" target="_blank" rel="noopener" class="coffee-btn">&#9749; Buy me a coffee</a>
     </div>
   </header>
@@ -1323,9 +1615,13 @@ html, body {
   <!-- MAIN CONTENT — Stats + Briefing + Overview (merged)          -->
   <!-- =========================================================== -->
   <div id="main-content">
-    <!-- Header with region filters -->
+    <!-- Header with tab nav + region filters -->
     <div class="center-header" id="center-panel">
-      <div class="panel-title">Threat Intelligence Briefing</div>
+      <div class="main-tabs">
+        <button class="main-tab active" data-tab="briefing" onclick="switchMainTab('briefing')">BRIEFING</button>
+        <button class="main-tab" data-tab="ioc" onclick="switchMainTab('ioc')">IOC TRACKER</button>
+        <button class="main-tab" data-tab="apt" onclick="switchMainTab('apt')">APT TRACKER</button>
+      </div>
       <div class="region-filters" id="region-filters">
         <button class="region-btn active" data-region="all">GLOBAL</button>
         <button class="region-btn" data-region="na">NA</button>
@@ -1384,6 +1680,35 @@ html, body {
       </div>
       <div class="overview-section" id="signature" style="display:none"></div>
     </div>
+
+    <!-- IOC TRACKER TAB (inside #main-content) -->
+    <div id="tab-ioc">
+      <div class="ioc-tracker-stats" id="ioc-tracker-stats">
+        <div><div class="ioc-stat-val" id="ioc-stat-families">—</div><div class="ioc-stat-label">Malware Families</div></div>
+        <div><div class="ioc-stat-val" id="ioc-stat-total" style="color:var(--amber)">—</div><div class="ioc-stat-label">IOCs Detected</div></div>
+        <div><div class="ioc-stat-val" id="ioc-stat-fresh" style="color:var(--green)">—</div><div class="ioc-stat-label">Fresh (&lt;24h)</div></div>
+        <span class="ioc-source-badge">ThreatFox / abuse.ch</span>
+      </div>
+      <div class="ioc-type-filters">
+        <button class="ioc-type-btn active" data-type="all" onclick="setIocFilter('all')">ALL</button>
+        <button class="ioc-type-btn" data-type="ip" onclick="setIocFilter('ip')">IPs</button>
+        <button class="ioc-type-btn" data-type="hash" onclick="setIocFilter('hash')">HASHES</button>
+        <button class="ioc-type-btn" data-type="domain" onclick="setIocFilter('domain')">DOMAINS</button>
+        <button class="ioc-type-btn" data-type="url" onclick="setIocFilter('url')">URLs</button>
+        <button class="ioc-type-btn" data-type="cve" onclick="setIocFilter('cve')">CVEs</button>
+      </div>
+      <div class="ioc-tracker-feed" id="ioc-tracker-content">
+        <div class="ioc-empty">Switch to this tab to load IOC data</div>
+      </div>
+    </div>
+
+    <!-- APT TRACKER TAB (inside #main-content) -->
+    <div id="tab-apt">
+      <div class="apt-tracker-feed" id="apt-tracker-content">
+        <div class="apt-empty">Switch to this tab to load APT data</div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Right panel — hidden, kept for JS compatibility -->
@@ -1447,6 +1772,23 @@ const CLASSIFY_RULES = [
 ];
 
 const _classifyCache = new Map();
+
+/* ============================================================= */
+/* APT ACTOR DEFINITIONS                                          */
+/* ============================================================= */
+const APT_ACTORS = [
+  { name: 'Lazarus Group',        origin: 'North Korea 🇰🇵', re: /lazarus/i,                                critical: true  },
+  { name: 'Volt Typhoon',         origin: 'China 🇨🇳',       re: /volt\s*typhoon/i,                         critical: true  },
+  { name: 'Sandworm / APT28',     origin: 'Russia 🇷🇺',      re: /sandworm|apt.?28|fancy\s*bear/i,          critical: true  },
+  { name: 'APT29 / Cozy Bear',    origin: 'Russia 🇷🇺',      re: /apt.?29|cozy\s*bear|midnight\s*blizzard/i, critical: true  },
+  { name: 'APT41',                origin: 'China 🇨🇳',       re: /apt.?41/i,                                critical: true  },
+  { name: 'Charming Kitten',      origin: 'Iran 🇮🇷',        re: /charming\s*kitten|apt.?35/i,              critical: false },
+  { name: 'Scattered Spider',     origin: 'Cybercriminal',   re: /scattered\s*spider/i,                     critical: true  },
+  { name: 'Salt Typhoon',         origin: 'China 🇨🇳',       re: /salt\s*typhoon/i,                         critical: true  },
+  { name: 'Kimsuky',              origin: 'North Korea 🇰🇵', re: /kimsuky/i,                                critical: false },
+  { name: 'LockBit (TA)',         origin: 'Cybercriminal',   re: /lockbit/i,                                critical: false },
+  { name: 'Nation-State (Other)', origin: 'Various',         re: /nation.?state|state.?sponsor/i,           critical: false },
+];
 
 function classifyItem(title, desc) {
   const key = (title || '') + '|' + (desc || '');
@@ -1634,6 +1976,7 @@ async function fetchJSON(url, opts = {}, timeout = 5000) {
 /* ============================================================= */
 const state = {
   newsItems: [],
+  iocItems: [],      // ThreatFox IOC articles (separated from news feed)
   allItems: [],      // Full dataset from server
   displayedCount: 0, // How many cards currently rendered
   prevTitles: new Set(),
@@ -3176,7 +3519,9 @@ function applyData(items) {
   });
   state.prevTitles = newTitles;
 
-  state.newsItems = items;
+  // Separate ThreatFox IOC dumps from readable news articles
+  state.iocItems = items.filter(i => i.isDarkweb && i.darkwebSource === 'threatfox');
+  state.newsItems = items.filter(i => !(i.isDarkweb && i.darkwebSource === 'threatfox'));
   state.feedStatus.threatdigest = items.length > 0;
 
   renderFeedCards();
@@ -3192,7 +3537,7 @@ function applyData(items) {
 }
 
 function updateLeftFooter(items) {
-  const darkwebCount = items.filter(i => i.isDarkweb).length;
+  const darkwebCount = items.filter(i => i.isDarkweb).length + state.iocItems.length;
   const sources = new Set(items.map(i => i.source)).size;
   const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
   const ps = state.pipelineStats?.latest || state.pipelineStats || {};
@@ -3221,6 +3566,257 @@ async function refreshData() {
     const b = await fetchJSON('/api/briefing');
     if (b && b.executive_summary) state.aiBriefing = b;
   } catch {}
+}
+
+/* ============================================================= */
+/* MAIN TAB SWITCHING                                             */
+/* ============================================================= */
+function switchMainTab(tab) {
+  document.querySelectorAll('.main-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+
+  const briefingEl = document.querySelector('.center-content');
+  const statsBar   = document.querySelector('.stats-bar');
+  const regionBar  = document.getElementById('region-filters');
+  const iocEl      = document.getElementById('tab-ioc');
+  const aptEl      = document.getElementById('tab-apt');
+
+  const showBriefing = tab === 'briefing';
+  if (briefingEl) briefingEl.style.display = showBriefing ? '' : 'none';
+  if (statsBar)   statsBar.style.display   = showBriefing ? '' : 'none';
+  if (regionBar)  regionBar.style.display  = showBriefing ? '' : 'none';
+
+  iocEl.style.display = tab === 'ioc' ? 'block' : 'none';
+  aptEl.style.display = tab === 'apt' ? 'block' : 'none';
+
+  // Scroll main panel back to top on tab switch
+  const main = document.getElementById('main-content');
+  if (main) main.scrollTop = 0;
+
+  if (tab === 'ioc') renderIOCTracker();
+  if (tab === 'apt') renderAPTTracker();
+}
+
+/* ============================================================= */
+/* IOC TRACKER                                                    */
+/* ============================================================= */
+let _activeIocFilter = 'all';
+
+function setIocFilter(type) {
+  _activeIocFilter = type;
+  document.querySelectorAll('.ioc-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+  renderIOCTracker();
+}
+
+function _timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.floor(h / 24) + 'd ago';
+}
+
+function renderIOCTracker() {
+  const container = document.getElementById('ioc-tracker-content');
+  const items = state.iocItems;
+
+  // Update stats
+  const now = Date.now();
+  const freshCount = items.filter(i => (now - new Date(i.pubDate).getTime()) < 86400000).length;
+  const totalIOCs = items.reduce((acc, item) => {
+    const m = item.description.match(/IOCs \((\d+) total\)/i);
+    return acc + (m ? parseInt(m[1]) : 0);
+  }, 0);
+  const el = id => document.getElementById(id);
+  if (el('ioc-stat-families')) el('ioc-stat-families').textContent = items.length;
+  if (el('ioc-stat-total'))    el('ioc-stat-total').textContent    = totalIOCs || '—';
+  if (el('ioc-stat-fresh'))    el('ioc-stat-fresh').textContent    = freshCount;
+
+  if (!items.length) {
+    container.innerHTML = '<div class="ioc-empty">No IOC data available.<br>Run the pipeline to fetch ThreatFox data.</div>';
+    return;
+  }
+
+  // Group by malware family
+  const families = {};
+  items.forEach(item => {
+    const fam = item.darkwebGroup || 'Unknown';
+    if (!families[fam]) families[fam] = [];
+    families[fam].push(item);
+  });
+
+  let html = '';
+  const sorted = Object.entries(families).sort((a, b) => {
+    const latA = Math.max(...a[1].map(i => new Date(i.pubDate).getTime()));
+    const latB = Math.max(...b[1].map(i => new Date(i.pubDate).getTime()));
+    return latB - latA; // Most recent first
+  });
+
+  for (const [family, famItems] of sorted) {
+    const allText = famItems.map(i => i.title + ' ' + i.description).join(' ');
+    const iocs = extractIOCs(allText) || {};
+    const ips = iocs.ips || [], hashes = iocs.hashes || [], domains = iocs.domains || [];
+    const urls = iocs.urls || [], cves = iocs.cves || [];
+
+    const f = _activeIocFilter;
+    const showIP     = (f === 'all' || f === 'ip')     && ips.length;
+    const showHash   = (f === 'all' || f === 'hash')   && hashes.length;
+    const showDomain = (f === 'all' || f === 'domain') && domains.length;
+    const showURL    = (f === 'all' || f === 'url')    && urls.length;
+    const showCVE    = (f === 'all' || f === 'cve')    && cves.length;
+
+    if (!showIP && !showHash && !showDomain && !showURL && !showCVE) continue;
+
+    const latestDate = famItems.sort((a,b) => new Date(b.pubDate)-new Date(a.pubDate))[0].pubDate;
+
+    html += `<div class="ioc-family-card">
+      <div class="ioc-family-header">
+        <span class="ioc-family-name">&#x1F9A0; ${escapeHTML(family)}</span>
+        <span class="ioc-family-src">ThreatFox</span>
+        <span class="ioc-family-time">${_timeAgo(latestDate)}</span>
+      </div>`;
+
+    if (showIP) html += `<div class="ioc-chips">${ips.slice(0,10).map(v =>
+      `<span class="ioc-chip ioc-ip" onclick="copyIOCChip(this,${JSON.stringify(v)})" title="Click to copy"><span class="ioc-chip-type">ip</span>${escapeHTML(v)}</span>`).join('')}</div>`;
+    if (showHash) html += `<div class="ioc-chips">${hashes.slice(0,8).map(v =>
+      `<span class="ioc-chip ioc-hash" onclick="copyIOCChip(this,${JSON.stringify(v)})" title="Click to copy"><span class="ioc-chip-type">hash</span>${escapeHTML(v.slice(0,18))}…</span>`).join('')}</div>`;
+    if (showDomain) html += `<div class="ioc-chips">${domains.slice(0,8).map(v =>
+      `<span class="ioc-chip ioc-domain" onclick="copyIOCChip(this,${JSON.stringify(v)})" title="Click to copy"><span class="ioc-chip-type">domain</span>${escapeHTML(v)}</span>`).join('')}</div>`;
+    if (showURL) html += `<div class="ioc-chips">${urls.slice(0,4).map(v =>
+      `<span class="ioc-chip ioc-url" onclick="copyIOCChip(this,${JSON.stringify(v.slice(0,60))})" title="Click to copy"><span class="ioc-chip-type">url</span>${escapeHTML(v.slice(0,45))}${v.length>45?'…':''}</span>`).join('')}</div>`;
+    if (showCVE) html += `<div class="ioc-chips">${cves.slice(0,6).map(v =>
+      `<span class="ioc-chip ioc-cve" onclick="copyIOCChip(this,${JSON.stringify(v)})" title="Click to copy"><span class="ioc-chip-type">cve</span>${escapeHTML(v)}</span>`).join('')}</div>`;
+
+    html += '</div>';
+  }
+
+  container.innerHTML = html || '<div class="ioc-empty">No IOCs match the current filter.</div>';
+}
+
+function copyIOCChip(el, text) {
+  navigator.clipboard.writeText(text).catch(() => {});
+  const prev = el.style.opacity;
+  el.style.opacity = '0.35';
+  setTimeout(() => { el.style.opacity = prev || ''; }, 400);
+}
+
+/* ============================================================= */
+/* APT TRACKER                                                    */
+/* ============================================================= */
+let _selectedAPTActor = null;
+
+function renderAPTTracker() {
+  const container = document.getElementById('apt-tracker-content');
+  const allItems = state.newsItems;
+
+  // Find all APT-relevant articles
+  const aptItems = allItems.filter(i =>
+    i.cssType === 'apt' || APT_ACTORS.some(a => a.re.test(i.title + ' ' + i.description))
+  );
+
+  if (!aptItems.length) {
+    container.innerHTML = '<div class="apt-empty">No APT activity detected in current dataset.<br>Run the pipeline to fetch threat intelligence.</div>';
+    return;
+  }
+
+  // Score each defined actor
+  const actorData = APT_ACTORS.map(actor => {
+    const matches = aptItems.filter(i => actor.re.test(i.title + ' ' + i.description));
+    if (!matches.length) return null;
+    matches.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    return { ...actor, count: matches.length, articles: matches };
+  }).filter(Boolean).sort((a, b) => b.count - a.count);
+
+  // Unmatched APT articles (general nation-state, etc.)
+  const unmatchedApt = aptItems.filter(i =>
+    i.cssType === 'apt' && !APT_ACTORS.some(a => a.re.test(i.title + ' ' + i.description))
+  );
+
+  const maxCount = Math.max(...actorData.map(a => a.count), 1);
+
+  let html = `<div class="apt-actor-grid">`;
+  actorData.forEach(actor => {
+    const pct = Math.round((actor.count / maxCount) * 100);
+    const lastSeen = actor.articles[0] ? _timeAgo(actor.articles[0].pubDate) : '—';
+    const isCrit = actor.critical && actor.count >= 2;
+    const isSelected = _selectedAPTActor === actor.name;
+    html += `<div class="apt-actor-card ${isCrit ? 'apt-critical' : ''} ${isSelected ? 'apt-selected' : ''}"
+        data-actor="${escapeHTML(actor.name)}" onclick="selectAPTActor('${escapeHTML(actor.name)}')">
+      <div class="apt-actor-name">${escapeHTML(actor.name)}</div>
+      <div class="apt-actor-origin">${actor.origin}</div>
+      <div class="apt-actor-stats">
+        <div><div class="apt-stat-val">${actor.count}</div><div class="apt-stat-label">ARTICLES</div></div>
+        <div><div class="apt-stat-val" style="font-size:12px;padding-top:2px">${lastSeen}</div><div class="apt-stat-label">LAST SEEN</div></div>
+      </div>
+      <div class="apt-activity-bar"><div class="apt-activity-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Article list — filtered by selected actor or show all
+  let displayItems;
+  if (_selectedAPTActor) {
+    const actor = actorData.find(a => a.name === _selectedAPTActor);
+    displayItems = actor ? actor.articles : [];
+  } else {
+    const seen = new Set();
+    displayItems = [...actorData.flatMap(a => a.articles), ...unmatchedApt]
+      .filter(i => { if (seen.has(i._id)) return false; seen.add(i._id); return true; })
+      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  }
+
+  const label = _selectedAPTActor
+    ? `${_selectedAPTActor} — ${displayItems.length} articles`
+    : `All APT Activity — ${displayItems.length} articles`;
+
+  html += `<div class="apt-articles-section">
+    <div class="apt-section-title">
+      ${escapeHTML(label)}
+      ${_selectedAPTActor ? `<span class="apt-section-count" style="cursor:pointer" onclick="selectAPTActor(null)">CLEAR ×</span>` : ''}
+    </div>`;
+
+  displayItems.slice(0, 30).forEach(item => {
+    html += `<div class="apt-article-row" onclick="selectItemById('${item._id}')">
+      <div class="apt-article-dot"></div>
+      <div class="apt-article-title">${escapeHTML(item.title)}</div>
+      <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
+    </div>`;
+  });
+  html += '</div>';
+
+  container.innerHTML = html;
+
+  // Animate activity bars
+  requestAnimationFrame(() => {
+    container.querySelectorAll('.apt-activity-fill').forEach(bar => {
+      const w = bar.style.width; bar.style.width = '0';
+      requestAnimationFrame(() => { bar.style.width = w; });
+    });
+  });
+}
+
+function selectAPTActor(name) {
+  _selectedAPTActor = (_selectedAPTActor === name || name === null) ? null : name;
+  renderAPTTracker();
+  // Also filter left panel to show only that actor's articles
+  if (_selectedAPTActor) {
+    const actor = APT_ACTORS.find(a => a.name === _selectedAPTActor);
+    if (actor) {
+      state._actionDrilldown = null;
+      state.activeCategory = { name: _selectedAPTActor, re: actor.re };
+      state.activeSector = null;
+      state.activeActor = null;
+      renderFeedCards();
+    }
+  } else {
+    state.activeCategory = null;
+    renderFeedCards();
+  }
+}
+
+function selectItemById(id) {
+  const item = state.newsItems.find(i => i._id === id) || state.iocItems.find(i => i._id === id);
+  if (item) selectItem(item);
 }
 
 /* ============================================================= */
@@ -3291,6 +3887,27 @@ window.addEventListener('resize', function() {
 });
 
 document.addEventListener('DOMContentLoaded', init);
+
+// Scroll-to-top guard: holds #threat-feed at scrollTop=0 for a brief
+// window after page load/restore, defeating browser scroll restoration
+// which can fire asynchronously long after the load event.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+function holdFeedAtTop(ms) {
+  const feed = document.getElementById('threat-feed');
+  if (!feed) return;
+  feed.scrollTop = 0;
+  let locked = true;
+  const guard = () => { if (locked) feed.scrollTop = 0; };
+  feed.addEventListener('scroll', guard, { passive: true });
+  setTimeout(() => {
+    locked = false;
+    feed.removeEventListener('scroll', guard);
+  }, ms);
+}
+
+window.addEventListener('load', () => holdFeedAtTop(600));
+window.addEventListener('pageshow', () => holdFeedAtTop(600));
 </script>
 
 </body>
