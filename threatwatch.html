@@ -1677,6 +1677,12 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .brand-section-count { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
 .brand-no-news { padding: 14px; font-size: 12px; color: var(--text-muted); font-family: var(--font-body); font-style: italic; }
 .brand-more { padding: 6px 14px 10px; font-size: 11px; color: var(--accent); font-family: var(--font-body); cursor: pointer; }
+.watch-detail-back {
+  padding: 14px 20px; border-bottom: 1px solid var(--panel-border); font-size: 12px;
+  font-family: var(--font-body); font-weight: 600; color: var(--accent); cursor: pointer;
+}
+.watch-detail-back:hover { opacity: 0.75; }
+.watch-detail-body { padding: 20px; }
 #signature {
   display: flex;
   flex-direction: column;
@@ -3575,20 +3581,6 @@ function selectItem(item) {
     <a class="detail-open-link" href="${escapeHTML(item.link)}" target="_blank" rel="noopener">OPEN ARTICLE &rarr;</a>
   `;
 
-  // Show detail in center — switch to briefing view if on a different tab
-  const activeTabEl = document.querySelector('.main-tab.active');
-  const activeTab = activeTabEl ? activeTabEl.dataset.tab : 'briefing';
-  if (activeTab !== 'briefing') {
-    // Hide any active tab panel and make center-content visible
-    ['tab-ransom', 'tab-apt', 'tab-brands', 'tab-assets'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
-    const cc = document.querySelector('.center-content');
-    if (cc) cc.style.display = '';
-    // Update tab button active state to briefing
-    document.querySelectorAll('.main-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'briefing'));
-  }
   document.querySelectorAll('.center-section').forEach(s => s.style.display = 'none');
   document.querySelectorAll('.overview-section').forEach(s => s.style.display = 'none');
   document.getElementById('detail-article-center').style.display = 'block';
@@ -4681,6 +4673,33 @@ function _brandRegex(brand) {
   return new RegExp('(?<![A-Za-z0-9])' + brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![A-Za-z0-9])', 'i');
 }
 
+function showWatchDetail(item, backTab) {
+  // Show article detail embedded inside the watch tab — no tab switching
+  const container = document.getElementById(backTab === 'brands' ? 'brands-content' : 'assets-content');
+  if (!container) return;
+  const backLabel = backTab === 'brands' ? 'Brand Watch' : 'Tech Watch';
+  container.innerHTML = `
+    <div class="watch-detail-back" onclick="${backTab === 'brands' ? 'renderBrandsTab()' : 'renderAssetsTab()'}">&#8592; Back to ${escapeHTML(backLabel)}</div>
+    <div class="watch-detail-body">
+      <div class="detail-badges">
+        <span class="badge badge-src ${item.sourceClass}">${escapeHTML(item.source)}</span>
+        <span class="type-badge ${item.cssType}">${item.icon || ''} ${escapeHTML(item.type)}</span>
+        <span class="badge" style="color:${item.severity==='CRITICAL'?'var(--red)':item.severity==='HIGH'?'#ff8c00':'var(--amber)'}">${escapeHTML(item.severity)}</span>
+      </div>
+      <div class="detail-headline">${escapeHTML(item.title)}</div>
+      <div class="detail-meta">
+        <div><strong>Published:</strong> ${new Date(item.pubDate).toUTCString()}</div>
+        <div><strong>Classification:</strong> ${escapeHTML(item.type)} / ${escapeHTML(item.severity)}</div>
+        ${item.confidence ? `<div><strong>Confidence:</strong> ${item.confidence}%</div>` : ''}
+      </div>
+      <div class="detail-divider"></div>
+      <div class="detail-body">${escapeHTML(item.description)}</div>
+      <a class="detail-open-link" href="${escapeHTML(item.link)}" target="_blank" rel="noopener">OPEN ARTICLE &rarr;</a>
+    </div>`;
+  const mainEl = document.getElementById('main-content');
+  if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function renderBrandsTab() {
   const container = document.getElementById('brands-content');
   if (!container) return;
@@ -4726,10 +4745,9 @@ function renderBrandsTab() {
   });
 
   container.innerHTML = html;
-  // Attach click handlers
   container.querySelectorAll('.apt-article-row[data-id]').forEach(el => {
     const item = (state.newsItems || []).find(i => i._id === el.dataset.id);
-    if (item) el.onclick = () => selectItem(item);
+    if (item) el.onclick = () => showWatchDetail(item, 'brands');
   });
 }
 
@@ -4785,7 +4803,7 @@ function renderAssetsTab() {
   container.innerHTML = html;
   container.querySelectorAll('.apt-article-row[data-id]').forEach(el => {
     const item = (state.newsItems || []).find(i => i._id === el.dataset.id);
-    if (item) el.onclick = () => selectItem(item);
+    if (item) el.onclick = () => showWatchDetail(item, 'assets');
   });
 }
 
