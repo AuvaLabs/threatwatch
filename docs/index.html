@@ -9,7 +9,7 @@
 <!-- Google Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
 /* ============================================================= */
@@ -87,8 +87,9 @@ html, body {
 
 /* Theme toggle */
 .theme-toggle {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
   padding: 3px 10px;
   border: 1px solid var(--panel-border);
   border-radius: 3px;
@@ -96,13 +97,14 @@ html, body {
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
 }
 .theme-toggle:hover { background: var(--surface); color: var(--text-primary); }
 
 .briefing-mode-toggle {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
   padding: 3px 8px;
   border: 1px solid var(--panel-border);
   border-radius: 3px;
@@ -110,7 +112,7 @@ html, body {
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
 }
 .briefing-mode-toggle:hover { background: rgba(26,86,219,0.06); color: var(--accent); }
 .briefing-mode-toggle.ai-active {
@@ -140,9 +142,9 @@ html, body {
   text-transform: uppercase;
 }
 .ai-briefing-section .ai-section-body {
-  font-family: var(--font-serif);
-  font-size: 17px;
-  line-height: 1.75;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.7;
   color: var(--text-primary);
 }
 .ai-briefing-section .ai-section-body li {
@@ -348,8 +350,9 @@ html, body {
 }
 
 .filter-btn {
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
   padding: 3px 8px;
   border: 1px solid var(--panel-border);
   border-radius: 3px;
@@ -357,7 +360,7 @@ html, body {
   color: var(--text-muted);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -374,8 +377,8 @@ html, body {
 }
 .feed-search-input {
   width: 100%;
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
   padding: 4px 8px;
   border: 1px solid var(--panel-border);
   border-radius: 3px;
@@ -383,7 +386,7 @@ html, body {
   color: var(--text-primary);
   outline: none;
   transition: border-color 0.15s;
-  letter-spacing: 0.3px;
+  letter-spacing: 0;
 }
 .feed-search-input::placeholder { color: var(--text-muted); }
 .feed-search-input:focus { border-color: var(--accent); }
@@ -415,9 +418,10 @@ html, body {
   width: calc(100% - 16px);
   margin: 8px auto;
   padding: 9px 0;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.5px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
   border: 1px solid var(--panel-border);
   border-radius: 4px;
   background: transparent;
@@ -768,14 +772,14 @@ html, body {
 /* Remove emoji section icons */
 .center-section-title .section-icon { display: none; }
 
-/* Threat Briefing — serif for reading */
+/* Threat Briefing */
 .briefing-text {
-  font-family: var(--font-serif);
-  font-size: 17px;
+  font-family: var(--font-body);
+  font-size: 15px;
   font-weight: 400;
   color: var(--text-primary);
-  line-height: 1.8;
-  letter-spacing: 0.1px;
+  line-height: 1.75;
+  letter-spacing: 0;
 }
 
 .briefing-text .b-hl { color: var(--accent); font-weight: 600; }
@@ -967,10 +971,10 @@ html, body {
 .detail-divider { height: 1px; background: var(--panel-border); margin: 16px 0; }
 
 .detail-body {
-  font-family: var(--font-serif);
-  font-size: 17px;
+  font-family: var(--font-body);
+  font-size: 15px;
   color: var(--text-primary);
-  line-height: 1.8;
+  line-height: 1.75;
 }
 
 .detail-cve-info {
