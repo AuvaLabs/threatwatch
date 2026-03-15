@@ -1842,7 +1842,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       <div class="watch-section">
         <div class="watch-section-head">&#x1F4BB; Asset / Technology Watch</div>
         <div class="watch-section-desc">
-          Select vendors and technologies to highlight matching articles in the feed and ASSETS tab.
+          Select vendors and technologies to highlight matching articles in the feed and TECH tab.
           <span class="sh-only">Custom keywords below also run targeted Google News searches each pipeline cycle.</span>
         </div>
         <input type="text" class="vendor-search" id="vendor-search" placeholder="Search 150+ vendors..." oninput="filterVendorChips(this.value)">
@@ -1944,7 +1944,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <button class="main-tab" data-tab="ransom" onclick="switchMainTab('ransom')">RANSOMWARE</button>
         <button class="main-tab" data-tab="apt" onclick="switchMainTab('apt')">APT TRACKER</button>
         <button class="main-tab" data-tab="brands" onclick="switchMainTab('brands')">BRANDS</button>
-        <button class="main-tab" data-tab="assets" onclick="switchMainTab('assets')">ASSETS</button>
+        <button class="main-tab" data-tab="assets" onclick="switchMainTab('assets')">TECH</button>
       </div>
       <div class="region-filters" id="region-filters">
         <button class="region-btn active" data-region="all">GLOBAL</button>
@@ -2044,7 +2044,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
     <!-- ASSET WATCH TAB -->
     <div id="tab-assets">
       <div class="watch-tab-header">
-        <span class="watch-tab-title">Asset / Technology Watch</span>
+        <span class="watch-tab-title">Tech / Asset Watch</span>
         <span class="watch-tab-count" id="assets-count"></span>
       </div>
       <div id="assets-content"></div>
@@ -4409,6 +4409,7 @@ function _updateWatchBtn() {
 function openWatchDrawer() {
   document.getElementById('watch-overlay').classList.add('open');
   document.getElementById('watch-drawer').classList.add('open');
+  _initVendorGridDelegate();
   buildVendorGrid('');
   renderTagChips('brands');
   renderTagChips('assets');
@@ -4427,14 +4428,15 @@ function buildVendorGrid(filter) {
   for (const [cat, vendors] of Object.entries(VENDOR_SUGGEST_LIST)) {
     const visible = q ? vendors.filter(v => v.toLowerCase().includes(q)) : vendors;
     if (!visible.length) continue;
+    const allSel = visible.every(v => watchState.enabledVendors.has(v));
     html += `<div class="vendor-category">
       <div class="vendor-cat-label">${escapeHTML(cat)}
-        <button class="vendor-cat-all" onclick="selectAllInCategory(${JSON.stringify(cat)},this)">select all</button>
+        <button class="vendor-cat-all" data-cat="${escapeHTML(cat)}">${allSel ? 'deselect all' : 'select all'}</button>
       </div>
       <div class="vendor-chips">`;
     for (const v of visible) {
       const sel = watchState.enabledVendors.has(v) ? ' selected' : '';
-      html += `<span class="vendor-chip${sel}" onclick="toggleVendor(${JSON.stringify(v)},this)">
+      html += `<span class="vendor-chip${sel}" data-vendor="${escapeHTML(v)}">
         <span class="vendor-chip-check">&#x2713;</span>${escapeHTML(v)}
       </span>`;
     }
@@ -4448,27 +4450,49 @@ function filterVendorChips(q) {
   buildVendorGrid(q);
 }
 
-function toggleVendor(name, el) {
-  if (watchState.enabledVendors.has(name)) {
-    watchState.enabledVendors.delete(name);
-    el.classList.remove('selected');
-  } else {
-    watchState.enabledVendors.add(name);
-    el.classList.add('selected');
-  }
-}
+function _initVendorGridDelegate() {
+  const grid = document.getElementById('vendor-grid');
+  if (!grid || grid._delegated) return;
+  grid._delegated = true;
+  grid.addEventListener('click', function(e) {
+    const chip = e.target.closest('.vendor-chip');
+    const catBtn = e.target.closest('.vendor-cat-all');
 
-function selectAllInCategory(cat, btn) {
-  const vendors = VENDOR_SUGGEST_LIST[cat] || [];
-  const allSelected = vendors.every(v => watchState.enabledVendors.has(v));
-  if (allSelected) {
-    vendors.forEach(v => watchState.enabledVendors.delete(v));
-    btn.textContent = 'select all';
-  } else {
-    vendors.forEach(v => watchState.enabledVendors.add(v));
-    btn.textContent = 'deselect all';
-  }
-  buildVendorGrid(document.getElementById('vendor-search').value || '');
+    if (chip) {
+      const vendor = chip.dataset.vendor;
+      if (watchState.enabledVendors.has(vendor)) {
+        watchState.enabledVendors.delete(vendor);
+        chip.classList.remove('selected');
+      } else {
+        watchState.enabledVendors.add(vendor);
+        chip.classList.add('selected');
+      }
+      // Update this category's select-all button label
+      const catEl = chip.closest('.vendor-category');
+      if (catEl) {
+        const chips = [...catEl.querySelectorAll('.vendor-chip')];
+        const allSel = chips.every(c => watchState.enabledVendors.has(c.dataset.vendor));
+        const btn = catEl.querySelector('.vendor-cat-all');
+        if (btn) btn.textContent = allSel ? 'deselect all' : 'select all';
+      }
+    }
+
+    if (catBtn) {
+      const catEl = catBtn.closest('.vendor-category');
+      const chips = catEl ? [...catEl.querySelectorAll('.vendor-chip')] : [];
+      const vendors = chips.map(c => c.dataset.vendor);
+      const allSel = vendors.every(v => watchState.enabledVendors.has(v));
+      if (allSel) {
+        vendors.forEach(v => watchState.enabledVendors.delete(v));
+        chips.forEach(c => c.classList.remove('selected'));
+        catBtn.textContent = 'select all';
+      } else {
+        vendors.forEach(v => watchState.enabledVendors.add(v));
+        chips.forEach(c => c.classList.add('selected'));
+        catBtn.textContent = 'deselect all';
+      }
+    }
+  });
 }
 
 function handleTagInput(event, type) {
