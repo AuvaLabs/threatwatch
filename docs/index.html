@@ -3575,7 +3575,20 @@ function selectItem(item) {
     <a class="detail-open-link" href="${escapeHTML(item.link)}" target="_blank" rel="noopener">OPEN ARTICLE &rarr;</a>
   `;
 
-  // Show detail in center, hide all sections
+  // Show detail in center — switch to briefing view if on a different tab
+  const activeTabEl = document.querySelector('.main-tab.active');
+  const activeTab = activeTabEl ? activeTabEl.dataset.tab : 'briefing';
+  if (activeTab !== 'briefing') {
+    // Hide any active tab panel and make center-content visible
+    ['tab-ransom', 'tab-apt', 'tab-brands', 'tab-assets'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const cc = document.querySelector('.center-content');
+    if (cc) cc.style.display = '';
+    // Update tab button active state to briefing
+    document.querySelectorAll('.main-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'briefing'));
+  }
   document.querySelectorAll('.center-section').forEach(s => s.style.display = 'none');
   document.querySelectorAll('.overview-section').forEach(s => s.style.display = 'none');
   document.getElementById('detail-article-center').style.display = 'block';
