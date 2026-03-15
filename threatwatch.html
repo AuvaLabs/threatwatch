@@ -1625,11 +1625,21 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   flex-shrink: 0;
   margin-top: 5px;
 }
+.apt-article-title-wrap { flex: 1; min-width: 0; }
 .apt-article-title {
   font-size: 12px;
   color: var(--text-primary);
   line-height: 1.4;
-  flex: 1;
+}
+.apt-article-snippet {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-top: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .apt-article-time {
   font-family: var(--font-mono);
@@ -4675,7 +4685,7 @@ function showWatchDetail(item, backTab) {
       <a class="detail-open-link" href="${escapeHTML(item.link)}" target="_blank" rel="noopener">OPEN ARTICLE &rarr;</a>
     </div>`;
   const mainEl = document.getElementById('main-content');
-  if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'smooth' });
+  if (mainEl) mainEl.scrollTop = 0;
 }
 
 let _selectedBrand = null;
@@ -4753,9 +4763,13 @@ function renderBrandsTab() {
       ${_selectedBrand ? `<span class="apt-section-count" style="cursor:pointer" onclick="selectBrand(null)">CLEAR ×</span>` : ''}
     </div>`;
   displayItems.slice(0, 30).forEach(item => {
+    const snip = (item.description || '').replace(/<[^>]*>/g, '').trim();
     html += `<div class="apt-article-row" data-id="${item._id}">
       <div class="apt-article-dot"></div>
-      <div class="apt-article-title">${escapeHTML(item.title)}</div>
+      <div class="apt-article-title-wrap">
+        <div class="apt-article-title">${escapeHTML(item.title)}</div>
+        ${snip ? `<div class="apt-article-snippet">${escapeHTML(snip)}</div>` : ''}
+      </div>
       <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
     </div>`;
   });
@@ -4842,9 +4856,13 @@ function renderAssetsTab() {
       ${_selectedVendor ? `<span class="apt-section-count" style="cursor:pointer" onclick="selectVendor(null)">CLEAR ×</span>` : ''}
     </div>`;
   displayItems.slice(0, 30).forEach(item => {
+    const snip = (item.description || '').replace(/<[^>]*>/g, '').trim();
     html += `<div class="apt-article-row" data-id="${item._id}">
       <div class="apt-article-dot"></div>
-      <div class="apt-article-title">${escapeHTML(item.title)}</div>
+      <div class="apt-article-title-wrap">
+        <div class="apt-article-title">${escapeHTML(item.title)}</div>
+        ${snip ? `<div class="apt-article-snippet">${escapeHTML(snip)}</div>` : ''}
+      </div>
       <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
     </div>`;
   });
