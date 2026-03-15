@@ -348,21 +348,6 @@ html, body {
   margin-top: 8px;
   flex-wrap: wrap;
 }
-.watch-feed-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 8px; padding: 8px 10px;
-  background: rgba(26,86,219,0.06); border: 1px solid rgba(26,86,219,0.15);
-  border-radius: 6px;
-}
-.watch-feed-bar-label { font-size: 11px; font-family: var(--font-body); color: var(--text-secondary); font-weight: 500; }
-.watch-feed-bar-label strong { color: var(--accent); }
-.watch-feed-back {
-  font-family: var(--font-body); font-size: 11px; font-weight: 600;
-  background: var(--accent); color: #fff; border: none; border-radius: 4px;
-  padding: 5px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
-}
-.watch-feed-back:hover { opacity: 0.88; }
-
 .filter-btn {
   font-family: var(--font-body);
   font-size: 11px;
@@ -1931,10 +1916,6 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <button class="filter-btn" data-filter="zero-day">ZERO-DAY</button>
         <button class="filter-btn" data-filter="vuln">VULN</button>
         <button class="filter-btn" data-filter="darkweb">DARK WEB</button>
-      </div>
-      <div class="watch-feed-bar" id="watch-feed-bar" style="display:none">
-        <div class="watch-feed-bar-label" id="watch-feed-bar-label"></div>
-        <button class="watch-feed-back" onclick="switchMainTab('briefing')">&#8592; All News</button>
       </div>
       <div class="feed-search-wrap">
         <input type="text" id="feed-search" class="feed-search-input" placeholder="Search feed…"
