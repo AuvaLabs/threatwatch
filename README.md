@@ -61,6 +61,9 @@ Aggregates threat intelligence from 155+ RSS feeds and dark web sources, classif
 - Article detail view with IOC extraction (CVEs, IPs, hashes, domains)
 - Ransomware Tracker tab: victim posts from ransomware.live + ransomware news, grouped by threat actor
 - APT Tracker tab: actor intelligence grid with drilldown into news articles
+- Brand Watch tab: monitor specific brands/organisations — articles grouped by brand, "No recent news" fallback per brand
+- Tech Watch tab: 244 technology vendors across 18 categories (Endpoint, Network, Cloud, IAM, OT/ICS, etc.) — articles grouped by vendor, sorted by coverage
+- Watchlist preferences saved to localStorage; self-hosted installs can persist custom keywords server-side (`WATCHLIST_WRITE_ENABLED=true`)
 - Light and dark theme
 
 ### Integration
