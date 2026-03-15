@@ -4417,7 +4417,7 @@ function _allVendorNames() {
   return Object.values(VENDOR_SUGGEST_LIST).flat();
 }
 
-const _WATCH_STATE_VERSION = 3;
+const _WATCH_STATE_VERSION = 4;
 
 function _loadWatchState() {
   try {
@@ -4884,6 +4884,19 @@ function renderAssetsTab() {
     const item = (state.newsItems || []).find(i => i._id === el.dataset.id);
     if (item) el.onclick = () => showWatchDetail(item, 'assets');
   });
+
+  // Scroll article list into view after selecting a vendor (card grid can be very tall)
+  if (_selectedVendor) {
+    requestAnimationFrame(() => {
+      const section = container.querySelector('.apt-articles-section');
+      const mainEl = document.getElementById('main-content');
+      if (section && mainEl) {
+        const mainRect = mainEl.getBoundingClientRect();
+        const sectionRect = section.getBoundingClientRect();
+        mainEl.scrollBy({ top: sectionRect.top - mainRect.top - 12, behavior: 'smooth' });
+      }
+    });
+  }
 }
 
 // Initialise on page load (called after SSR data is applied)
