@@ -1667,7 +1667,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 }
 
 /* Brand / Tech Watch tabs */
-.brand-watch-feed { padding: 0 20px 20px; overflow-y: auto; max-height: calc(100vh - 120px); }
+.brand-watch-feed { padding: 0 20px 20px; }
 .brand-section { margin-top: 20px; border: 1px solid var(--panel-border); border-radius: 6px; overflow: hidden; }
 .brand-section-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -2364,7 +2364,6 @@ const state = {
   aiBriefing: null,       // AI briefing JSON from server
   briefingMode: 'normal', // 'normal' or 'ai'
   _etag: null,
-  _watchTabFilter: null, // 'brands' | 'assets' | null — active watch tab filter
 };
 
 /* Region → country code mappings */
@@ -3291,13 +3290,11 @@ function renderFeedCards(reset = true) {
 
   // Update header count
   const countBadge = document.getElementById('feed-count-badge');
-  const hasDrilldown = state.activeSector || state.activeActor || state.activeCategory || state._actionDrilldown || state._watchTabFilter;
+  const hasDrilldown = state.activeSector || state.activeActor || state.activeCategory || state._actionDrilldown;
   if (filter === 'all' && !hasDrilldown) {
     countBadge.textContent = '[' + state.newsItems.length + ' items]';
   } else {
     const labels = [];
-    if (state._watchTabFilter === 'brands') labels.push('BRANDS');
-    if (state._watchTabFilter === 'assets') labels.push('TECH');
     if (state.activeCategory) labels.push(state.activeCategory.name);
     if (state.activeActor) labels.push(state.activeActor.name);
     if (state.activeSector) labels.push(state.activeSector.name);
@@ -4006,9 +4003,6 @@ function switchMainTab(tab) {
   aptEl.style.display                        = tab === 'apt'    ? 'block' : 'none';
   if (brandsEl) brandsEl.style.display       = tab === 'brands' ? 'block' : 'none';
   if (assetsEl) assetsEl.style.display       = tab === 'assets' ? 'block' : 'none';
-
-  // Clear watch tab feed filter (left panel always shows all news)
-  state._watchTabFilter = null;
 
   const main = document.getElementById('main-content');
   if (main) main.scrollTop = 0;
@@ -4769,16 +4763,14 @@ function renderAssetsTab() {
     const matches = allItems
       .filter(i => (i.assetTags || []).includes(vendor) || re.test((i.title || '') + ' ' + (i.description || '')))
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-    if (matches.length) vendorHits.push({ vendor, matches });
+    vendorHits.push({ vendor, matches });
   }
 
-  // Sort by article count descending
-  vendorHits.sort((a, b) => b.matches.length - a.matches.length);
-
-  if (!vendorHits.length) {
-    container.innerHTML = `<div class="apt-empty">No current articles mention your selected technologies.<br>Results update with each pipeline run.</div>`;
-    return;
-  }
+  // Sort: vendors with articles first (by count desc), then no-news vendors alphabetically
+  vendorHits.sort((a, b) => {
+    if (b.matches.length !== a.matches.length) return b.matches.length - a.matches.length;
+    return a.vendor.localeCompare(b.vendor);
+  });
 
   let html = '';
   vendorHits.forEach(({ vendor, matches }) => {
@@ -4787,15 +4779,19 @@ function renderAssetsTab() {
         <span class="brand-section-name">${escapeHTML(vendor)}</span>
         <span class="brand-section-count">${matches.length} article${matches.length !== 1 ? 's' : ''}</span>
       </div>`;
-    matches.slice(0, 5).forEach(item => {
-      html += `<div class="apt-article-row" data-id="${item._id}">
-        <div class="apt-article-dot"></div>
-        <div class="apt-article-title">${escapeHTML(item.title)}</div>
-        <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
-      </div>`;
-    });
-    if (matches.length > 5) {
-      html += `<div class="brand-more">+${matches.length - 5} more</div>`;
+    if (!matches.length) {
+      html += `<div class="brand-no-news">No recent news for ${escapeHTML(vendor)}</div>`;
+    } else {
+      matches.slice(0, 5).forEach(item => {
+        html += `<div class="apt-article-row" data-id="${item._id}">
+          <div class="apt-article-dot"></div>
+          <div class="apt-article-title">${escapeHTML(item.title)}</div>
+          <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
+        </div>`;
+      });
+      if (matches.length > 5) {
+        html += `<div class="brand-more">+${matches.length - 5} more</div>`;
+      }
     }
     html += `</div>`;
   });
