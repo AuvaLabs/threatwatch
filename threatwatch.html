@@ -1304,7 +1304,6 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .badge-watch-brand { background: rgba(183,121,31,0.09); color: var(--warning); border: 1px solid rgba(183,121,31,0.22); }
 .badge-watch-asset { background: rgba(14,165,233,0.09); color: #0ea5e9; border: 1px solid rgba(14,165,233,0.22); }
 
-#tab-brands, #tab-assets { display: none; }
 .watch-tab-header {
   padding: 14px 28px 12px; border-bottom: 1px solid var(--panel-border);
   display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
@@ -1314,12 +1313,18 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase;
 }
 .watch-tab-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
-.watch-back-btn {
-  background: none; border: 1px solid var(--panel-border); border-radius: 4px;
-  padding: 3px 8px; font-family: var(--font-body); font-size: 11px; font-weight: 500;
-  color: var(--text-muted); cursor: pointer; transition: color 0.15s, border-color 0.15s; flex-shrink: 0;
+#watch-filter-banner {
+  padding: 7px 14px; background: rgba(var(--accent-rgb, 30,100,200), 0.06);
+  border-bottom: 1px solid var(--panel-border); font-size: 11px; font-family: var(--font-body);
+  color: var(--text-muted); display: flex; align-items: center; gap: 8px;
 }
-.watch-back-btn:hover { color: var(--text-primary); border-color: var(--text-muted); }
+#watch-filter-banner strong { color: var(--text-secondary); }
+#watch-filter-banner .banner-clear {
+  margin-left: auto; cursor: pointer; color: var(--text-muted); font-size: 10px;
+  border: 1px solid var(--panel-border); border-radius: 3px; padding: 2px 6px;
+  background: none; font-family: var(--font-body);
+}
+#watch-filter-banner .banner-clear:hover { color: var(--text-primary); }
 .watch-empty { padding: 48px 28px; text-align: center; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
 .watch-empty strong { color: var(--text-secondary); display: block; margin-bottom: 8px; font-size: 14px; }
 .watch-article {
@@ -1916,6 +1921,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <span id="last-refresh">--</span>
       </div>
     </div>
+    <div id="watch-filter-banner" style="display:none"></div>
     <div id="threat-feed">
       <div class="skeleton-card"><div class="skeleton skel-badges"></div><div class="skeleton skel-title"></div><div class="skeleton skel-title2"></div><div class="skeleton skel-desc"></div><div class="skeleton skel-desc2"></div><div class="skeleton skel-footer"></div></div>
       <div class="skeleton-card"><div class="skeleton skel-badges"></div><div class="skeleton skel-title"></div><div class="skeleton skel-title2"></div><div class="skeleton skel-desc"></div><div class="skeleton skel-desc2"></div><div class="skeleton skel-footer"></div></div>
@@ -2038,25 +2044,6 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 
   </div>
 
-  <!-- BRAND WATCH TAB -->
-    <div id="tab-brands">
-      <div class="watch-tab-header">
-        <button class="watch-back-btn" onclick="switchMainTab('briefing')" title="Back to main feed">&#8592; Feed</button>
-        <span class="watch-tab-title">Brand Watch</span>
-        <span class="watch-tab-count" id="brands-count"></span>
-      </div>
-      <div id="brands-content"></div>
-    </div>
-
-    <!-- ASSET WATCH TAB -->
-    <div id="tab-assets">
-      <div class="watch-tab-header">
-        <button class="watch-back-btn" onclick="switchMainTab('briefing')" title="Back to main feed">&#8592; Feed</button>
-        <span class="watch-tab-title">Tech / Asset Watch</span>
-        <span class="watch-tab-count" id="assets-count"></span>
-      </div>
-      <div id="assets-content"></div>
-    </div>
 
     <!-- Right panel — hidden, kept for JS compatibility -->
   <div id="right-panel" class="panel">
@@ -2341,6 +2328,7 @@ const state = {
   aiBriefing: null,       // AI briefing JSON from server
   briefingMode: 'normal', // 'normal' or 'ai'
   _etag: null,
+  _watchTabFilter: null, // 'brands' | 'assets' | null — active watch tab filter
 };
 
 /* Region → country code mappings */
@@ -3209,6 +3197,20 @@ function filterMatchesItem(filter, item) {
     const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
     if (!text.includes(q)) return false;
   }
+  // Watch tab filter
+  if (state._watchTabFilter === 'brands') {
+    if (!watchState.customBrands.length) return false;
+    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
+    if (!watchState.customBrands.some(b => b && text.includes(b.toLowerCase()))) return false;
+  }
+  if (state._watchTabFilter === 'assets') {
+    if (!watchState.enabledVendors.size) return false;
+    const backendMatch = (item.assetTags || []).some(t => watchState.enabledVendors.has(t));
+    if (!backendMatch) {
+      const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
+      if (![...watchState.enabledVendors].some(v => text.includes(v.toLowerCase()))) return false;
+    }
+  }
   return catMatch;
 }
 
@@ -3267,11 +3269,13 @@ function renderFeedCards(reset = true) {
 
   // Update header count
   const countBadge = document.getElementById('feed-count-badge');
-  const hasDrilldown = state.activeSector || state.activeActor || state.activeCategory || state._actionDrilldown;
+  const hasDrilldown = state.activeSector || state.activeActor || state.activeCategory || state._actionDrilldown || state._watchTabFilter;
   if (filter === 'all' && !hasDrilldown) {
     countBadge.textContent = '[' + state.newsItems.length + ' items]';
   } else {
     const labels = [];
+    if (state._watchTabFilter === 'brands') labels.push('BRANDS');
+    if (state._watchTabFilter === 'assets') labels.push('TECH');
     if (state.activeCategory) labels.push(state.activeCategory.name);
     if (state.activeActor) labels.push(state.activeActor.name);
     if (state.activeSector) labels.push(state.activeSector.name);
@@ -3279,6 +3283,23 @@ function renderFeedCards(reset = true) {
     if (filter !== 'all' && !labels.length) labels.push(filter.toUpperCase());
     const label = labels.join(' + ');
     countBadge.textContent = '[' + filtered.length + ' ' + label + ' of ' + state.newsItems.length + ']';
+  }
+
+  // Watch filter banner
+  const banner = document.getElementById('watch-filter-banner');
+  if (banner) {
+    if (state._watchTabFilter === 'brands') {
+      const names = watchState.customBrands.slice(0, 4).join(', ');
+      banner.style.display = '';
+      banner.innerHTML = `<strong>BRANDS</strong> Filtering: ${escapeHTML(names)}${watchState.customBrands.length > 4 ? ' +' + (watchState.customBrands.length - 4) + ' more' : ''} &nbsp;&#8226;&nbsp; <button class="banner-clear" onclick="switchMainTab('briefing')">&#8592; All News</button>`;
+    } else if (state._watchTabFilter === 'assets') {
+      const sel = [...watchState.enabledVendors];
+      banner.style.display = '';
+      banner.innerHTML = `<strong>TECH</strong> ${sel.length} vendor${sel.length !== 1 ? 's' : ''} monitored &nbsp;&#8226;&nbsp; <button class="banner-clear" onclick="switchMainTab('briefing')">&#8592; All News</button>`;
+    } else {
+      banner.style.display = 'none';
+      banner.innerHTML = '';
+    }
   }
 
   if (reset) {
@@ -3968,26 +3989,30 @@ function switchMainTab(tab) {
   const regionBar  = document.getElementById('region-filters');
   const ransomEl   = document.getElementById('tab-ransom');
   const aptEl      = document.getElementById('tab-apt');
-  const brandsEl   = document.getElementById('tab-brands');
-  const assetsEl   = document.getElementById('tab-assets');
 
-  const showBriefing = tab === 'briefing';
+  // BRANDS and TECH filter the left panel feed — no separate panels needed
+  const isWatchTab = tab === 'brands' || tab === 'assets';
+  const showBriefing = tab === 'briefing' || isWatchTab;
+
   if (briefingEl) briefingEl.style.display = showBriefing ? '' : 'none';
   if (statsBar)   statsBar.style.display   = showBriefing ? '' : 'none';
   if (regionBar)  regionBar.style.display  = showBriefing ? '' : 'none';
 
   ransomEl.style.display = tab === 'ransom' ? 'block' : 'none';
   aptEl.style.display    = tab === 'apt'    ? 'block' : 'none';
-  brandsEl.style.display = tab === 'brands' ? 'block' : 'none';
-  assetsEl.style.display = tab === 'assets' ? 'block' : 'none';
 
   const main = document.getElementById('main-content');
   if (main) main.scrollTop = 0;
 
+  // Apply or clear watch tab filter on left panel
+  const prevWatchFilter = state._watchTabFilter;
+  state._watchTabFilter = isWatchTab ? tab : null;
+  if (prevWatchFilter !== state._watchTabFilter || isWatchTab) {
+    renderFeedCards(true);
+  }
+
   if (tab === 'ransom') renderRansomTracker();
   if (tab === 'apt')    renderAPTTracker();
-  if (tab === 'brands') renderBrandsTab();
-  if (tab === 'assets') renderAssetsTab();
 }
 
 /* ============================================================= */
