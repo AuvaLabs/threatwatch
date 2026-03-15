@@ -1585,6 +1585,7 @@ html, body {
     background: var(--surface); border-right: 1px solid var(--panel-border); overflow: hidden;
   }
   #left-panel.open { transform: translateX(0); }
+  #main-content { border-left: none; }
   .region-filters { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
   .region-filters::-webkit-scrollbar { display: none; }
   .region-btn { flex-shrink: 0; }
@@ -1626,21 +1627,24 @@ html, body {
   .center-header { padding: 12px 16px 10px; }
   .stats-bar { flex-wrap: wrap; gap: 6px; padding: 8px 16px; }
   .feed-card { padding: 8px 10px 8px 12px; }
-  .briefing-text { font-size: 16px; }
+  /* briefing-text and detail-body base is now 15px — keep same on mid-mobile */
   .detail-headline { font-size: 19px; }
-  .detail-body { font-size: 16px; }
+  /* Larger touch targets for filter buttons on mobile */
+  .filter-btn { padding: 6px 10px; font-size: 12px; }
 }
 
 @media (max-width: 480px) {
   #topbar .logo { font-size: 11px; letter-spacing: 1px; }
   #clock { display: none; }
+  .topbar-right .coffee-btn { display: none; }
   .sector-grid { grid-template-columns: 1fr 1fr; gap: 4px; }
   .sector-tag { padding: 8px; }
   .sector-tag .sector-icon { font-size: 14px; }
   .sector-tag .sector-name { font-size: 11px; }
-  .briefing-text { font-size: 15px; line-height: 1.75; }
+  .briefing-text { font-size: 14px; line-height: 1.7; }
   .detail-headline { font-size: 17px; }
-  .detail-body { font-size: 15px; }
+  .detail-body { font-size: 14px; }
+  .filter-btn { padding: 7px 10px; }
 }
 </style>
 <!-- __SSR_DATA__ -->
