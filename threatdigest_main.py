@@ -27,6 +27,7 @@ from modules.cost_tracker import get_today_spend, get_total_spend
 from modules.darkweb_monitor import fetch_darkweb_intel
 from modules.feed_health import log_health_summary
 from modules.webhook import dispatch as webhook_dispatch
+from modules.watchlist_monitor import tag_articles_with_vendors, run_watchlist_monitor
 
 
 def enrich_articles(articles, summarize=False, stats=None):
@@ -114,6 +115,15 @@ def main():
     except Exception as e:
         logging.warning(f"Dark web monitoring failed: {e}")
 
+    # Watchlist monitor — custom brand/asset keywords (self-hosted only)
+    try:
+        watchlist_articles = run_watchlist_monitor()
+        if watchlist_articles:
+            raw_articles.extend(watchlist_articles)
+            logging.info(f"Watchlist: added {len(watchlist_articles)} custom keyword articles")
+    except Exception as e:
+        logging.warning(f"Watchlist monitor failed: {e}")
+
     stats.articles_fetched = len(raw_articles)
     if not raw_articles:
         logging.warning("No articles fetched.")
@@ -129,6 +139,8 @@ def main():
         return
 
     enriched_articles = enrich_articles(unique_articles, summarize=True, stats=stats)
+    # Tag every article with matching suggest-list vendors (fast regex pass)
+    enriched_articles = tag_articles_with_vendors(enriched_articles)
     stats.articles_enriched = len(enriched_articles)
     if not enriched_articles:
         logging.info("No cyberattack-related articles after enrichment.")

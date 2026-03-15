@@ -23,6 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent
 PORT = int(os.environ.get("PORT", 8098))
 CACHE_TTL = 30  # seconds
 SSR_PLACEHOLDER = "<!-- __SSR_DATA__ -->"
+WATCHLIST_WRITE_ENABLED = os.environ.get("WATCHLIST_WRITE_ENABLED", "").lower() in ("1", "true", "yes")
 
 _cache = {}
 _ssr_lock = threading.Lock()
@@ -111,6 +112,32 @@ def load_briefing():
 
 
 _SERVER_START = time.time()
+
+
+# ── Watchlist helpers ─────────────────────────────────────────────────────────
+
+def load_watchlist_data() -> dict:
+    """Load watchlist.json from STATE_DIR. Returns empty structure if missing."""
+    watchlist_path = BASE_DIR / "data" / "state" / "watchlist.json"
+    try:
+        with open(watchlist_path, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"brands": [], "assets": [], "updated_at": None}
+
+
+def save_watchlist_data(brands: list, assets: list) -> None:
+    """Persist watchlist to STATE_DIR/watchlist.json."""
+    from datetime import datetime, timezone
+    watchlist_path = BASE_DIR / "data" / "state" / "watchlist.json"
+    watchlist_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "brands": [str(b).strip() for b in brands if str(b).strip()],
+        "assets": [str(a).strip() for a in assets if str(a).strip()],
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with open(watchlist_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
 
 
 def build_health() -> bytes:
@@ -319,6 +346,40 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self._handle_request(head_only=False)
 
+    def do_POST(self):
+        client_ip = self.client_address[0]
+        if _is_rate_limited(client_ip):
+            self._send_error_json(HTTPStatus.TOO_MANY_REQUESTS, "Rate limit exceeded")
+            return
+
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+
+        if path == "/api/watchlist":
+            if not WATCHLIST_WRITE_ENABLED:
+                self._send_error_json(HTTPStatus.FORBIDDEN,
+                                      "Watchlist write not enabled on this instance. "
+                                      "Set WATCHLIST_WRITE_ENABLED=true to allow.")
+                return
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                raw = self.rfile.read(length)
+                data = json.loads(raw)
+                brands = [str(b) for b in data.get("brands", []) if str(b).strip()]
+                assets = [str(a) for a in data.get("assets", []) if str(a).strip()]
+                save_watchlist_data(brands, assets)
+                body = json.dumps({"ok": True, "brands": len(brands), "assets": len(assets)}).encode()
+            except (json.JSONDecodeError, ValueError) as exc:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, f"Invalid JSON: {exc}")
+                return
+            except OSError as exc:
+                self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"Write failed: {exc}")
+                return
+            self._send_body("application/json; charset=utf-8", body, False)
+            return
+
+        self._send_error_json(HTTPStatus.METHOD_NOT_ALLOWED, "Method not allowed")
+
     def _handle_request(self, head_only=False):
         client_ip = self.client_address[0]
         if _is_rate_limited(client_ip):
@@ -402,6 +463,26 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 result = articles  # Backwards compatible: return full array
 
             body = json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        # Route: /api/watchlist — GET returns current watchlist + vendor suggest-list
+        if path == "/api/watchlist":
+            try:
+                from modules.watchlist_monitor import VENDOR_SUGGEST_LIST
+                watchlist = load_watchlist_data()
+                payload = {
+                    "brands": watchlist.get("brands", []),
+                    "assets": watchlist.get("assets", []),
+                    "updated_at": watchlist.get("updated_at"),
+                    "write_enabled": WATCHLIST_WRITE_ENABLED,
+                    "suggest_list": VENDOR_SUGGEST_LIST,
+                }
+                body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            except Exception as exc:
+                logger.error("Watchlist GET error: %s", exc)
+                self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Watchlist unavailable")
+                return
             self._send_body("application/json; charset=utf-8", body, head_only)
             return
 

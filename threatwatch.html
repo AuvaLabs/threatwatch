@@ -1184,6 +1184,160 @@ html, body {
 /* ============================================================= */
 /* RANSOMWARE TRACKER                                             */
 /* ============================================================= */
+/* ============================================================= */
+/* WATCHLIST — BRAND & ASSET MONITORING                          */
+/* ============================================================= */
+.watch-btn {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--font-body); font-size: 11px; font-weight: 500;
+  padding: 3px 10px; border: 1px solid var(--panel-border); border-radius: 3px;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  transition: all 0.15s;
+}
+.watch-btn:hover { background: var(--surface); color: var(--text-primary); }
+.watch-btn.has-watches { border-color: var(--accent); color: var(--accent); }
+.watch-btn-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: none; }
+.watch-btn.has-watches .watch-btn-dot { display: block; }
+
+.watch-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 100;
+}
+.watch-overlay.open { display: block; }
+
+.watch-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100vw;
+  background: var(--bg); border-left: 1px solid var(--panel-border); z-index: 101;
+  display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform 0.25s ease; overflow: hidden;
+}
+.watch-drawer.open { transform: translateX(0); }
+.watch-drawer-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--panel-border); flex-shrink: 0;
+}
+.watch-drawer-title {
+  font-family: var(--font-body); font-weight: 600; font-size: 13px; color: var(--text-primary);
+  display: flex; align-items: center; gap: 8px;
+}
+.watch-mode-badge {
+  font-family: var(--font-mono); font-size: 9px; padding: 2px 6px; border-radius: 3px; border: 1px solid;
+}
+.watch-mode-badge.hosted { color: var(--text-muted); border-color: var(--panel-border); background: transparent; }
+.watch-mode-badge.self-hosted { color: var(--success); border-color: var(--success); background: rgba(30,126,78,0.06); }
+.watch-close-btn {
+  background: transparent; border: none; font-size: 16px; color: var(--text-muted);
+  cursor: pointer; padding: 4px 8px; border-radius: 3px; line-height: 1; transition: background 0.15s;
+}
+.watch-close-btn:hover { background: var(--surface); color: var(--text-primary); }
+.watch-drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 22px; }
+
+.watch-section-head {
+  font-family: var(--font-body); font-weight: 600; font-size: 12px; color: var(--text-primary);
+  margin-bottom: 4px; display: flex; align-items: center; gap: 8px;
+}
+.watch-section-desc { font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-bottom: 10px; }
+.watch-section-desc .sh-only { display: none; color: var(--success); font-style: italic; }
+body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
+
+.vendor-search {
+  width: 100%; font-family: var(--font-body); font-size: 12px; padding: 6px 10px;
+  border: 1px solid var(--panel-border); border-radius: 4px; background: var(--surface);
+  color: var(--text-primary); outline: none; margin-bottom: 10px; transition: border-color 0.15s; box-sizing: border-box;
+}
+.vendor-search:focus { border-color: var(--accent); }
+.vendor-search::placeholder { color: var(--text-muted); }
+
+.vendor-category { margin-bottom: 12px; }
+.vendor-cat-label {
+  font-family: var(--font-mono); font-size: 9px; color: var(--text-muted);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.vendor-cat-all {
+  background: none; border: none; color: var(--accent); font-family: var(--font-mono);
+  font-size: 9px; cursor: pointer; padding: 0; letter-spacing: 0.5px;
+}
+.vendor-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.vendor-chip {
+  display: inline-flex; align-items: center; gap: 3px; padding: 4px 8px;
+  border: 1px solid var(--panel-border); border-radius: 3px; background: transparent;
+  cursor: pointer; transition: all 0.12s; user-select: none; font-family: var(--font-body);
+  font-size: 11px; color: var(--text-secondary);
+}
+.vendor-chip:hover { border-color: rgba(26,86,219,0.35); background: rgba(26,86,219,0.04); color: var(--text-primary); }
+.vendor-chip.selected { border-color: var(--accent); background: rgba(26,86,219,0.08); color: var(--accent); }
+.vendor-chip-check { font-size: 10px; display: none; }
+.vendor-chip.selected .vendor-chip-check { display: inline; }
+
+.tag-input-wrap {
+  border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px;
+  background: var(--surface); display: flex; flex-wrap: wrap; gap: 4px;
+  min-height: 40px; align-items: flex-start; cursor: text; transition: border-color 0.15s;
+}
+.tag-input-wrap:focus-within { border-color: var(--accent); }
+.tw-tag-chip {
+  display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: #fff;
+  border-radius: 3px; padding: 2px 7px; font-size: 11px; font-family: var(--font-body);
+}
+.tw-tag-remove { cursor: pointer; opacity: 0.75; font-size: 12px; line-height: 1; transition: opacity 0.1s; }
+.tw-tag-remove:hover { opacity: 1; }
+.tag-text-input {
+  border: none; background: transparent; outline: none; font-family: var(--font-body);
+  font-size: 12px; color: var(--text-primary); flex: 1; min-width: 130px; padding: 2px;
+}
+.tag-text-input::placeholder { color: var(--text-muted); }
+.tag-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+.watch-drawer-footer {
+  padding: 12px 16px; border-top: 1px solid var(--panel-border);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 10px;
+}
+.watch-save-btn {
+  font-family: var(--font-body); font-weight: 600; font-size: 12px; padding: 8px 20px;
+  border: none; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; transition: opacity 0.15s;
+}
+.watch-save-btn:hover { opacity: 0.88; }
+.watch-save-status { font-size: 11px; color: var(--text-muted); }
+.watch-save-status.ok { color: var(--success); }
+.watch-save-status.err { color: var(--danger); }
+
+.badge-watch-brand { background: rgba(183,121,31,0.09); color: var(--warning); border: 1px solid rgba(183,121,31,0.22); }
+.badge-watch-asset { background: rgba(14,165,233,0.09); color: #0ea5e9; border: 1px solid rgba(14,165,233,0.22); }
+
+#tab-brands, #tab-assets { display: none; }
+.watch-tab-header {
+  padding: 14px 28px 12px; border-bottom: 1px solid var(--panel-border);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.watch-tab-title {
+  font-family: var(--font-body); font-weight: 600; font-size: 11px;
+  color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase;
+}
+.watch-tab-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+.watch-empty { padding: 48px 28px; text-align: center; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
+.watch-empty strong { color: var(--text-secondary); display: block; margin-bottom: 8px; font-size: 14px; }
+.watch-article {
+  padding: 12px 28px; border-bottom: 1px solid var(--panel-border); cursor: pointer; transition: background 0.12s;
+}
+.watch-article:hover { background: var(--surface); }
+.watch-match-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.watch-match-tag {
+  font-family: var(--font-mono); font-size: 9px; padding: 2px 6px;
+  border-radius: 2px; letter-spacing: 0.3px;
+}
+.watch-match-tag.brand { background: rgba(183,121,31,0.09); color: var(--warning); border: 1px solid rgba(183,121,31,0.22); }
+.watch-match-tag.asset { background: rgba(14,165,233,0.09); color: #0ea5e9; border: 1px solid rgba(14,165,233,0.22); }
+.watch-article-title {
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
+  color: var(--text-primary); line-height: 1.4; margin-bottom: 4px;
+}
+.watch-article-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+@media (max-width: 768px) {
+  .watch-drawer { width: 100vw; }
+  .watch-tab-header, .watch-article { padding-left: 16px; padding-right: 16px; }
+  .watch-empty { padding: 32px 16px; }
+}
+
 #tab-ransom { display: none; }
 .ransom-tracker-stats {
   display: flex;
@@ -1665,11 +1819,64 @@ html, body {
       <div id="threat-level" class="low">THREAT: LOW</div>
       <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">LIGHT</button>
       <span class="topbar-sep"></span>
+      <button class="watch-btn" id="watch-btn" onclick="openWatchDrawer()" title="Brand &amp; Asset Watch">&#128269; WATCH <span class="watch-btn-dot"></span></button>
+      <span class="topbar-sep"></span>
       <a href="https://nicholai.me" target="_blank" rel="noopener" class="author-name" style="text-decoration:none;color:inherit">nicholai.me</a>
       <a href="https://buymeacoffee.com/nicholaiimbong" target="_blank" rel="noopener" class="coffee-btn">&#9749; Buy me a coffee</a>
     </div>
   </header>
   <div class="mobile-overlay" id="mobile-overlay" onclick="toggleMobileMenu()"></div>
+
+  <!-- BRAND & ASSET WATCH DRAWER -->
+  <div class="watch-overlay" id="watch-overlay" onclick="closeWatchDrawer()"></div>
+  <div class="watch-drawer" id="watch-drawer">
+    <div class="watch-drawer-header">
+      <div class="watch-drawer-title">
+        &#128269; Brand &amp; Asset Watch
+        <span class="watch-mode-badge hosted" id="watch-mode-badge">HOSTED</span>
+      </div>
+      <button class="watch-close-btn" onclick="closeWatchDrawer()">&#x2715;</button>
+    </div>
+    <div class="watch-drawer-body">
+      <!-- Asset / Technology Watch -->
+      <div class="watch-section">
+        <div class="watch-section-head">&#x1F4BB; Asset / Technology Watch</div>
+        <div class="watch-section-desc">
+          Select vendors and technologies to highlight matching articles in the feed and ASSETS tab.
+          <span class="sh-only">Custom keywords below also run targeted Google News searches each pipeline cycle.</span>
+        </div>
+        <input type="text" class="vendor-search" id="vendor-search" placeholder="Search 150+ vendors..." oninput="filterVendorChips(this.value)">
+        <div id="vendor-grid"></div>
+      </div>
+      <!-- Brand Watch -->
+      <div class="watch-section">
+        <div class="watch-section-head">&#x1F3F7;&#xFE0F; Brand Watch</div>
+        <div class="watch-section-desc">
+          Enter brand names or keywords to monitor across the intelligence feed.
+          <span class="sh-only">Each keyword triggers targeted Google News searches in the pipeline.</span>
+        </div>
+        <div class="tag-input-wrap" onclick="document.getElementById('brand-tag-input').focus()">
+          <div id="brand-tags-rendered"></div>
+          <input type="text" id="brand-tag-input" class="tag-text-input" placeholder="Type brand name, press Enter..." onkeydown="handleTagInput(event,'brands')">
+        </div>
+        <div class="tag-hint">Press Enter or , to add &middot; Click &times; to remove</div>
+      </div>
+      <!-- Custom Asset Keywords (self-hosted only) -->
+      <div class="watch-section" id="custom-asset-section" style="display:none">
+        <div class="watch-section-head">&#x2699;&#xFE0F; Custom Asset Keywords <span class="watch-mode-badge self-hosted" style="margin-left:6px">SELF-HOSTED</span></div>
+        <div class="watch-section-desc">Additional technology keywords for pipeline-level searches, beyond the vendor list above.</div>
+        <div class="tag-input-wrap" onclick="document.getElementById('asset-tag-input').focus()">
+          <div id="asset-tags-rendered"></div>
+          <input type="text" id="asset-tag-input" class="tag-text-input" placeholder="Type technology keyword, press Enter..." onkeydown="handleTagInput(event,'assets')">
+        </div>
+        <div class="tag-hint">Press Enter or , to add</div>
+      </div>
+    </div>
+    <div class="watch-drawer-footer">
+      <span class="watch-save-status" id="watch-save-status"></span>
+      <button class="watch-save-btn" onclick="saveWatchlist()">Save Preferences</button>
+    </div>
+  </div>
 
   <!-- =========================================================== -->
   <!-- LEFT PANEL — LIVE THREAT NEWS FEED                           -->
@@ -1736,6 +1943,8 @@ html, body {
         <button class="main-tab active" data-tab="briefing" onclick="switchMainTab('briefing')">BRIEFING</button>
         <button class="main-tab" data-tab="ransom" onclick="switchMainTab('ransom')">RANSOMWARE</button>
         <button class="main-tab" data-tab="apt" onclick="switchMainTab('apt')">APT TRACKER</button>
+        <button class="main-tab" data-tab="brands" onclick="switchMainTab('brands')">BRANDS</button>
+        <button class="main-tab" data-tab="assets" onclick="switchMainTab('assets')">ASSETS</button>
       </div>
       <div class="region-filters" id="region-filters">
         <button class="region-btn active" data-region="all">GLOBAL</button>
@@ -1823,7 +2032,25 @@ html, body {
 
   </div>
 
-  <!-- Right panel — hidden, kept for JS compatibility -->
+  <!-- BRAND WATCH TAB -->
+    <div id="tab-brands">
+      <div class="watch-tab-header">
+        <span class="watch-tab-title">Brand Watch</span>
+        <span class="watch-tab-count" id="brands-count"></span>
+      </div>
+      <div id="brands-content"></div>
+    </div>
+
+    <!-- ASSET WATCH TAB -->
+    <div id="tab-assets">
+      <div class="watch-tab-header">
+        <span class="watch-tab-title">Asset / Technology Watch</span>
+        <span class="watch-tab-count" id="assets-count"></span>
+      </div>
+      <div id="assets-content"></div>
+    </div>
+
+    <!-- Right panel — hidden, kept for JS compatibility -->
   <div id="right-panel" class="panel">
     <div id="detail-overview"></div>
   </div>
@@ -2885,6 +3112,8 @@ function transformArticles(articles) {
       isDarkweb: isDarkweb,
       darkwebGroup: article.darkweb_group || null,
       darkwebSource: article.darkweb_source || null,
+      assetTags: article.asset_tags || [],
+      brandTags: article.brand_tags || [],
       _id: 'td-' + (article.hash || i)
     };
   });
@@ -3000,6 +3229,7 @@ function buildCardHTML(item) {
                       item.severity === 'MEDIUM' ? 'var(--amber)' : '#556';
 
   const confBadge = item.confidence ? `<span class="badge" style="background:rgba(30,126,78,0.07);color:var(--green);border:1px solid rgba(30,126,78,0.15);font-size:8px">${item.confidence}%</span>` : '';
+  const watchBadges = buildWatchBadges(item);
 
   return `<div class="feed-card ${sevClass}${activeClass}" data-id="${item._id}">
     ${newBadge}
@@ -3008,6 +3238,7 @@ function buildCardHTML(item) {
       ${item.isDarkweb && item.darkwebGroup ? `<span class="badge" style="background:rgba(192,57,43,0.07);color:var(--danger);border:1px solid rgba(192,57,43,0.18);font-size:8px">${escapeHTML(item.darkwebGroup)}</span>` : ''}
       <span class="type-badge ${item.cssType}">${icon} ${item.type}</span>
       ${confBadge}
+      ${watchBadges}
       <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;background:${sevDotColor};flex-shrink:0"></span>
     </div>
     <div class="card-title">${escapeHTML(item.title)}</div>
@@ -3728,6 +3959,8 @@ function switchMainTab(tab) {
   const regionBar  = document.getElementById('region-filters');
   const ransomEl   = document.getElementById('tab-ransom');
   const aptEl      = document.getElementById('tab-apt');
+  const brandsEl   = document.getElementById('tab-brands');
+  const assetsEl   = document.getElementById('tab-assets');
 
   const showBriefing = tab === 'briefing';
   if (briefingEl) briefingEl.style.display = showBriefing ? '' : 'none';
@@ -3736,13 +3969,16 @@ function switchMainTab(tab) {
 
   ransomEl.style.display = tab === 'ransom' ? 'block' : 'none';
   aptEl.style.display    = tab === 'apt'    ? 'block' : 'none';
+  brandsEl.style.display = tab === 'brands' ? 'block' : 'none';
+  assetsEl.style.display = tab === 'assets' ? 'block' : 'none';
 
-  // Scroll main panel back to top on tab switch
   const main = document.getElementById('main-content');
   if (main) main.scrollTop = 0;
 
   if (tab === 'ransom') renderRansomTracker();
   if (tab === 'apt')    renderAPTTracker();
+  if (tab === 'brands') renderBrandsTab();
+  if (tab === 'assets') renderAssetsTab();
 }
 
 /* ============================================================= */
@@ -4110,6 +4346,328 @@ function holdFeedAtTop(ms) {
 
 window.addEventListener('load', () => holdFeedAtTop(600));
 window.addEventListener('pageshow', () => holdFeedAtTop(600));
+
+/* ============================================================= */
+/* WATCHLIST — BRAND & ASSET MONITORING                          */
+/* ============================================================= */
+
+const VENDOR_SUGGEST_LIST = {
+  "Endpoint Security": ["CrowdStrike","SentinelOne","Carbon Black","Cybereason","Trend Micro","Symantec","McAfee","ESET","Sophos","Malwarebytes","Huntress","ThreatLocker","Darktrace","Cylance","Webroot","Bitdefender","Kaspersky","Trellix","Microsoft Defender","Cortex XDR"],
+  "Network Security": ["Palo Alto Networks","Fortinet","Check Point","SonicWall","Barracuda","Zscaler","Cisco","Juniper Networks","F5","Citrix","Ivanti","Aruba Networks","Zyxel","WatchGuard","Netscout","Infoblox","Stormshield","Cradlepoint","Radware"],
+  "Identity & Access": ["Okta","CyberArk","BeyondTrust","Ping Identity","OneLogin","SailPoint","Saviynt","Duo Security","RSA Security","Thales","ForgeRock","Microsoft Entra","Delinea","HashiCorp Vault","JumpCloud"],
+  "Cloud Platforms": ["AWS","Microsoft Azure","Google Cloud","Oracle Cloud","IBM Cloud","Alibaba Cloud","Cloudflare","Akamai","Fastly","DigitalOcean","Rackspace","Linode","Hetzner","OVHcloud","Vultr"],
+  "Enterprise Software": ["Microsoft","SAP","Oracle","Salesforce","ServiceNow","Workday","Adobe","Atlassian","VMware","IBM","Zoom","Slack","Progress Software","OpenText","Broadcom","Zoho","HCL Software"],
+  "Email & Collaboration": ["Microsoft Exchange","Office 365","Google Workspace","Proofpoint","Mimecast","Zimbra","Sendgrid","Postfix","Exim","Roundcube"],
+  "DevOps & Developer Tools": ["GitHub","GitLab","JetBrains","Docker","Kubernetes","Terraform","HashiCorp","Jenkins","Ansible","JFrog","Nexus Repository","CircleCI","TeamCity","ArgoCD"],
+  "Database & Data": ["Oracle Database","Microsoft SQL Server","MySQL","PostgreSQL","MongoDB","Redis","Elasticsearch","Snowflake","Databricks","Cassandra","CouchDB","MariaDB"],
+  "Supply Chain": ["SolarWinds","Kaseya","3CX","MOVEit","Log4j","XZ Utils","PyPI","npm","RubyGems","Codecov","Polyfill"],
+  "Hardware & Chips": ["Intel","AMD","NVIDIA","Qualcomm","Broadcom","Dell","HP","Lenovo","Supermicro","ASUS","Marvell","Arm","MediaTek","Samsung","Seagate","Western Digital"],
+  "Industrial / OT / ICS": ["Siemens","Schneider Electric","Rockwell Automation","Honeywell","GE Digital","ABB","Emerson","Yokogawa","AVEVA","Beckhoff","Mitsubishi Electric"],
+  "Storage & Backup": ["Veeam","Commvault","NetApp","Pure Storage","Rubrik","Cohesity","Veritas","Acronis","Zerto","Druva"],
+  "IoT & Physical Security": ["Hikvision","Dahua","Axis Communications","D-Link","TP-Link","Netgear","Ubiquiti","Wyze","Reolink","Hanwha","Bosch Security"],
+  "CDN & DNS": ["Cloudflare","Akamai","Verisign","Infoblox","BlueCat","NS1","Neustar","Dyn"],
+  "Telecom": ["Ericsson","Nokia","Huawei","T-Mobile","AT&T","Vodafone","Verizon","BT Group","Orange","Deutsche Telekom","NTT","Lumen Technologies"],
+  "Financial Technology": ["Stripe","PayPal","Block","Visa","Mastercard","Swift","Finastra","Temenos","NCR","Fiserv","Verifone"],
+  "Security Operations": ["Splunk","IBM QRadar","Microsoft Sentinel","Elastic SIEM","LogRhythm","Exabeam","Securonix","Chronicle","Recorded Future","ThreatConnect","Anomali"],
+  "Vulnerability Management": ["Tenable","Qualys","Rapid7","Vulcan Cyber","Wiz","Orca Security","Lacework","Snyk","Checkmarx","Veracode"]
+};
+
+const watchState = {
+  enabledVendors: new Set(),   // vendor names user has checked
+  customBrands: [],            // custom brand keywords
+  customAssets: [],            // custom asset keywords (self-hosted only)
+  selfHosted: false,           // true if /api/watchlist POST is enabled
+};
+
+function _loadWatchState() {
+  try {
+    const ev = localStorage.getItem('tw_enabled_vendors');
+    if (ev) watchState.enabledVendors = new Set(JSON.parse(ev));
+    const cb = localStorage.getItem('tw_custom_brands');
+    if (cb) watchState.customBrands = JSON.parse(cb);
+    const ca = localStorage.getItem('tw_custom_assets');
+    if (ca) watchState.customAssets = JSON.parse(ca);
+  } catch(e) {}
+}
+
+function _saveWatchState() {
+  try {
+    localStorage.setItem('tw_enabled_vendors', JSON.stringify([...watchState.enabledVendors]));
+    localStorage.setItem('tw_custom_brands', JSON.stringify(watchState.customBrands));
+    localStorage.setItem('tw_custom_assets', JSON.stringify(watchState.customAssets));
+  } catch(e) {}
+  _updateWatchBtn();
+}
+
+function _updateWatchBtn() {
+  const btn = document.getElementById('watch-btn');
+  if (!btn) return;
+  const hasAny = watchState.enabledVendors.size > 0 || watchState.customBrands.length > 0;
+  btn.classList.toggle('has-watches', hasAny);
+}
+
+function openWatchDrawer() {
+  document.getElementById('watch-overlay').classList.add('open');
+  document.getElementById('watch-drawer').classList.add('open');
+  buildVendorGrid('');
+  renderTagChips('brands');
+  renderTagChips('assets');
+}
+
+function closeWatchDrawer() {
+  document.getElementById('watch-overlay').classList.remove('open');
+  document.getElementById('watch-drawer').classList.remove('open');
+}
+
+function buildVendorGrid(filter) {
+  const grid = document.getElementById('vendor-grid');
+  if (!grid) return;
+  const q = (filter || '').toLowerCase().trim();
+  let html = '';
+  for (const [cat, vendors] of Object.entries(VENDOR_SUGGEST_LIST)) {
+    const visible = q ? vendors.filter(v => v.toLowerCase().includes(q)) : vendors;
+    if (!visible.length) continue;
+    html += `<div class="vendor-category">
+      <div class="vendor-cat-label">${escapeHTML(cat)}
+        <button class="vendor-cat-all" onclick="selectAllInCategory(${JSON.stringify(cat)},this)">select all</button>
+      </div>
+      <div class="vendor-chips">`;
+    for (const v of visible) {
+      const sel = watchState.enabledVendors.has(v) ? ' selected' : '';
+      html += `<span class="vendor-chip${sel}" onclick="toggleVendor(${JSON.stringify(v)},this)">
+        <span class="vendor-chip-check">&#x2713;</span>${escapeHTML(v)}
+      </span>`;
+    }
+    html += `</div></div>`;
+  }
+  if (!html) html = `<div style="color:var(--text-muted);font-size:12px;padding:8px 0">No vendors match "${escapeHTML(q)}"</div>`;
+  grid.innerHTML = html;
+}
+
+function filterVendorChips(q) {
+  buildVendorGrid(q);
+}
+
+function toggleVendor(name, el) {
+  if (watchState.enabledVendors.has(name)) {
+    watchState.enabledVendors.delete(name);
+    el.classList.remove('selected');
+  } else {
+    watchState.enabledVendors.add(name);
+    el.classList.add('selected');
+  }
+}
+
+function selectAllInCategory(cat, btn) {
+  const vendors = VENDOR_SUGGEST_LIST[cat] || [];
+  const allSelected = vendors.every(v => watchState.enabledVendors.has(v));
+  if (allSelected) {
+    vendors.forEach(v => watchState.enabledVendors.delete(v));
+    btn.textContent = 'select all';
+  } else {
+    vendors.forEach(v => watchState.enabledVendors.add(v));
+    btn.textContent = 'deselect all';
+  }
+  buildVendorGrid(document.getElementById('vendor-search').value || '');
+}
+
+function handleTagInput(event, type) {
+  if (event.key === 'Enter' || event.key === ',') {
+    event.preventDefault();
+    const val = event.target.value.trim().replace(/,$/, '');
+    if (val) {
+      const list = type === 'brands' ? watchState.customBrands : watchState.customAssets;
+      if (!list.includes(val)) { list.push(val); renderTagChips(type); }
+    }
+    event.target.value = '';
+  }
+}
+
+function removeTag(type, val) {
+  if (type === 'brands') watchState.customBrands = watchState.customBrands.filter(b => b !== val);
+  else watchState.customAssets = watchState.customAssets.filter(a => a !== val);
+  renderTagChips(type);
+}
+
+function renderTagChips(type) {
+  const containerId = type === 'brands' ? 'brand-tags-rendered' : 'asset-tags-rendered';
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const list = type === 'brands' ? watchState.customBrands : watchState.customAssets;
+  container.innerHTML = list.map(v =>
+    `<span class="tw-tag-chip">${escapeHTML(v)}<span class="tw-tag-remove" onclick="removeTag('${type}',${JSON.stringify(v)})">&times;</span></span>`
+  ).join('');
+}
+
+async function saveWatchlist() {
+  _saveWatchState();
+  const statusEl = document.getElementById('watch-save-status');
+  statusEl.className = 'watch-save-status';
+  statusEl.textContent = 'Saving...';
+
+  if (watchState.selfHosted) {
+    try {
+      const resp = await fetch('/api/watchlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brands: watchState.customBrands,
+          assets: watchState.customAssets,
+        })
+      });
+      if (resp.ok) {
+        statusEl.className = 'watch-save-status ok';
+        statusEl.textContent = 'Saved to server ✓';
+      } else {
+        throw new Error(await resp.text());
+      }
+    } catch(e) {
+      statusEl.className = 'watch-save-status err';
+      statusEl.textContent = 'Server save failed — preferences saved locally';
+    }
+  } else {
+    statusEl.className = 'watch-save-status ok';
+    statusEl.textContent = 'Preferences saved ✓';
+  }
+  setTimeout(() => { statusEl.textContent = ''; }, 3000);
+
+  // Refresh tabs if active
+  const activeTab = document.querySelector('.main-tab.active');
+  if (activeTab) {
+    if (activeTab.dataset.tab === 'brands') renderBrandsTab();
+    if (activeTab.dataset.tab === 'assets') renderAssetsTab();
+  }
+}
+
+async function initWatchlist() {
+  _loadWatchState();
+  _updateWatchBtn();
+  // Check if self-hosted (write-enabled)
+  try {
+    const resp = await fetch('/api/watchlist');
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.write_enabled) {
+        watchState.selfHosted = true;
+        document.body.classList.add('self-hosted-mode');
+        const badge = document.getElementById('watch-mode-badge');
+        if (badge) { badge.textContent = 'SELF-HOSTED'; badge.className = 'watch-mode-badge self-hosted'; }
+        const customSection = document.getElementById('custom-asset-section');
+        if (customSection) customSection.style.display = '';
+        // Merge server watchlist with local (server is source of truth for custom kw)
+        if (data.brands && data.brands.length) watchState.customBrands = data.brands;
+        if (data.assets && data.assets.length) watchState.customAssets = data.assets;
+      }
+    }
+  } catch(e) { /* hosted mode, ignore */ }
+}
+
+function buildWatchBadges(item) {
+  let badges = '';
+  // Asset matches: backend tags filtered by enabled vendors
+  const assetMatches = (item.assetTags || []).filter(t => watchState.enabledVendors.has(t));
+  // Client-side fallback for articles without backend tags
+  if (!assetMatches.length && watchState.enabledVendors.size > 0) {
+    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
+    for (const v of watchState.enabledVendors) {
+      if (text.includes(v.toLowerCase())) { assetMatches.push(v); break; }
+    }
+  }
+  if (assetMatches.length > 0) {
+    badges += `<span class="badge badge-watch-asset" title="${escapeHTML(assetMatches.join(', '))}">${escapeHTML(assetMatches[0])}${assetMatches.length > 1 ? ' +' + (assetMatches.length - 1) : ''}</span>`;
+  }
+  // Brand matches: always client-side
+  if (watchState.customBrands.length > 0) {
+    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
+    const brandMatch = watchState.customBrands.find(b => b && text.includes(b.toLowerCase()));
+    if (brandMatch) badges += `<span class="badge badge-watch-brand">${escapeHTML(brandMatch)}</span>`;
+  }
+  return badges;
+}
+
+function renderBrandsTab() {
+  const container = document.getElementById('brands-content');
+  const countEl = document.getElementById('brands-count');
+  if (!container) return;
+
+  if (!watchState.customBrands.length) {
+    container.innerHTML = `<div class="watch-empty"><strong>No brands configured</strong>Open Watch settings (&#128269; WATCH) to add brand names you want to monitor.</div>`;
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  const allItems = [...(state.newsItems || []), ...(state.iocItems || []), ...(state.ransomVictims || [])];
+  const matched = allItems.filter(item => {
+    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
+    return watchState.customBrands.some(b => b && text.includes(b.toLowerCase()));
+  });
+
+  if (countEl) countEl.textContent = matched.length ? `[${matched.length} matches]` : '';
+
+  if (!matched.length) {
+    container.innerHTML = `<div class="watch-empty"><strong>No matches yet</strong>No current articles mention your tracked brands (${watchState.customBrands.map(escapeHTML).join(', ')}).<br>Results update with each pipeline run.</div>`;
+    return;
+  }
+  container.innerHTML = matched.map(item => {
+    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
+    const hits = watchState.customBrands.filter(b => b && text.includes(b.toLowerCase()));
+    return `<div class="watch-article" onclick="selectItem(item)">
+      <div class="watch-match-tags">${hits.map(b => `<span class="watch-match-tag brand">${escapeHTML(b)}</span>`).join('')}</div>
+      <div class="watch-article-title">${escapeHTML(item.title)}</div>
+      <div class="watch-article-meta">${timeAgo(item.pubDate)} &middot; ${escapeHTML(item.source || '')}</div>
+    </div>`;
+  }).join('');
+  // Fix onclick closures
+  container.querySelectorAll('.watch-article').forEach((el, i) => {
+    el.onclick = () => selectItem(matched[i]);
+  });
+}
+
+function renderAssetsTab() {
+  const container = document.getElementById('assets-content');
+  const countEl = document.getElementById('assets-count');
+  if (!container) return;
+
+  if (!watchState.enabledVendors.size) {
+    container.innerHTML = `<div class="watch-empty"><strong>No assets selected</strong>Open Watch settings (&#128269; WATCH) and select the vendors and technologies in your stack to monitor for threats.</div>`;
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  const allItems = [...(state.newsItems || []), ...(state.iocItems || []), ...(state.ransomVictims || [])];
+  const matchedMap = new Map();
+  for (const item of allItems) {
+    const assetMatches = (item.assetTags || []).filter(t => watchState.enabledVendors.has(t));
+    if (assetMatches.length) { matchedMap.set(item._id, { item, matches: assetMatches }); continue; }
+    // Client-side fallback
+    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
+    const hits = [...watchState.enabledVendors].filter(v => text.includes(v.toLowerCase()));
+    if (hits.length) matchedMap.set(item._id, { item, matches: hits });
+  }
+  const matched = [...matchedMap.values()];
+
+  if (countEl) countEl.textContent = matched.length ? `[${matched.length} matches]` : '';
+
+  if (!matched.length) {
+    container.innerHTML = `<div class="watch-empty"><strong>No matches yet</strong>No current articles mention your selected technologies. Results update with each pipeline run.</div>`;
+    return;
+  }
+  container.innerHTML = matched.map(({ item, matches }) =>
+    `<div class="watch-article">
+      <div class="watch-match-tags">${matches.slice(0,4).map(m => `<span class="watch-match-tag asset">${escapeHTML(m)}</span>`).join('')}${matches.length > 4 ? `<span class="watch-match-tag asset">+${matches.length - 4}</span>` : ''}</div>
+      <div class="watch-article-title">${escapeHTML(item.title)}</div>
+      <div class="watch-article-meta">${timeAgo(item.pubDate)} &middot; ${escapeHTML(item.source || '')}</div>
+    </div>`
+  ).join('');
+  container.querySelectorAll('.watch-article').forEach((el, i) => {
+    el.onclick = () => selectItem(matched[i].item);
+  });
+}
+
+// Initialise on page load (called after SSR data is applied)
+document.addEventListener('DOMContentLoaded', () => {
+  initWatchlist();
+});
 </script>
 
 </body>
