@@ -4379,12 +4379,30 @@ const watchState = {
   selfHosted: false,           // true if /api/watchlist POST is enabled
 };
 
+// Sample brands shown by default — illustrative examples across industries.
+// Users can remove or add their own. Covers healthcare, hospitality, finance,
+// retail, automotive, and government — sectors frequently in breach headlines.
+const _DEFAULT_BRANDS = [
+  'Change Healthcare', 'MGM Resorts', 'Boeing', 'Ticketmaster',
+  'UnitedHealth', 'AT&T', 'Santander', 'CDK Global',
+];
+
+function _allVendorNames() {
+  return Object.values(VENDOR_SUGGEST_LIST).flat();
+}
+
 function _loadWatchState() {
   try {
     const ev = localStorage.getItem('tw_enabled_vendors');
-    if (ev) watchState.enabledVendors = new Set(JSON.parse(ev));
+    // First visit: enable all vendors by default
+    watchState.enabledVendors = ev
+      ? new Set(JSON.parse(ev))
+      : new Set(_allVendorNames());
+
     const cb = localStorage.getItem('tw_custom_brands');
-    if (cb) watchState.customBrands = JSON.parse(cb);
+    // First visit: show sample brands
+    watchState.customBrands = cb ? JSON.parse(cb) : [..._DEFAULT_BRANDS];
+
     const ca = localStorage.getItem('tw_custom_assets');
     if (ca) watchState.customAssets = JSON.parse(ca);
   } catch(e) {}
