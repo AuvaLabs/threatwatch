@@ -1666,6 +1666,17 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   .ransom-tracker-stats, .ransom-type-filters { padding: 10px 16px; }
 }
 
+/* Brand / Tech Watch tabs */
+.brand-watch-feed { padding: 0 20px 20px; overflow-y: auto; max-height: calc(100vh - 120px); }
+.brand-section { margin-top: 20px; border: 1px solid var(--panel-border); border-radius: 6px; overflow: hidden; }
+.brand-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--card-bg); border-bottom: 1px solid var(--panel-border);
+}
+.brand-section-name { font-family: var(--font-body); font-weight: 700; font-size: 13px; color: var(--text-primary); }
+.brand-section-count { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.brand-no-news { padding: 14px; font-size: 12px; color: var(--text-muted); font-family: var(--font-body); font-style: italic; }
+.brand-more { padding: 6px 14px 10px; font-size: 11px; color: var(--accent); font-family: var(--font-body); cursor: pointer; }
 #signature {
   display: flex;
   flex-direction: column;
@@ -2044,6 +2055,20 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
     <div id="tab-apt">
       <div class="apt-tracker-feed" id="apt-tracker-content">
         <div class="apt-empty">Switch to this tab to load APT data</div>
+      </div>
+    </div>
+
+    <!-- BRAND WATCH TAB (inside #main-content) -->
+    <div id="tab-brands" style="display:none">
+      <div class="brand-watch-feed" id="brands-content">
+        <div class="apt-empty">Switch to this tab to load brand watch data</div>
+      </div>
+    </div>
+
+    <!-- TECH / ASSET WATCH TAB (inside #main-content) -->
+    <div id="tab-assets" style="display:none">
+      <div class="brand-watch-feed" id="assets-content">
+        <div class="apt-empty">Switch to this tab to load tech watch data</div>
       </div>
     </div>
 
@@ -3202,20 +3227,6 @@ function filterMatchesItem(filter, item) {
     const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
     if (!text.includes(q)) return false;
   }
-  // Watch tab filter
-  if (state._watchTabFilter === 'brands') {
-    if (!watchState.customBrands.length) return false;
-    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
-    if (!watchState.customBrands.some(b => b && text.includes(b.toLowerCase()))) return false;
-  }
-  if (state._watchTabFilter === 'assets') {
-    if (!watchState.enabledVendors.size) return false;
-    const backendMatch = (item.assetTags || []).some(t => watchState.enabledVendors.has(t));
-    if (!backendMatch) {
-      const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
-      if (![...watchState.enabledVendors].some(v => text.includes(v.toLowerCase()))) return false;
-    }
-  }
   return catMatch;
 }
 
@@ -3290,26 +3301,6 @@ function renderFeedCards(reset = true) {
     countBadge.textContent = '[' + filtered.length + ' ' + label + ' of ' + state.newsItems.length + ']';
   }
 
-  // Watch filter bar in panel header (toggle with type filter buttons)
-  const feedFilters = document.getElementById('feed-filters');
-  const watchBar    = document.getElementById('watch-feed-bar');
-  const watchLabel  = document.getElementById('watch-feed-bar-label');
-  if (feedFilters && watchBar) {
-    if (state._watchTabFilter === 'brands') {
-      const names = watchState.customBrands.slice(0, 3).join(', ');
-      const extra = watchState.customBrands.length > 3 ? ` +${watchState.customBrands.length - 3} more` : '';
-      watchLabel.innerHTML = `<strong>BRANDS</strong> &nbsp;${escapeHTML(names)}${escapeHTML(extra)}`;
-      feedFilters.style.display = 'none';
-      watchBar.style.display = '';
-    } else if (state._watchTabFilter === 'assets') {
-      watchLabel.innerHTML = `<strong>TECH</strong> &nbsp;${watchState.enabledVendors.size} vendors monitored`;
-      feedFilters.style.display = 'none';
-      watchBar.style.display = '';
-    } else {
-      feedFilters.style.display = '';
-      watchBar.style.display = 'none';
-    }
-  }
 
   if (reset) {
     state.displayedCount = 0;
@@ -3998,30 +3989,29 @@ function switchMainTab(tab) {
   const regionBar  = document.getElementById('region-filters');
   const ransomEl   = document.getElementById('tab-ransom');
   const aptEl      = document.getElementById('tab-apt');
+  const brandsEl   = document.getElementById('tab-brands');
+  const assetsEl   = document.getElementById('tab-assets');
 
-  // BRANDS and TECH filter the left panel feed — no separate panels needed
-  const isWatchTab = tab === 'brands' || tab === 'assets';
-  const showBriefing = tab === 'briefing' || isWatchTab;
-
+  const showBriefing = tab === 'briefing';
   if (briefingEl) briefingEl.style.display = showBriefing ? '' : 'none';
   if (statsBar)   statsBar.style.display   = showBriefing ? '' : 'none';
   if (regionBar)  regionBar.style.display  = showBriefing ? '' : 'none';
 
-  ransomEl.style.display = tab === 'ransom' ? 'block' : 'none';
-  aptEl.style.display    = tab === 'apt'    ? 'block' : 'none';
+  ransomEl.style.display                     = tab === 'ransom' ? 'block' : 'none';
+  aptEl.style.display                        = tab === 'apt'    ? 'block' : 'none';
+  if (brandsEl) brandsEl.style.display       = tab === 'brands' ? 'block' : 'none';
+  if (assetsEl) assetsEl.style.display       = tab === 'assets' ? 'block' : 'none';
+
+  // Clear watch tab feed filter (left panel always shows all news)
+  state._watchTabFilter = null;
 
   const main = document.getElementById('main-content');
   if (main) main.scrollTop = 0;
 
-  // Apply or clear watch tab filter on left panel
-  const prevWatchFilter = state._watchTabFilter;
-  state._watchTabFilter = isWatchTab ? tab : null;
-  if (prevWatchFilter !== state._watchTabFilter || isWatchTab) {
-    renderFeedCards(true);
-  }
-
   if (tab === 'ransom') renderRansomTracker();
   if (tab === 'apt')    renderAPTTracker();
+  if (tab === 'brands') renderBrandsTab();
+  if (tab === 'assets') renderAssetsTab();
 }
 
 /* ============================================================= */
@@ -4674,82 +4664,115 @@ function buildWatchBadges(item) {
   return badges;
 }
 
+function _brandRegex(brand) {
+  return new RegExp('(?<![A-Za-z0-9])' + brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![A-Za-z0-9])', 'i');
+}
+
 function renderBrandsTab() {
   const container = document.getElementById('brands-content');
-  const countEl = document.getElementById('brands-count');
   if (!container) return;
 
-  if (!watchState.customBrands.length) {
-    container.innerHTML = `<div class="watch-empty"><strong>No brands configured</strong>Open Watch settings (&#128269; WATCH) to add brand names you want to monitor.</div>`;
-    if (countEl) countEl.textContent = '';
+  const brands = watchState.customBrands;
+  if (!brands.length) {
+    container.innerHTML = `<div class="apt-empty">No brands configured.<br>Open &#128269; WATCH to add brand names to monitor.</div>`;
     return;
   }
 
-  const allItems = [...(state.newsItems || []), ...(state.iocItems || []), ...(state.ransomVictims || [])];
-  const matched = allItems.filter(item => {
-    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
-    return watchState.customBrands.some(b => b && text.includes(b.toLowerCase()));
+  const allItems = state.newsItems || [];
+  let html = '';
+  let totalMatches = 0;
+
+  brands.forEach(brand => {
+    const re = _brandRegex(brand);
+    const matches = allItems
+      .filter(i => re.test((i.title || '') + ' ' + (i.description || '')))
+      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    totalMatches += matches.length;
+
+    html += `<div class="brand-section">
+      <div class="brand-section-header">
+        <span class="brand-section-name">${escapeHTML(brand)}</span>
+        <span class="brand-section-count">${matches.length} article${matches.length !== 1 ? 's' : ''}</span>
+      </div>`;
+
+    if (!matches.length) {
+      html += `<div class="brand-no-news">No recent news for ${escapeHTML(brand)}</div>`;
+    } else {
+      matches.slice(0, 8).forEach(item => {
+        html += `<div class="apt-article-row" data-id="${item._id}">
+          <div class="apt-article-dot"></div>
+          <div class="apt-article-title">${escapeHTML(item.title)}</div>
+          <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
+        </div>`;
+      });
+      if (matches.length > 8) {
+        html += `<div class="brand-more">+${matches.length - 8} more articles</div>`;
+      }
+    }
+    html += `</div>`;
   });
 
-  if (countEl) countEl.textContent = matched.length ? `[${matched.length} matches]` : '';
-
-  if (!matched.length) {
-    container.innerHTML = `<div class="watch-empty"><strong>No matches yet</strong>No current articles mention your tracked brands (${watchState.customBrands.map(escapeHTML).join(', ')}).<br>Results update with each pipeline run.</div>`;
-    return;
-  }
-  container.innerHTML = matched.map(item => {
-    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
-    const hits = watchState.customBrands.filter(b => b && text.includes(b.toLowerCase()));
-    return `<div class="watch-article" onclick="selectItem(item)">
-      <div class="watch-match-tags">${hits.map(b => `<span class="watch-match-tag brand">${escapeHTML(b)}</span>`).join('')}</div>
-      <div class="watch-article-title">${escapeHTML(item.title)}</div>
-      <div class="watch-article-meta">${timeAgo(item.pubDate)} &middot; ${escapeHTML(item.source || '')}</div>
-    </div>`;
-  }).join('');
-  // Fix onclick closures
-  container.querySelectorAll('.watch-article').forEach((el, i) => {
-    el.onclick = () => selectItem(matched[i]);
+  container.innerHTML = html;
+  // Attach click handlers
+  container.querySelectorAll('.apt-article-row[data-id]').forEach(el => {
+    const item = (state.newsItems || []).find(i => i._id === el.dataset.id);
+    if (item) el.onclick = () => selectItem(item);
   });
 }
 
 function renderAssetsTab() {
   const container = document.getElementById('assets-content');
-  const countEl = document.getElementById('assets-count');
   if (!container) return;
 
   if (!watchState.enabledVendors.size) {
-    container.innerHTML = `<div class="watch-empty"><strong>No assets selected</strong>Open Watch settings (&#128269; WATCH) and select the vendors and technologies in your stack to monitor for threats.</div>`;
-    if (countEl) countEl.textContent = '';
+    container.innerHTML = `<div class="apt-empty">No vendors selected.<br>Open &#128269; WATCH and select the technologies in your stack to monitor.</div>`;
     return;
   }
 
-  const allItems = [...(state.newsItems || []), ...(state.iocItems || []), ...(state.ransomVictims || [])];
-  const matchedMap = new Map();
-  for (const item of allItems) {
-    const assetMatches = (item.assetTags || []).filter(t => watchState.enabledVendors.has(t));
-    if (assetMatches.length) { matchedMap.set(item._id, { item, matches: assetMatches }); continue; }
-    // Client-side fallback
-    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
-    const hits = [...watchState.enabledVendors].filter(v => text.includes(v.toLowerCase()));
-    if (hits.length) matchedMap.set(item._id, { item, matches: hits });
+  const allItems = state.newsItems || [];
+
+  // Build per-vendor article lists (backend tags first, then client-side regex)
+  const vendorHits = [];
+  for (const vendor of watchState.enabledVendors) {
+    const re = _brandRegex(vendor);
+    const matches = allItems
+      .filter(i => (i.assetTags || []).includes(vendor) || re.test((i.title || '') + ' ' + (i.description || '')))
+      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    if (matches.length) vendorHits.push({ vendor, matches });
   }
-  const matched = [...matchedMap.values()];
 
-  if (countEl) countEl.textContent = matched.length ? `[${matched.length} matches]` : '';
+  // Sort by article count descending
+  vendorHits.sort((a, b) => b.matches.length - a.matches.length);
 
-  if (!matched.length) {
-    container.innerHTML = `<div class="watch-empty"><strong>No matches yet</strong>No current articles mention your selected technologies. Results update with each pipeline run.</div>`;
+  if (!vendorHits.length) {
+    container.innerHTML = `<div class="apt-empty">No current articles mention your selected technologies.<br>Results update with each pipeline run.</div>`;
     return;
   }
-  container.innerHTML = matched.map(({ item, matches }) =>
-    `<div class="watch-article">
-      <div class="watch-match-tags">${matches.slice(0,4).map(m => `<span class="watch-match-tag asset">${escapeHTML(m)}</span>`).join('')}${matches.length > 4 ? `<span class="watch-match-tag asset">+${matches.length - 4}</span>` : ''}</div>
-      <div class="watch-article-title">${escapeHTML(item.title)}</div>
-      <div class="watch-article-meta">${timeAgo(item.pubDate)} &middot; ${escapeHTML(item.source || '')}</div>
-    </div>`
-  ).join('');
-  container.querySelectorAll('.watch-article').forEach((el, i) => {
-    el.onclick = () => selectItem(matched[i].item);
+
+  let html = '';
+  vendorHits.forEach(({ vendor, matches }) => {
+    html += `<div class="brand-section">
+      <div class="brand-section-header">
+        <span class="brand-section-name">${escapeHTML(vendor)}</span>
+        <span class="brand-section-count">${matches.length} article${matches.length !== 1 ? 's' : ''}</span>
+      </div>`;
+    matches.slice(0, 5).forEach(item => {
+      html += `<div class="apt-article-row" data-id="${item._id}">
+        <div class="apt-article-dot"></div>
+        <div class="apt-article-title">${escapeHTML(item.title)}</div>
+        <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
+      </div>`;
+    });
+    if (matches.length > 5) {
+      html += `<div class="brand-more">+${matches.length - 5} more</div>`;
+    }
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+  container.querySelectorAll('.apt-article-row[data-id]').forEach(el => {
+    const item = (state.newsItems || []).find(i => i._id === el.dataset.id);
+    if (item) el.onclick = () => selectItem(item);
   });
 }
 
