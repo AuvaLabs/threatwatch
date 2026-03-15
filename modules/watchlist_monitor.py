@@ -34,7 +34,7 @@ VENDOR_SUGGEST_LIST: dict[str, list[str]] = {
     "Endpoint Security": [
         "CrowdStrike", "SentinelOne", "Carbon Black", "Cybereason",
         "Trend Micro", "Symantec", "McAfee", "ESET", "Sophos",
-        "Malwarebytes", "Huntress", "ThreatLocker", "Darktrace",
+        "Malwarebytes", "ThreatLocker", "Darktrace",
         "Cylance", "Webroot", "Bitdefender", "Kaspersky", "Trellix",
         "Microsoft Defender", "Cortex XDR",
     ],

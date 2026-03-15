@@ -3988,6 +3988,9 @@ function switchMainTab(tab) {
   const main = document.getElementById('main-content');
   if (main) main.scrollTop = 0;
 
+  if (tab !== 'brands') _selectedBrand = null;
+  if (tab !== 'assets') _selectedVendor = null;
+
   if (tab === 'ransom') renderRansomTracker();
   if (tab === 'apt')    renderAPTTracker();
   if (tab === 'brands') renderBrandsTab();
@@ -4365,7 +4368,7 @@ window.addEventListener('pageshow', () => holdFeedAtTop(600));
 /* ============================================================= */
 
 const VENDOR_SUGGEST_LIST = {
-  "Endpoint Security": ["CrowdStrike","SentinelOne","Carbon Black","Cybereason","Trend Micro","Symantec","McAfee","ESET","Sophos","Malwarebytes","Huntress","ThreatLocker","Darktrace","Cylance","Webroot","Bitdefender","Kaspersky","Trellix","Microsoft Defender","Cortex XDR"],
+  "Endpoint Security": ["CrowdStrike","SentinelOne","Carbon Black","Cybereason","Trend Micro","Symantec","McAfee","ESET","Sophos","Malwarebytes","ThreatLocker","Darktrace","Cylance","Webroot","Bitdefender","Kaspersky","Trellix","Microsoft Defender","Cortex XDR"],
   "Network Security": ["Palo Alto Networks","Fortinet","Check Point","SonicWall","Barracuda","Zscaler","Cisco","Juniper Networks","F5","Citrix","Ivanti","Aruba Networks","Zyxel","WatchGuard","Netscout","Infoblox","Stormshield","Cradlepoint","Radware"],
   "Identity & Access": ["Okta","CyberArk","BeyondTrust","Ping Identity","OneLogin","SailPoint","Saviynt","Duo Security","RSA Security","Thales","ForgeRock","Microsoft Entra","Delinea","HashiCorp Vault","JumpCloud"],
   "Cloud Platforms": ["AWS","Microsoft Azure","Google Cloud","Oracle Cloud","IBM Cloud","Alibaba Cloud","Cloudflare","Akamai","Fastly","DigitalOcean","Rackspace","Linode","Hetzner","OVHcloud","Vultr"],
@@ -4675,6 +4678,19 @@ function showWatchDetail(item, backTab) {
   if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+let _selectedBrand = null;
+let _selectedVendor = null;
+
+function selectBrand(name) {
+  _selectedBrand = (_selectedBrand === name || name === null) ? null : name;
+  renderBrandsTab();
+}
+
+function selectVendor(name) {
+  _selectedVendor = (_selectedVendor === name || name === null) ? null : name;
+  renderAssetsTab();
+}
+
 function renderBrandsTab() {
   const container = document.getElementById('brands-content');
   if (!container) return;
@@ -4686,40 +4702,77 @@ function renderBrandsTab() {
   }
 
   const allItems = state.newsItems || [];
-  let html = '';
-  let totalMatches = 0;
-
-  brands.forEach(brand => {
+  const brandData = brands.map(brand => {
     const re = _brandRegex(brand);
     const matches = allItems
       .filter(i => re.test((i.title || '') + ' ' + (i.description || '')))
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-    totalMatches += matches.length;
+    return { brand, matches };
+  }).filter(b => b.matches.length > 0).sort((a, b) => b.matches.length - a.matches.length);
 
-    html += `<div class="brand-section">
-      <div class="brand-section-header">
-        <span class="brand-section-name">${escapeHTML(brand)}</span>
-        <span class="brand-section-count">${matches.length} article${matches.length !== 1 ? 's' : ''}</span>
-      </div>`;
+  if (!brandData.length) {
+    container.innerHTML = `<div class="apt-empty">No recent news for your tracked brands.<br>Results update with each pipeline run.</div>`;
+    return;
+  }
 
-    if (!matches.length) {
-      html += `<div class="brand-no-news">No recent news for ${escapeHTML(brand)}</div>`;
-    } else {
-      matches.slice(0, 8).forEach(item => {
-        html += `<div class="apt-article-row" data-id="${item._id}">
-          <div class="apt-article-dot"></div>
-          <div class="apt-article-title">${escapeHTML(item.title)}</div>
-          <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
-        </div>`;
-      });
-      if (matches.length > 8) {
-        html += `<div class="brand-more">+${matches.length - 8} more articles</div>`;
-      }
-    }
-    html += `</div>`;
+  const maxCount = Math.max(...brandData.map(b => b.matches.length), 1);
+  let html = `<div class="apt-actor-grid">`;
+  brandData.forEach(({ brand, matches }) => {
+    const pct = Math.round((matches.length / maxCount) * 100);
+    const lastSeen = _timeAgo(matches[0].pubDate);
+    const isSelected = _selectedBrand === brand;
+    html += `<div class="apt-actor-card ${isSelected ? 'apt-selected' : ''}" data-brand="${escapeHTML(brand)}">
+      <div class="apt-actor-name">${escapeHTML(brand)}</div>
+      <div class="apt-actor-stats">
+        <div><div class="apt-stat-val">${matches.length}</div><div class="apt-stat-label">ARTICLES</div></div>
+        <div><div class="apt-stat-val" style="font-size:12px;padding-top:2px">${lastSeen}</div><div class="apt-stat-label">LAST SEEN</div></div>
+      </div>
+      <div class="apt-activity-bar"><div class="apt-activity-fill" style="width:${pct}%"></div></div>
+    </div>`;
   });
+  html += '</div>';
+
+  let displayItems;
+  if (_selectedBrand) {
+    const bd = brandData.find(b => b.brand === _selectedBrand);
+    displayItems = bd ? bd.matches : [];
+  } else {
+    const seen = new Set();
+    displayItems = brandData.flatMap(b => b.matches)
+      .filter(i => { if (seen.has(i._id)) return false; seen.add(i._id); return true; })
+      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  }
+
+  const label = _selectedBrand
+    ? `${_selectedBrand} — ${displayItems.length} article${displayItems.length !== 1 ? 's' : ''}`
+    : `All Brand Activity — ${displayItems.length} article${displayItems.length !== 1 ? 's' : ''}`;
+
+  html += `<div class="apt-articles-section">
+    <div class="apt-section-title">
+      ${escapeHTML(label)}
+      ${_selectedBrand ? `<span class="apt-section-count" style="cursor:pointer" onclick="selectBrand(null)">CLEAR ×</span>` : ''}
+    </div>`;
+  displayItems.slice(0, 30).forEach(item => {
+    html += `<div class="apt-article-row" data-id="${item._id}">
+      <div class="apt-article-dot"></div>
+      <div class="apt-article-title">${escapeHTML(item.title)}</div>
+      <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
+    </div>`;
+  });
+  html += '</div>';
 
   container.innerHTML = html;
+
+  requestAnimationFrame(() => {
+    container.querySelectorAll('.apt-activity-fill').forEach(bar => {
+      const w = bar.style.width; bar.style.width = '0';
+      requestAnimationFrame(() => { bar.style.width = w; });
+    });
+  });
+
+  container.querySelectorAll('.apt-actor-card[data-brand]').forEach(el => {
+    el.onclick = () => selectBrand(el.dataset.brand);
+  });
   container.querySelectorAll('.apt-article-row[data-id]').forEach(el => {
     const item = (state.newsItems || []).find(i => i._id === el.dataset.id);
     if (item) el.onclick = () => showWatchDetail(item, 'brands');
@@ -4736,48 +4789,79 @@ function renderAssetsTab() {
   }
 
   const allItems = state.newsItems || [];
-
-  // Build per-vendor article lists (backend tags first, then client-side regex)
-  const vendorHits = [];
+  const vendorData = [];
   for (const vendor of watchState.enabledVendors) {
     const re = _brandRegex(vendor);
     const matches = allItems
       .filter(i => (i.assetTags || []).includes(vendor) || re.test((i.title || '') + ' ' + (i.description || '')))
       .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-    vendorHits.push({ vendor, matches });
+    if (matches.length) vendorData.push({ vendor, matches });
+  }
+  vendorData.sort((a, b) => b.matches.length - a.matches.length);
+
+  if (!vendorData.length) {
+    container.innerHTML = `<div class="apt-empty">No current articles mention your selected technologies.<br>Results update with each pipeline run.</div>`;
+    return;
   }
 
-  // Sort: vendors with articles first (by count desc), then no-news vendors alphabetically
-  vendorHits.sort((a, b) => {
-    if (b.matches.length !== a.matches.length) return b.matches.length - a.matches.length;
-    return a.vendor.localeCompare(b.vendor);
+  const maxCount = Math.max(...vendorData.map(v => v.matches.length), 1);
+  let html = `<div class="apt-actor-grid">`;
+  vendorData.forEach(({ vendor, matches }) => {
+    const pct = Math.round((matches.length / maxCount) * 100);
+    const lastSeen = _timeAgo(matches[0].pubDate);
+    const isSelected = _selectedVendor === vendor;
+    html += `<div class="apt-actor-card ${isSelected ? 'apt-selected' : ''}" data-vendor="${escapeHTML(vendor)}">
+      <div class="apt-actor-name">${escapeHTML(vendor)}</div>
+      <div class="apt-actor-stats">
+        <div><div class="apt-stat-val">${matches.length}</div><div class="apt-stat-label">ARTICLES</div></div>
+        <div><div class="apt-stat-val" style="font-size:12px;padding-top:2px">${lastSeen}</div><div class="apt-stat-label">LAST SEEN</div></div>
+      </div>
+      <div class="apt-activity-bar"><div class="apt-activity-fill" style="width:${pct}%"></div></div>
+    </div>`;
   });
+  html += '</div>';
 
-  let html = '';
-  vendorHits.forEach(({ vendor, matches }) => {
-    html += `<div class="brand-section">
-      <div class="brand-section-header">
-        <span class="brand-section-name">${escapeHTML(vendor)}</span>
-        <span class="brand-section-count">${matches.length} article${matches.length !== 1 ? 's' : ''}</span>
-      </div>`;
-    if (!matches.length) {
-      html += `<div class="brand-no-news">No recent news for ${escapeHTML(vendor)}</div>`;
-    } else {
-      matches.slice(0, 5).forEach(item => {
-        html += `<div class="apt-article-row" data-id="${item._id}">
-          <div class="apt-article-dot"></div>
-          <div class="apt-article-title">${escapeHTML(item.title)}</div>
-          <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
-        </div>`;
-      });
-      if (matches.length > 5) {
-        html += `<div class="brand-more">+${matches.length - 5} more</div>`;
-      }
-    }
-    html += `</div>`;
+  let displayItems;
+  if (_selectedVendor) {
+    const vd = vendorData.find(v => v.vendor === _selectedVendor);
+    displayItems = vd ? vd.matches : [];
+  } else {
+    const seen = new Set();
+    displayItems = vendorData.flatMap(v => v.matches)
+      .filter(i => { if (seen.has(i._id)) return false; seen.add(i._id); return true; })
+      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  }
+
+  const label = _selectedVendor
+    ? `${_selectedVendor} — ${displayItems.length} article${displayItems.length !== 1 ? 's' : ''}`
+    : `All Tech Activity — ${displayItems.length} article${displayItems.length !== 1 ? 's' : ''}`;
+
+  html += `<div class="apt-articles-section">
+    <div class="apt-section-title">
+      ${escapeHTML(label)}
+      ${_selectedVendor ? `<span class="apt-section-count" style="cursor:pointer" onclick="selectVendor(null)">CLEAR ×</span>` : ''}
+    </div>`;
+  displayItems.slice(0, 30).forEach(item => {
+    html += `<div class="apt-article-row" data-id="${item._id}">
+      <div class="apt-article-dot"></div>
+      <div class="apt-article-title">${escapeHTML(item.title)}</div>
+      <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
+    </div>`;
   });
+  html += '</div>';
 
   container.innerHTML = html;
+
+  requestAnimationFrame(() => {
+    container.querySelectorAll('.apt-activity-fill').forEach(bar => {
+      const w = bar.style.width; bar.style.width = '0';
+      requestAnimationFrame(() => { bar.style.width = w; });
+    });
+  });
+
+  container.querySelectorAll('.apt-actor-card[data-vendor]').forEach(el => {
+    el.onclick = () => selectVendor(el.dataset.vendor);
+  });
   container.querySelectorAll('.apt-article-row[data-id]').forEach(el => {
     const item = (state.newsItems || []).find(i => i._id === el.dataset.id);
     if (item) el.onclick = () => showWatchDetail(item, 'assets');
