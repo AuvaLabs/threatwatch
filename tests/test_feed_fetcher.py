@@ -5,7 +5,7 @@ from modules.feed_fetcher import fetch_articles
 
 
 class TestFetchArticles:
-    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x: x)
+    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
     @patch("modules.feed_fetcher.feedparser.parse")
     @patch("modules.feed_fetcher._get_session")
     def test_returns_articles_from_feeds(self, mock_get_session, mock_parse, mock_resolve):
@@ -30,7 +30,7 @@ class TestFetchArticles:
         assert result[0]["title"] == "Test Article"
         assert "hash" in result[0]
 
-    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x: x)
+    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
     @patch("modules.feed_fetcher.feedparser.parse")
     @patch("modules.feed_fetcher._get_session")
     def test_no_global_state_accumulation(self, mock_get_session, mock_parse, mock_resolve):
@@ -53,7 +53,7 @@ class TestFetchArticles:
         assert len(result1) == 1
         assert len(result2) == 1
 
-    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x: x)
+    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
     @patch("modules.feed_fetcher.feedparser.parse", side_effect=Exception("Network error"))
     def test_handles_feed_error(self, mock_parse, mock_resolve):
         feeds = [{"url": "https://broken.feed.com/rss"}]
