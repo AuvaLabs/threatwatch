@@ -53,7 +53,8 @@ def _fetch_feed(url, region="Global"):
             if not is_clearnet_url(raw_link):
                 logging.debug(f"Non-clearnet link skipped: {raw_link[:80]}")
                 continue
-            clean_link = resolve_original_url(raw_link)
+            raw_summary = entry.get("summary", "") or ""
+            clean_link = resolve_original_url(raw_link, summary=raw_summary)
             # Resolved URL might have redirected to a .onion — guard again
             if not is_clearnet_url(clean_link):
                 clean_link = raw_link

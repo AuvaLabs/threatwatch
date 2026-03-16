@@ -134,17 +134,47 @@ def extract_canonical_from_html(url):
         logging.warning(f"Failed to extract canonical URL from {url}: {e}")
     return url
 
+# ==== Google News summary HTML extractor ====
+def extract_url_from_gnews_summary(summary: str) -> str | None:
+    """Extract the actual article URL from a Google News RSS entry summary.
+
+    Google News RSS summaries contain HTML like:
+      <a href="https://actual-article.com/path">Title</a>&nbsp;|&nbsp;Source
+    Parsing this is zero-cost and works regardless of protobuf encoding changes.
+    """
+    if not summary or 'news.google.com' not in summary and 'http' not in summary:
+        return None
+    try:
+        soup = BeautifulSoup(summary, 'html.parser')
+        for tag in soup.find_all('a', href=True):
+            href = tag['href']
+            if href.startswith('http') and 'news.google.com' not in href:
+                return href
+    except Exception:
+        pass
+    return None
+
+
 # ==== Final URL Resolver ====
-def resolve_original_url(url):
+def resolve_original_url(url: str, summary: str = '') -> str:
     if url in _CACHE:
         return _CACHE[url]
 
-    # Google News article links must be decoded locally — following them via HTTP
-    # triggers Google's bot-detection CAPTCHA page.
+    # 1. Try to extract from Google News summary HTML (zero-cost, no HTTP)
+    if 'news.google.com' in url and summary:
+        from_summary = extract_url_from_gnews_summary(summary)
+        if from_summary and is_clearnet_url(from_summary):
+            _CACHE[url] = from_summary
+            return from_summary
+
+    # 2. Try to decode the Google News protobuf URL locally (no HTTP)
     gnews_decoded = decode_google_news_url(url)
-    if gnews_decoded:
-        result = gnews_decoded
-    else:
+    if gnews_decoded and is_clearnet_url(gnews_decoded):
+        _CACHE[url] = gnews_decoded
+        return gnews_decoded
+
+    # 3. Non-Google URLs: embedded param, redirect, or canonical HTML
+    if 'news.google.com' not in url:
         embedded = extract_embedded_url(url)
         if embedded:
             result = embedded
@@ -154,8 +184,11 @@ def resolve_original_url(url):
                 result = redirected
             else:
                 result = extract_canonical_from_html(url) or url
+        if len(_CACHE) >= _CACHE_MAX:
+            _CACHE.pop(next(iter(_CACHE)))
+        _CACHE[url] = result
+        return result
 
-    if len(_CACHE) >= _CACHE_MAX:
-        _CACHE.pop(next(iter(_CACHE)))
-    _CACHE[url] = result
-    return result
+    # 4. Google URL with no decodable content — keep as-is (don't hit Google)
+    _CACHE[url] = url
+    return url
