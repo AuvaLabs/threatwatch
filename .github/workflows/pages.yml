@@ -2,7 +2,7 @@ name: Deploy GitHub Pages
 
 on:
   schedule:
-    - cron: '*/30 * * * *'   # every 30 minutes
+    - cron: '*/15 * * * *'   # every 15 minutes
   workflow_dispatch:           # manual trigger
 
 permissions:
