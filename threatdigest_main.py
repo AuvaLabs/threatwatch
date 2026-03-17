@@ -28,6 +28,7 @@ from modules.darkweb_monitor import fetch_darkweb_intel
 from modules.feed_health import log_health_summary
 from modules.webhook import dispatch as webhook_dispatch
 from modules.watchlist_monitor import tag_articles_with_vendors, run_watchlist_monitor
+from modules.newsapi_fetcher import fetch_newsapi_articles
 
 
 def enrich_articles(articles, summarize=False, stats=None):
@@ -114,6 +115,15 @@ def main():
             logging.info(f"Dark web: added {len(darkweb_articles)} items")
     except Exception as e:
         logging.warning(f"Dark web monitoring failed: {e}")
+
+    # NewsAPI — structured security news (rate-limited: at most once per 30 min)
+    try:
+        newsapi_articles = fetch_newsapi_articles()
+        if newsapi_articles:
+            raw_articles.extend(newsapi_articles)
+            logging.info(f"NewsAPI: added {len(newsapi_articles)} articles")
+    except Exception as e:
+        logging.warning(f"NewsAPI fetch failed: {e}")
 
     # Watchlist monitor — custom brand/asset keywords (self-hosted only)
     try:
