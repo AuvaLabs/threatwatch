@@ -1971,10 +1971,12 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <input type="text" class="vendor-search" id="vendor-search" placeholder="Search 150+ vendors..." oninput="filterVendorChips(this.value)">
         <div id="vendor-grid"></div>
       </div>
-      <!-- Custom Asset Keywords (self-hosted only) -->
-      <div class="watch-section" id="custom-asset-section" style="display:none">
-        <div class="watch-section-head">&#x2699;&#xFE0F; Custom Asset Keywords <span class="watch-mode-badge self-hosted" style="margin-left:6px">SELF-HOSTED</span></div>
-        <div class="watch-section-desc">Additional technology keywords for pipeline-level searches, beyond the vendor list above.</div>
+      <!-- Custom Asset Keywords (all users; self-hosted also runs pipeline searches) -->
+      <div class="watch-section" id="custom-asset-section">
+        <div class="watch-section-head">&#x2699;&#xFE0F; Custom Tech Keywords</div>
+        <div class="watch-section-desc">Track any technology not in the vendor list above — matched client-side across the feed and TECH tab.
+          <span class="sh-only"> Also runs targeted pipeline searches each cycle.</span>
+        </div>
         <div class="tag-input-wrap" onclick="document.getElementById('asset-tag-input').focus()">
           <div id="asset-tags-rendered"></div>
           <input type="text" id="asset-tag-input" class="tag-text-input" placeholder="Type technology keyword, press Enter..." onkeydown="handleTagInput(event,'assets')">
@@ -4621,6 +4623,8 @@ function _updateWatchBtn() {
 function openWatchDrawer() {
   document.getElementById('watch-overlay').classList.add('open');
   document.getElementById('watch-drawer').classList.add('open');
+  const body = document.querySelector('.watch-drawer-body');
+  if (body) body.scrollTop = 0;
   _initVendorGridDelegate();
   buildVendorGrid('');
   renderTagChips('brands');
