@@ -287,6 +287,6 @@ ThreatWatch is **open source for non-commercial use**. You are free to use, modi
 
 by [nicholai.me](https://nicholai.me) · [AuvaLabs](https://github.com/AuvaLabs)
 
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/nicholaiimbong)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/nicholai.me)
 
 </div>
