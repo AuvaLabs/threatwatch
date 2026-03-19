@@ -52,7 +52,7 @@ Aggregates threat intelligence from 155+ RSS feeds, dark web sources, and NewsAP
 
 ### Dashboard
 - Server-side rendered, **loads in under a second**
-- **Single HTML file** — no build step, no framework, no JavaScript bundle
+- **Single HTML file** — no build step, no framework, no JavaScript bundle; IBM Plex Mono + Space Grotesk typography
 - **Category tabs**: Briefing, Ransomware, APT, Breach, DDoS, Phishing, Malware, Zero-Day, Vuln, Dark Web, Brands, Tech
 - Category tabs filter the left-panel live feed — one click to see all matching articles
 - **Brand Watch tab** — monitor specific brands/organisations; selecting a brand filters the left panel
@@ -65,7 +65,7 @@ Aggregates threat intelligence from 155+ RSS feeds, dark web sources, and NewsAP
 - Watchlist preferences saved to localStorage; self-hosted installs can persist keywords server-side
 - Auto-generated threat intelligence briefing (zero cost)
 - Optional AI-powered briefing (any LLM provider — toggle in UI)
-- Light and dark theme
+- **5 switchable themes** — Nightwatch (dark brass), Parchment (light cream), Solarized, Arctic (clean blue), Phosphor (retro CRT)
 - Both live URLs displayed in the page footer
 
 ### Region accuracy
