@@ -619,6 +619,37 @@ html, body {
 .type-badge.cisa-kev { background: rgba(192,57,43,0.07); color: var(--danger); border: 1px solid rgba(192,57,43,0.18); font-weight: 700; }
 .type-badge.cve { background: rgba(26,86,219,0.07); color: var(--accent); border: 1px solid rgba(26,86,219,0.12); }
 
+/* Confidence badge tooltip */
+.conf-badge {
+  position: relative;
+  cursor: default;
+}
+.conf-badge::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  padding: 6px 9px;
+  font-size: 11px;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  max-width: 240px;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.4;
+}
+.conf-badge:hover::after { opacity: 1; }
+
 .card-title {
   font-family: var(--font-body);
   font-weight: 500;
@@ -3373,7 +3404,15 @@ function buildCardHTML(item) {
                       item.severity === 'HIGH' ? '#ff8c00' :
                       item.severity === 'MEDIUM' ? 'var(--warning)' : '#556';
 
-  const confBadge = item.confidence ? `<span class="badge" style="background:rgba(30,126,78,0.07);color:var(--success);border:1px solid rgba(30,126,78,0.15);font-size:8px">${item.confidence}%</span>` : '';
+  const confTip = (() => {
+    const c = item.confidence; const cat = item.category || 'General';
+    if (!c) return '';
+    if (c >= 90) return `Strong match — "${cat}" keywords directly identified in title/content`;
+    if (c >= 80) return `High confidence — specific ${cat} patterns detected`;
+    if (c >= 70) return `Moderate match — ${cat} indicators found in content`;
+    return `Base score — general cybersecurity content detected, no specific category rule matched`;
+  })();
+  const confBadge = item.confidence ? `<span class="badge conf-badge" data-tip="${escapeHTML(confTip)}" style="background:rgba(30,126,78,0.07);color:var(--success);border:1px solid rgba(30,126,78,0.15);font-size:8px">${item.confidence}%</span>` : '';
   const watchBadges = buildWatchBadges(item);
 
   return `<div class="feed-card ${sevClass}${activeClass}" data-id="${item._id}">
