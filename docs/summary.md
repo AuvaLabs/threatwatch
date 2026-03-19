@@ -4,14 +4,14 @@
 
 ## Features
 
-- **Live Threat Intelligence Feed** — left panel streaming curated threat news from 155+ RSS/API sources, filtered by category (breach, ransomware, APT, phishing, malware, zero-day, vuln, dark web) and region
+- **Live Threat Intelligence Feed** — 155+ RSS/API sources, filtered by category (breach, ransomware, APT, phishing, malware, zero-day, vuln, dark web) and region; confidence score badge with hover tooltip explaining classification drivers
 - **Threat Intelligence Briefing** — zero-cost rule-based briefing + optional AI-generated executive summary via any OpenAI-compatible LLM provider
-- **Ransomware Tracker** — group intelligence grid showing victim posts (ransomware.live) and news per group; filter by ALL / VICTIMS / NEWS; click any group to drilldown
-- **APT Tracker** — actor intelligence grid tracking Lazarus Group, Volt Typhoon, APT28/Sandworm, APT29/Cozy Bear, APT41, Charming Kitten, Scattered Spider, Salt Typhoon, Kimsuky and more
+- **Ransomware Tracker** — group intelligence grid showing victim posts (ransomware.live) and news per group
+- **APT Tracker** — actor intelligence grid tracking major nation-state threat actors
 - **IOC Tracker** — ThreatFox IOC feed with hash, IP, domain, and URL indicators
 - **Brand Watch** — monitor specific brands/organisations across the intel feed
-- **Tech Watch** — 244 technology vendors across 18 categories; select vendors to highlight matching articles
-- **NewsAPI integration** — additional security news with rate-limited fetching (100 req/day free tier)
+- **Tech Watch** — 244 technology vendors across 18 categories; custom tech keywords for any vendor not in the list
+- **NewsAPI integration** — additional security news (100 req/day free tier)
 - **Region filtering** — GLOBAL / NA / EMEA / MENA / APAC / LATAM with content-based inference
 - **Server-side rendering** — zero-latency page load via embedded JSON data
 - **Auto-refresh** — polls for new data every 2 minutes
