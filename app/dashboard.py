@@ -50,7 +50,7 @@ def generate_dashboard_html():
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    html = f"""<!DOCTYPE html>
+    page_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -455,7 +455,7 @@ _applyFilters();
 </script>
 </body>
 </html>"""
-    return html
+    return page_html
 
 
 def _parse_pub_date(pub_str):
