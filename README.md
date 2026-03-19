@@ -9,9 +9,9 @@
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![Zero Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)]()
 [![Feeds](https://img.shields.io/badge/feeds-155+-blue)]()
-[![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/ThreatWatch?style=social)](https://github.com/AuvaLabs/ThreatWatch)
+[![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/threatwatch?style=social)](https://github.com/AuvaLabs/threatwatch)
 
-**[Live Demo](https://threatwatch.auvalabs.com)** · **[GitHub Pages](https://auvalabs.github.io/ThreatWatch/)**
+**[Live Demo](https://threatwatch.auvalabs.com)** · **[GitHub Pages](https://auvalabs.github.io/threatwatch/)**
 
 Aggregates threat intelligence from 155+ RSS feeds, dark web sources, and NewsAPI — classifies by category and region, deduplicates, and serves a live single-page dashboard. Runs on your own infrastructure. No API keys required.
 
@@ -85,7 +85,7 @@ Aggregates threat intelligence from 155+ RSS feeds, dark web sources, and NewsAP
 ### Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/AuvaLabs/ThreatWatch.git
+git clone https://github.com/AuvaLabs/threatwatch.git
 cd ThreatWatch
 
 # Optional: configure environment
@@ -100,7 +100,7 @@ The pipeline runs immediately on startup, then every 10 minutes. Dashboard is at
 ### Manual setup
 
 ```bash
-git clone https://github.com/AuvaLabs/ThreatWatch.git
+git clone https://github.com/AuvaLabs/threatwatch.git
 cd ThreatWatch
 
 python3 -m venv venv
