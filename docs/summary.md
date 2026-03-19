@@ -15,11 +15,12 @@
 - **Region filtering** — GLOBAL / NA / EMEA / MENA / APAC / LATAM with content-based inference
 - **Server-side rendering** — zero-latency page load via embedded JSON data
 - **Auto-refresh** — polls for new data every 2 minutes
+- **5 switchable themes** — Nightwatch (dark brass), Parchment (light cream), Solarized, Arctic (clean blue), Phosphor (retro CRT with scanline overlay)
 
 ## Tech Stack
 
 - Python HTTP server (`serve_threatwatch.py`) — port 8098
-- Single-file frontend (`threatwatch.html`) — vanilla JS, no framework, no build step
+- Single-file frontend (`threatwatch.html`) — vanilla JS, no framework, no build step; IBM Plex Mono + Space Grotesk typography
 - Data pipeline: `threatdigest_main.py` orchestrating 12+ modules
 - Docker Compose two-service deployment (pipeline + server)
 - Flat JSON storage — no database, no Redis
@@ -51,4 +52,4 @@ Browser → serve_threatwatch.py (SSR injection)
 - **GitHub Pages**: https://auvalabs.github.io/threatwatch/
 - **Repository**: https://github.com/AuvaLabs/threatwatch
 
-Last updated: 2026-03-19
+Last updated: 2026-03-20
