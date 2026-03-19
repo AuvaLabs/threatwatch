@@ -73,6 +73,116 @@
   --scrollbar-thumb: rgba(0,0,0,0.1);
 }
 
+/* Solarized Dark — analyst's terminal */
+[data-theme="solarized"] {
+  --bg: #002b36;
+  --surface: #073642;
+  --panel-bg: #073642;
+  --panel-solid: #073642;
+  --panel-border: rgba(131,148,150,0.12);
+  --card-bg: transparent;
+  --card-hover: rgba(131,148,150,0.06);
+  --card-active: rgba(181,137,0,0.1);
+  --stat-bg: rgba(181,137,0,0.06);
+  --stat-border: rgba(181,137,0,0.12);
+  --accent: #b58900;
+  --accent-dim: rgba(181,137,0,0.08);
+  --accent-2: #268bd2;
+  --danger: #dc322f;
+  --warning: #cb4b16;
+  --success: #859900;
+  --purple: #6c71c4;
+  --text-primary: #93a1a1;
+  --text-secondary: #839496;
+  --text-muted: #586e75;
+  --scrollbar-track: rgba(131,148,150,0.04);
+  --scrollbar-thumb: rgba(131,148,150,0.15);
+}
+
+/* Arctic — NATO situation room */
+[data-theme="arctic"] {
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --panel-bg: #ffffff;
+  --panel-solid: #ffffff;
+  --panel-border: rgba(15,23,42,0.08);
+  --card-bg: transparent;
+  --card-hover: rgba(37,99,235,0.03);
+  --card-active: rgba(37,99,235,0.07);
+  --stat-bg: rgba(37,99,235,0.04);
+  --stat-border: rgba(37,99,235,0.1);
+  --accent: #2563eb;
+  --accent-dim: rgba(37,99,235,0.06);
+  --accent-2: #64748b;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --success: #16a34a;
+  --purple: #7c3aed;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --scrollbar-track: rgba(0,0,0,0.03);
+  --scrollbar-thumb: rgba(0,0,0,0.1);
+}
+
+/* Phosphor — retro CRT terminal */
+[data-theme="phosphor"] {
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --panel-bg: #111111;
+  --panel-solid: #111111;
+  --panel-border: rgba(51,255,51,0.08);
+  --card-bg: transparent;
+  --card-hover: rgba(51,255,51,0.04);
+  --card-active: rgba(51,255,51,0.08);
+  --stat-bg: rgba(51,255,51,0.04);
+  --stat-border: rgba(51,255,51,0.08);
+  --accent: #33ff33;
+  --accent-dim: rgba(51,255,51,0.06);
+  --accent-2: #00cc88;
+  --danger: #ff3333;
+  --warning: #ffcc00;
+  --success: #33ff33;
+  --purple: #cc66ff;
+  --text-primary: #33ff33;
+  --text-secondary: rgba(51,255,51,0.6);
+  --text-muted: rgba(51,255,51,0.25);
+  --scrollbar-track: rgba(51,255,51,0.03);
+  --scrollbar-thumb: rgba(51,255,51,0.15);
+}
+
+/* Phosphor CRT glow effect */
+[data-theme="phosphor"] .card-title,
+[data-theme="phosphor"] #topbar .logo,
+[data-theme="phosphor"] .center-section-title,
+[data-theme="phosphor"] .panel-title {
+  text-shadow: 0 0 4px rgba(51,255,51,0.2);
+}
+
+/* Phosphor scanline overlay */
+[data-theme="phosphor"] #app::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* Smooth theme transition */
+html[data-transitioning],
+html[data-transitioning] *,
+html[data-transitioning] *::before,
+html[data-transitioning] *::after {
+  transition: background-color 0.2s ease, color 0.15s ease, border-color 0.15s ease !important;
+}
+
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
@@ -93,7 +203,7 @@ html, body {
 .filter-btn:focus-visible,
 .region-btn:focus-visible,
 .main-tab:focus-visible,
-.theme-toggle:focus-visible,
+.theme-picker-btn:focus-visible,
 .briefing-mode-toggle:focus-visible,
 .watch-btn:focus-visible { outline-offset: 1px; border-radius: 3px; }
 :focus:not(:focus-visible) { outline: none; }
@@ -104,21 +214,71 @@ html, body {
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb); filter: brightness(1.4); }
 
-/* Theme toggle */
-.theme-toggle {
-  font-family: var(--font-body);
-  font-size: 11px;
+/* Theme picker */
+.theme-picker {
+  position: relative;
+}
+.theme-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 500;
   padding: 3px 10px;
   border: 1px solid var(--panel-border);
-  border-radius: 3px;
+  border-radius: 2px;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s;
-  letter-spacing: 0;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
 }
-.theme-toggle:hover { background: var(--surface); color: var(--text-primary); }
+.theme-picker-btn:hover { background: var(--card-hover); color: var(--text-primary); border-color: var(--accent); }
+.theme-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  flex-shrink: 0;
+}
+.theme-picker-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  z-index: 200;
+  min-width: 170px;
+  padding: 4px 0;
+  overflow: hidden;
+}
+.theme-picker-dropdown.open { display: block; }
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  text-align: left;
+}
+.theme-option:hover { background: var(--card-hover); color: var(--text-primary); }
+.theme-option.active { color: var(--accent); }
+.theme-option .theme-swatch { border-width: 2px; }
+.theme-option.active::after { content: '✓'; margin-left: auto; font-size: 11px; color: var(--accent); }
 
 .briefing-mode-toggle {
   font-family: var(--font-body);
@@ -1897,6 +2057,8 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   .detail-headline { font-size: 19px; }
   /* Larger touch targets for filter buttons on mobile */
   .filter-btn { padding: 6px 10px; font-size: 12px; }
+  .theme-label { display: none; }
+  .theme-picker-btn { padding: 3px 6px; }
 }
 
 @media (max-width: 480px) {
@@ -1966,7 +2128,29 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
     </div>
     <div class="topbar-right">
       <div id="threat-level" class="low">THREAT: LOW</div>
-      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">LIGHT</button>
+      <div class="theme-picker" id="theme-picker">
+        <button class="theme-picker-btn" onclick="toggleThemeDropdown()">
+          <span class="theme-swatch" id="theme-swatch" style="background:#0f1218;border-color:#b09a6b"></span>
+          <span class="theme-label" id="theme-label">NIGHTWATCH</span>
+        </button>
+        <div class="theme-picker-dropdown" id="theme-dropdown">
+          <button class="theme-option active" data-theme="dark" onclick="setTheme('dark')">
+            <span class="theme-swatch" style="background:#0f1218;border-color:#b09a6b"></span> NIGHTWATCH
+          </button>
+          <button class="theme-option" data-theme="light" onclick="setTheme('light')">
+            <span class="theme-swatch" style="background:#f4f2ec;border-color:#6b5a30"></span> PARCHMENT
+          </button>
+          <button class="theme-option" data-theme="solarized" onclick="setTheme('solarized')">
+            <span class="theme-swatch" style="background:#002b36;border-color:#b58900"></span> SOLARIZED
+          </button>
+          <button class="theme-option" data-theme="arctic" onclick="setTheme('arctic')">
+            <span class="theme-swatch" style="background:#f8f9fb;border-color:#2563eb"></span> ARCTIC
+          </button>
+          <button class="theme-option" data-theme="phosphor" onclick="setTheme('phosphor')">
+            <span class="theme-swatch" style="background:#0a0a0a;border-color:#33ff33"></span> PHOSPHOR
+          </button>
+        </div>
+      </div>
       <span class="topbar-sep"></span>
       <button class="watch-btn" id="watch-btn" onclick="openWatchDrawer()" title="Brand &amp; Asset Watch">&#128269; WATCH <span class="watch-btn-dot"></span></button>
       <span class="topbar-sep"></span>
@@ -2514,36 +2698,55 @@ const REGION_NAMES = {
 /* CLOCK                                                          */
 /* ============================================================= */
 /* ============================================================= */
-/* THEME TOGGLE                                                   */
+/* THEME PICKER                                                   */
 /* ============================================================= */
-function toggleTheme() {
+const THEMES = {
+  dark:      { name: 'NIGHTWATCH',  bg: '#0f1218', accent: '#b09a6b' },
+  light:     { name: 'PARCHMENT',   bg: '#f4f2ec', accent: '#6b5a30' },
+  solarized: { name: 'SOLARIZED',   bg: '#002b36', accent: '#b58900' },
+  arctic:    { name: 'ARCTIC',      bg: '#f8f9fb', accent: '#2563eb' },
+  phosphor:  { name: 'PHOSPHOR',    bg: '#0a0a0a', accent: '#33ff33' }
+};
+
+function setTheme(name) {
+  if (!THEMES[name]) return;
   const html = document.documentElement;
-  const btn = document.getElementById('theme-toggle');
-  const isLight = html.getAttribute('data-theme') === 'light';
-  if (isLight) {
-    html.setAttribute('data-theme', 'dark');
-    btn.textContent = 'LIGHT';
-    try { localStorage.setItem('tw-theme', 'dark'); } catch {}
-  } else {
-    html.setAttribute('data-theme', 'light');
-    btn.textContent = 'DARK';
-    try { localStorage.setItem('tw-theme', 'light'); } catch {}
-  }
+  html.setAttribute('data-transitioning', '');
+  html.setAttribute('data-theme', name === 'dark' ? 'dark' : name);
+  const t = THEMES[name];
+  const label = document.getElementById('theme-label');
+  const swatch = document.getElementById('theme-swatch');
+  if (label) label.textContent = t.name;
+  if (swatch) { swatch.style.background = t.bg; swatch.style.borderColor = t.accent; }
+  document.querySelectorAll('.theme-option').forEach(function(el) {
+    el.classList.toggle('active', el.getAttribute('data-theme') === name);
+  });
+  closeThemeDropdown();
+  try { localStorage.setItem('tw-theme', name); } catch(e) {}
+  setTimeout(function() { html.removeAttribute('data-transitioning'); }, 300);
 }
+
+function toggleThemeDropdown() {
+  document.getElementById('theme-dropdown').classList.toggle('open');
+}
+function closeThemeDropdown() {
+  var dd = document.getElementById('theme-dropdown');
+  if (dd) dd.classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.theme-picker')) closeThemeDropdown();
+});
 
 // Restore saved theme (dark is default)
 (function() {
   try {
-    const saved = localStorage.getItem('tw-theme');
-    const btn = document.getElementById('theme-toggle');
-    if (saved === 'light') {
-      document.documentElement.setAttribute('data-theme', 'light');
-      if (btn) btn.textContent = 'DARK';
+    var saved = localStorage.getItem('tw-theme');
+    if (saved && THEMES[saved]) {
+      setTheme(saved);
     } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      if (btn) btn.textContent = 'LIGHT';
+      setTheme('dark');
     }
-  } catch {}
+  } catch(e) { setTheme('dark'); }
 })();
 
 function updateClock() {
