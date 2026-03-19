@@ -49,6 +49,12 @@ def build_ssr_html():
         "// setInterval(refreshData, REFRESH_INTERVAL); // Disabled for static site",
     )
 
+    # Fix absolute favicon path for GitHub Pages (site lives at /ThreatWatch/, not /)
+    html = html.replace(
+        'href="/favicon.svg"',
+        'href="favicon.svg"',
+    )
+
     return html
 
 
