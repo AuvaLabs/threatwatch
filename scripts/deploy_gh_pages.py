@@ -7,9 +7,6 @@ so the site works as a fully static page on GitHub Pages.
 import json
 import logging
 import shutil
-import subprocess
-import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -82,36 +79,7 @@ def deploy():
         shutil.copy2(rss_src, DOCS_DIR / "feed.xml")
         logging.info("Copied RSS feed to docs/feed.xml")
 
-    # Git operations
-    try:
-        subprocess.run(["git", "add", "docs/"], cwd=BASE_DIR, check=True)
-
-        # Check if there are changes to commit
-        result = subprocess.run(
-            ["git", "diff", "--cached", "--quiet", "docs/"],
-            cwd=BASE_DIR,
-            capture_output=True,
-        )
-        if result.returncode == 0:
-            logging.info("No changes to deploy.")
-            return
-
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        msg = f"data: update threat intel feed - {now}"
-        subprocess.run(
-            ["git", "commit", "-m", msg, "--", "docs/"],
-            cwd=BASE_DIR,
-            check=True,
-        )
-        subprocess.run(
-            ["git", "push", "origin", "main"],
-            cwd=BASE_DIR,
-            check=True,
-        )
-        logging.info(f"Deployed to GitHub Pages at {now}")
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Git operation failed: {e}")
-        sys.exit(1)
+    logging.info("Static site built — git commit handled by CI workflow.")
 
 
 if __name__ == "__main__":

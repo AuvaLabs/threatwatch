@@ -29,7 +29,7 @@ jobs:
 
       - name: Commit and push if changed
         run: |
-          git config user.name  "Nicholai Imbong"
+          git config user.name  "nicholai.me"
           git config user.email "51435592+CyberOneHQ@users.noreply.github.com"
           git add docs/
           git diff --cached --quiet docs/ && echo "No changes" && exit 0
