@@ -57,25 +57,25 @@ def generate_dashboard_html():
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ThreatDigest Hub</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 :root {{
-    --bg: #ffffff;
-    --surface: #f7f7f7;
-    --border: rgba(0,0,0,0.08);
-    --border-light: rgba(0,0,0,0.05);
-    --text: #111111;
-    --text-secondary: rgba(17,17,17,0.55);
-    --text-muted: rgba(17,17,17,0.32);
-    --accent: #1a56db;
-    --accent-light: rgba(26,86,219,0.06);
-    --danger: #c0392b;
-    --danger-light: rgba(192,57,43,0.06);
-    --warning: #b7791f;
-    --warning-light: rgba(183,121,31,0.06);
-    --success: #1e7e4e;
-    --success-light: rgba(30,126,78,0.06);
-    --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-mono: 'DM Mono', 'JetBrains Mono', monospace;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --border: rgba(15,23,42,0.08);
+    --border-light: rgba(15,23,42,0.04);
+    --text: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --accent: #2563eb;
+    --accent-light: rgba(37,99,235,0.06);
+    --danger: #dc2626;
+    --danger-light: rgba(220,38,38,0.06);
+    --warning: #d97706;
+    --warning-light: rgba(217,119,6,0.06);
+    --success: #16a34a;
+    --success-light: rgba(22,163,74,0.06);
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Menlo', monospace;
 }}
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
 body {{
@@ -84,6 +84,7 @@ body {{
     color: var(--text);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }}
 .container {{ max-width: 1120px; margin: 0 auto; padding: 32px 24px; }}
 header {{
@@ -116,8 +117,8 @@ header .subtitle {{
 .stat-card {{
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px;
+    border-radius: 12px;
+    padding: 22px;
 }}
 .stat-card .label {{
     color: var(--text-muted);
@@ -158,8 +159,8 @@ header .subtitle {{
 .cat-badge {{
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 12px;
+    border-radius: 8px;
+    padding: 6px 14px;
     font-size: 13px;
     font-weight: 500;
     color: var(--text-secondary);
@@ -188,24 +189,25 @@ header .subtitle {{
 
 .search-bar {{
     width: 100%;
-    padding: 10px 14px;
+    padding: 12px 16px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     color: var(--text);
     font-size: 14px;
+    font-family: var(--font-body);
     margin-bottom: 16px;
     outline: none;
-    transition: border-color 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }}
 .search-bar::placeholder {{ color: var(--text-muted); }}
-.search-bar:focus {{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }}
+.search-bar:focus {{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }}
 
 table {{
     width: 100%;
     border-collapse: collapse;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
 }}
 thead {{ background: var(--surface); }}
