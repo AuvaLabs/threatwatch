@@ -328,7 +328,7 @@ See [SECURITY.md](SECURITY.md) for the security policy and how to report vulnera
 
 ## License
 
-ThreatWatch is **open source for non-commercial use**. You are free to use, modify, and distribute it for personal, educational, and non-profit purposes.
+ThreatWatch is **open source for non-commercial use**.
 
 See [LICENSE](LICENSE) for the full terms or contact [nicholai.me](https://nicholai.me).
 
