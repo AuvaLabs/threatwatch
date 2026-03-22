@@ -466,7 +466,10 @@ def _parse_pub_date(pub_str):
     if not pub_str:
         return datetime.min.replace(tzinfo=timezone.utc)
     try:
-        return parsedate_to_datetime(pub_str)
+        dt = parsedate_to_datetime(pub_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
     except (ValueError, TypeError):
         pass
     try:
