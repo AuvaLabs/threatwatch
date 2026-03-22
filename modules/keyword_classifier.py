@@ -233,6 +233,44 @@ _RULES = [
         "confidence": 75,
     },
     {
+        "category": "Threat Research & Analysis",
+        "re": re.compile(
+            r"malware\s+analysis|reverse\s+engineer|dissecting\s+"
+            r"|anatomy\s+of\s+(a|an|the)\s+"
+            r"|deep\s+dive\s+into|technical\s+analysis"
+            r"|exploit\s+chain|attack\s+chain|kill\s+chain\s+analysis"
+            r"|proof[\s-]+of[\s-]+concept|\bpoc\b.*exploit"
+            r"|write[\s-]*up|walkthrough.*vuln|walkthrough.*exploit"
+            r"|case\s+study.*breach|case\s+study.*attack|case\s+study.*incident"
+            r"|\bdfir\b|digital\s+forensic|forensic\s+analysis"
+            r"|incident\s+response\s+report|post[\s-]*mortem.*attack"
+            r"|ttp\s+analysis|mitre\s+att&ck\s+mapping|attack\s+technique"
+            r"|campaign\s+analysis|intrusion\s+analysis|adversary\s+tradecraft"
+            r"|root\s+cause\s+analysis.*cyber|malware\s+reverse"
+            r"|unpacking\s+|deobfuscat|sandbox\s+analysis",
+            re.IGNORECASE,
+        ),
+        "confidence": 80,
+    },
+    {
+        "category": "Detection & Response",
+        "re": re.compile(
+            r"detection\s+engineering|detection\s+rule|detection\s+guide"
+            r"|sigma\s+rule|yara\s+rule|snort\s+rule|suricata\s+rule"
+            r"|threat\s+hunt|hunting\s+for\s+|hunting\s+guide"
+            r"|incident\s+response\s+playbook|response\s+playbook"
+            r"|blue\s+team|purple\s+team|soc\s+analyst\s+guide"
+            r"|detection\s+strategy|detect\s+and\s+respond"
+            r"|log\s+analysis.*attack|splunk\s+query.*detect"
+            r"|kql\s+query.*detect|elastic\s+query.*detect"
+            r"|defend\s+for\s+containers|container\s+attack\s+scenario"
+            r"|forensic\s+investigation|memory\s+forensic"
+            r"|network\s+forensic|disk\s+forensic",
+            re.IGNORECASE,
+        ),
+        "confidence": 78,
+    },
+    {
         "category": "Threat Intelligence Report",
         "re": re.compile(
             r"threat\s+(report|landscape|brief|intelligence|research|analysis)"
@@ -337,6 +375,31 @@ _NOISE_PATTERNS = [
         r"(buy|sell|invest(ing)?|trading|portfolio|hodl|bullish|bearish)\s+(bitcoin|ethereum|crypto|nft|defi|altcoin)"
         r"|(bitcoin|ethereum|crypto)\s+(price|rally|surge|dip|prediction|forecast|bull\s+run|bear\s+market)"
         r"|crypto\s+(market|exchange|wallet)\s+(update|news|analysis|review|report)\b(?!.*hack)(?!.*breach)(?!.*exploit)",
+        re.IGNORECASE,
+    ),
+    # Awards / recognition (not threat intel)
+    re.compile(
+        r"wins?\s+(gold|silver|award|recognition)\s+at"
+        r"|excellence\s+award|award[\s-]winning\s+(cyber|security)"
+        r"|named\s+(leader|visionary|challenger)\s+in\s+(gartner|forrester|idc)",
+        re.IGNORECASE,
+    ),
+    # Grants / government funding (not threat intel)
+    re.compile(
+        r"receive[sd]?\s+\$[\d,]+\s+(grant|funding)\s+.{0,30}(cyber|security)"
+        r"|grant\s+to\s+(enhance|improve|strengthen)\s+cyber",
+        re.IGNORECASE,
+    ),
+    # Legal hires / partner announcements
+    re.compile(
+        r"joins?\s+as\s+.{0,30}(partner|counsel|director|vp|head)\s+.{0,20}(cyber|data|privacy)"
+        r"|expand\s+.{0,20}(cybersecurity|data|privacy)\s+practice",
+        re.IGNORECASE,
+    ),
+    # Insurance / market commentary (not incidents)
+    re.compile(
+        r"cyber\s+insurance\s+(market|premium|rate|cost|trend|outlook)"
+        r"|insurance\s+.*cyber\s+(risk|coverage|policy)",
         re.IGNORECASE,
     ),
 ]

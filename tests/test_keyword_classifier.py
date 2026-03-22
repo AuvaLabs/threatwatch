@@ -51,6 +51,18 @@ class TestClassificationRules:
         ("Crypto exchange hacked for $100 million", "Cryptocurrency/Blockchain Theft"),
         ("AWS S3 bucket exposed millions of records", "Cloud Security Incident"),
         ("SCADA systems targeted in power grid attack", "Critical Infrastructure Attack"),
+        # Threat Research & Analysis
+        ("Technical analysis of novel threat campaign targeting enterprises", "Threat Research & Analysis"),
+        ("Anatomy of a corporate network intrusion: a case study", "Threat Research & Analysis"),
+        ("Proof-of-concept exploit demonstrates new attack technique", "Threat Research & Analysis"),
+        ("DFIR report: adversary tradecraft in cloud environment", "Threat Research & Analysis"),
+        ("Sandbox analysis reveals multi-stage payload delivery", "Threat Research & Analysis"),
+        # Detection & Response
+        ("Detection engineering: building Sigma rules for lateral movement", "Detection & Response"),
+        ("Threat hunting guide for persistent access techniques", "Detection & Response"),
+        ("Incident response playbook for containment and recovery", "Detection & Response"),
+        ("New YARA rule set for JavaScript injection detection", "Detection & Response"),
+        ("Blue team guide: network forensic investigation of lateral movement", "Detection & Response"),
     ])
     def test_category_classification(self, title, expected_category, tmp_path, monkeypatch):
         monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")

@@ -39,7 +39,7 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 - Rolling **7-day window** with merge across pipeline runs
 
 ### Classification
-- **22 threat categories**: Ransomware, Zero-Day, APT/Nation-State, DDoS, Supply Chain, Phishing, Malware, Data Breach, Vulnerability, Patch, and more
+- **24 threat categories**: Ransomware, Zero-Day, APT/Nation-State, DDoS, Supply Chain, Phishing, Malware, Data Breach, Vulnerability, Threat Research & Analysis, Detection & Response, and more
 - **75+ threat actors and malware families** (APT28, LockBit, Lazarus Group, Scattered Spider, Salt Typhoon, etc.)
 - **Content-aware region attribution** — infers geographic region from article title, not just feed locale
 - ISO-3166 country code mapping for ransomware victim data (DE → Europe, JP → APAC, BR → LATAM, etc.)
@@ -54,7 +54,7 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 ### Dashboard
 - Server-side rendered, **loads in under a second**
 - **Single HTML file** — no build step, no framework, no JavaScript bundle; IBM Plex Mono + Space Grotesk typography
-- **Category tabs**: Intel Brief, Ransomware, APT, Breach, DDoS, Phishing, Malware, Zero-Day, Vuln, Dark Web, Brands, Tech
+- **Category tabs**: Intel Brief, Ransomware, APT, Breach, DDoS, Phishing, Malware, Zero-Day, Vuln, Dark Web, Research, Brands, Tech
 - Category tabs filter the left-panel live feed — one click to see all matching articles
 - **Brand Watch tab** — monitor specific brands/organisations; selecting a brand filters the left panel
 - **Tech Watch tab** — 244 technology vendors across 18 categories; selecting a vendor filters the left panel

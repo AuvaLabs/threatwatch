@@ -111,9 +111,8 @@
   category: Native
   region: UK
 
-- url: https://www.tripwire.com/state-of-security/feed
-  category: Native
-  region: US
+# Tripwire — redirects to 403 (verified 2026-03-22)
+# - url: https://www.tripwire.com/state-of-security/feed
 
 - url: https://www.helpnetsecurity.com/feed/
   category: Native
@@ -136,11 +135,13 @@
   category: Native
   region: Global
 
-- url: https://www.proofpoint.com/us/blog/rss.xml
+# Proofpoint — returns 404 (verified 2026-03-22)
+# - url: https://www.proofpoint.com/us/blog/rss.xml
   category: Native
   region: US
 
-- url: https://www.zscaler.com/blogs/security-research/rss
+# Zscaler — returns 404 (verified 2026-03-22)
+# - url: https://www.zscaler.com/blogs/security-research/rss
   category: Native
   region: Global
 
@@ -211,7 +212,8 @@
   category: Native
   region: Global
 
-- url: https://www.fortiguard.com/rss/ir.xml
+# FortiGuard — returns 500 (verified 2026-03-22)
+# - url: https://www.fortiguard.com/rss/ir.xml
   category: Native
   region: Global
 
@@ -240,10 +242,8 @@
   category: Native
   region: Global
 
-# Exploit Database — public exploit disclosures and PoC releases
-- url: https://www.exploit-db.com/rss.xml
-  category: Native
-  region: Global
+# Exploit Database — consistently times out, all individual exploit URLs timeout too (verified 2026-03-22)
+# - url: https://www.exploit-db.com/rss.xml
 
 # AttackerKB RSS returns 404 (verified 2026-03-14)
 # Akamai Security blog RSS returns 403 (verified 2026-03-14)
@@ -291,7 +291,8 @@
   category: Native
   region: Global
 
-- url: https://www.arcticwolf.com/resources/blog/feed/
+# Arctic Wolf — returns 404 (verified 2026-03-22)
+# - url: https://www.arcticwolf.com/resources/blog/feed/
   category: Native
   region: Global
 
@@ -311,10 +312,12 @@
   category: Native
   region: Global
 
-- url: https://www.dragos.com/blog/feed/
+# Dragos — returns 404 (verified 2026-03-22)
+# - url: https://www.dragos.com/blog/feed/
   category: Native
   region: Global
 
-- url: https://www.nozominetworks.com/blog/feed/
+# Nozomi Networks — returns 404 (verified 2026-03-22)
+# - url: https://www.nozominetworks.com/blog/feed/
   category: Native
   region: Global

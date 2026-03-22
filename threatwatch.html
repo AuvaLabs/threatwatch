@@ -792,6 +792,7 @@ html, body {
 .type-badge.advisory { background: rgba(0,0,0,0.04); color: var(--text-secondary); border: 1px solid var(--panel-border); }
 .type-badge.bec { background: rgba(183,121,31,0.07); color: var(--warning); border: 1px solid rgba(183,121,31,0.12); }
 .type-badge.threat-intel { background: rgba(30,126,78,0.07); color: var(--success); border: 1px solid rgba(30,126,78,0.12); }
+.type-badge.research { background: rgba(99,102,241,0.07); color: #818cf8; border: 1px solid rgba(99,102,241,0.15); }
 .type-badge.cisa-kev { background: rgba(192,57,43,0.07); color: var(--danger); border: 1px solid rgba(192,57,43,0.18); font-weight: 700; }
 .type-badge.cve { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(176,154,107,0.18); }
 
@@ -2291,6 +2292,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <button class="main-tab" data-tab="darkweb" onclick="switchMainTab('darkweb')">DARK WEB</button>
         <button class="main-tab" data-tab="ransom" onclick="switchMainTab('ransom')">RANSOMWARE</button>
         <button class="main-tab" data-tab="apt" onclick="switchMainTab('apt')">APT TRACKER</button>
+        <button class="main-tab" data-tab="research" onclick="switchMainTab('research')">RESEARCH</button>
         <button class="main-tab" data-tab="brands" onclick="switchMainTab('brands')">BRANDS</button>
         <button class="main-tab" data-tab="assets" onclick="switchMainTab('assets')">TECH</button>
       </div>
@@ -3565,6 +3567,8 @@ const TD_CATEGORY_MAP = {
   'Disinformation/Influence Operation': { type: 'DISINFO', icon: '\uD83D\uDCE2', severity: 'MEDIUM', cssType: 'apt' },
   'Security Policy/Regulation': { type: 'POLICY', icon: '\uD83D\uDCDC', severity: 'LOW', cssType: 'advisory' },
   'Threat Intelligence Report': { type: 'INTEL REPORT', icon: '\uD83D\uDCCA', severity: 'LOW', cssType: 'advisory' },
+  'Threat Research & Analysis': { type: 'RESEARCH', icon: '\uD83D\uDD2C', severity: 'MEDIUM', cssType: 'research' },
+  'Detection & Response': { type: 'DETECTION', icon: '\uD83D\uDEE1', severity: 'MEDIUM', cssType: 'research' },
 };
 
 /* ============================================================= */
@@ -3602,6 +3606,7 @@ function filterMatchesItem(filter, item) {
     else if (filter === 'zero-day') catMatch = item.cssType === 'zero-day';
     else if (filter === 'vuln') catMatch = item.cssType === 'vuln' || item.cssType === 'cve' || item.cssType === 'cisa-kev';
     else if (filter === 'darkweb') catMatch = item.isDarkweb === true;
+    else if (filter === 'research') catMatch = item.cssType === 'research';
   }
   // Severity drilldown from recommended actions
   if (state._actionDrilldown && state._actionDrilldown.type === 'severity') {
@@ -4385,7 +4390,7 @@ async function refreshData() {
 function switchMainTab(tab) {
   document.querySelectorAll('.main-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
 
-  const CATEGORY_TABS = ['breach', 'ddos', 'phishing', 'malware', 'zero-day', 'vuln', 'darkweb'];
+  const CATEGORY_TABS = ['breach', 'ddos', 'phishing', 'malware', 'zero-day', 'vuln', 'darkweb', 'research'];
   const isCategory = CATEGORY_TABS.includes(tab);
 
   const briefingEl = document.querySelector('.center-content');
