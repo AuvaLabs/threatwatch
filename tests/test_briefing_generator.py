@@ -33,16 +33,18 @@ def _article(title="Test Article", category="Ransomware", region="US", summary="
 def _valid_briefing(**overrides):
     base = {
         "threat_level": "ELEVATED",
-        "executive_summary": "Threat activity is elevated globally.",
-        "key_developments": ["Dev 1", "Dev 2"],
-        "active_threats": {
-            "nation_state": "APT29 active.",
-            "ransomware": "LockBit targeting healthcare.",
-            "emerging": "New loader detected.",
-        },
-        "sector_risk": ["Healthcare", "Finance"],
-        "recommended_actions": ["Enable MFA", "Patch critical systems"],
-        "outlook": "Threat level likely to persist.",
+        "assessment_basis": "Multiple ransomware campaigns targeting critical infrastructure.",
+        "situation_overview": "Threat activity is elevated globally.",
+        "key_intelligence": [
+            {"finding": "APT29 active against government targets", "confidence": "HIGH", "source_count": 3},
+            {"finding": "New loader variant detected in the wild", "confidence": "MODERATE", "source_count": 1},
+        ],
+        "threat_forecast": "Ransomware activity likely to persist over the next 30 days.",
+        "sector_impact": ["Healthcare — targeted by LockBit", "Finance — credential theft campaigns"],
+        "priority_actions": [
+            {"action": "Enable MFA on all admin accounts", "threat_context": "Credential theft campaigns"},
+            {"action": "Patch CVE-2026-1234 in OpenSSL", "threat_context": "Active exploitation observed"},
+        ],
     }
     base.update(overrides)
     return base
@@ -66,12 +68,12 @@ class TestBuildDigest:
         assert f"Article {_MAX_DIGEST_ARTICLES - 1}" in digest
         assert f"Article {_MAX_DIGEST_ARTICLES}" not in digest
 
-    def test_truncates_summary_at_200_chars(self):
-        long_summary = "x" * 300
+    def test_truncates_summary_at_250_chars(self):
+        long_summary = "x" * 400
         a = _article(summary=long_summary)
         digest = _build_digest([a])
-        assert "x" * 200 in digest
-        assert "x" * 201 not in digest
+        assert "x" * 250 in digest
+        assert "x" * 251 not in digest
 
     def test_uses_translated_title_if_available(self):
         a = _article(title="Original")
@@ -161,12 +163,14 @@ class TestGenerateBriefing:
         result = generate_briefing([])
         assert result is None
 
+    @patch("modules.briefing_generator._record_api_call")
+    @patch("modules.briefing_generator._is_rate_limited", return_value=False)
     @patch("modules.briefing_generator._save_briefing")
     @patch("modules.briefing_generator.cache_result")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_openai_compatible")
     @patch("modules.briefing_generator._detect_provider", return_value="openai")
-    def test_successful_generation(self, _, mock_call, mock_cache_get, mock_cache_set, mock_save):
+    def test_successful_generation(self, _, mock_call, mock_cache_get, mock_cache_set, mock_save, _rl, _rec):
         mock_call.return_value = self._mock_reply(_valid_briefing())
         articles = [_article() for _ in range(5)]
         result = generate_briefing(articles)
@@ -179,38 +183,63 @@ class TestGenerateBriefing:
         mock_save.assert_called_once()
         mock_cache_set.assert_called_once()
 
+    @patch("modules.briefing_generator._record_api_call")
+    @patch("modules.briefing_generator._is_rate_limited", return_value=False)
     @patch("modules.briefing_generator._save_briefing")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_openai_compatible")
     @patch("modules.briefing_generator._detect_provider", return_value="openai")
-    def test_missing_required_fields_returns_none(self, _, mock_call, mock_cache_get, mock_save):
-        # Response missing executive_summary and recommended_actions
-        incomplete = {"threat_level": "MODERATE", "key_developments": ["x"]}
+    def test_missing_required_fields_returns_none(self, _, mock_call, mock_cache_get, mock_save, _rl, _rec):
+        incomplete = {"threat_level": "MODERATE", "key_intelligence": []}
         mock_call.return_value = json.dumps(incomplete)
         result = generate_briefing([_article()])
         assert result is None
         mock_save.assert_not_called()
 
+    @patch("modules.briefing_generator._record_api_call")
+    @patch("modules.briefing_generator._is_rate_limited", return_value=False)
     @patch("modules.briefing_generator._save_briefing")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_openai_compatible")
     @patch("modules.briefing_generator._detect_provider", return_value="openai")
-    def test_invalid_threat_level_normalised_to_moderate(self, _, mock_call, mock_cache_get, mock_save):
+    def test_invalid_threat_level_normalised_to_moderate(self, _, mock_call, mock_cache_get, mock_save, _rl, _rec):
         briefing = _valid_briefing(threat_level="UNKNOWN_LEVEL")
         mock_call.return_value = json.dumps(briefing)
         result = generate_briefing([_article()])
         assert result["threat_level"] == "MODERATE"
 
+    @patch("modules.briefing_generator._record_api_call")
+    @patch("modules.briefing_generator._is_rate_limited", return_value=False)
     @patch("modules.briefing_generator._save_briefing")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_openai_compatible")
     @patch("modules.briefing_generator._detect_provider", return_value="openai")
-    def test_articles_analyzed_capped_at_max(self, _, mock_call, mock_cache_get, mock_save):
+    def test_articles_analyzed_capped_at_max(self, _, mock_call, mock_cache_get, mock_save, _rl, _rec):
         mock_call.return_value = self._mock_reply(_valid_briefing())
         articles = [_article(title=f"A{i}") for i in range(120)]
         result = generate_briefing(articles)
         assert result["articles_analyzed"] == _MAX_DIGEST_ARTICLES
         assert result["total_articles"] == 120
+
+    @patch("modules.briefing_generator._record_api_call")
+    @patch("modules.briefing_generator._is_rate_limited", return_value=False)
+    @patch("modules.briefing_generator._save_briefing")
+    @patch("modules.briefing_generator.get_cached_result", return_value=None)
+    @patch("modules.briefing_generator._call_openai_compatible")
+    @patch("modules.briefing_generator._detect_provider", return_value="openai")
+    def test_legacy_schema_converted(self, _, mock_call, mock_cache_get, mock_save, _rl, _rec):
+        """Legacy responses with executive_summary/recommended_actions are accepted."""
+        legacy = {
+            "threat_level": "ELEVATED",
+            "executive_summary": "Legacy summary.",
+            "recommended_actions": ["Do thing A", "Do thing B"],
+        }
+        mock_call.return_value = json.dumps(legacy)
+        result = generate_briefing([_article()])
+        assert result is not None
+        assert result["situation_overview"] == "Legacy summary."
+        assert isinstance(result["priority_actions"], list)
+        assert result["priority_actions"][0]["action"] == "Do thing A"
 
     @patch("modules.briefing_generator._save_briefing")
     @patch("modules.briefing_generator._call_openai_compatible")
@@ -227,11 +256,12 @@ class TestGenerateBriefing:
         mock_save.assert_called_once()
         assert result["threat_level"] == "ELEVATED"
 
+    @patch("modules.briefing_generator._is_rate_limited", return_value=False)
     @patch("modules.briefing_generator._save_briefing")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_openai_compatible", side_effect=Exception("API error"))
     @patch("modules.briefing_generator._detect_provider", return_value="openai")
-    def test_api_exception_returns_none(self, _, mock_call, mock_cache_get, mock_save):
+    def test_api_exception_returns_none(self, _, mock_call, mock_cache_get, mock_save, _rl):
         result = generate_briefing([_article()])
         assert result is None
         mock_save.assert_not_called()
@@ -279,4 +309,4 @@ class TestLoadBriefing:
         with patch("modules.briefing_generator.BRIEFING_PATH", p):
             result = load_briefing()
         assert result["threat_level"] == "ELEVATED"
-        assert result["executive_summary"] == "Threat activity is elevated globally."
+        assert result["situation_overview"] == "Threat activity is elevated globally."

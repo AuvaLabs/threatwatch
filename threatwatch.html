@@ -2281,7 +2281,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
     <!-- Header with tab nav + region filters -->
     <div class="center-header" id="center-panel">
       <div class="main-tabs">
-        <button class="main-tab active" data-tab="briefing" onclick="switchMainTab('briefing')">BRIEFING</button>
+        <button class="main-tab active" data-tab="briefing" onclick="switchMainTab('briefing')">INTEL BRIEF</button>
         <button class="main-tab" data-tab="breach" onclick="switchMainTab('breach')">BREACH</button>
         <button class="main-tab" data-tab="ddos" onclick="switchMainTab('ddos')">DDOS</button>
         <button class="main-tab" data-tab="phishing" onclick="switchMainTab('phishing')">PHISHING</button>
@@ -2317,7 +2317,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       <!-- Intelligence sections -->
       <div class="center-section" id="section-briefing">
         <div class="center-section-title">
-          <span class="section-icon">&#x1F4E1;</span> Threat Briefing
+          <span class="section-icon">&#x1F4E1;</span> Intelligence Briefing
           <button class="briefing-mode-toggle" id="briefing-mode-toggle" onclick="toggleBriefingMode()">NORMAL</button>
         </div>
         <div id="ai-briefing-content"></div>
@@ -3140,13 +3140,13 @@ function renderAIBriefing(container) {
   const b = state.aiBriefing;
   if (!b) {
     container.innerHTML = `<div class="briefing-text" style="color:var(--text-muted)">
-      No AI briefing available. Configure any LLM provider and restart the pipeline:<br><br>
+      AI intelligence briefing unavailable. Configure an LLM provider to enable analyst-grade threat assessments:<br><br>
       <code style="font-size:11px;color:var(--accent)">
         LLM_API_KEY=your-key<br>
-        LLM_BASE_URL=https://api.openai.com/v1  <span style="color:var(--text-muted)"># or Groq, Together, Ollama, etc.</span><br>
-        LLM_MODEL=gpt-4o-mini  <span style="color:var(--text-muted)"># any model</span>
+        LLM_BASE_URL=https://api.groq.com/openai/v1<br>
+        LLM_MODEL=llama-3.3-70b-versatile
       </code>
-      <br><br>Toggle back to <strong>NORMAL</strong> for the automated briefing.
+      <br><br>Toggle <strong>NORMAL</strong> for the automated briefing.
     </div>`;
     return;
   }
@@ -3164,29 +3164,42 @@ function renderAIBriefing(container) {
   })();
   html += stalenessHtml;
 
-  // Threat level badge
+  // Threat level badge + assessment basis
   const tl = (b.threat_level || 'MODERATE').toUpperCase();
   html += `<div style="margin-bottom:12px"><span class="ai-threat-level ${tl}">${tl}</span>`;
-  html += `<span class="briefing-ai-notice">AI GENERATED</span></div>`;
+  html += `<span class="briefing-ai-notice">AI INTELLIGENCE</span></div>`;
+  if (b.assessment_basis) {
+    html += `<div style="margin-bottom:14px;font-size:11px;color:var(--text-muted);letter-spacing:0.3px;line-height:1.5;font-style:italic">${escapeHTML(b.assessment_basis)}</div>`;
+  }
 
-  // Executive summary
-  if (b.executive_summary) {
+  // Situation overview (new) or executive_summary (legacy)
+  const overview = b.situation_overview || b.executive_summary;
+  if (overview) {
     html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Executive Summary</div>
-      <div class="ai-section-body">${escapeHTML(b.executive_summary)}</div>
+      <div class="ai-section-label">Situation Overview</div>
+      <div class="ai-section-body">${escapeHTML(overview)}</div>
     </div>`;
   }
 
-  // Key developments
-  if (b.key_developments && b.key_developments.length > 0) {
+  // Key intelligence findings with confidence badges
+  const intel = b.key_intelligence || b.key_developments;
+  if (intel && intel.length > 0) {
+    const confClass = c => ({ HIGH: 'b-crit', MODERATE: 'b-warn', LOW: 'b-green' }[c] || 'b-hl');
+    const intelItems = intel.map(item => {
+      if (typeof item === 'string') return `<li>${escapeHTML(item)}</li>`;
+      const conf = (item.confidence || '').toUpperCase();
+      const confBadge = conf ? `<span class="${confClass(conf)}" style="font-size:9px;letter-spacing:0.5px;margin-left:6px">[${conf} CONFIDENCE]</span>` : '';
+      const srcNote = item.source_count ? `<span style="font-size:9px;color:var(--text-muted);margin-left:4px">(${item.source_count} sources)</span>` : '';
+      return `<li>${escapeHTML(item.finding)}${confBadge}${srcNote}</li>`;
+    }).join('');
     html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Key Developments</div>
-      <div class="ai-section-body"><ul>${b.key_developments.map(d => `<li>${escapeHTML(d)}</li>`).join('')}</ul></div>
+      <div class="ai-section-label">Key Intelligence</div>
+      <div class="ai-section-body"><ul>${intelItems}</ul></div>
     </div>`;
   }
 
-  // Active threats
-  if (b.active_threats) {
+  // Legacy: active threats (backward compat)
+  if (b.active_threats && !b.key_intelligence) {
     const at = b.active_threats;
     html += `<div class="ai-briefing-section">
       <div class="ai-section-label">Active Threats</div>
@@ -3197,16 +3210,18 @@ function renderAIBriefing(container) {
     html += `</div></div>`;
   }
 
-  // Sector risk
-  if (b.sector_risk && b.sector_risk.length > 0) {
+  // Sector impact (new) or sector_risk (legacy)
+  const sectors = b.sector_impact || b.sector_risk;
+  if (sectors && sectors.length > 0) {
     html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Sector Risk</div>
-      <div class="ai-section-body"><ul>${b.sector_risk.map(s => `<li>${escapeHTML(s)}</li>`).join('')}</ul></div>
+      <div class="ai-section-label">Sector Impact</div>
+      <div class="ai-section-body"><ul>${sectors.map(s => `<li>${escapeHTML(s)}</li>`).join('')}</ul></div>
     </div>`;
   }
 
-  // Recommended actions — each item tries to map to a feed drilldown
-  if (b.recommended_actions && b.recommended_actions.length > 0) {
+  // Priority actions with threat context (new) or recommended_actions (legacy)
+  const actions = b.priority_actions || b.recommended_actions;
+  if (actions && actions.length > 0) {
     const _AI_ACTION_DRILLDOWNS = [
       { re: /ransomware|ransom/i,       type: 'category', value: 'Ransomware' },
       { re: /phish|email\s+security/i,  type: 'category', value: 'Phishing' },
@@ -3218,24 +3233,28 @@ function renderAIBriefing(container) {
       { re: /nation.?state|apt|espion/i,type: 'category', value: 'Nation-State Attack' },
       { re: /malware|endpoint|detect/i, type: 'category', value: 'Malware' },
     ];
-    const actionItems = b.recommended_actions.map(action => {
-      const match = _AI_ACTION_DRILLDOWNS.find(r => r.re.test(action));
+    const actionItems = actions.map(item => {
+      const actionText = typeof item === 'string' ? item : (item.action || '');
+      const threatCtx = typeof item === 'object' && item.threat_context
+        ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-style:italic">Re: ${escapeHTML(item.threat_context)}</div>` : '';
+      const match = _AI_ACTION_DRILLDOWNS.find(r => r.re.test(actionText));
       if (match) {
-        return `<li class="action-item" onclick="drilldownAction('${match.type}','${escapeHTML(match.value)}')" style="cursor:pointer" title="Show matching articles">&#x2192; ${escapeHTML(action)}</li>`;
+        return `<li class="action-item" onclick="drilldownAction('${match.type}','${escapeHTML(match.value)}')" style="cursor:pointer" title="Show matching articles">&#x2192; ${escapeHTML(actionText)}${threatCtx}</li>`;
       }
-      return `<li class="action-item">${escapeHTML(action)}</li>`;
+      return `<li class="action-item">${escapeHTML(actionText)}${threatCtx}</li>`;
     }).join('');
     html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Recommended Actions</div>
+      <div class="ai-section-label">Priority Actions</div>
       <div class="ai-section-body"><ul>${actionItems}</ul></div>
     </div>`;
   }
 
-  // Outlook
-  if (b.outlook) {
+  // Threat forecast (new) or outlook (legacy)
+  const forecast = b.threat_forecast || b.outlook;
+  if (forecast) {
     html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Outlook</div>
-      <div class="ai-section-body">${escapeHTML(b.outlook)}</div>
+      <div class="ai-section-label">Threat Forecast</div>
+      <div class="ai-section-body">${escapeHTML(forecast)}</div>
     </div>`;
   }
 
@@ -3243,8 +3262,8 @@ function renderAIBriefing(container) {
   const genAt = b.generated_at ? new Date(b.generated_at).toUTCString().slice(0, 25) : 'N/A';
   const totalNote = b.total_articles && b.total_articles > b.articles_analyzed
     ? ` of ${b.total_articles}` : '';
-  const modelLabel = b.provider ? ` | ${b.provider}` : '';
-  html += `<div class="briefing-timestamp">AI BRIEFING GENERATED ${genAt} UTC | ${b.articles_analyzed || '?'}${totalNote} ARTICLES ANALYZED${modelLabel}</div>`;
+  const modelLabel = b.provider ? ` | ${b.provider.split('/').pop()}` : '';
+  html += `<div class="briefing-timestamp">INTELLIGENCE BRIEFING ${genAt} UTC | ${b.articles_analyzed || '?'}${totalNote} ARTICLES ANALYZED${modelLabel}</div>`;
 
   container.innerHTML = html;
 }
