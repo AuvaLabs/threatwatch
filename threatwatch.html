@@ -1335,6 +1335,48 @@ html, body {
   border-bottom: 1px solid var(--panel-border);
 }
 
+/* Category hero banner */
+.category-hero-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 32px;
+  background: var(--stat-bg);
+  border-bottom: 1px solid var(--stat-border);
+}
+.category-hero-icon { font-size: 20px; flex-shrink: 0; line-height: 1; }
+.category-hero-body { flex: 1; min-width: 0; }
+.category-hero-name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+.category-hero-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.category-hero-count {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  text-align: right;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.category-hero-count span {
+  display: block;
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
 .section-title {
   font-family: var(--font-body);
   font-weight: 600;
@@ -2316,6 +2358,9 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 
     <!-- Scrollable content area -->
     <div class="center-content">
+      <!-- Category context banner (shown when a category tab is active) -->
+      <div id="category-hero" style="display:none"></div>
+
       <!-- Intelligence sections -->
       <div class="center-section" id="section-briefing">
         <div class="center-section-title">
@@ -2912,11 +2957,18 @@ function getRegionItems(items) {
   return items.filter(item => _itemMatchesRegion(item, region));
 }
 
+const _CATEGORY_TABS = new Set(['breach', 'ddos', 'phishing', 'malware', 'zero-day', 'vuln', 'darkweb', 'research']);
+
 function analyzeIntelligence() {
   const allItems = state.newsItems;
   if (allItems.length === 0) return;
 
-  const items = getRegionItems(allItems);
+  const regionItems = getRegionItems(allItems);
+  // Further filter by active category tab so all center-panel sections are category-scoped
+  const f = state.activeFilter;
+  const items = _CATEGORY_TABS.has(f)
+    ? regionItems.filter(item => filterMatchesItem(f, item))
+    : regionItems;
   const allText = items.map(i => (i.title || '') + ' ' + (i.description || ''));
 
   // --- Section 1: Threat Briefing ---
@@ -2944,8 +2996,14 @@ function renderBriefing(items, allText, globalTotal) {
   const regionName = escapeHTML(REGION_NAMES[region] || 'Global');
   const isFiltered = region !== 'all';
 
+  const activeTab = state.activeFilter;
+  const isCategoryTab = _CATEGORY_TABS.has(activeTab);
+  const catMeta = isCategoryTab ? (_CATEGORY_TAB_META[activeTab] || null) : null;
+  const categoryLabel = catMeta ? catMeta.name.toUpperCase() : null;
+
   if (items.length === 0) {
-    container.innerHTML = `<div class="briefing-text" style="color:var(--text-muted)">No threat intelligence available for the <span class="b-hl">${regionName}</span> region at this time. Switch to GLOBAL for the full briefing.</div>`;
+    const scope = categoryLabel ? `<span class="b-hl">${categoryLabel}</span>` : `the <span class="b-hl">${regionName}</span> region`;
+    container.innerHTML = `<div class="briefing-text" style="color:var(--text-muted)">No intelligence available for ${scope} at this time. Switch to <span class="b-hl">INTEL BRIEF</span> for the full briefing.</div>`;
     return;
   }
 
@@ -3105,7 +3163,7 @@ function renderBriefing(items, allText, globalTotal) {
 
   container.innerHTML = `
     <div class="briefing-text">${b}</div>
-    <div class="briefing-timestamp">GENERATED ${new Date().toUTCString().slice(0, 25)} UTC | REGION: ${regionName.toUpperCase()} | ${total} ARTICLES ANALYZED</div>
+    <div class="briefing-timestamp">GENERATED ${new Date().toUTCString().slice(0, 25)} UTC${categoryLabel ? ` | CATEGORY: ${categoryLabel}` : ` | REGION: ${regionName.toUpperCase()}`} | ${total} ARTICLES ANALYZED</div>
   `;
 }
 
@@ -3154,6 +3212,14 @@ function renderAIBriefing(container) {
   }
 
   let html = '';
+
+  // Category filter notice — AI briefing is always global
+  const _activeCatForAI = state.activeFilter;
+  if (_CATEGORY_TABS.has(_activeCatForAI)) {
+    const _cm = _CATEGORY_TAB_META[_activeCatForAI];
+    const _label = _cm ? _cm.name.toUpperCase() : _activeCatForAI.toUpperCase();
+    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:10px;color:var(--accent);letter-spacing:0.5px">&#x1F4CC; GLOBAL AI BRIEFING &mdash; CATEGORY FILTER: ${_label} &mdash; Key Incidents &amp; Actors below are scoped to this category</div>`;
+  }
 
   // Staleness check — warn if briefing is older than 2 hours
   const stalenessHtml = (() => {
@@ -4385,6 +4451,40 @@ async function refreshData() {
 }
 
 /* ============================================================= */
+/* CATEGORY TAB META & HERO                                       */
+/* ============================================================= */
+const _CATEGORY_TAB_META = {
+  'breach':   { icon: '\uD83D\uDD13', name: 'Data Breach',       color: 'var(--danger)',   desc: 'Unauthorized access events, exfiltrated records, exposed credentials and database leaks.' },
+  'ddos':     { icon: '\uD83D\uDCA5', name: 'DDoS Attacks',      color: 'var(--warning)',  desc: 'Distributed denial-of-service campaigns targeting infrastructure, services and internet platforms.' },
+  'phishing': { icon: '\uD83C\uDFA3', name: 'Phishing',          color: 'var(--warning)',  desc: 'Social engineering campaigns, credential harvesting, spear-phishing and business email compromise.' },
+  'malware':  { icon: '\uD83E\uDDA0', name: 'Malware',           color: '#ff8c00',         desc: 'Trojans, stealers, loaders, RATs, botnets and malicious code deployed against organisations.' },
+  'zero-day': { icon: '\u26A1',       name: 'Zero-Day Exploits', color: 'var(--danger)',   desc: 'Active exploitation of unpatched vulnerabilities with no public fix — highest attacker leverage.' },
+  'vuln':     { icon: '\uD83D\uDD0D', name: 'Vulnerabilities',   color: 'var(--accent)',   desc: 'CVE disclosures, security advisories, patch releases and CISA KEV catalogue additions.' },
+  'darkweb':  { icon: '\uD83D\uDD76', name: 'Dark Web',          color: 'var(--purple)',   desc: 'Threat actor chatter, marketplace listings, data-for-sale posts and underground forum intelligence.' },
+  'research': { icon: '\uD83D\uDD2C', name: 'Threat Research',   color: 'var(--success)',  desc: 'Security research, new TTP analysis, detection engineering reports and threat intelligence publications.' },
+};
+
+function renderCategoryHero(tab) {
+  const hero = document.getElementById('category-hero');
+  if (!hero) return;
+  const meta = _CATEGORY_TAB_META[tab];
+  if (!meta) {
+    hero.style.display = 'none';
+    return;
+  }
+  const count = state.newsItems.filter(i => filterMatchesItem(tab, i)).length;
+  hero.style.display = '';
+  hero.innerHTML = `<div class="category-hero-card">
+    <span class="category-hero-icon">${meta.icon}</span>
+    <div class="category-hero-body">
+      <div class="category-hero-name" style="color:${meta.color}">${meta.name}</div>
+      <div class="category-hero-desc">${meta.desc}</div>
+    </div>
+    <div class="category-hero-count" style="color:${meta.color}">${count}<span>articles</span></div>
+  </div>`;
+}
+
+/* ============================================================= */
 /* MAIN TAB SWITCHING                                             */
 /* ============================================================= */
 function switchMainTab(tab) {
@@ -4444,11 +4544,14 @@ function switchMainTab(tab) {
 
   renderFeedCards();
   buildThreatCategoryChart([], state.newsItems);
+  renderCategoryHero(tab);
 
-  if (tab === 'ransom')  renderRansomTracker();
-  if (tab === 'apt')     renderAPTTracker();
-  if (tab === 'brands')  renderBrandsTab();
-  if (tab === 'assets')  renderAssetsTab();
+  if (tab === 'briefing') debouncedAnalyze();
+  if (isCategory)         debouncedAnalyze();
+  if (tab === 'ransom')   renderRansomTracker();
+  if (tab === 'apt')      renderAPTTracker();
+  if (tab === 'brands')   renderBrandsTab();
+  if (tab === 'assets')   renderAssetsTab();
 }
 
 /* ============================================================= */
