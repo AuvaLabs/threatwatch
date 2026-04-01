@@ -321,3 +321,32 @@
 # - url: https://www.nozominetworks.com/blog/feed/
   category: Native
   region: Global
+
+# Tier 13: Dark Web & Breach News Aggregators
+- url: https://dailydarkweb.net/feed/
+  category: Native
+  region: Global
+
+- url: https://hackread.com/feed/
+  category: Native
+  region: Global
+
+- url: https://darkwebinformer.com/rss/
+  category: Native
+  region: Global
+
+- url: https://socradar.io/feed/
+  category: Native
+  region: Global
+
+- url: https://databreaches.net/feed/
+  category: Native
+  region: Global
+
+- url: https://securityaffairs.com/feed
+  category: Native
+  region: Global
+
+- url: https://cyble.com/blog/feed/
+  category: Native
+  region: Global

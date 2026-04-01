@@ -19,6 +19,7 @@ import requests
 
 from modules.config import STATE_DIR
 from modules.url_resolver import is_clearnet_url
+from modules.deduplicator import normalize_url
 
 _LAST_CALL_FILE = STATE_DIR / "newsapi_last_call.txt"
 _NEWSAPI_INTERVAL = int(os.getenv("NEWSAPI_INTERVAL", "1800"))  # 30 min default
@@ -67,7 +68,7 @@ def _normalize(article: dict) -> dict | None:
     description = (article.get("description") or "").strip()
     source_name = (article.get("source") or {}).get("name") or "NewsAPI"
 
-    article_hash = hashlib.sha256((title + url).encode()).hexdigest()
+    article_hash = hashlib.sha256((title + normalize_url(url)).encode()).hexdigest()
 
     return {
         "title": title,
