@@ -23,6 +23,7 @@ from typing import Any
 import requests
 
 from modules.config import FEED_CUTOFF_DAYS, STATE_DIR
+from modules.deduplicator import normalize_url
 
 log = logging.getLogger(__name__)
 
@@ -238,7 +239,7 @@ def _fetch_gnews(query: str, cutoff: datetime) -> list[dict]:
             if pub_dt and pub_dt < cutoff:
                 continue
 
-            article_hash = hashlib.sha256((title + link).encode()).hexdigest()
+            article_hash = hashlib.sha256((title + normalize_url(link)).encode()).hexdigest()
             articles.append({
                 "title": title,
                 "link": link,

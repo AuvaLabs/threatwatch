@@ -2,10 +2,11 @@ import hashlib
 import logging
 import re
 import string
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 logger = logging.getLogger(__name__)
-from pathlib import Path
 
 from modules.config import (
     STATE_DIR,
@@ -27,6 +28,12 @@ _CVE_RE = re.compile(r"CVE-\d{4}-\d+", re.IGNORECASE)
 # matching. Titles shorter than this use exact-match only, preventing false dedup
 # on very short headings.
 _MIN_FUZZY_WORDS = 3
+
+
+def normalize_url(url: str) -> str:
+    """Strip query params, fragments, and trailing slashes for consistent hashing."""
+    p = urlparse(url)
+    return urlunparse((p.scheme, p.netloc, p.path.rstrip("/"), "", "", ""))
 
 # Stop words filtered out for better word-shingle matching
 _STOP_WORDS = frozenset({
@@ -120,14 +127,13 @@ class ShingleIndex:
             if self._word_counts[idx] < _MIN_FUZZY_WORDS:
                 continue
 
-            # CVE guard: if both titles have CVE IDs and they differ, these are
+            # CVE guard: if either title has CVE IDs and they differ, these are
             # distinct vulnerability reports — never merge them as duplicates
-            if incoming_cves:
-                existing_cves = set(
-                    m.upper() for m in _CVE_RE.findall(self._raw_titles[idx])
-                )
-                if existing_cves and incoming_cves != existing_cves:
-                    continue
+            existing_cves = set(
+                m.upper() for m in _CVE_RE.findall(self._raw_titles[idx])
+            )
+            if (incoming_cves or existing_cves) and incoming_cves != existing_cves:
+                continue
 
             similarity = _word_overlap_ratio(shingles, self._title_shingles[idx])
             if similarity >= threshold:
@@ -165,12 +171,11 @@ class ShingleIndex:
                 continue
 
             # CVE guard
-            if incoming_cves:
-                existing_cves = set(
-                    m.upper() for m in _CVE_RE.findall(self._raw_titles[idx])
-                )
-                if existing_cves and incoming_cves != existing_cves:
-                    continue
+            existing_cves = set(
+                m.upper() for m in _CVE_RE.findall(self._raw_titles[idx])
+            )
+            if (incoming_cves or existing_cves) and incoming_cves != existing_cves:
+                continue
 
             similarity = _word_overlap_ratio(shingles, self._title_shingles[idx])
             if similarity >= threshold and similarity > best_score:
@@ -221,8 +226,9 @@ def deduplicate_articles(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
     for article in articles:
         raw_hash = article.get("hash")
         if not raw_hash:
+            normalized_link = normalize_url(article["link"])
             raw_hash = hashlib.sha256(
-                (article["title"] + article["link"]).encode()
+                (article["title"] + normalized_link).encode()
             ).hexdigest()
             article["hash"] = raw_hash
 
@@ -242,8 +248,10 @@ def deduplicate_articles(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
             logger.info(f"Fuzzy duplicate skipped: {raw_title}")
             _add_related(unique_articles, article, index, normalized,
                          raw_title, batch_start_idx)
+            index.add(normalized, raw_title=raw_title)
             seen_hashes.add(raw_hash)
             new_hashes.append(raw_hash)
+            new_titles.append(raw_title)
             continue
 
         hash_to_idx[raw_hash] = len(unique_articles)
@@ -263,7 +271,7 @@ def deduplicate_articles(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
 
     logger.info(
         f"Deduplication: {len(articles)} input -> {len(unique_articles)} unique "
-        f"({len(articles)} news reviewed)"
+        f"({len(articles) - len(unique_articles)} removed)"
     )
     return unique_articles
 
@@ -287,7 +295,7 @@ def _merge_region(original: dict[str, Any], duplicate: dict[str, Any]) -> None:
     dup_region = duplicate.get("feed_region", "Global")
     if dup_region and dup_region != orig_region:
         existing = set(orig_region.split(","))
-        existing.add(dup_region)
+        existing.update(dup_region.split(","))
         original["feed_region"] = _collapse_regions(existing)
 
 
@@ -304,7 +312,7 @@ def _add_related(unique_articles: list[dict[str, Any]], duplicate_article: dict[
         dup_region = duplicate_article.get("feed_region", "Global")
         if orig_region != dup_region:
             existing_regions = set(orig_region.split(","))
-            existing_regions.add(dup_region)
+            existing_regions.update(dup_region.split(","))
             original["feed_region"] = _collapse_regions(existing_regions)
 
         related = original.get("related_articles", [])

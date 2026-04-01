@@ -14,6 +14,7 @@ from urllib3.util.retry import Retry
 from modules.config import FEED_CUTOFF_DAYS
 from modules.url_resolver import resolve_original_url, is_clearnet_url
 from modules.feed_health import record_fetch
+from modules.deduplicator import normalize_url
 
 _FEED_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -62,7 +63,7 @@ def _fetch_feed(url: str, region: str = "Global") -> list[dict[str, Any]]:
             if not is_clearnet_url(clean_link):
                 clean_link = raw_link
             article_hash = hashlib.sha256(
-                (entry.title + url + clean_link).encode()
+                (entry.title + normalize_url(clean_link)).encode()
             ).hexdigest()
             results.append({
                 "title": entry.title,
