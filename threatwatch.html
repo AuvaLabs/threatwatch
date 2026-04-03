@@ -2366,6 +2366,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div class="center-section-title">
           <span class="section-icon">&#x1F4E1;</span> Intelligence Digest
           <button class="briefing-mode-toggle ai-active" id="briefing-mode-toggle" onclick="toggleBriefingMode()">AI</button>
+          <span id="briefing-mode-hint" style="font-size:9px;color:var(--text-muted);margin-left:8px;letter-spacing:0.3px">toggle for normal digest</span>
         </div>
         <div id="ai-briefing-content"></div>
       </div>
@@ -3200,15 +3201,18 @@ function renderBriefing(items, allText, globalTotal) {
 /* Briefing mode toggle — Normal vs AI-Driven */
 function toggleBriefingMode() {
   const btn = document.getElementById('briefing-mode-toggle');
+  const hint = document.getElementById('briefing-mode-hint');
   if (state.briefingMode === 'normal') {
     state.briefingMode = 'ai';
     btn.textContent = 'AI';
     btn.classList.add('ai-active');
+    if (hint) hint.textContent = 'toggle for normal digest';
     try { localStorage.setItem('tw-briefing-mode', 'ai'); } catch {}
   } else {
     state.briefingMode = 'normal';
     btn.textContent = 'NORMAL';
     btn.classList.remove('ai-active');
+    if (hint) hint.textContent = 'toggle for AI-powered digest';
     try { localStorage.setItem('tw-briefing-mode', 'normal'); } catch {}
   }
   debouncedAnalyze();
