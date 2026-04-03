@@ -3247,6 +3247,22 @@ function renderAIBriefing(container) {
 
   let html = '';
 
+  // Helper: render source article links from [N] indices
+  const sourceMap = b.source_articles || [];
+  function renderSources(sources) {
+    if (!sources || !sources.length || !sourceMap.length) return '';
+    const links = sources.slice(0, 5).map(idx => {
+      const src = sourceMap.find(s => s.index === idx);
+      if (!src) return null;
+      const title = escapeHTML(src.title);
+      const name = src.source_name ? escapeHTML(src.source_name) : '';
+      const label = name || `Source ${idx}`;
+      return `<a href="${escapeHTML(src.link)}" target="_blank" rel="noopener" title="${title}" style="color:var(--accent);text-decoration:none;font-size:10px">${label}</a>`;
+    }).filter(Boolean);
+    if (!links.length) return '';
+    return `<div style="margin-top:4px;font-size:10px;color:var(--text-muted)">&#x1F4CE; ${links.join(' &middot; ')}</div>`;
+  }
+
   // Category filter notice — AI briefing is always global
   const _activeCatForAI = state.activeFilter;
   if (_CATEGORY_TABS.has(_activeCatForAI)) {
@@ -3279,7 +3295,7 @@ function renderAIBriefing(container) {
   if (overview) {
     html += `<div class="ai-briefing-section">
       <div class="ai-section-label">Situation Overview</div>
-      <div class="ai-section-body">${escapeHTML(overview)}</div>
+      <div class="ai-section-body">${escapeHTML(overview)}${renderSources(b.situation_sources)}</div>
     </div>`;
   }
 
@@ -3292,7 +3308,7 @@ function renderAIBriefing(container) {
       const conf = (item.confidence || '').toUpperCase();
       const confBadge = conf ? `<span class="${confClass(conf)}" style="font-size:9px;letter-spacing:0.5px;margin-left:6px">[${conf} CONFIDENCE]</span>` : '';
       const srcNote = item.source_count ? `<span style="font-size:9px;color:var(--text-muted);margin-left:4px">(${item.source_count} sources)</span>` : '';
-      return `<li>${escapeHTML(item.finding)}${confBadge}${srcNote}</li>`;
+      return `<li>${escapeHTML(item.finding)}${confBadge}${srcNote}${renderSources(item.sources)}</li>`;
     }).join('');
     html += `<div class="ai-briefing-section">
       <div class="ai-section-label">Key Intelligence</div>
@@ -3305,7 +3321,7 @@ function renderAIBriefing(container) {
   if (trends && trends.length > 0) {
     const trendItems = trends.map(t => {
       const sig = t.significance ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${escapeHTML(t.significance)}</div>` : '';
-      return `<li><strong>${escapeHTML(t.topic)}</strong> &mdash; ${escapeHTML(t.trend)}${sig}</li>`;
+      return `<li><strong>${escapeHTML(t.topic)}</strong> &mdash; ${escapeHTML(t.trend)}${sig}${renderSources(t.sources)}</li>`;
     }).join('');
     html += `<div class="ai-briefing-section">
       <div class="ai-section-label">Trending Threats</div>
@@ -3322,7 +3338,7 @@ function renderAIBriefing(container) {
       if (v.epss_score) parts.push(`<span class="${v.epss_score > 0.5 ? 'b-crit' : v.epss_score > 0.1 ? 'b-warn' : 'b-green'}" style="font-size:9px">EPSS ${(v.epss_score * 100).toFixed(1)}%</span>`);
       if (v.affected) parts.push(escapeHTML(v.affected));
       const assessment = v.assessment ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${escapeHTML(v.assessment)}</div>` : '';
-      return `<li>${parts.join(' | ')}${assessment}</li>`;
+      return `<li>${parts.join(' | ')}${assessment}${renderSources(v.sources)}</li>`;
     }).join('');
     html += `<div class="ai-briefing-section">
       <div class="ai-section-label">Vulnerability Spotlight</div>
@@ -3342,12 +3358,17 @@ function renderAIBriefing(container) {
     html += `</div></div>`;
   }
 
-  // Sector impact (new) or sector_risk (legacy)
+  // Sector impact — supports both string list (legacy) and object list (new)
   const sectors = b.sector_impact || b.sector_risk;
   if (sectors && sectors.length > 0) {
+    const sectorItems = sectors.map(s => {
+      if (typeof s === 'string') return `<li>${escapeHTML(s)}</li>`;
+      const text = s.impact ? `<strong>${escapeHTML(s.sector)}</strong> &mdash; ${escapeHTML(s.impact)}` : escapeHTML(s.sector);
+      return `<li>${text}${renderSources(s.sources)}</li>`;
+    }).join('');
     html += `<div class="ai-briefing-section">
       <div class="ai-section-label">Sector Impact</div>
-      <div class="ai-section-body"><ul>${sectors.map(s => `<li>${escapeHTML(s)}</li>`).join('')}</ul></div>
+      <div class="ai-section-body"><ul>${sectorItems}</ul></div>
     </div>`;
   }
 
@@ -3369,11 +3390,12 @@ function renderAIBriefing(container) {
       const actionText = typeof item === 'string' ? item : (item.action || '');
       const threatCtx = typeof item === 'object' && item.threat_context
         ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-style:italic">Re: ${escapeHTML(item.threat_context)}</div>` : '';
+      const srcLinks = typeof item === 'object' ? renderSources(item.sources) : '';
       const match = _AI_ACTION_DRILLDOWNS.find(r => r.re.test(actionText));
       if (match) {
-        return `<li class="action-item" onclick="drilldownAction('${match.type}','${escapeHTML(match.value)}')" style="cursor:pointer" title="Show matching articles">&#x2192; ${escapeHTML(actionText)}${threatCtx}</li>`;
+        return `<li class="action-item" onclick="drilldownAction('${match.type}','${escapeHTML(match.value)}')" style="cursor:pointer" title="Show matching articles">&#x2192; ${escapeHTML(actionText)}${threatCtx}${srcLinks}</li>`;
       }
-      return `<li class="action-item">${escapeHTML(actionText)}${threatCtx}</li>`;
+      return `<li class="action-item">${escapeHTML(actionText)}${threatCtx}${srcLinks}</li>`;
     }).join('');
     html += `<div class="ai-briefing-section">
       <div class="ai-section-label">Priority Actions</div>

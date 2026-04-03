@@ -44,24 +44,28 @@ ANALYTICAL STANDARDS:
 - Forecast: project what these developments mean for the next 7-30 days
 - Recommendations must be SPECIFIC to the threats observed — never generic ("patch your systems")
 - If the data is insufficient to make a confident assessment, say so — do not pad with boilerplate
+- CRITICAL: For every finding, action, and assessment, include the "sources" array with the article numbers [N] from the input data that support it. This lets readers verify claims against source articles.
 
 Respond ONLY with valid JSON (no markdown, no code fences, no explanation):
 {
   "threat_level": "CRITICAL|ELEVATED|MODERATE|GUARDED|LOW",
   "assessment_basis": "<1 sentence explaining WHY this threat level was assigned based on the data>",
-  "situation_overview": "<2-3 sentence analyst assessment of the current threat landscape, citing specific incidents>",
+  "situation_overview": "<2-3 sentence analyst assessment citing specific incidents>",
+  "situation_sources": [<article numbers from input that support the overview>],
   "key_intelligence": [
     {
       "finding": "<specific intelligence finding tied to observed data>",
       "confidence": "HIGH|MODERATE|LOW",
-      "source_count": <number of articles supporting this finding>
+      "source_count": <number of articles supporting this finding>,
+      "sources": [<article numbers from input>]
     }
   ],
   "trending_threats": [
     {
       "topic": "<keyword or category that is spiking>",
-      "trend": "<description of the spike — e.g. '3x above 14-day average'>",
-      "significance": "<why this matters for defenders>"
+      "trend": "<description of the spike>",
+      "significance": "<why this matters for defenders>",
+      "sources": [<article numbers>]
     }
   ],
   "vulnerability_spotlight": [
@@ -70,15 +74,23 @@ Respond ONLY with valid JSON (no markdown, no code fences, no explanation):
       "cvss_score": <float>,
       "epss_score": <float 0-1 if available, null otherwise>,
       "affected": "<affected product/vendor>",
-      "assessment": "<1 sentence — why this CVE demands attention now>"
+      "assessment": "<1 sentence — why this CVE demands attention now>",
+      "sources": [<article numbers>]
     }
   ],
-  "threat_forecast": "<2-3 sentence forward-looking projection. What do these developments indicate for the next 7-30 days? What should defenders prepare for?>",
-  "sector_impact": ["<top 3 sectors at elevated risk, each with the specific threat driving that risk>"],
+  "threat_forecast": "<2-3 sentence forward-looking projection>",
+  "sector_impact": [
+    {
+      "sector": "<sector name>",
+      "impact": "<specific threat driving risk in this sector>",
+      "sources": [<article numbers>]
+    }
+  ],
   "priority_actions": [
     {
       "action": "<specific, immediately actionable defensive measure>",
-      "threat_context": "<which observed threat this addresses>"
+      "threat_context": "<which observed threat this addresses>",
+      "sources": [<article numbers>]
     }
   ]
 }"""
@@ -392,6 +404,24 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         briefing.setdefault("trending_threats", [])
         briefing.setdefault("vulnerability_spotlight", [])
 
+        # Normalize sector_impact: accept both string list (legacy) and object list
+        si = briefing.get("sector_impact", [])
+        if si and isinstance(si[0], str):
+            briefing["sector_impact"] = [
+                {"sector": s, "impact": s, "sources": []} for s in si
+            ]
+
+        # Build source article map so frontend can resolve [N] → link/title
+        source_map = []
+        for i, a in enumerate(articles[:_MAX_DIGEST_ARTICLES], 1):
+            source_map.append({
+                "index": i,
+                "title": (a.get("translated_title") or a.get("title", ""))[:120],
+                "link": a.get("link", ""),
+                "source_name": a.get("source_name", ""),
+            })
+        briefing["source_articles"] = source_map
+
         briefing["generated_at"] = now.isoformat()
         briefing["articles_analyzed"] = min(len(articles), _MAX_DIGEST_ARTICLES)
         briefing["total_articles"] = len(articles)
@@ -577,20 +607,23 @@ def load_top_stories() -> dict[str, Any] | None:
 _SUMMARY_BATCH_SIZE = 10  # articles per LLM call
 _MAX_SUMMARIES_PER_RUN = 30  # cap per pipeline run to stay within budget
 
-_SUMMARY_PROMPT = """You are a cyber threat intelligence analyst. For each article below, write a concise 1-2 sentence summary focused on: WHAT happened, WHO was affected, and WHY it matters to defenders.
+_SUMMARY_PROMPT = """You are a cyber threat intelligence analyst. For each article, extract key intelligence details in a structured format.
 
 Rules:
-- Each summary must be under 200 characters
-- Focus on facts, not hype
-- If the title is self-explanatory, the summary should add context not in the title
-- For CVE/vulnerability articles, mention the affected product and severity
+- Keep each field concise (under 80 chars per field)
+- "what": the incident or event (e.g. "ransomware attack", "data breach", "vulnerability disclosed")
+- "who": affected organization, threat actor, or both (e.g. "LockBit targeted NHS hospitals")
+- "impact": the consequence or scale (e.g. "500K records exposed", "systems offline for 3 days")
+- "summary": 1 sentence combining the above into a readable intelligence summary
+- If a field is unknown from the content, use null
+- For CVE/vulnerability articles, include product and severity in "what"
 - Return ONLY valid JSON array — no markdown, no explanation
 
 Input format: numbered articles with title and content snippet.
 Output format:
 [
-  {"index": 1, "summary": "..."},
-  {"index": 2, "summary": "..."}
+  {"index": 1, "what": "...", "who": "...", "impact": "...", "summary": "..."},
+  {"index": 2, "what": "...", "who": "...", "impact": "...", "summary": "..."}
 ]"""
 
 
@@ -663,6 +696,13 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
                 if 0 <= batch_idx < len(batch) and summary_text:
                     orig_idx = batch[batch_idx][0]
                     articles[orig_idx]["summary"] = summary_text
+                    # Store structured intel fields if available
+                    if item.get("what"):
+                        articles[orig_idx]["intel_what"] = item["what"]
+                    if item.get("who"):
+                        articles[orig_idx]["intel_who"] = item["who"]
+                    if item.get("impact"):
+                        articles[orig_idx]["intel_impact"] = item["impact"]
                     total_generated += 1
 
     if total_generated > 0:
