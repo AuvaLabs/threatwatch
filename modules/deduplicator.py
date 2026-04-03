@@ -294,6 +294,8 @@ def _collapse_regions(regions: set) -> str:
 def _merge_region(original: dict[str, Any], duplicate: dict[str, Any]) -> None:
     """Merge feed_region from duplicate into the original article."""
     orig_region = original.get("feed_region", "Global")
+    if orig_region == "Global":
+        return  # Global is terminal — don't un-collapse
     dup_region = duplicate.get("feed_region", "Global")
     if dup_region and dup_region != orig_region:
         existing = set(orig_region.split(","))
@@ -310,12 +312,7 @@ def _add_related(unique_articles: list[dict[str, Any]], duplicate_article: dict[
         original = unique_articles[match_offset]
 
         # Merge regions: combine feed_region from duplicate into original
-        orig_region = original.get("feed_region", "Global")
-        dup_region = duplicate_article.get("feed_region", "Global")
-        if orig_region != dup_region:
-            existing_regions = set(orig_region.split(","))
-            existing_regions.update(dup_region.split(","))
-            original["feed_region"] = _collapse_regions(existing_regions)
+        _merge_region(original, duplicate_article)
 
         related = original.get("related_articles", [])
         related.append({

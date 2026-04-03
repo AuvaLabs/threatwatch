@@ -34,12 +34,15 @@ BRIEFING_PATH = OUTPUT_DIR / "briefing.json"
 _LAST_API_CALL_PATH = OUTPUT_DIR / ".briefing_last_call"
 _BRIEFING_COOLDOWN_SECONDS = 3600  # 1 hour minimum between API calls
 
-_BRIEFING_PROMPT = """You are a senior cyber threat intelligence analyst producing a classified intelligence assessment. Write with the precision and authority of a national CERT or intelligence agency analyst. Every claim must be grounded in the provided incident data — do not fabricate threat actors, CVEs, or incidents not present in the input.
+_BRIEFING_PROMPT = """You are a senior cyber threat intelligence analyst producing a situational awareness digest. Write with the precision and authority of a national CERT analyst. Every claim must be grounded in the provided data — do not fabricate threat actors, CVEs, or incidents.
 
 ANALYTICAL STANDARDS:
 - Use intelligence community confidence language: "we assess with HIGH/MODERATE/LOW confidence"
-- Be specific: name the actual threat actors, malware families, CVEs, and affected organizations from the data
+- Be specific: name actual threat actors, malware families, CVEs, and affected organizations from the data
 - Identify correlations: if multiple incidents share TTPs, infrastructure, or timing, connect them
+- When CVEs include EPSS scores, highlight those with high exploitation probability
+- When MITRE ATT&CK tactics are provided, identify dominant attack patterns
+- Reference trending threats (spike data) to show what's accelerating
 - Forecast: project what these developments mean for the next 7-30 days
 - Recommendations must be SPECIFIC to the threats observed — never generic ("patch your systems")
 - If the data is insufficient to make a confident assessment, say so — do not pad with boilerplate
@@ -54,6 +57,22 @@ Respond ONLY with valid JSON (no markdown, no code fences, no explanation):
       "finding": "<specific intelligence finding tied to observed data>",
       "confidence": "HIGH|MODERATE|LOW",
       "source_count": <number of articles supporting this finding>
+    }
+  ],
+  "trending_threats": [
+    {
+      "topic": "<keyword or category that is spiking>",
+      "trend": "<description of the spike — e.g. '3x above 14-day average'>",
+      "significance": "<why this matters for defenders>"
+    }
+  ],
+  "vulnerability_spotlight": [
+    {
+      "cve_id": "<CVE-YYYY-NNNNN>",
+      "cvss_score": <float>,
+      "epss_score": <float 0-1 if available, null otherwise>,
+      "affected": "<affected product/vendor>",
+      "assessment": "<1 sentence — why this CVE demands attention now>"
     }
   ],
   "threat_forecast": "<2-3 sentence forward-looking projection. What do these developments indicate for the next 7-30 days? What should defenders prepare for?>",
@@ -86,7 +105,7 @@ _MAX_DIGEST_ARTICLES = 80  # articles sent to the LLM
 
 
 def _build_digest(articles: list[dict[str, Any]]) -> str:
-    """Build compact article digest for the prompt."""
+    """Build compact article digest with enrichment data for the prompt."""
     lines = []
     for i, a in enumerate(articles[:_MAX_DIGEST_ARTICLES], 1):
         title = a.get("translated_title") or a.get("title", "")
@@ -101,11 +120,114 @@ def _build_digest(articles: list[dict[str, Any]]) -> str:
             meta_parts.append(f"Source: {source}")
         if published:
             meta_parts.append(f"Published: {published}")
+        # Include CVE/EPSS/CVSS enrichment
+        cve_id = a.get("cve_id", "")
+        if cve_id:
+            meta_parts.append(f"CVE: {cve_id}")
+        cvss = a.get("cvss_score")
+        if cvss:
+            meta_parts.append(f"CVSS: {cvss}")
+        epss_max = a.get("epss_max_score")
+        if epss_max and epss_max > 0:
+            meta_parts.append(f"EPSS: {epss_max:.1%}")
+        epss_risk = a.get("epss_risk", "")
+        if epss_risk and epss_risk != "LOW":
+            meta_parts.append(f"Exploit risk: {epss_risk}")
+        # Include ATT&CK tactics
+        tactics = a.get("attack_tactics", [])
+        if tactics:
+            meta_parts.append(f"ATT&CK: {', '.join(tactics[:3])}")
         if meta_parts:
             lines.append(f"    {' | '.join(meta_parts)}")
         if summary:
             lines.append(f"    {summary}")
     return "\n".join(lines)
+
+
+def _build_trend_context() -> str:
+    """Load trend spike data and format for the LLM prompt."""
+    trends_path = OUTPUT_DIR.parent / "state" / "trends.json"
+    if not trends_path.exists():
+        return ""
+    try:
+        with open(trends_path, "r", encoding="utf-8") as f:
+            trends = json.load(f)
+        spikes = trends.get("spikes", [])
+        if not spikes:
+            return ""
+        lines = ["TRENDING THREATS (keywords/categories spiking above baseline):"]
+        for spike in spikes[:10]:
+            keyword = spike.get("keyword", "")
+            current = spike.get("current_count", 0)
+            avg = spike.get("average", 0)
+            ratio = spike.get("ratio", 0)
+            lines.append(
+                f"  - {keyword}: {current} mentions today "
+                f"({ratio:.1f}x the 14-day average of {avg:.1f})"
+            )
+        return "\n".join(lines)
+    except (json.JSONDecodeError, IOError):
+        return ""
+
+
+def _build_vuln_context(articles: list[dict[str, Any]]) -> str:
+    """Extract top CVEs by EPSS/CVSS from enriched articles."""
+    cves = []
+    for a in articles:
+        cve_id = a.get("cve_id", "")
+        if not cve_id:
+            continue
+        cvss = a.get("cvss_score", 0) or 0
+        epss = a.get("epss_max_score", 0) or 0
+        cves.append({
+            "cve_id": cve_id,
+            "cvss": cvss,
+            "epss": epss,
+            "epss_risk": a.get("epss_risk", ""),
+            "severity": a.get("cvss_severity", ""),
+            "products": ", ".join(a.get("affected_products", [])[:3]),
+            "title": a.get("title", "")[:80],
+        })
+    if not cves:
+        return ""
+    # Sort by EPSS desc, then CVSS desc
+    cves.sort(key=lambda c: (c["epss"], c["cvss"]), reverse=True)
+    lines = ["TOP VULNERABILITIES BY EXPLOITATION PROBABILITY:"]
+    for c in cves[:8]:
+        parts = [f"{c['cve_id']}"]
+        if c["cvss"]:
+            parts.append(f"CVSS {c['cvss']}")
+        if c["epss"]:
+            parts.append(f"EPSS {c['epss']:.1%}")
+        if c["severity"]:
+            parts.append(c["severity"])
+        if c["products"]:
+            parts.append(f"Affects: {c['products']}")
+        lines.append(f"  - {' | '.join(parts)}")
+    return "\n".join(lines)
+
+
+def _compute_reporting_window(articles: list[dict[str, Any]]) -> str:
+    """Determine the actual reporting window from article dates."""
+    from collections import Counter
+    dates = []
+    for a in articles:
+        pub = a.get("published", "")
+        if pub:
+            try:
+                date_str = pub[:10] if pub[:4].isdigit() else ""
+                if date_str:
+                    dates.append(date_str)
+            except (ValueError, IndexError):
+                pass
+    if not dates:
+        return "Last 7 days"
+    date_counts = Counter(dates)
+    unique_dates = sorted(date_counts.keys())
+    if len(unique_dates) <= 1:
+        return "Last 24 hours"
+    span = len(unique_dates)
+    return f"Last {span} days ({unique_dates[0]} to {unique_dates[-1]})"
 
 
 def _get_http_session() -> requests.Session:
@@ -243,13 +365,23 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         return None
 
     now = datetime.now(timezone.utc)
-    user_content = (
-        f"INTELLIGENCE COLLECTION DATE: {now.strftime('%Y-%m-%d %H:%M UTC')}\n"
-        f"TOTAL INCIDENTS IN COLLECTION: {len(articles)}\n"
-        f"REPORTING PERIOD: Last 24 hours\n\n"
-        f"BEGIN INCIDENT DATA:\n{digest}\n"
-        f"END INCIDENT DATA"
+    reporting_window = _compute_reporting_window(articles)
+    trend_context = _build_trend_context()
+    vuln_context = _build_vuln_context(articles)
+
+    context_sections = [
+        f"INTELLIGENCE COLLECTION DATE: {now.strftime('%Y-%m-%d %H:%M UTC')}",
+        f"TOTAL ARTICLES IN COLLECTION: {len(articles)}",
+        f"REPORTING PERIOD: {reporting_window}",
+    ]
+    if trend_context:
+        context_sections.append(f"\n{trend_context}")
+    if vuln_context:
+        context_sections.append(f"\n{vuln_context}")
+    context_sections.append(
+        f"\nBEGIN INCIDENT DATA:\n{digest}\nEND INCIDENT DATA"
     )
+    user_content = "\n".join(context_sections)
 
     try:
         if provider == "anthropic":
@@ -285,9 +417,14 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         if tl not in valid_levels:
             briefing["threat_level"] = "MODERATE"
 
+        # Ensure new optional sections have defaults
+        briefing.setdefault("trending_threats", [])
+        briefing.setdefault("vulnerability_spotlight", [])
+
         briefing["generated_at"] = now.isoformat()
         briefing["articles_analyzed"] = min(len(articles), _MAX_DIGEST_ARTICLES)
         briefing["total_articles"] = len(articles)
+        briefing["reporting_window"] = reporting_window
         briefing["provider"] = f"{provider}/{LLM_MODEL}"
 
         _record_api_call()
