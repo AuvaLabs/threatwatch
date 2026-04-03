@@ -20,51 +20,15 @@ logger = logging.getLogger(__name__)
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 from modules.config import (
     LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER,
     LLM_API_KEYS, ANTHROPIC_API_KEY, MAX_CONTENT_CHARS, OUTPUT_DIR,
 )
 from modules.ai_cache import get_cached_result, cache_result
+from modules.llm_client import call_llm as _call_groq
 
 BRIEFING_PATH = OUTPUT_DIR / "briefing.json"
-
-# Smart key rotation: try primary, failover on 429/rate-limit
-_key_index_path = OUTPUT_DIR / ".llm_key_index"
-
-
-def _next_api_key() -> str:
-    """Return the next API key using smart rotation.
-
-    Strategy: rotate through keys evenly so each key gets ~equal daily load.
-    On rate-limit (429), the caller retries with the next key via _call_with_fallback.
-    """
-    if len(LLM_API_KEYS) <= 1:
-        return LLM_API_KEY
-    try:
-        idx = int(_key_index_path.read_text().strip()) if _key_index_path.exists() else 0
-    except (ValueError, OSError):
-        idx = 0
-    key = LLM_API_KEYS[idx % len(LLM_API_KEYS)]
-    try:
-        _key_index_path.parent.mkdir(parents=True, exist_ok=True)
-        _key_index_path.write_text(str((idx + 1) % len(LLM_API_KEYS)))
-    except OSError:
-        pass
-    logger.info(f"Using API key {idx % len(LLM_API_KEYS) + 1} of {len(LLM_API_KEYS)}")
-    return key
-
-
-def _advance_key() -> None:
-    """Advance to next key (called on rate-limit to skip exhausted key)."""
-    try:
-        idx = int(_key_index_path.read_text().strip()) if _key_index_path.exists() else 0
-        _key_index_path.write_text(str((idx + 1) % len(LLM_API_KEYS)))
-    except (ValueError, OSError):
-        pass
 _LAST_API_CALL_PATH = OUTPUT_DIR / ".briefing_last_call"
 _BRIEFING_COOLDOWN_SECONDS = 3600  # 1 hour minimum between API calls
 
@@ -264,64 +228,16 @@ def _compute_reporting_window(articles: list[dict[str, Any]]) -> str:
     return f"Last {span} days ({unique_dates[0]} to {unique_dates[-1]})"
 
 
-def _get_http_session() -> requests.Session:
-    """Return a requests session with retry logic for transient errors."""
-    session = requests.Session()
-    retry = Retry(
-        total=3,
-        backoff_factor=2,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["POST"],
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-    return session
 
 
 def _call_openai_compatible(user_content: str, system_prompt: str = None,
                             max_tokens: int = 2000) -> str:
-    """Call any OpenAI-compatible API with smart key failover on rate limits."""
-    url = f"{LLM_BASE_URL.rstrip('/')}/chat/completions"
-    payload = {
-        "model": LLM_MODEL,
-        "max_tokens": max_tokens,
-        "temperature": 0.3,
-        "messages": [
-            {"role": "system", "content": system_prompt or _BRIEFING_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
-    }
-
-    # Try each key until one works (handles 429 rate limits)
-    attempts = min(len(LLM_API_KEYS), 3) if len(LLM_API_KEYS) > 1 else 1
-    last_error = None
-    for attempt in range(attempts):
-        api_key = _next_api_key()
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-
-        try:
-            session = _get_http_session()
-            resp = session.post(url, json=payload, headers=headers, timeout=90)
-            if resp.status_code == 429:
-                logger.warning(f"Key {attempt + 1} rate-limited (429), trying next key...")
-                _advance_key()
-                last_error = f"429 rate limit on key {attempt + 1}"
-                continue
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
-        except requests.exceptions.HTTPError as e:
-            if e.response is not None and e.response.status_code == 429:
-                logger.warning(f"Key {attempt + 1} rate-limited, trying next...")
-                _advance_key()
-                last_error = str(e)
-                continue
-            raise
-
-    raise RuntimeError(f"All {attempts} API keys exhausted: {last_error}")
+    """Call Groq/OpenAI-compatible API via shared llm_client."""
+    return _call_groq(
+        user_content,
+        system_prompt=system_prompt or _BRIEFING_PROMPT,
+        max_tokens=max_tokens,
+    )
 
 
 def _call_anthropic(user_content: str) -> str:
