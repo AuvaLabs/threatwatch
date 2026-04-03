@@ -75,7 +75,7 @@ SYSTEM_PROMPT = (
 
 MAX_CONTENT_CHARS = 4000
 MAX_SCRAPER_THREADS = 8
-FUZZY_DEDUP_THRESHOLD = 0.6  # word-shingle overlap (equivalent to ~0.85 SequenceMatcher)
+FUZZY_DEDUP_THRESHOLD = 0.55  # word-shingle overlap (lowered from 0.6 to catch more near-dupes)
 MAX_SEEN_TITLES = 10000
 MAX_SEEN_HASHES = 50000
 

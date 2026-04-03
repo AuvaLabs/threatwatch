@@ -51,11 +51,22 @@ def enrich_articles(articles, summarize=False, stats=None):
 
         lang = detect_language(article["title"])
 
-        result = classify_article(
-            title=article["title"],
-            content=full_content if summarize else None,
-            source_language=lang,
-        )
+        # Skip classification for pre-classified articles (e.g., NVD CVEs)
+        pre_classified = article.get("is_cyber_attack") is not None and article.get("confidence", 0) > 0
+        if pre_classified:
+            result = {
+                "is_cyber_attack": article["is_cyber_attack"],
+                "category": article.get("category", "General Cyber Threat"),
+                "confidence": article.get("confidence", 0),
+                "translated_title": article.get("translated_title", article["title"]),
+                "summary": article.get("summary", ""),
+            }
+        else:
+            result = classify_article(
+                title=article["title"],
+                content=full_content if summarize else None,
+                source_language=lang,
+            )
 
         if stats:
             if result.get("_cached"):

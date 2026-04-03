@@ -210,7 +210,7 @@ _RULES = [
             r"cve-\d{4}|cvss\s+\d|vulnerability\s+discover"
             r"|vulnerability\s+disclos|\brce\b|remote\s+code\s+execution"
             r"|privilege\s+escalation|sql\s+injection|xss\s+vuln"
-            r"|buffer\s+overflow|authentication\s+bypass",
+            r"|buffer\s+overflow|auth(entication)?\s+bypass",
             re.IGNORECASE,
         ),
         "confidence": 85,
@@ -220,7 +220,9 @@ _RULES = [
         "re": re.compile(
             r"patch\s+tuesday|security\s+patch|security\s+update"
             r"|hotfix|firmware\s+update|emergency\s+patch|out-of-band\s+patch"
-            r"|security\s+advisory|critical\s+update",
+            r"|security\s+advisory|critical\s+update"
+            r"|patches\s+(partly\s+)?critical\s+vulnerabilit"
+            r"|patches\s+.{0,20}(flaw|bug|issue|hole)",
             re.IGNORECASE,
         ),
         "confidence": 82,
@@ -343,10 +345,17 @@ _RULES = [
         "category": "General Cyber Threat",
         "re": re.compile(
             r"cyberattaque|attaque\s+informatique|piratage\s+informatique"
-            r"|cybercriminel|cybersécurité\s+.{0,20}(attaque|incident|alerte|menace)",
+            r"|cybercriminel|cybersécurité\s+.{0,20}(attaque|incident|alerte|menace)"
+            r"|cyber\s*guerre|cyberguerre|piratage\s+de\s+données"
+            r"|hackers?\s+.{0,20}recrutés?"
+            # Italian catch-all
+            r"|cyber\s+attacchi|attacchi?\s+informatici?"
+            r"|più\s+colpiti?\s+al\s+mondo"
+            # Portuguese catch-all
+            r"|ataque\s+hacker|pode\s+acontecer\s+com\s+outras",
             re.IGNORECASE,
         ),
-        "confidence": 72,
+        "confidence": 75,
     },
     # Japanese
     {
@@ -395,6 +404,60 @@ _RULES = [
         "re": re.compile(
             r"cyber\s+attacch|attacco\s+informatico|attacco\s+hacker"
             r"|violazione\s+dei\s+dati|sicurezza\s+informatica\s+.{0,20}(attacco|incidente)",
+            re.IGNORECASE,
+        ),
+        "confidence": 75,
+    },
+    # English catch-all: generic cyber attack / incident / hack articles
+    # that don't match any specific category above
+    {
+        "category": "General Cyber Threat",
+        "re": re.compile(
+            r"cyber\s*attack|cyber\s*incident|cybersecurity\s+incident"
+            r"|cyber[\s-]*intrusion|cyber[\s-]*offensive"
+            r"|\bhacked\b|\bhack\b(?!\s*(day|night|life|around|together))"
+            r"|hacking\s+(crisis|campaign|group|operation)"
+            r"|security\s+breach|security\s+incident"
+            r"|systems?\s+taken\s+offline|takes?\s+systems?\s+offline"
+            r"|critical\s+flaw|critical\s+vulnerability"
+            r"|critical\s+.{0,20}(auth\s+bypass|gives?\s+.{0,10}access)"
+            r"|under\s+attack|hit\s+by\s+(a\s+)?(cyber|hack|attack)"
+            r"|impacted\s+by\s+(cyber|hack|attack)"
+            r"|confirms?\s+(cyber|hack|breach|incident|attack)"
+            r"|investigat\w+\s+(cyber|hack|breach|incident)"
+            r"|reports?\s+(cyber|hack|breach|incident)"
+            r"|\bmajor\s+(cyber\s+)?incident\b"
+            r"|compromised\s+(system|network|server|data|account)"
+            r"|unauthorized\s+access"
+            r"|cyber\s*war(fare)?\b"
+            r"|weaponi[sz]ing\s+.{0,20}(cyber|AI|ChatGPT)"
+            r"|token\s+compromise|credential\s+siphon"
+            r"|allegedly\s+(claims?|leak|dump)"
+            r"|hackers?\s+claim|claim\s+(theft|data)"
+            r"|patient\s+data\s+.{0,20}(disclosed|exposed|breach)"
+            r"|medical\s+records?\s+.{0,10}(breach|hack|access)"
+            r"|data\s+for\s+\$\d"
+            r"|threaten\s+(public\s+)?leak"
+            r"|records?\s+at\s+risk"
+            r"|flexes?\s+.{0,10}cyber\s+chops"
+            r"|hackers?\s+(accessed|stole|obtained|exfiltrated)\s+.{0,20}(record|data|patient|customer)"
+            r"|breach\s+(claimed|leaks?|exposes?|reveals?)"
+            r"|claimed\s+by\s+\w+\s*\w*\s*\|"
+            r"|source\s+code\s+breach"
+            r"|credentials?\s+exposed"
+            r"|flaw\s+(now\s+)?exploit"
+            r"|under\s+active\s+attack"
+            r"|exploits?\s+attack"
+            r"|goes?\s+to\s+war\b"
+            r"|attacks?\s+millions?\s+of"
+            r"|costs?\s+.{0,20}£?\$?\d+[MBmb]\s+in\s+(downtime|damage|loss)"
+            r"|cyber[\s-]*attacks?\s+cost"
+            r"|lays?\s+off\s+.{0,10}employees.{0,20}(AI|cyber)"
+            r"|reports?\s+.{0,15}breach"
+            r"|confirms?\s+.{0,20}breach"
+            r"|no\s+evidence\s+hackers?\s+accessed"
+            r"|patch\s+now.{0,5}(chrome|firefox|windows|iOS|android)"
+            r"|under\s+cyber\s+fire",
             re.IGNORECASE,
         ),
         "confidence": 75,
@@ -585,6 +648,98 @@ _NOISE_PATTERNS = [
         r"|fully\s+managed\s+cybersecurity\s+solution\s+for",
         re.IGNORECASE,
     ),
+    # Business/opinion/editorial about cybersecurity (not incidents)
+    re.compile(
+        r"(boards?|CEOs?|CFOs?|CISOs?)\s+(are\s+)?(falling\s+short|accountable|problem)\s+.{0,20}cyber"
+        r"|cybersecurity\s+(is\s+increasingly|in\s+the\s+age\s+of|considerations?\s+\d{4}|gaps?\s+endanger)"
+        r"|why\s+every\s+business\s+needs\s+to\s+.{0,20}cyber"
+        r"|cybersecurity\s+(expert|pro)\s*(demonstrates?|says?|explains?)"
+        r"|(steps?|ways?)\s+to\s+achieve\s+.{0,20}(resilience|compliance)"
+        r"|free\s+to\s+attend\s+cyber|masterclass.{0,20}cyber"
+        r"|shaping\s+the\s+next\s+generation"
+        r"|insights?\s+from\s+RSAC"
+        r"|growth\s+stocks?\s+to\s+buy"
+        r"|cyber\s+security\s+lifeboat"
+        r"|hottest\s+.{0,20}open.source\s+tools"
+        r"|white\s+paper\s+for\s+.{0,30}(networks?|communications?)"
+        r"|reducing\s+your\s+exposure\s+.{0,20}liability"
+        r"|MSP\s+maturity"
+        r"|art\s+as\s+a\s+mirror",
+        re.IGNORECASE,
+    ),
+    # Investment/commitment in cybersecurity (not incidents)
+    re.compile(
+        r"(commits?|invest)\s+.{0,10}\$?\d+\s*(bln|billion|million|m\b).{0,20}(cyber|AI|infrastructure)"
+        r"|to\s+invest\s+\$\d+.{0,30}cyber"
+        r"|venture\s+capital.{0,20}cyber"
+        r"|bought\s+by\s+(a\s+)?cyber\s+security\s+company"
+        r"|strengthens?\s+(compliance|data\s+protection).{0,20}(appointment|practice)"
+        r"|introduces?\s+.{0,30}(manager|tool)\s+for\s+.{0,20}compliance"
+        r"|national\s+cyber\w*\s+coordination\s+council"
+        r"|media\s+advisory.{0,30}(adapt|closing\s+the)",
+        re.IGNORECASE,
+    ),
+    # Cybersecurity market/industry report noise
+    re.compile(
+        r"cybersecurity\s+.{0,20}(trust|priorities|AI\s+risks?)\s+(is\s+becoming|for\s+insurers)"
+        r"|cybersecurity\s+in\s+(logistics|the\s+age)"
+        r"|hits?\s+\d+[,.]?\d*\s+clients"
+        r"|appoints?\s+.{0,30}(country\s+manager|director|head)"
+        r"|predictive\s+cybersecurity\s+with"
+        r"|introduces?\s+.{0,20}(requirements?|sustainability)"
+        r"|publishes?\s+.{0,20}white\s+paper"
+        r"|sweeps?\s+.{0,15}(major\s+)?awards?"
+        r"|cybersecurity\s+-\s+\w+\s+News$",
+        re.IGNORECASE,
+    ),
+    # More editorial/opinion noise
+    re.compile(
+        r"only\s+\d+%\s+of\s+organizations?\s+have"
+        r"|cybersecurity\s+can\s+learn\s+from"
+        r"|what\s+does\s+cyber\s+resilience\s+look\s+like"
+        r"|doing\s+more\s+with\s+less\s+in"
+        r"|information\s+sharing\s+of\s+cyber\s+threats?\s+vital"
+        r"|top\s+\d+:?\s+(CISOs?|cyber\s+leaders?)\s+(in|of)"
+        r"|playbook\s+for\s+.{0,20}(cost|reliable|effective)\s+cyber"
+        r"|spotlight\s+cybersecurity\s+growth"
+        r"|cybersecurity\s+stocks?\s+(fall|rise|drop|surge)"
+        r"|key\s+.{0,20}takeaways?\s+from\s+(the\s+)?(NAIC|RSAC|RSA)"
+        r"|industry\s+leaders?\s+warn.{0,20}cybersecurity"
+        r"|AI\s+runs?\s+on\s+trust.{0,20}cyber"
+        r"|simple\s+mistakes.{0,10}here.s\s+the\s+real\s+lesson"
+        r"|hosting\s+.{0,10}cybersecurity\s+events?"
+        r"|responding\s+to\s+a\s+cyber.attack\s+-\s+(KPMG|Deloitte|PwC|EY)"
+        r"|cyber\s+warfare\s+101"
+        r"|cybergames"
+        r"|myriad\s+threats?\s+challenge"
+        r"|best\s+ethical\s+hacking\s+(courses?|certifications?)"
+        r"|cybersecurity\s+expert.{0,10}(presenters?|tackle\s+threats)"
+        r"|signals?\s+new\s+era\s+of\s+AI\s+cyber"
+        r"|\bnew\s+era\s+of\s+.{0,20}risk\s+and\s+investment"
+        r"|cyber\s+risk\s+management\s+game"
+        r"|fight\s+to\s+keep\s+.{0,20}safe\s+from\s+cyber"
+        r"|government\s+needs\s+to\s+take\s+cyber"
+        r"|venture\s+capital\s+leader\s+eyes"
+        r"|liability\s+limitations\s+for\s+cyber"
+        r"|foundation\s+of\s+intelligent\s+security"
+        r"|strengthens?\s+(compliance|data\s+protection).{0,20}(appointment|practice)"
+        r"|NCSC\s+Gold\s+Award"
+        r"|prestigious\s+.{0,20}(award|certification)"
+        r"|AI\s+security\s+into\s+the\s+heart\s+of.{0,20}certifications?"
+        r"|cybersecurity\s+expert.{0,5}why\s+your\s+business"
+        r"|announces?\s+(core\s+)?(AI\s+)?patent"
+        r"|data\s+regulators?\s+support\s+loosening"
+        r"|presents?\s+bill\s+to\s+reinforce\s+cyber"
+        r"|mighty\s+mission\s+to\s+.{0,10}(cyber|resilient)"
+        r"|harder\s+to\s+price\s+and\s+manage"
+        r"|vulnerability\s+statistics?\s+\d{4}"
+        r"|cybersecurity\s+-\s+\w+\s+(News|Sun)$"
+        r"|becomes?\s+immune\s+to\s+(ransomware|malware|attack)"
+        r"|kit\s+de\s+crise\s+.{0,20}(collectivités|entreprises)"
+        r"|opération\s+.{0,20}(Cactus|sensibilis)"
+        r"|résultats\s+de\s+l.opération",
+        re.IGNORECASE,
+    ),
 ]
 
 logger = logging.getLogger(__name__)
@@ -628,6 +783,68 @@ _CONTEXT_PRIORITY = {
 }
 
 
+# Compound-event rules: when two categories co-occur, the "outcome" (what
+# happened) should win over the "method" (how it happened) IF the outcome
+# keyword appears explicitly in the title.
+_COMPOUND_OVERRIDES = [
+    # "data breach" + ransomware → Data Breach (breach is the outcome)
+    {"if_both": ("Ransomware", "Data Breach"),
+     "title_re": re.compile(r"data\s+breach|breached|data\s+leak|records\s+(stolen|exposed)", re.I),
+     "winner": "Data Breach"},
+    # phishing + data breach → Phishing (phishing is the specific technique)
+    {"if_both": ("Data Breach", "Phishing"),
+     "title_re": re.compile(r"phishing|spearphish|credential\s+harvest|\bbec\b|business\s+email", re.I),
+     "winner": "Phishing"},
+    # supply chain + zero-day → Zero-Day (more specific)
+    {"if_both": ("Supply Chain Attack", "Zero-Day Exploit"),
+     "title_re": re.compile(r"zero.day|0day|actively\s+exploited", re.I),
+     "winner": "Zero-Day Exploit"},
+    # supply chain + phishing → Phishing (when phishing is the method described)
+    {"if_both": ("Supply Chain Attack", "Phishing"),
+     "title_re": re.compile(r"phishing|credential\s+harvest|fake\s+login", re.I),
+     "winner": "Phishing"},
+    # ransomware + nation-state → Nation-State Attack (attribution matters more)
+    {"if_both": ("Ransomware", "Nation-State Attack"),
+     "title_re": re.compile(r"nation.state|state.sponsored|apt\d|lazarus|typhoon|sandworm|bear|kitten", re.I),
+     "winner": "Nation-State Attack"},
+    # nation-state + data breach → Data Breach (when breach is the headline)
+    {"if_both": ("Nation-State Attack", "Data Breach"),
+     "title_re": re.compile(r"data\s+breach|breached|records\s+(stolen|exposed)|data\s+leak", re.I),
+     "winner": "Data Breach"},
+    # malware + phishing → Phishing (when phishing is the delivery vector described)
+    {"if_both": ("Malware", "Phishing"),
+     "title_re": re.compile(r"phishing|spearphish|credential\s+harvest|\bbec\b|fake\s+invoice", re.I),
+     "winner": "Phishing"},
+    # zero-day + ransomware → Ransomware (when ransomware is the payload)
+    {"if_both": ("Zero-Day Exploit", "Ransomware"),
+     "title_re": re.compile(r"ransomware|ransom\s+demand|lockbit|blackcat|cl0p|akira", re.I),
+     "winner": "Ransomware"},
+    # ransomware + phishing → Phishing (when phishing is the method in the title)
+    {"if_both": ("Ransomware", "Phishing"),
+     "title_re": re.compile(r"phishing|credential\s+harvest", re.I),
+     "winner": "Phishing"},
+    # nation-state + zero-day → Zero-Day (when zero-day is the vulnerability described)
+    {"if_both": ("Nation-State Attack", "Zero-Day Exploit"),
+     "title_re": re.compile(r"zero.day|0day|vulnerability\s+exploit", re.I),
+     "winner": "Zero-Day Exploit"},
+]
+
+
+def _resolve_compound_events(matches, matched_cats, title):
+    """Override scoring when two categories co-occur and title disambiguates."""
+    for rule in _COMPOUND_OVERRIDES:
+        cat_a, cat_b = rule["if_both"]
+        if cat_a in matched_cats and cat_b in matched_cats:
+            if rule["title_re"].search(title):
+                winner = rule["winner"]
+                # Give the winner a massive score boost to ensure it wins
+                return [
+                    (cat, conf, score + 50) if cat == winner else (cat, conf, score)
+                    for cat, conf, score in matches
+                ]
+    return matches
+
+
 def classify_article(title, content=None, source_language="en"):
     """Classify an article using keyword patterns with multi-match scoring.
 
@@ -647,12 +864,20 @@ def classify_article(title, content=None, source_language="en"):
     text = title + " " + (content or "")
 
     # Collect ALL matching rules (not just the first)
+    # Title-match bonus: +10 if the rule matches the title directly (not just body)
     matches = []
     for rule in _RULES:
         if rule["re"].search(text):
             priority_bonus = _CONTEXT_PRIORITY.get(rule["category"], 0)
-            score = rule["confidence"] + priority_bonus
+            title_bonus = 10 if rule["re"].search(title) else 0
+            score = rule["confidence"] + priority_bonus + title_bonus
             matches.append((rule["category"], rule["confidence"], score))
+
+    # Compound-event resolver: when two categories co-occur, the "outcome"
+    # category wins over the "method" if the outcome appears in the title.
+    matched_cats = {m[0] for m in matches}
+    if matches:
+        matches = _resolve_compound_events(matches, matched_cats, title)
 
     if matches:
         # Pick the highest-scoring match
@@ -715,9 +940,11 @@ def classify_article(title, content=None, source_language="en"):
 
 
 def _rules_version():
-    """Hash of all rule patterns + noise patterns for cache invalidation."""
+    """Hash of all rule/noise/compound patterns for cache invalidation."""
     parts = [r["re"].pattern + r["category"] for r in _RULES]
     parts.extend(p.pattern for p in _NOISE_PATTERNS)
+    for c in _COMPOUND_OVERRIDES:
+        parts.append(c["title_re"].pattern + c["winner"])
     return hashlib.sha256("".join(parts).encode()).hexdigest()[:12]
 
 

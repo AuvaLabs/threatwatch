@@ -22,14 +22,16 @@ _COUNTRY_PATTERNS = [
     # North America — U.S. needs special handling: word boundary doesn't work
     # after trailing period, so we use a lookahead instead
     (re.compile(r"(?:^|\s|,)(U\.S\.A?\.?|USA|United States|American|America)(?:\s|,|$|')", re.I), "US"),
+    (re.compile(r"\b(FBI|CISA|NSA|Pentagon|Homeland Security)\b"), "US"),
     (re.compile(r"\bCanadian?\b", re.I), "US"),           # group with US for region purposes
 
     # UK / British Isles
     (re.compile(r"\b(UK|United Kingdom|Britain|British|England|Scotland|Wales|Northern Ireland)\b", re.I), "Europe"),
 
-    # Europe (country names, adjectives, city demonyms)
+    # Europe (country names, adjectives, city demonyms, EU institutions)
     (re.compile(
-        r"\b(Germany|German|Deutschland|France|French|Italy|Italian|Spain|Spanish"
+        r"\b(European\s+Commission|European\s+Union|\bEU\b"
+        r"|Germany|German|Deutschland|France|French|Italy|Italian|Spain|Spanish"
         r"|Netherlands|Dutch|Poland|Polish|Sweden|Swedish|Norway|Norwegian"
         r"|Finland|Finnish|Denmark|Danish|Switzerland|Swiss|Austria|Austrian"
         r"|Belgium|Belgian|Ireland|Irish|Portugal|Portuguese|Czech|Romania|Romanian"
@@ -157,9 +159,10 @@ def infer_article_region(article: dict) -> dict:
     if not inferred:
         return article
 
-    # If current region is a locale-based tag (from Google News feed locale),
+    # If current region is a locale-based tag or a broad regional label,
     # prefer the inferred content-based region
-    if current_region in _LOCALE_REGIONS or current_region == "Global":
+    _OVERRIDABLE = _LOCALE_REGIONS | {"Europe", "APAC", "Middle East", "LATAM", "MENA", "Global"}
+    if current_region in _OVERRIDABLE:
         article = {**article, "feed_region": inferred}
 
     return article
