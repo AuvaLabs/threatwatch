@@ -2190,13 +2190,13 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
           <span class="theme-label" id="theme-label">MIDNIGHT</span>
         </button>
         <div class="theme-picker-dropdown" id="theme-dropdown">
-          <button class="theme-option active" data-theme="dark" onclick="setTheme('dark')">
+          <button class="theme-option" data-theme="dark" onclick="setTheme('dark')">
             <span class="theme-swatch" style="background:#0b1120;border-color:#3b82f6"></span> MIDNIGHT
           </button>
           <button class="theme-option" data-theme="light" onclick="setTheme('light')">
             <span class="theme-swatch" style="background:#f8fafc;border-color:#2563eb"></span> LIGHT
           </button>
-          <button class="theme-option" data-theme="solarized" onclick="setTheme('solarized')">
+          <button class="theme-option active" data-theme="solarized" onclick="setTheme('solarized')">
             <span class="theme-swatch" style="background:#002b36;border-color:#b58900"></span> SOLARIZED
           </button>
           <button class="theme-option" data-theme="arctic" onclick="setTheme('arctic')">
@@ -2809,16 +2809,16 @@ document.addEventListener('click', function(e) {
   if (!e.target.closest('.theme-picker')) closeThemeDropdown();
 });
 
-// Restore saved theme (dark is default)
+// Restore saved theme (solarized is default)
 (function() {
   try {
     var saved = localStorage.getItem('tw-theme');
     if (saved && THEMES[saved]) {
       setTheme(saved);
     } else {
-      setTheme('dark');
+      setTheme('solarized');
     }
-  } catch(e) { setTheme('dark'); }
+  } catch(e) { setTheme('solarized'); }
 })();
 
 function updateClock() {
