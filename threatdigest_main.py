@@ -227,6 +227,19 @@ def main():
     except Exception as e:
         logging.debug(f"AI enrichment skipped: {e}")
 
+    # Incident clustering + actor profiles (separate try to not block on failures)
+    try:
+        from modules.incident_correlator import cluster_articles
+        cluster_articles(enriched_articles)
+    except Exception as e:
+        logging.debug(f"Incident clustering skipped: {e}")
+
+    try:
+        from modules.actor_profiler import generate_profiles
+        generate_profiles(enriched_articles)
+    except Exception as e:
+        logging.debug(f"Actor profiler skipped: {e}")
+
     stats.finalize()
 
     try:

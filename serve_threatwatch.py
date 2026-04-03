@@ -132,6 +132,26 @@ def load_top_stories():
         return None
 
 
+def load_clusters():
+    """Load incident clusters."""
+    path = BASE_DIR / "data" / "output" / "clusters.json"
+    try:
+        raw = read_cached(path)
+        return json.loads(raw)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def load_actor_profiles():
+    """Load threat actor profiles."""
+    path = BASE_DIR / "data" / "output" / "actor_profiles.json"
+    try:
+        raw = read_cached(path)
+        return json.loads(raw)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
 _SERVER_START = time.time()
 
 
@@ -223,6 +243,8 @@ def build_ssr_data():
         stats = load_stats()
         briefing = load_briefing()
         top_stories = load_top_stories()
+        clusters = load_clusters()
+        actor_profiles = load_actor_profiles()
 
         # Strip full_content from SSR payload to reduce page size
         # (full_content is only needed for article detail view via API)
@@ -236,6 +258,8 @@ def build_ssr_data():
             "stats": stats,
             "briefing": briefing,
             "top_stories": top_stories,
+            "clusters": clusters,
+            "actor_profiles": actor_profiles,
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -283,6 +307,14 @@ STATIC_ROUTES = {
     },
     "/api/top-stories": {
         "file": BASE_DIR / "data" / "output" / "top_stories.json",
+        "content_type": "application/json; charset=utf-8",
+    },
+    "/api/clusters": {
+        "file": BASE_DIR / "data" / "output" / "clusters.json",
+        "content_type": "application/json; charset=utf-8",
+    },
+    "/api/actor-profiles": {
+        "file": BASE_DIR / "data" / "output" / "actor_profiles.json",
         "content_type": "application/json; charset=utf-8",
     },
     "/api/stats": {

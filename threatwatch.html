@@ -2373,6 +2373,10 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div class="center-section-title"><span class="section-icon">&#x1F4A1;</span> Top Stories <span class="briefing-ai-notice" style="font-size:9px;vertical-align:middle">AI CURATED</span></div>
         <div id="top-stories-content"></div>
       </div>
+      <div class="center-section" id="section-clusters">
+        <div class="center-section-title"><span class="section-icon">&#x1F517;</span> Related Incidents</div>
+        <div id="clusters-content"></div>
+      </div>
       <div class="center-section" id="section-incidents">
         <div class="center-section-title"><span class="section-icon">&#x26A0;</span> Key Incidents</div>
         <div id="key-incidents-content"></div>
@@ -2729,6 +2733,8 @@ const state = {
   pipelineStats: null,
   aiBriefing: null,       // AI briefing JSON from server
   topStories: null,       // AI-curated top stories from server
+  clusters: null,         // Incident clusters from server
+  actorProfiles: null,    // Threat actor profiles from server
   briefingMode: 'normal', // 'normal' or 'ai'
   _etag: null,
 };
@@ -2985,6 +2991,9 @@ function analyzeIntelligence() {
 
   // --- Section 1b: Top Stories (AI-curated) ---
   renderTopStories();
+
+  // --- Section 1c: Incident Clusters ---
+  renderClusters();
 
   // --- Section 2: Key Incidents ---
   renderKeyIncidents(items);
@@ -3397,6 +3406,41 @@ function _incidentSimilar(a, b) {
   const inter = [...sa].filter(w => sb.has(w)).length;
   const smaller = Math.min(sa.size, sb.size);
   return smaller >= 3 ? inter / smaller : 0;
+}
+
+function renderClusters() {
+  const container = document.getElementById('clusters-content');
+  const data = state.clusters;
+  if (!data || !data.clusters || data.clusters.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px">Incident correlation will appear after the next pipeline run.</div>';
+    return;
+  }
+
+  const typeIcon = t => ({ cve: '&#x1F6E1;', actor: '&#x1F3AD;', org: '&#x1F3E2;' }[t] || '&#x1F517;');
+  let html = '';
+
+  data.clusters.slice(0, 8).forEach(cluster => {
+    const icon = typeIcon(cluster.entity_type);
+    const badge = `<span class="b-hl" style="font-size:9px">${escapeHTML(cluster.entity_type.toUpperCase())}</span>`;
+    const count = cluster.article_count;
+
+    html += `<div style="margin-bottom:10px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px">`;
+    html += `<div style="margin-bottom:4px;font-size:12px;font-weight:600">${icon} ${escapeHTML(cluster.entity_name)} ${badge} <span style="font-size:10px;color:var(--text-muted)">${count} articles</span></div>`;
+
+    if (cluster.synthesis) {
+      html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;line-height:1.5;font-style:italic">${escapeHTML(cluster.synthesis)}</div>`;
+    }
+
+    html += `<div style="font-size:10px;color:var(--text-muted)">`;
+    cluster.articles.slice(0, 4).forEach(a => {
+      const link = a.link ? ` href="${escapeHTML(a.link)}" target="_blank" rel="noopener"` : '';
+      html += `<div style="margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><a${link} style="color:var(--text-secondary);text-decoration:none">${escapeHTML(a.title)}</a></div>`;
+    });
+    if (count > 4) html += `<div style="color:var(--accent)">+ ${count - 4} more</div>`;
+    html += `</div></div>`;
+  });
+
+  container.innerHTML = html;
 }
 
 function renderTopStories() {
@@ -4927,6 +4971,8 @@ function init() {
     state.pipelineStats = ssr.stats || null;
     state.aiBriefing = ssr.briefing || null;
     state.topStories = ssr.top_stories || null;
+    state.clusters = ssr.clusters || null;
+    state.actorProfiles = ssr.actor_profiles || null;
     if (items.length > 0) {
       applyData(items);
     }
