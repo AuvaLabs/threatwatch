@@ -331,22 +331,39 @@ class TestNormalizeUrl:
 # ---------------------------------------------------------------------------
 
 class TestDarkWebBypass:
-    """Articles with darkweb=True skip fuzzy matching and are never merged."""
+    """Ransomware.live victim posts skip fuzzy matching; other darkweb articles don't."""
 
     def _patch(self, monkeypatch, tmp_path):
         monkeypatch.setattr("modules.deduplicator.SEEN_HASHES_FILE", tmp_path / "hashes.txt")
         monkeypatch.setattr("modules.deduplicator.SEEN_TITLES_FILE", tmp_path / "titles.txt")
 
-    def test_darkweb_articles_not_fuzzy_deduped(self, tmp_path, monkeypatch):
+    def test_ransomware_victim_articles_not_fuzzy_deduped(self, tmp_path, monkeypatch):
+        """Ransomware.live victim posts have structured titles — skip fuzzy dedup."""
         self._patch(monkeypatch, tmp_path)
         articles = [
-            {"title": "Major ransomware attack cripples hospital chain network systems",
-             "link": "https://darkweb.onion/1", "source": "dw", "darkweb": True},
-            {"title": "Major ransomware attack cripples hospital chain network operations",
-             "link": "https://darkweb.onion/2", "source": "dw", "darkweb": True},
+            {"title": "lockbit ransomware: new victim 'Acme Corp' (US)",
+             "link": "https://ransomware.live/1", "source": "dw", "darkweb": True,
+             "darkweb_source": "ransomware.live"},
+            {"title": "lockbit ransomware: new victim 'Beta Inc' (US)",
+             "link": "https://ransomware.live/2", "source": "dw", "darkweb": True,
+             "darkweb_source": "ransomware.live"},
         ]
         result = deduplicate_articles(articles)
         assert len(result) == 2
+
+    def test_threatfox_articles_are_fuzzy_deduped(self, tmp_path, monkeypatch):
+        """ThreatFox articles with identical titles should be fuzzy-deduped."""
+        self._patch(monkeypatch, tmp_path)
+        articles = [
+            {"title": "Major ransomware attack cripples hospital chain network systems",
+             "link": "https://darkweb.onion/1", "source": "dw", "darkweb": True,
+             "darkweb_source": "threatfox"},
+            {"title": "Major ransomware attack cripples hospital chain network operations",
+             "link": "https://darkweb.onion/2", "source": "dw", "darkweb": True,
+             "darkweb_source": "threatfox"},
+        ]
+        result = deduplicate_articles(articles)
+        assert len(result) == 1
 
     def test_darkweb_flag_false_still_fuzzy_deduped(self, tmp_path, monkeypatch):
         self._patch(monkeypatch, tmp_path)

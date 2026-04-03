@@ -50,6 +50,8 @@ CATEGORIES = [
     "Security Policy/Regulation",
     "Patch/Security Update",
     "Threat Intelligence Report",
+    "Threat Research & Analysis",
+    "Detection & Response",
     "General Cyber Threat",
 ]
 

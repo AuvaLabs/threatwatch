@@ -321,6 +321,25 @@ _RULES = [
         "confidence": 85,
     },
     {
+        "category": "Nation-State Attack",
+        "re": re.compile(
+            r"hackers?\s+iraniens?|hackers?\s+affiliés?\s+.{0,15}(Iran|Russie|Chine|Corée)"
+            r"|hackers?\s+pro[\s-]+(iraniens?|russes?|chinois)"
+            r"|cyber[\s-]?fanatiques?\s+pro[\s-]",
+            re.IGNORECASE,
+        ),
+        "confidence": 88,
+    },
+    {
+        "category": "Malware",
+        "re": re.compile(
+            r"piratage\s+.{0,30}(revendiqu|hackers?|pirates?)"
+            r"|pirates?\s+informatiques?\s+(arrêtés?|interpellés?|identifiés?)",
+            re.IGNORECASE,
+        ),
+        "confidence": 80,
+    },
+    {
         "category": "General Cyber Threat",
         "re": re.compile(
             r"cyberattaque|attaque\s+informatique|piratage\s+informatique"
@@ -344,6 +363,38 @@ _RULES = [
         "re": re.compile(
             r"Cyberangriff|Cyberattacke|Hackerangriff|Datenleck"
             r"|Sicherheitslücke|Ransomware-Angriff|Phishing-Angriff",
+            re.IGNORECASE,
+        ),
+        "confidence": 75,
+    },
+    # Spanish
+    {
+        "category": "General Cyber Threat",
+        "re": re.compile(
+            r"ciberataque|ataque\s+cibernético|hackeo|hackers?\s+.{0,20}(atac|invad|roban)"
+            r"|brecha\s+de\s+(datos|seguridad)|ciberseguridad\s+.{0,20}(ataque|incidente|alerta)"
+            r"|piratería\s+informática",
+            re.IGNORECASE,
+        ),
+        "confidence": 75,
+    },
+    # Portuguese
+    {
+        "category": "General Cyber Threat",
+        "re": re.compile(
+            r"ataque\s+hacker|ciberataque|ataque\s+cibernético"
+            r"|hackers?\s+.{0,20}(atacam|invadem|roubam)"
+            r"|vazamento\s+de\s+dados|brecha\s+de\s+segurança",
+            re.IGNORECASE,
+        ),
+        "confidence": 75,
+    },
+    # Italian
+    {
+        "category": "General Cyber Threat",
+        "re": re.compile(
+            r"cyber\s+attacch|attacco\s+informatico|attacco\s+hacker"
+            r"|violazione\s+dei\s+dati|sicurezza\s+informatica\s+.{0,20}(attacco|incidente)",
             re.IGNORECASE,
         ),
         "confidence": 75,
@@ -505,6 +556,35 @@ _NOISE_PATTERNS = [
         r"|cyber\s+(risk|threat)\s+(related\s+to|from|amid)",
         re.IGNORECASE,
     ),
+    # French noise — generic advice/prevention articles (not incidents)
+    re.compile(
+        r"cybersécurité\s+.{0,30}(prévenir|protéger|sensibilis|bonnes\s+pratiques|conseils)"
+        r"|sensibilise\s+.{0,20}(organisations?|entreprises?|bonnes\s+pratiques)",
+        re.IGNORECASE,
+    ),
+    # Leader/badge reports (vendor marketing)
+    re.compile(
+        r"(named|cites?d?)\s+.{0,40}leader\s+in\s+.{0,60}(evaluation|report)\b"
+        r"|snags?\s+.{0,10}(leader\s+)?badges?\s+in\s+G2"
+        r"|leader\s+in\s+.{0,30}(evaluation|report|platform)"
+        r"|leader\s+in\s+(gartner|forrester|idc|independent\s+research)",
+        re.IGNORECASE,
+    ),
+    # Certification achievements (vendor marketing, not incidents)
+    re.compile(
+        r"achieves?\s+.{0,30}(certification|certified|compliance|accreditation)"
+        r"|achieves?\s+(level|tier)\s+\d\s+.{0,20}(certification|cmmc|hitrust)",
+        re.IGNORECASE,
+    ),
+    # Cybersecurity training/upskilling (not incidents)
+    re.compile(
+        r"(train|upskill)\s+\d+[,.]?\d*\s*(cyber|security|specialist)"
+        r"|smartest\s+career\s+move"
+        r"|sets?\s+course\s+to\s+train"
+        r"|enterprise[\s-]grade\s+.{0,20}training"
+        r"|fully\s+managed\s+cybersecurity\s+solution\s+for",
+        re.IGNORECASE,
+    ),
 ]
 
 logger = logging.getLogger(__name__)
@@ -523,7 +603,13 @@ _CYBER_KEYWORDS = re.compile(
     # Japanese
     r"|サイバー攻撃|不正アクセス|情報漏|ランサムウェア|フィッシング|マルウェア|脆弱性"
     # German
-    r"|Cyberangriff|Cyberattacke|Hackerangriff|Datenleck|Sicherheitslücke",
+    r"|Cyberangriff|Cyberattacke|Hackerangriff|Datenleck|Sicherheitslücke"
+    # Spanish
+    r"|ciberataque|ataque\s+cibernético|hackeo|piratería\s+informática"
+    # Portuguese
+    r"|ataque\s+hacker|vazamento\s+de\s+dados"
+    # Italian
+    r"|cyber\s+attacch|attacco\s+informatico|attacco\s+hacker",
     re.IGNORECASE,
 )
 
@@ -628,5 +714,17 @@ def classify_article(title, content=None, source_language="en"):
     return result
 
 
+def _rules_version():
+    """Hash of all rule patterns + noise patterns for cache invalidation."""
+    parts = [r["re"].pattern + r["category"] for r in _RULES]
+    parts.extend(p.pattern for p in _NOISE_PATTERNS)
+    return hashlib.sha256("".join(parts).encode()).hexdigest()[:12]
+
+
+_RULES_VERSION = _rules_version()
+
+
 def _compute_hash(text):
-    return hashlib.sha256(text[:MAX_CONTENT_CHARS].encode()).hexdigest()
+    return hashlib.sha256(
+        (_RULES_VERSION + text[:MAX_CONTENT_CHARS]).encode()
+    ).hexdigest()

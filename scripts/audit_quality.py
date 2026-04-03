@@ -155,13 +155,27 @@ def audit_timeliness(articles):
             continue
 
         try:
-            # Try ISO format
-            if "T" in pub:
+            # Try ISO format (contains "T" separator but not in day names like "Tue")
+            if "T" in pub and pub[:4].isdigit():
                 dt = datetime.fromisoformat(pub.replace("Z", "+00:00"))
             else:
-                # Try RFC 2822
-                from email.utils import parsedate_to_datetime
-                dt = parsedate_to_datetime(pub)
+                # Try bare datetime formats (e.g., "2026-03-14 20:52:27")
+                dt = None
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d"):
+                    try:
+                        dt = datetime.strptime(pub[:len(fmt) + 10], fmt)
+                        break
+                    except (ValueError, TypeError):
+                        continue
+                if dt is None:
+                    # Try RFC 2822 — strip non-standard tz abbreviations first
+                    from email.utils import parsedate_to_datetime
+                    import re as _re
+                    cleaned = _re.sub(
+                        r"\s+(CEST|CET|IST|BST|PDT|PST|CDT|CST|MDT|MST|EDT|EST|JST|KST|AEST|AEDT|NZST|NZDT)$",
+                        " +0000", pub.strip(),
+                    )
+                    dt = parsedate_to_datetime(cleaned)
 
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)

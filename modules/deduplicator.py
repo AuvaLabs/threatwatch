@@ -242,9 +242,11 @@ def deduplicate_articles(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
         raw_title = article["title"]
         normalized = normalize_title(raw_title)
 
-        # Skip fuzzy dedup for dark web articles (structured titles with shared words)
-        is_darkweb = article.get("darkweb", False)
-        if not is_darkweb and index.is_fuzzy_duplicate(normalized, raw_title=raw_title):
+        # Skip fuzzy dedup only for ransomware victim posts (structured titles
+        # with unique victim names). ThreatFox/C2 articles need fuzzy dedup
+        # because they reuse identical titles across pipeline runs.
+        is_ransom_victim = (article.get("darkweb_source") == "ransomware.live")
+        if not is_ransom_victim and index.is_fuzzy_duplicate(normalized, raw_title=raw_title):
             logger.info(f"Fuzzy duplicate skipped: {raw_title}")
             _add_related(unique_articles, article, index, normalized,
                          raw_title, batch_start_idx)

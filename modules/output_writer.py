@@ -9,6 +9,7 @@ from pathlib import Path
 from feedgen.feed import FeedGenerator
 
 from modules.config import SITE_URL, SITE_DOMAIN, OUTPUT_DIR, FEED_CUTOFF_DAYS
+from modules.deduplicator import _collapse_regions, _MAX_MERGED_REGIONS
 
 HOURLY_DIR = OUTPUT_DIR / "hourly"
 DAILY_DIR = OUTPUT_DIR / "daily"
@@ -72,6 +73,13 @@ def _merge_articles(existing, new_articles):
             except (ValueError, TypeError):
                 pass
         filtered.append(article)
+
+    # Re-collapse stale multi-region strings from old data
+    for article in filtered:
+        region = article.get("feed_region", "")
+        if "," in region:
+            parts = set(region.split(","))
+            article["feed_region"] = _collapse_regions(parts)
 
     # Sort by timestamp descending (newest first)
     filtered.sort(
