@@ -101,7 +101,10 @@ _RULES = [
             r"data\s+breach|breached|data\s+leak|leaked|exposed\s+data"
             r"|stolen\s+data|data\s+dump|database\s+exposed|records\s+stolen"
             r"|credentials\s+leaked|personal\s+data\s+exposed"
-            r"|million\s+records|account.*compromis",
+            r"|million\s+records|account.*compromis"
+            r"|\bbreach\b(?!\s*(of\s+contract|of\s+trust|of\s+duty))"
+            r"|source\s+code\s+(stolen|leaked|exposed)"
+            r"|customer\s+(data|records?|info)\s+(stolen|leaked|exposed|at\s+risk)",
             re.IGNORECASE,
         ),
         "confidence": 88,
@@ -210,7 +213,12 @@ _RULES = [
             r"cve-\d{4}|cvss\s+\d|vulnerability\s+discover"
             r"|vulnerability\s+disclos|\brce\b|remote\s+code\s+execution"
             r"|privilege\s+escalation|sql\s+injection|xss\s+vuln"
-            r"|buffer\s+overflow|auth(entication)?\s+bypass",
+            r"|buffer\s+overflow|auth(entication)?\s+bypass"
+            r"|vulnerabilit\w+\s+(let|allow|enable|could|in\s+\w)"
+            r"|security\s+flaw|critical\s+flaw"
+            r"|arbitrary\s+(command|code)\s+execution"
+            r"|root\s+access\s+(flaw|vuln|exploit)"
+            r"|\bexploit\w*\s+(flaw|bug|vuln)",
             re.IGNORECASE,
         ),
         "confidence": 85,
@@ -457,7 +465,19 @@ _RULES = [
             r"|confirms?\s+.{0,20}breach"
             r"|no\s+evidence\s+hackers?\s+accessed"
             r"|patch\s+now.{0,5}(chrome|firefox|windows|iOS|android)"
-            r"|under\s+cyber\s+fire",
+            r"|under\s+cyber\s+fire"
+            r"|cyber\s+resilience|cyber\s+threat|threat\s+landscape"
+            r"|malicious\s+(actors?|activity|campaign|code|package)"
+            r"|threat\s+intelligence\s+(report|brief|update|round)"
+            r"|(flags?|warns?|alerts?)\s+.{0,20}(cyber|hack|breach|threat|vuln)"
+            r"|faces?\s+cyber\s+incident"
+            r"|recover\w*\s+from\s+(cyber|hack|attack|breach)"
+            r"|cyber\s+breach|cyber\s+espionage"
+            r"|suffers?\s+(attack|hack|breach|intrusion)"
+            r"|disrupted\s+by\s+(cyber|hack|attack)"
+            r"|targeted\s+by\s+(cyber|hack|threat|actor)"
+            r"|IOCs?\s+detected"
+            r"|new\s+victim\s+published",
             re.IGNORECASE,
         ),
         "confidence": 75,
@@ -541,7 +561,11 @@ _NOISE_PATTERNS = [
         r"|(cissp|cism|ceh|oscp|security\+|cloud\+)\s+(certification|exam|prep|study|course|bootcamp|training)"
         r"|cybersecurity\s+(training|bootcamp|course|certification|degree|program)\s+(for|online|now)"
         r"|learn\s+(ethical\s+hacking|penetration\s+testing|cybersecurity)\s+(online|today|for\s+free)"
-        r"|free\s+cybersecurity\s+(course|training|tutorial|resources?)",
+        r"|free\s+cybersecurity\s+(course|training|tutorial|resources?)"
+        r"|certification\s+training\s+(to|for|program)"
+        r"|provides?\s+cyber\s*security\s+certification\s+training"
+        r"|training\s+gaps?\s+(impact|affect)\w*\s+.{0,20}cyber"
+        r"|(adds?|unveils?)\s+.{0,20}cyber\s+security\s+course",
         re.IGNORECASE,
     ),
     # Generic cybersecurity advice / tips (not incident reporting)
@@ -597,7 +621,9 @@ _NOISE_PATTERNS = [
     re.compile(
         r"launches?\s+.{0,30}(autonomous|self.healing|AI.powered)\s+.{0,20}(agents?|platform|solution)"
         r"|launches?\s+.{0,30}(event|conference|summit)\s+(focused|dedicated)"
-        r"|launches?\s+.{0,30}(cyber\s*security|security)\s+(club|program|initiative|academy)",
+        r"|launches?\s+.{0,30}(cyber\s*security|security)\s+(club|program|initiative|academy)"
+        r"|launches?\s+.{0,30}(new\s+)?(platform|solution|tool)\s+(to|for)\s+(protect|secure|transform|manage)"
+        r"|unveils?\s+.{0,30}(platform|solution)\s+(powered|to\s+transform)",
         re.IGNORECASE,
     ),
     # Landscape/trend opinion pieces (not threat intel)
@@ -738,6 +764,20 @@ _NOISE_PATTERNS = [
         r"|kit\s+de\s+crise\s+.{0,20}(collectivités|entreprises)"
         r"|opération\s+.{0,20}(Cactus|sensibilis)"
         r"|résultats\s+de\s+l.opération",
+        re.IGNORECASE,
+    ),
+    # Market/stock/forecast reports mentioning cyber
+    re.compile(
+        r"(market|stock)\s+(forecast|reaction|overview|outlook|analysis|size|report|growth)"
+        r"|\bmarket\s+forecast\s+points?\s+higher"
+        r"|driven\s+by\s+(regulatory\s+)?mandates?"
+        r"|cybersecurity\s+stocks?\s+(after|amid|following)"
+        r"|future\s+of\s+cyber\s*security\s+is\s+a\s+machine"
+        r"|quietly\s+becoming\s+.{0,30}enforcement"
+        r"|click,?\s+wait,?\s+repeat"
+        r"|digital\s+trust\s+erodes"
+        r"|tightens?\s+digital\s+control"
+        r"|condition\s+de\s+la\s+souveraineté",
         re.IGNORECASE,
     ),
 ]

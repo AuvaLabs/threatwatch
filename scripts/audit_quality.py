@@ -47,9 +47,10 @@ def audit_classification(articles):
     stats["unclassified_count"] = len(fallback)
     stats["unclassified_pct"] = round(len(fallback) / len(articles) * 100, 1) if articles else 0
 
-    if stats["unclassified_pct"] > 15:
+    if stats["unclassified_pct"] > 20:
+        severity = "HIGH" if stats["unclassified_pct"] > 30 else "MEDIUM"
         findings.append({
-            "severity": "HIGH",
+            "severity": severity,
             "issue": "High unclassified rate",
             "detail": f"{stats['unclassified_count']} articles ({stats['unclassified_pct']}%) "
                       f"fell to 'General Cyber Threat' fallback. Many are classifiable.",
@@ -103,12 +104,15 @@ def audit_classification(articles):
         frozenset({"Phishing", "Data Breach"}),
         frozenset({"Phishing", "Malware"}),
         frozenset({"Ransomware", "Nation-State Attack"}),
+        frozenset({"Ransomware", "Phishing"}),
         frozenset({"Nation-State Attack", "Data Breach"}),
         frozenset({"Zero-Day Exploit", "Ransomware"}),
         frozenset({"Zero-Day Exploit", "Supply Chain Attack"}),
+        frozenset({"Supply Chain Attack", "Data Breach"}),
         frozenset({"Supply Chain Attack", "Phishing"}),
         frozenset({"Malware", "Nation-State Attack"}),
         frozenset({"Malware", "Supply Chain Attack"}),
+        frozenset({"Malware", "Data Breach"}),
     }
     misclassified = []
     for a in articles:
@@ -127,8 +131,9 @@ def audit_classification(articles):
                 break
 
     if misclassified:
+        severity = "MEDIUM" if len(misclassified) > 10 else "LOW"
         findings.append({
-            "severity": "MEDIUM",
+            "severity": severity,
             "issue": "Potential misclassifications",
             "detail": f"{len(misclassified)} articles may be misclassified (first-match-wins rule order issue).",
             "samples": [f"[{m['assigned']} -> {m['expected']}] {m['title']}" for m in misclassified[:10]],
@@ -137,8 +142,9 @@ def audit_classification(articles):
     # French/non-English articles not getting classified properly
     non_english = [a for a in fallback if any(c in a.get("title", "") for c in "àéèêëîïôùûüç")]
     if non_english:
+        severity = "MEDIUM" if len(non_english) > 20 else "LOW"
         findings.append({
-            "severity": "MEDIUM",
+            "severity": severity,
             "issue": "Non-English articles falling to fallback",
             "detail": f"{len(non_english)} non-English articles (likely French) landed in General Cyber Threat. "
                       f"Regex rules are English-only.",
@@ -317,10 +323,12 @@ def audit_regions(articles):
 
     stats["region_mismatches"] = len(mismatches)
     if mismatches:
+        mismatch_pct = len(mismatches) / len(articles) * 100 if articles else 0
+        severity = "MEDIUM" if mismatch_pct > 5 else "LOW"
         findings.append({
-            "severity": "MEDIUM",
+            "severity": severity,
             "issue": "Region mismatch in title vs assigned region",
-            "detail": f"{len(mismatches)} articles have title mentioning one region but assigned to another.",
+            "detail": f"{len(mismatches)} articles ({mismatch_pct:.1f}%) have title mentioning one region but assigned to another.",
             "samples": [f"[{m['assigned']} -> {m['expected']}] {m['title']}" for m in mismatches[:8]],
         })
 

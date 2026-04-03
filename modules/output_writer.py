@@ -42,36 +42,50 @@ def _load_existing(path):
 
 
 def _merge_articles(existing, new_articles):
-    """Merge new articles into existing, dedup by hash, drop older than cutoff."""
+    """Merge new articles into existing, dedup by hash AND title, drop older than cutoff."""
     seen_hashes = set()
+    seen_titles = set()
     merged = []
+
+    def _add(article):
+        h = article.get("hash", "")
+        title = article.get("title", "").strip().lower()
+        if h and h in seen_hashes:
+            return
+        if title and title in seen_titles:
+            return
+        if h:
+            seen_hashes.add(h)
+        if title:
+            seen_titles.add(title)
+        merged.append(article)
 
     # New articles take priority (added first)
     for article in new_articles:
-        h = article.get("hash", "")
-        if h and h not in seen_hashes:
-            seen_hashes.add(h)
-            merged.append(article)
+        _add(article)
 
     # Then add existing articles not already in new batch
     for article in existing:
-        h = article.get("hash", "")
-        if h and h not in seen_hashes:
-            seen_hashes.add(h)
-            merged.append(article)
+        _add(article)
 
-    # Drop articles older than cutoff window
+    # Drop articles older than cutoff window (check both timestamp and published)
     cutoff = datetime.now(timezone.utc) - timedelta(days=FEED_CUTOFF_DAYS)
     filtered = []
     for article in merged:
-        ts = article.get("timestamp", "")
-        if ts:
+        too_old = False
+        for date_field in ("timestamp", "published"):
+            date_str = article.get(date_field, "")
+            if not date_str:
+                continue
             try:
-                article_dt = datetime.fromisoformat(ts)
-                if article_dt.replace(tzinfo=timezone.utc) < cutoff:
-                    continue
+                article_dt = _parse_pub_date(date_str)
+                if article_dt < cutoff:
+                    too_old = True
+                    break
             except (ValueError, TypeError):
                 pass
+        if too_old:
+            continue
         filtered.append(article)
 
     # Re-collapse stale multi-region strings from old data

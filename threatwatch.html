@@ -2364,7 +2364,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       <!-- Intelligence sections -->
       <div class="center-section" id="section-briefing">
         <div class="center-section-title">
-          <span class="section-icon">&#x1F4E1;</span> Intelligence Briefing
+          <span class="section-icon">&#x1F4E1;</span> Intelligence Digest
           <button class="briefing-mode-toggle" id="briefing-mode-toggle" onclick="toggleBriefingMode()">NORMAL</button>
         </div>
         <div id="ai-briefing-content"></div>
@@ -3266,6 +3266,36 @@ function renderAIBriefing(container) {
     </div>`;
   }
 
+  // Trending threats — spike data
+  const trends = b.trending_threats;
+  if (trends && trends.length > 0) {
+    const trendItems = trends.map(t => {
+      const sig = t.significance ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${escapeHTML(t.significance)}</div>` : '';
+      return `<li><strong>${escapeHTML(t.topic)}</strong> &mdash; ${escapeHTML(t.trend)}${sig}</li>`;
+    }).join('');
+    html += `<div class="ai-briefing-section">
+      <div class="ai-section-label">Trending Threats</div>
+      <div class="ai-section-body"><ul>${trendItems}</ul></div>
+    </div>`;
+  }
+
+  // Vulnerability spotlight — top CVEs by exploitation probability
+  const vulns = b.vulnerability_spotlight;
+  if (vulns && vulns.length > 0) {
+    const vulnItems = vulns.map(v => {
+      const parts = [`<strong>${escapeHTML(v.cve_id || '')}</strong>`];
+      if (v.cvss_score) parts.push(`CVSS ${v.cvss_score}`);
+      if (v.epss_score) parts.push(`<span class="${v.epss_score > 0.5 ? 'b-crit' : v.epss_score > 0.1 ? 'b-warn' : 'b-green'}" style="font-size:9px">EPSS ${(v.epss_score * 100).toFixed(1)}%</span>`);
+      if (v.affected) parts.push(escapeHTML(v.affected));
+      const assessment = v.assessment ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${escapeHTML(v.assessment)}</div>` : '';
+      return `<li>${parts.join(' | ')}${assessment}</li>`;
+    }).join('');
+    html += `<div class="ai-briefing-section">
+      <div class="ai-section-label">Vulnerability Spotlight</div>
+      <div class="ai-section-body"><ul>${vulnItems}</ul></div>
+    </div>`;
+  }
+
   // Legacy: active threats (backward compat)
   if (b.active_threats && !b.key_intelligence) {
     const at = b.active_threats;
@@ -3331,7 +3361,8 @@ function renderAIBriefing(container) {
   const totalNote = b.total_articles && b.total_articles > b.articles_analyzed
     ? ` of ${b.total_articles}` : '';
   const modelLabel = b.provider ? ` | ${b.provider.split('/').pop()}` : '';
-  html += `<div class="briefing-timestamp">INTELLIGENCE BRIEFING ${genAt} UTC | ${b.articles_analyzed || '?'}${totalNote} ARTICLES ANALYZED${modelLabel}</div>`;
+  const windowLabel = b.reporting_window ? ` | ${b.reporting_window}` : '';
+  html += `<div class="briefing-timestamp">INTELLIGENCE DIGEST ${genAt} UTC | ${b.articles_analyzed || '?'}${totalNote} ARTICLES ANALYZED${windowLabel}${modelLabel}</div>`;
 
   container.innerHTML = html;
 }
