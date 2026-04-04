@@ -3060,8 +3060,14 @@ function renderBriefing(items, allText, globalTotal) {
   const malwareFound = actorsFound.filter(a => ['Malware','Stealer','Loader','RAT','Botnet','Tool','Proxy'].includes(a.type));
 
   // Build narrative briefing
-  const threatLevel = critCount > 5 ? 'ELEVATED' : critCount > 2 ? 'MODERATE' : highCount > 5 ? 'GUARDED' : 'LOW';
-  const tlClass = critCount > 5 ? 'b-crit' : critCount > 2 ? 'b-warn' : highCount > 5 ? 'b-warn' : 'b-green';
+  // Threat posture: weighted score from real signals, not just category counts
+  const totalItems = items.length;
+  const critPct = totalItems > 0 ? critCount / totalItems * 100 : 0;
+  const last24hPct = totalItems > 0 ? last24h / totalItems * 100 : 0;
+  // Weighted threat score: critical density + velocity (new in 24h) + volume
+  const threatScore = (critPct * 0.4) + (last24hPct * 0.3) + Math.min(totalItems / 50, 30) * 0.3;
+  const threatLevel = threatScore > 60 ? 'CRITICAL' : threatScore > 40 ? 'ELEVATED' : threatScore > 20 ? 'MODERATE' : threatScore > 10 ? 'GUARDED' : 'LOW';
+  const tlClass = threatLevel === 'CRITICAL' ? 'b-crit' : threatLevel === 'ELEVATED' ? 'b-warn' : threatLevel === 'MODERATE' ? 'b-warn' : 'b-green';
 
   let b = '';
 

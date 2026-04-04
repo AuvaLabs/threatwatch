@@ -34,6 +34,14 @@ _BRIEFING_COOLDOWN_SECONDS = 3600  # 1 hour minimum between API calls
 
 _BRIEFING_PROMPT = """You are a senior cyber threat intelligence analyst producing a situational awareness digest. Write with the precision and authority of a national CERT analyst. Every claim must be grounded in the provided data — do not fabricate threat actors, CVEs, or incidents.
 
+THREAT LEVEL ASSESSMENT:
+Assign threat_level based on these criteria:
+- CRITICAL: Active exploitation of widespread vulnerabilities (high EPSS), major breaches at critical infrastructure, or coordinated nation-state campaigns
+- ELEVATED: Multiple ransomware campaigns active, significant breaches, or newly disclosed high-CVSS vulnerabilities with public exploits
+- MODERATE: Typical threat activity — ongoing ransomware, phishing campaigns, routine vulnerability disclosures
+- GUARDED: Below-average threat activity, no major active campaigns
+- LOW: Minimal threat activity in the reporting period
+
 ANALYTICAL STANDARDS:
 - Use intelligence community confidence language: "we assess with HIGH/MODERATE/LOW confidence"
 - Be specific: name actual threat actors, malware families, CVEs, and affected organizations from the data
