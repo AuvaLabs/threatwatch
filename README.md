@@ -14,7 +14,7 @@
 
 **[Live Demo](https://threatwatch.auvalabs.com)** · **[GitHub Pages](https://auvalabs.github.io/threatwatch/)**
 
-AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web sources, and NewsAPI — classifies, deduplicates, and generates analyst-grade intelligence briefings with confidence-rated findings, threat forecasts, and actionable priority recommendations. Runs entirely free using Groq's API free tier. Self-hosted, zero-cost infrastructure.
+AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web sources, and NewsAPI — classifies, deduplicates, and generates analyst-grade intelligence digests with AI-curated top stories, incident clustering, threat actor profiles, and actionable priority recommendations with source citations. Runs entirely free using Groq's API free tier. Self-hosted, zero-cost infrastructure.
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Architecture](#architecture) · [API](#api-endpoints) · [Contributing](#contributing)
 
@@ -38,13 +38,24 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 - **8-thread parallel fetching** — processes all feeds in seconds
 - Rolling **7-day window** with merge across pipeline runs
 
+### AI Intelligence (Groq-powered, zero cost)
+- **Intelligence Digest** — hourly AI-generated threat landscape summary with trending threats, vulnerability spotlight, sector impact, and priority actions — every finding links back to source articles
+- **Top Stories** — AI picks the 5-8 most significant incidents from all articles, with significance ratings (CRITICAL/HIGH/MODERATE)
+- **Article Summaries** — structured AI summaries (what/who/impact) for articles missing descriptions
+- **Incident Clustering** — auto-groups related articles by CVE, threat actor, or organization with AI-synthesized cluster narratives
+- **Threat Actor Profiles** — cached AI-generated profiles for detected actors (origin, TTPs, target sectors)
+- **AI Classification Escalation** — low-confidence articles get reclassified by Groq LLM
+- **Smart key rotation** — multiple API keys with automatic 429 failover for sustainable free-tier usage
+
 ### Classification
 - **24 threat categories**: Ransomware, Zero-Day, APT/Nation-State, DDoS, Supply Chain, Phishing, Malware, Data Breach, Vulnerability, Threat Research & Analysis, Detection & Response, and more
+- **Hybrid classifier** — regex-first (zero cost), AI escalation for ambiguous articles
 - **75+ threat actors and malware families** (APT28, LockBit, Lazarus Group, Scattered Spider, Salt Typhoon, etc.)
-- **Content-aware region attribution** — infers geographic region from article title, not just feed locale
+- **Content-aware region attribution** — infers geographic region from article title with attacker-vs-target disambiguation
 - ISO-3166 country code mapping for ransomware victim data (DE → Europe, JP → APAC, BR → LATAM, etc.)
 - **15 industry sectors**
 - **Noise filtering** — product announcements, job listings, funding rounds, training content auto-excluded
+- **Quality score 92/100** — comprehensive audit covering classification, dedup, regions, timeliness
 
 ### Deduplication
 - Fuzzy matching with a **word-shingle inverted index** (24x faster than naive pairwise)
@@ -64,9 +75,11 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 - Key incidents panel, threat actor spotlight, sector impact panels with drilldown
 - Article detail view with IOC extraction (CVEs, IPs, hashes, domains)
 - Watchlist preferences saved to localStorage; self-hosted installs can persist keywords server-side
-- **AI intelligence briefing** — analyst-grade assessments with confidence-rated findings, threat forecasts, sector impact analysis, and priority actions tied to specific observed threats (any LLM provider — Groq free tier recommended)
+- **AI Intelligence Digest** — analyst-grade assessments with source-linked findings, trending threats, vulnerability spotlight, and priority actions (Groq free tier)
+- **Top Stories panel** — AI-curated most significant incidents, refreshed hourly
+- **Related Incidents panel** — auto-clustered articles with AI synthesis narratives
 - Auto-generated statistical briefing as fallback (zero cost, no API key needed)
-- **5 switchable themes** — Nightwatch (dark brass), Parchment (light cream), Solarized, Arctic (clean blue), Phosphor (retro CRT)
+- **5 switchable themes** — Nightwatch (dark brass), Parchment (light cream), Solarized (default), Arctic (clean blue), Phosphor (retro CRT)
 - Both live URLs displayed in the page footer
 
 ### Region accuracy
@@ -146,27 +159,30 @@ Sign up at [newsapi.org](https://newsapi.org) for a free API key (100 requests/d
 | `NEWSAPI_KEY` | _(empty)_ | newsapi.org API key |
 | `NEWSAPI_INTERVAL` | `1800` | Seconds between NewsAPI calls (default 30 min) |
 
-### Optional: AI intelligence briefing
+### Optional: AI intelligence platform
 
-ThreatWatch works without any API keys. To enable AI-powered intelligence briefings with confidence-rated findings and threat forecasts, configure any OpenAI-compatible LLM provider:
+ThreatWatch works without any API keys. To enable the full AI platform (intelligence digest, top stories, article summaries, incident clustering, actor profiles, and AI classification), configure any OpenAI-compatible LLM provider:
 
 | Variable | Default | Description |
 |---|---|---|
 | `LLM_API_KEY` | _(empty)_ | API key for your LLM provider |
-| `LLM_BASE_URL` | `https://api.openai.com/v1` | API base URL |
-| `LLM_MODEL` | `gpt-4o-mini` | Model name |
+| `LLM_API_KEYS` | _(empty)_ | Comma-separated keys for round-robin rotation |
+| `LLM_BASE_URL` | `https://api.groq.com/openai/v1` | API base URL |
+| `LLM_MODEL` | `llama-3.3-70b-versatile` | Model name |
 | `LLM_PROVIDER` | `auto` | `auto`, `openai`, `anthropic`, `ollama` |
 
-**Recommended free setup** — [Groq](https://console.groq.com) provides free API access:
+**Recommended free setup** — [Groq](https://console.groq.com) provides free API access (500K tokens/day per key):
 
 ```env
 LLM_API_KEY=gsk_your_key_here
 LLM_BASE_URL=https://api.groq.com/openai/v1
 LLM_MODEL=llama-3.3-70b-versatile
-LLM_PROVIDER=openai
+
+# Optional: multiple keys for higher throughput (round-robin with 429 failover)
+LLM_API_KEYS=gsk_key1,gsk_key2,gsk_key3
 ```
 
-Also works with OpenAI, Together, Ollama (local), Mistral, DeepSeek, and any OpenAI-compatible API. Rate-limited to 1 API call per hour.
+Also works with OpenAI, Together, Ollama (local), Mistral, DeepSeek, and any OpenAI-compatible API. Smart key rotation automatically fails over on rate limits (429).
 
 ### Feed configuration
 
@@ -184,7 +200,7 @@ Edit these files to add or remove feeds. No restart needed — changes apply on 
 
 ## Architecture
 
-**Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify → Region Inference → Output
+**Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify (regex + AI) → Region Inference → NVD/EPSS/ATT&CK → Output → AI Briefing → Top Stories → Summaries → Clustering → Actor Profiles
 
 **Server** (`serve_threatwatch.py`): Python HTTP server with SSR, ETag caching, gzip, CORS
 
@@ -203,9 +219,17 @@ modules/
   ├── feed_fetcher.py        # Parallel RSS fetcher
   ├── deduplicator.py        # Fuzzy dedup (word-shingle index)
   ├── article_scraper.py     # Full-text extraction
-  ├── keyword_classifier.py  # Zero-cost regex classifier
+  ├── keyword_classifier.py  # Zero-cost regex classifier (24 categories)
+  ├── hybrid_classifier.py   # Keyword + AI escalation classifier
   ├── region_inferrer.py     # Content-based region attribution
-  ├── briefing_generator.py  # AI briefing (any LLM provider)
+  ├── llm_client.py          # Shared Groq/OpenAI client (multi-key rotation)
+  ├── briefing_generator.py  # AI briefing, top stories, article summaries
+  ├── incident_correlator.py # Entity-based incident clustering + AI synthesis
+  ├── actor_profiler.py      # Threat actor profile generation + caching
+  ├── nvd_fetcher.py         # NVD CVE enrichment
+  ├── epss_enricher.py       # EPSS exploit probability scores
+  ├── attack_tagger.py       # MITRE ATT&CK technique tagging
+  ├── trend_detector.py      # Trending threat spike detection
   ├── darkweb_monitor.py     # Dark web intel aggregation
   ├── newsapi_fetcher.py     # NewsAPI security news feed
   ├── output_writer.py       # JSON/RSS output
@@ -239,7 +263,11 @@ The server runs on port **8098** by default:
 | `GET` | `/` | Dashboard (server-side rendered HTML) |
 | `GET` | `/api/articles` | All articles as JSON array |
 | `GET` | `/api/articles?offset=0&limit=20` | Paginated articles |
-| `GET` | `/api/briefing` | AI intelligence briefing |
+| `GET` | `/api/briefing` | AI intelligence digest with source citations |
+| `GET` | `/api/top-stories` | AI-curated top stories (5-8 per cycle) |
+| `GET` | `/api/clusters` | Incident correlation clusters |
+| `GET` | `/api/actor-profiles` | Threat actor profiles |
+| `GET` | `/api/trends` | Trending threat spike data |
 | `GET` | `/api/stats` | Pipeline run statistics |
 | `GET` | `/api/health` | Server health + feed status |
 | `GET` | `/api/stix` | STIX 2.1 bundle export |
