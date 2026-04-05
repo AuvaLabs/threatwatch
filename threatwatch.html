@@ -3220,7 +3220,11 @@ function toggleBriefingMode() {
 })();
 
 function renderAIBriefing(container) {
-  const b = state.aiBriefing;
+  // Use regional digest if a region is selected and available
+  const activeRegion = state.activeRegion;
+  const regionalBriefing = (activeRegion !== 'all' && state.regionalBriefings)
+    ? state.regionalBriefings[activeRegion] : null;
+  const b = regionalBriefing || state.aiBriefing;
   if (!b) {
     container.innerHTML = `<div class="briefing-text" style="color:var(--text-muted)">
       AI intelligence briefing unavailable. Configure an LLM provider to enable analyst-grade threat assessments:<br><br>
@@ -3252,13 +3256,17 @@ function renderAIBriefing(container) {
     return `<div style="margin-top:4px;font-size:10px;color:var(--text-muted)">&#x1F4CE; ${links.join(' &middot; ')}</div>`;
   }
 
-  // Region/category filter notice — AI digest is always global
+  // Region/category filter notice
   const _activeRegionForAI = state.activeRegion;
   const _activeCatForAI = state.activeFilter;
   if (_activeRegionForAI !== 'all') {
     const _rName = REGION_NAMES[_activeRegionForAI] || _activeRegionForAI;
     const _rCount = state.newsItems.filter(i => _itemMatchesRegion(i, _activeRegionForAI)).length;
-    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:10px;color:var(--accent);letter-spacing:0.5px">&#x1F30D; VIEWING ${_rName.toUpperCase()} (${_rCount} articles) &mdash; AI Digest covers all regions &mdash; Headlines, Actors &amp; Sectors below are scoped to this region</div>`;
+    const _isRegional = !!regionalBriefing;
+    const _digestNote = _isRegional
+      ? `&#x1F4E1; ${_rName.toUpperCase()} REGIONAL DIGEST &mdash; ${_rCount} articles`
+      : `&#x1F30D; VIEWING ${_rName.toUpperCase()} (${_rCount} articles) &mdash; showing global digest (regional digest generating...)`;
+    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:10px;color:var(--accent);letter-spacing:0.5px">${_digestNote}</div>`;
   } else if (_CATEGORY_TABS.has(_activeCatForAI)) {
     const _cm = _CATEGORY_TAB_META[_activeCatForAI];
     const _label = _cm ? _cm.name.toUpperCase() : _activeCatForAI.toUpperCase();
@@ -4966,6 +4974,7 @@ function init() {
     state.topStories = ssr.top_stories || null;
     state.clusters = ssr.clusters || null;
     state.actorProfiles = ssr.actor_profiles || null;
+    state.regionalBriefings = ssr.regional_briefings || {};
     if (items.length > 0) {
       applyData(items);
     }

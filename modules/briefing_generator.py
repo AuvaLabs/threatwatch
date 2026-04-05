@@ -454,6 +454,217 @@ def load_briefing() -> dict[str, Any] | None:
         return None
 
 
+# --- Regional Intelligence Digests ---
+
+_REGIONAL_CONFIGS = {
+    "na": {
+        "name": "North America",
+        "labels": {"US", "Canada", "Mexico", "NA"},
+    },
+    "emea": {
+        "name": "EMEA",
+        "labels": {"UK", "Germany", "France", "Italy", "Spain", "Netherlands",
+                   "EU", "EMEA", "Europe", "South Africa", "Africa",
+                   "Poland", "Sweden", "Norway", "Denmark", "Switzerland",
+                   "Ireland", "Belgium", "Portugal", "Romania", "Czech"},
+    },
+    "apac": {
+        "name": "Asia-Pacific",
+        "labels": {"Japan", "South Korea", "Singapore", "Australia", "India",
+                   "China", "Southeast Asia", "APAC", "Taiwan", "Indonesia",
+                   "Malaysia", "Thailand", "Vietnam", "Philippines", "New Zealand",
+                   "Hong Kong", "Pakistan", "Bangladesh"},
+    },
+}
+
+_REGIONAL_COOLDOWN = 3600  # 1 hour between regional digest calls
+
+
+def _filter_articles_by_region(articles: list[dict], region_key: str) -> list[dict]:
+    """Filter articles matching a region."""
+    labels = _REGIONAL_CONFIGS[region_key]["labels"]
+    return [
+        a for a in articles
+        if any(l in a.get("feed_region", "").split(",") for l in labels)
+    ]
+
+
+def _regional_rate_limit_path(region_key: str) -> Path:
+    return OUTPUT_DIR / f".briefing_{region_key}_last_call"
+
+
+def _regional_briefing_path(region_key: str) -> Path:
+    return OUTPUT_DIR / f"briefing_{region_key}.json"
+
+
+def generate_regional_briefings(articles: list[dict[str, Any]]) -> dict[str, Any]:
+    """Generate regional intelligence digests for NA, EMEA, APAC.
+
+    Uses the same prompt as the global digest but with region-filtered articles.
+    Returns dict of {region_key: briefing_dict}.
+    """
+    provider = _detect_provider()
+    if not provider:
+        return {}
+
+    results = {}
+    now = datetime.now(timezone.utc)
+
+    for region_key, config in _REGIONAL_CONFIGS.items():
+        region_name = config["name"]
+        rate_path = _regional_rate_limit_path(region_key)
+        briefing_path = _regional_briefing_path(region_key)
+
+        # Rate limit check
+        try:
+            if rate_path.exists():
+                last_ts = float(rate_path.read_text().strip())
+                elapsed = now.timestamp() - last_ts
+                if elapsed < _REGIONAL_COOLDOWN:
+                    # Serve existing
+                    if briefing_path.exists():
+                        results[region_key] = json.loads(
+                            briefing_path.read_text(encoding="utf-8")
+                        )
+                    continue
+        except (ValueError, OSError):
+            pass
+
+        # Filter articles for this region
+        regional_articles = _filter_articles_by_region(articles, region_key)
+        if len(regional_articles) < 5:
+            logger.info(f"Regional digest {region_key}: only {len(regional_articles)} articles, skipping.")
+            continue
+
+        # Filter and prepare
+        filtered = _filter_for_briefing(regional_articles)
+        if len(filtered) < 5:
+            filtered = regional_articles
+
+        day1, day3, older = _split_by_age(filtered)
+        briefing_articles = day1[:]
+        if len(briefing_articles) < 15:
+            briefing_articles.extend(day3[:20 - len(briefing_articles)])
+        briefing_articles = briefing_articles[:_MAX_DIGEST_ARTICLES]
+
+        if len(briefing_articles) < 3:
+            continue
+
+        digest = _build_digest(briefing_articles)
+        cache_key = f"regional_{region_key}_" + hashlib.sha256(digest.encode()).hexdigest()
+
+        cached = get_cached_result(cache_key)
+        if cached is not None:
+            _save_regional_briefing(region_key, cached)
+            results[region_key] = cached
+            continue
+
+        # Build prompt with regional context
+        user_content = (
+            f"INTELLIGENCE COLLECTION DATE: {now.strftime('%Y-%m-%d %H:%M UTC')}\n"
+            f"REGION: {region_name}\n"
+            f"TOTAL ARTICLES: {len(briefing_articles)} ({region_name}-specific)\n"
+            f"REPORTING PERIOD: Last 24 hours\n\n"
+            f"IMPORTANT: Focus ONLY on incidents affecting {region_name}. "
+            f"Name specific organizations, cities, and national agencies in this region.\n\n"
+            f"BEGIN INCIDENT DATA:\n{digest}\nEND INCIDENT DATA"
+        )
+
+        try:
+            if provider == "anthropic":
+                reply = _call_anthropic(user_content)
+            else:
+                reply = _call_openai_compatible(user_content)
+
+            briefing = _parse_json(reply)
+            if not briefing:
+                continue
+
+            # Normalize fields (same as global)
+            if "situation_overview" in briefing and "what_happened" not in briefing:
+                briefing["what_happened"] = briefing.pop("situation_overview")
+            if "priority_actions" in briefing and "what_to_do" not in briefing:
+                briefing["what_to_do"] = briefing.pop("priority_actions")
+            if "threat_forecast" in briefing and "outlook" not in briefing:
+                briefing["outlook"] = briefing.pop("threat_forecast")
+
+            if "what_happened" not in briefing:
+                continue
+
+            valid_levels = {"CRITICAL", "ELEVATED", "MODERATE", "GUARDED", "LOW"}
+            tl = (briefing.get("threat_level") or "").upper()
+            if tl not in valid_levels:
+                briefing["threat_level"] = "MODERATE"
+
+            briefing.setdefault("what_to_do", [])
+            briefing.setdefault("outlook", "")
+
+            # Source article map
+            source_map = []
+            for i, a in enumerate(briefing_articles[:_MAX_DIGEST_ARTICLES], 1):
+                source_map.append({
+                    "index": i,
+                    "title": (a.get("translated_title") or a.get("title", ""))[:120],
+                    "link": a.get("link", ""),
+                    "source_name": a.get("source_name", ""),
+                })
+            briefing["source_articles"] = source_map
+            briefing["generated_at"] = now.isoformat()
+            briefing["region"] = region_key
+            briefing["region_name"] = region_name
+            briefing["articles_analyzed"] = len(briefing_articles)
+            briefing["total_articles"] = len(regional_articles)
+            briefing["reporting_window"] = "Last 24 hours"
+            briefing["provider"] = f"{provider}/{LLM_MODEL}"
+
+            # Record rate limit and cache
+            try:
+                rate_path.parent.mkdir(parents=True, exist_ok=True)
+                rate_path.write_text(str(now.timestamp()))
+            except OSError:
+                pass
+            cache_result(cache_key, briefing)
+            _save_regional_briefing(region_key, briefing)
+            results[region_key] = briefing
+            logger.info(
+                f"Regional digest ({region_name}): generated from "
+                f"{len(briefing_articles)} articles."
+            )
+
+        except Exception as e:
+            logger.warning(f"Regional digest ({region_name}) failed: {e}")
+
+    return results
+
+
+def _save_regional_briefing(region_key: str, briefing: dict) -> None:
+    path = _regional_briefing_path(region_key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(briefing, f, ensure_ascii=False)
+
+
+def load_regional_briefing(region_key: str) -> dict[str, Any] | None:
+    path = _regional_briefing_path(region_key)
+    if not path.exists():
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+
+
+def load_all_regional_briefings() -> dict[str, Any]:
+    """Load all regional briefings as {region_key: briefing}."""
+    result = {}
+    for key in _REGIONAL_CONFIGS:
+        b = load_regional_briefing(key)
+        if b:
+            result[key] = b
+    return result
+
+
 # --- Top Stories: AI-curated most significant incidents ---
 
 _TOP_STORIES_PATH = OUTPUT_DIR / "top_stories.json"

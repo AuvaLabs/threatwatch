@@ -223,10 +223,13 @@ def main():
     try:
         from modules.briefing_generator import (
             generate_briefing, generate_top_stories, summarize_articles,
+            generate_regional_briefings,
         )
-        # Tier 1: Intelligence digest on FULL corpus (1x/hour, ~7K tokens)
+        # Tier 1: Global intelligence digest (1x/hour, ~7K tokens)
         generate_briefing(all_articles)
-        # Tier 2: Top stories on FULL corpus (1x/hour, ~5K tokens)
+        # Tier 1b: Regional digests — NA, EMEA, APAC (1x/hour each, ~4K tokens each)
+        generate_regional_briefings(all_articles)
+        # Tier 2: Top stories (1x/hour, ~5K tokens)
         generate_top_stories(all_articles)
         # Tier 3: Article summaries on new batch only (up to 30/run)
         summarize_articles(enriched_articles)

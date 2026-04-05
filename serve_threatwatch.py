@@ -246,6 +246,16 @@ def build_ssr_data():
         clusters = load_clusters()
         actor_profiles = load_actor_profiles()
 
+        # Regional briefings
+        regional_briefings = {}
+        for rk in ("na", "emea", "apac"):
+            rpath = BASE_DIR / "data" / "output" / f"briefing_{rk}.json"
+            try:
+                raw = read_cached(rpath)
+                regional_briefings[rk] = json.loads(raw)
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass
+
         # Strip full_content from SSR payload to reduce page size
         # (full_content is only needed for article detail view via API)
         ssr_articles = [
@@ -260,6 +270,7 @@ def build_ssr_data():
             "top_stories": top_stories,
             "clusters": clusters,
             "actor_profiles": actor_profiles,
+            "regional_briefings": regional_briefings if regional_briefings else None,
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -315,6 +326,18 @@ STATIC_ROUTES = {
     },
     "/api/actor-profiles": {
         "file": BASE_DIR / "data" / "output" / "actor_profiles.json",
+        "content_type": "application/json; charset=utf-8",
+    },
+    "/api/briefing/na": {
+        "file": BASE_DIR / "data" / "output" / "briefing_na.json",
+        "content_type": "application/json; charset=utf-8",
+    },
+    "/api/briefing/emea": {
+        "file": BASE_DIR / "data" / "output" / "briefing_emea.json",
+        "content_type": "application/json; charset=utf-8",
+    },
+    "/api/briefing/apac": {
+        "file": BASE_DIR / "data" / "output" / "briefing_apac.json",
         "content_type": "application/json; charset=utf-8",
     },
     "/api/stats": {
