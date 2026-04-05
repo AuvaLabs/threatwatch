@@ -65,19 +65,21 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 ### Dashboard
 - Server-side rendered, **loads in under a second**
 - **Single HTML file** — no build step, no framework, no JavaScript bundle; IBM Plex Mono + Space Grotesk typography
-- **Category tabs**: Intel Brief, Ransomware, APT, Breach, DDoS, Phishing, Malware, Zero-Day, Vuln, Dark Web, Research, Brands, Tech
-- Category tabs filter the left-panel live feed — one click to see all matching articles
+- **9 focused tabs**: Intel Brief, Breach, Exploits, Malware, Dark Web, Ransomware, APT Tracker, Brands, Tech
+- Each tab filters the left-panel live feed — one click to see all matching articles
+- EXPLOITS merges zero-days + vulnerabilities + patches (one analyst workflow)
+- MALWARE includes phishing + supply chain attacks (attack methods)
 - **Brand Watch tab** — monitor specific brands/organisations; selecting a brand filters the left panel
 - **Tech Watch tab** — 244 technology vendors across 18 categories; selecting a vendor filters the left panel
 - Watch filter banner in the left panel shows the active brand/vendor filter at a glance
 - **Ransomware Tracker** — victim posts from ransomware.live + ransomware news, grouped by threat actor
 - **APT Tracker** — actor intelligence grid with drilldown into news articles
-- Key incidents panel, threat actor spotlight, sector impact panels with drilldown
+- **4 center-panel sections**: Intelligence Digest (AI), Headlines (AI-curated), Active Threat Actors (with AI profile TTPs), Sector Impact
+- Region filter buttons with article counts — context banner when filtered
 - Article detail view with IOC extraction (CVEs, IPs, hashes, domains)
 - Watchlist preferences saved to localStorage; self-hosted installs can persist keywords server-side
-- **AI Intelligence Digest** — analyst-grade assessments with source-linked findings, trending threats, vulnerability spotlight, and priority actions (Groq free tier)
-- **Top Stories panel** — AI-curated most significant incidents, refreshed hourly
-- **Related Incidents panel** — auto-clustered articles with AI synthesis narratives
+- **AI Intelligence Digest** — 5-section briefing: What Happened (24h narrative with source links), What To Do (specific actions), Earlier This Week (catch-up), Outlook (forecast)
+- **Headlines panel** — AI-curated 5-8 most significant incidents from last 72 hours, with cluster-related article badges
 - Auto-generated statistical briefing as fallback (zero cost, no API key needed)
 - **5 switchable themes** — Nightwatch (dark brass), Parchment (light cream), Solarized (default), Arctic (clean blue), Phosphor (retro CRT)
 - Both live URLs displayed in the page footer
