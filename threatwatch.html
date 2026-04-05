@@ -933,6 +933,7 @@ html, body {
   text-transform: uppercase;
 }
 .region-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.region-count { font-size: 9px; opacity: 0.6; font-weight: 400; }
 .region-btn.active {
   background: var(--accent);
   border-color: var(--accent);
@@ -2339,12 +2340,12 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <button class="main-tab" data-tab="assets" onclick="switchMainTab('assets')">TECH</button>
       </div>
       <div class="region-filters" id="region-filters">
-        <button class="region-btn active" data-region="all">GLOBAL</button>
-        <button class="region-btn" data-region="na">NA</button>
-        <button class="region-btn" data-region="emea">EMEA</button>
-        <button class="region-btn" data-region="mena">MENA</button>
-        <button class="region-btn" data-region="apac">APAC</button>
-        <button class="region-btn" data-region="latam">LATAM</button>
+        <button class="region-btn active" data-region="all">GLOBAL <span class="region-count" id="rc-all"></span></button>
+        <button class="region-btn" data-region="na">NA <span class="region-count" id="rc-na"></span></button>
+        <button class="region-btn" data-region="emea">EMEA <span class="region-count" id="rc-emea"></span></button>
+        <button class="region-btn" data-region="mena">MENA <span class="region-count" id="rc-mena"></span></button>
+        <button class="region-btn" data-region="apac">APAC <span class="region-count" id="rc-apac"></span></button>
+        <button class="region-btn" data-region="latam">LATAM <span class="region-count" id="rc-latam"></span></button>
       </div>
     </div>
 
@@ -3255,12 +3256,17 @@ function renderAIBriefing(container) {
     return `<div style="margin-top:4px;font-size:10px;color:var(--text-muted)">&#x1F4CE; ${links.join(' &middot; ')}</div>`;
   }
 
-  // Category filter notice — AI briefing is always global
+  // Region/category filter notice — AI digest is always global
+  const _activeRegionForAI = state.activeRegion;
   const _activeCatForAI = state.activeFilter;
-  if (_CATEGORY_TABS.has(_activeCatForAI)) {
+  if (_activeRegionForAI !== 'all') {
+    const _rName = REGION_NAMES[_activeRegionForAI] || _activeRegionForAI;
+    const _rCount = state.newsItems.filter(i => _itemMatchesRegion(i, _activeRegionForAI)).length;
+    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:10px;color:var(--accent);letter-spacing:0.5px">&#x1F30D; VIEWING ${_rName.toUpperCase()} (${_rCount} articles) &mdash; AI Digest covers all regions &mdash; Headlines, Actors &amp; Sectors below are scoped to this region</div>`;
+  } else if (_CATEGORY_TABS.has(_activeCatForAI)) {
     const _cm = _CATEGORY_TAB_META[_activeCatForAI];
     const _label = _cm ? _cm.name.toUpperCase() : _activeCatForAI.toUpperCase();
-    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:10px;color:var(--accent);letter-spacing:0.5px">&#x1F4CC; GLOBAL AI BRIEFING &mdash; CATEGORY FILTER: ${_label} &mdash; Key Incidents &amp; Actors below are scoped to this category</div>`;
+    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:10px;color:var(--accent);letter-spacing:0.5px">&#x1F4CC; GLOBAL AI DIGEST &mdash; CATEGORY: ${_label} &mdash; Headlines, Actors &amp; Sectors below are scoped to this category</div>`;
   }
 
   // Staleness check — warn if briefing is older than 2 hours
@@ -4226,6 +4232,21 @@ function animateCounter(el, target) {
   requestAnimationFrame(tick);
 }
 
+function updateRegionCounts() {
+  const items = state.newsItems;
+  const regions = ['all', 'na', 'emea', 'mena', 'apac', 'latam'];
+  regions.forEach(r => {
+    const el = document.getElementById('rc-' + r);
+    if (!el) return;
+    if (r === 'all') {
+      el.textContent = items.length || '';
+      return;
+    }
+    const count = items.filter(i => _itemMatchesRegion(i, r)).length;
+    el.textContent = count > 0 ? count : '';
+  });
+}
+
 function updateOverviewStats() {
   const items = state.newsItems;
   const critical = items.filter(i => i.severity === 'CRITICAL').length;
@@ -4520,6 +4541,7 @@ function applyData(items) {
 
   renderFeedCards();
   updateOverviewStats();
+  updateRegionCounts();
   buildThreatCategoryChart([], state.newsItems);
   debouncedAnalyze();
   updateThreatLevel();
