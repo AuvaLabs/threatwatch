@@ -535,11 +535,45 @@ def _filter_for_briefing(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
         seen_titles.add(title_key)
         filtered.append(a)
 
-    # Sort: high confidence first, then by recency
+    # Sort: most recent first
     filtered.sort(
-        key=lambda a: (a.get("confidence", 0), a.get("timestamp", "")),
+        key=lambda a: a.get("timestamp", "1970-01-01"),
         reverse=True,
     )
+
+    # Stratified sampling: ensure the LLM sees across the full time window.
+    # Take 50% from the last 24h, 30% from days 2-3, 20% from days 4-7.
+    # This prevents the digest from being dominated by one day's news.
+    if len(filtered) > _MAX_DIGEST_ARTICLES:
+        from datetime import timedelta
+        now = datetime.now(timezone.utc)
+        day1, day3, older = [], [], []
+        for a in filtered:
+            ts = a.get("timestamp", "")
+            try:
+                dt = datetime.fromisoformat(ts)
+                age = (now - dt).total_seconds() / 86400
+                if age <= 1:
+                    day1.append(a)
+                elif age <= 3:
+                    day3.append(a)
+                else:
+                    older.append(a)
+            except (ValueError, TypeError):
+                older.append(a)
+
+        limit = _MAX_DIGEST_ARTICLES
+        sample = (
+            day1[:int(limit * 0.5)]
+            + day3[:int(limit * 0.3)]
+            + older[:int(limit * 0.2)]
+        )
+        # If any bucket was short, fill from the next
+        if len(sample) < limit:
+            remaining = [a for a in filtered if a not in sample]
+            sample.extend(remaining[:limit - len(sample)])
+        return sample
+
     return filtered
 
 
