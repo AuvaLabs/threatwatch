@@ -3409,6 +3409,14 @@ function renderAIBriefing(container) {
     </div>`;
   }
 
+  // Week in review — trailing context for users who missed earlier days
+  if (b.week_in_review) {
+    html += `<div class="ai-briefing-section">
+      <div class="ai-section-label">Earlier This Week</div>
+      <div class="ai-section-body" style="font-style:italic;color:var(--text-secondary)">${escapeHTML(b.week_in_review)}</div>
+    </div>`;
+  }
+
   // Threat forecast (new) or outlook (legacy)
   const forecast = b.threat_forecast || b.outlook;
   if (forecast) {

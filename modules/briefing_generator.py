@@ -86,6 +86,7 @@ Respond ONLY with valid JSON (no markdown, no code fences, no explanation):
       "sources": [<article numbers>]
     }
   ],
+  "week_in_review": "<2-3 sentences summarizing the most significant incidents from earlier this week (days 2-7) that readers should know about if they missed them. Reference the EARLIER THIS WEEK data. If no earlier data is provided, omit this field.>",
   "threat_forecast": "<2-3 sentence forward-looking projection>",
   "sector_impact": [
     {
@@ -337,10 +338,33 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         logger.info("No articles to brief on.")
         return None
 
-    # Filter out darkweb victim posts and noise for better LLM input
-    briefing_articles = _filter_for_briefing(articles)
-    if len(briefing_articles) < 10:
-        briefing_articles = articles
+    # Filter and split by time window
+    all_filtered = _filter_for_briefing(articles)
+    if len(all_filtered) < 10:
+        all_filtered = articles
+
+    day1, day3, older = _split_by_age(all_filtered)
+
+    # Digest focuses on last 24h (with overflow from day 2-3 if sparse)
+    briefing_articles = day1[:]
+    if len(briefing_articles) < 30:
+        briefing_articles.extend(day3[:30 - len(briefing_articles)])
+    briefing_articles = briefing_articles[:_MAX_DIGEST_ARTICLES]
+
+    # Build trailing "this week" context from older articles
+    trailing_articles = day3 + older
+    trailing_context = ""
+    if trailing_articles:
+        # Quick summary of what happened earlier this week
+        from collections import Counter
+        trail_cats = Counter(a.get("category", "") for a in trailing_articles)
+        top_trail = trail_cats.most_common(5)
+        trail_titles = [a.get("title", "")[:80] for a in trailing_articles[:15]]
+        trailing_context = (
+            f"\nEARLIER THIS WEEK ({len(trailing_articles)} articles from days 2-7):\n"
+            f"Category breakdown: {', '.join(f'{c} ({n})' for c, n in top_trail)}\n"
+            f"Notable incidents:\n" + "\n".join(f"  - {t}" for t in trail_titles)
+        )
 
     digest = _build_digest(briefing_articles)
     cache_key = hashlib.sha256(digest.encode()).hexdigest()
@@ -361,7 +385,7 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         return None
 
     now = datetime.now(timezone.utc)
-    reporting_window = _compute_reporting_window(briefing_articles)
+    reporting_window = "Last 24 hours"
     trend_context = _build_trend_context()
     vuln_context = _build_vuln_context(briefing_articles)
 
@@ -375,8 +399,10 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
     if vuln_context:
         context_sections.append(f"\n{vuln_context}")
     context_sections.append(
-        f"\nBEGIN INCIDENT DATA:\n{digest}\nEND INCIDENT DATA"
+        f"\nBEGIN INCIDENT DATA (LAST 24 HOURS):\n{digest}\nEND INCIDENT DATA"
     )
+    if trailing_context:
+        context_sections.append(trailing_context)
     user_content = "\n".join(context_sections)
 
     try:
@@ -540,41 +566,27 @@ def _filter_for_briefing(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
         key=lambda a: a.get("timestamp", "1970-01-01"),
         reverse=True,
     )
-
-    # Stratified sampling: ensure the LLM sees across the full time window.
-    # Take 50% from the last 24h, 30% from days 2-3, 20% from days 4-7.
-    # This prevents the digest from being dominated by one day's news.
-    if len(filtered) > _MAX_DIGEST_ARTICLES:
-        from datetime import timedelta
-        now = datetime.now(timezone.utc)
-        day1, day3, older = [], [], []
-        for a in filtered:
-            ts = a.get("timestamp", "")
-            try:
-                dt = datetime.fromisoformat(ts)
-                age = (now - dt).total_seconds() / 86400
-                if age <= 1:
-                    day1.append(a)
-                elif age <= 3:
-                    day3.append(a)
-                else:
-                    older.append(a)
-            except (ValueError, TypeError):
-                older.append(a)
-
-        limit = _MAX_DIGEST_ARTICLES
-        sample = (
-            day1[:int(limit * 0.5)]
-            + day3[:int(limit * 0.3)]
-            + older[:int(limit * 0.2)]
-        )
-        # If any bucket was short, fill from the next
-        if len(sample) < limit:
-            remaining = [a for a in filtered if a not in sample]
-            sample.extend(remaining[:limit - len(sample)])
-        return sample
-
     return filtered
+
+
+def _split_by_age(articles: list[dict[str, Any]]) -> tuple[list, list, list]:
+    """Split articles into (last_24h, days_2_3, days_4_7) buckets."""
+    now = datetime.now(timezone.utc)
+    day1, day3, older = [], [], []
+    for a in articles:
+        ts = a.get("timestamp", "")
+        try:
+            dt = datetime.fromisoformat(ts)
+            age = (now - dt).total_seconds() / 86400
+            if age <= 1:
+                day1.append(a)
+            elif age <= 3:
+                day3.append(a)
+            else:
+                older.append(a)
+        except (ValueError, TypeError):
+            older.append(a)
+    return day1, day3, older
 
 
 def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
@@ -590,10 +602,15 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
     if not articles or len(articles) < 10:
         return None
 
-    # Filter and prioritize before sending to LLM
-    briefing_articles = _filter_for_briefing(articles)
+    # Filter and limit to last 72 hours for top stories
+    all_filtered = _filter_for_briefing(articles)
+    if len(all_filtered) < 10:
+        all_filtered = articles
+
+    day1, day3, older = _split_by_age(all_filtered)
+    briefing_articles = (day1 + day3)[:_MAX_DIGEST_ARTICLES]  # Last 72h
     if len(briefing_articles) < 10:
-        briefing_articles = articles  # Fallback to unfiltered
+        briefing_articles = all_filtered[:_MAX_DIGEST_ARTICLES]
 
     digest = _build_digest(briefing_articles)
     cache_key = "topstories_" + hashlib.sha256(digest.encode()).hexdigest()
