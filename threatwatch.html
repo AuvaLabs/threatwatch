@@ -318,15 +318,17 @@ html, body {
   margin-left: 8px;
   letter-spacing: 0.5px;
 }
-.ai-briefing-section { margin-bottom: 24px; }
+.ai-briefing-section { margin-bottom: 28px; }
 .ai-briefing-section .ai-section-label {
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: var(--text-muted);
-  margin-bottom: 10px;
+  font-size: 12px;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+  margin-bottom: 12px;
   text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
 }
 .ai-briefing-section .ai-section-body {
   font-family: var(--font-body);
@@ -335,7 +337,7 @@ html, body {
   color: var(--text-primary);
 }
 .ai-briefing-section .ai-section-body li {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .ai-threat-level {
   display: inline-block;
@@ -4205,12 +4207,8 @@ document.getElementById('region-filters').addEventListener('click', (e) => {
   state.activeCategory = null;
   state._actionDrilldown = null;
   // Close detail view and restore briefing sections
-  document.querySelectorAll('.center-section').forEach(s => s.style.display = '');
-  document.querySelectorAll('.overview-section').forEach(s => s.style.display = '');
-  document.getElementById('detail-article-center').style.display = 'none';
-  state.selectedItem = null;
-  renderFeedCards();
-  debouncedAnalyze();
+  // Switch to INTEL BRIEF tab when selecting a region
+  switchMainTab('briefing');
 });
 
 /* ============================================================= */
@@ -4653,6 +4651,14 @@ function switchMainTab(tab) {
       state.watchFilter = null;
       updateWatchFilterBanner();
     }
+  }
+
+  // Category tabs reset to GLOBAL region (regional filtering is for INTEL BRIEF)
+  if (isCategory || tab === 'ransom' || tab === 'apt') {
+    state.activeRegion = 'all';
+    document.querySelectorAll('.region-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.region === 'all')
+    );
   }
 
   // Map tab to left-panel filter
