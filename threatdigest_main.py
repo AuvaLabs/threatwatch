@@ -213,24 +213,28 @@ def main():
     except Exception as e:
         logging.debug(f"Webhook dispatch skipped: {e}")
 
+    # Load full corpus for AI features (not just new batch)
+    from modules.output_writer import _load_existing, STATIC_DAILY
+    all_articles = _load_existing(STATIC_DAILY)
+    if not all_articles:
+        all_articles = enriched_articles
+
     # AI enrichment (optional — only runs if LLM API key is set)
     try:
         from modules.briefing_generator import (
             generate_briefing, generate_top_stories, summarize_articles,
         )
-        # Tier 1: Intelligence digest (1x/hour, ~7K tokens)
-        generate_briefing(enriched_articles)
-        # Tier 2: Top stories (1x/hour, ~5K tokens)
-        generate_top_stories(enriched_articles)
-        # Tier 3: Article summaries (up to 30/run, ~3K tokens per batch)
+        # Tier 1: Intelligence digest on FULL corpus (1x/hour, ~7K tokens)
+        generate_briefing(all_articles)
+        # Tier 2: Top stories on FULL corpus (1x/hour, ~5K tokens)
+        generate_top_stories(all_articles)
+        # Tier 3: Article summaries on new batch only (up to 30/run)
         summarize_articles(enriched_articles)
     except Exception as e:
         logging.warning(f"AI enrichment skipped: {e}")
 
-    # Incident clustering + actor profiles run on FULL corpus (not just new batch)
+    # Incident clustering + actor profiles on FULL corpus
     try:
-        from modules.output_writer import _load_existing, STATIC_DAILY
-        all_articles = _load_existing(STATIC_DAILY)
         if all_articles:
             from modules.incident_correlator import cluster_articles
             cluster_articles(all_articles)
