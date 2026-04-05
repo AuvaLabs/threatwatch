@@ -2371,16 +2371,8 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div id="ai-briefing-content"></div>
       </div>
       <div class="center-section" id="section-top-stories">
-        <div class="center-section-title"><span class="section-icon">&#x1F4A1;</span> Top Stories <span class="briefing-ai-notice" style="font-size:9px;vertical-align:middle">AI CURATED</span></div>
+        <div class="center-section-title"><span class="section-icon">&#x1F4A1;</span> Headlines <span class="briefing-ai-notice" style="font-size:9px;vertical-align:middle">AI CURATED</span></div>
         <div id="top-stories-content"></div>
-      </div>
-      <div class="center-section" id="section-clusters">
-        <div class="center-section-title"><span class="section-icon">&#x1F517;</span> Related Incidents</div>
-        <div id="clusters-content"></div>
-      </div>
-      <div class="center-section" id="section-incidents">
-        <div class="center-section-title"><span class="section-icon">&#x26A0;</span> Key Incidents</div>
-        <div id="key-incidents-content"></div>
       </div>
       <div class="center-section" id="section-actors">
         <div class="center-section-title"><span class="section-icon">&#x1F3AD;</span> Active Threat Actors &amp; Malware</div>
@@ -2990,14 +2982,8 @@ function analyzeIntelligence() {
     renderBriefing(items, allText, allItems.length);
   }
 
-  // --- Section 1b: Top Stories (AI-curated) ---
+  // --- Section 2: Headlines (AI-curated) ---
   renderTopStories();
-
-  // --- Section 1c: Incident Clusters ---
-  renderClusters();
-
-  // --- Section 2: Key Incidents ---
-  renderKeyIncidents(items);
 
   // --- Section 3: Threat Actor Spotlight ---
   renderActorSpotlight(items, allText);
@@ -3420,14 +3406,22 @@ function renderTopStories() {
   const container = document.getElementById('top-stories-content');
   const data = state.topStories;
   if (!data || !data.stories || data.stories.length === 0) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px">Top stories will appear when the AI pipeline processes the next batch of articles.</div>';
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px">Headlines will appear when the AI pipeline processes the next batch of articles.</div>';
     return;
+  }
+
+  // Build cluster lookup for "related articles" badges
+  const clusterMap = {};
+  if (state.clusters && state.clusters.clusters) {
+    state.clusters.clusters.forEach(c => {
+      clusterMap[c.entity_name.toLowerCase()] = c;
+    });
   }
 
   const sigClass = s => ({ CRITICAL: 'b-crit', HIGH: 'b-warn', MODERATE: 'b-green' }[s] || 'b-hl');
   const stories = data.stories;
 
-  let html = '<div class="top-stories-list">';
+  let html = '';
   stories.forEach((story, i) => {
     const sig = (story.significance || 'MODERATE').toUpperCase();
     const badge = `<span class="${sigClass(sig)}" style="font-size:9px;letter-spacing:0.5px">${sig}</span>`;
@@ -3435,13 +3429,22 @@ function renderTopStories() {
     const link = story.link ? ` href="${escapeHTML(story.link)}" target="_blank" rel="noopener"` : '';
     const source = story.source_name ? `<span style="font-size:10px;color:var(--text-muted)"> &mdash; ${escapeHTML(story.source_name)}</span>` : '';
 
-    html += `<div class="top-story-item" style="margin-bottom:12px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;border-left:3px solid ${sig === 'CRITICAL' ? 'var(--danger)' : sig === 'HIGH' ? 'var(--warning)' : 'var(--accent)'}">
-      <div style="margin-bottom:4px">${badge} ${catBadge}</div>
+    // Check if this story matches a cluster — show related count
+    const headline = (story.headline || '').toLowerCase();
+    let relatedBadge = '';
+    for (const [entity, cluster] of Object.entries(clusterMap)) {
+      if (headline.includes(entity) && cluster.article_count >= 3) {
+        relatedBadge = `<span style="font-size:9px;color:var(--text-muted);margin-left:6px" title="${cluster.synthesis || ''}">${cluster.article_count} related articles</span>`;
+        break;
+      }
+    }
+
+    html += `<div style="margin-bottom:10px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;border-left:3px solid ${sig === 'CRITICAL' ? 'var(--danger)' : sig === 'HIGH' ? 'var(--warning)' : 'var(--accent)'}">
+      <div style="margin-bottom:4px">${badge} ${catBadge}${relatedBadge}</div>
       <div style="font-size:12px;font-weight:600;line-height:1.4"><a${link} style="color:var(--text-primary);text-decoration:none">${escapeHTML(story.headline)}</a>${source}</div>
       <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5">${escapeHTML(story.summary)}</div>
     </div>`;
   });
-  html += '</div>';
 
   const genAt = data.generated_at ? new Date(data.generated_at).toUTCString().slice(0, 25) : '';
   const modelLabel = data.provider ? data.provider.split('/').pop() : '';
@@ -3525,10 +3528,17 @@ function renderActorSpotlight(items, allText) {
                       actor.type === 'Ransomware' ? 'var(--warning)' :
                       actor.type === 'Malware' || actor.type === 'Stealer' || actor.type === 'Loader' ? '#ff8c00' :
                       actor.type === 'Botnet' ? 'var(--purple)' : 'var(--text-muted)';
-    return `<div class="actor-tag${isActive ? ' active' : ''}" onclick="toggleActorFilter(${actor.idx})">
+    // Add AI profile tooltip if available
+    const profile = state.actorProfiles ? state.actorProfiles[actor.name] : null;
+    const profileTip = profile && profile.description ? escapeHTML(profile.description).slice(0, 200) : '';
+    const ttps = profile && profile.signature_ttps ? profile.signature_ttps.slice(0, 2).join(', ') : '';
+    const profileLine = ttps ? `<div style="font-size:8px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(ttps)}</div>` : '';
+
+    return `<div class="actor-tag${isActive ? ' active' : ''}" onclick="toggleActorFilter(${actor.idx})" title="${profileTip}">
       <div>
         <div class="actor-name" style="color:${typeColor}">${escapeHTML(actor.name)}</div>
         <div class="actor-type">${actor.type} | ${actor.origin}</div>
+        ${profileLine}
       </div>
       <div class="actor-count">${actor.count}x</div>
     </div>`;
