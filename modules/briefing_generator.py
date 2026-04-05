@@ -337,7 +337,12 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         logger.info("No articles to brief on.")
         return None
 
-    digest = _build_digest(articles)
+    # Filter out darkweb victim posts and noise for better LLM input
+    briefing_articles = _filter_for_briefing(articles)
+    if len(briefing_articles) < 10:
+        briefing_articles = articles
+
+    digest = _build_digest(briefing_articles)
     cache_key = hashlib.sha256(digest.encode()).hexdigest()
 
     # Check content cache first
@@ -356,13 +361,13 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         return None
 
     now = datetime.now(timezone.utc)
-    reporting_window = _compute_reporting_window(articles)
+    reporting_window = _compute_reporting_window(briefing_articles)
     trend_context = _build_trend_context()
-    vuln_context = _build_vuln_context(articles)
+    vuln_context = _build_vuln_context(briefing_articles)
 
     context_sections = [
         f"INTELLIGENCE COLLECTION DATE: {now.strftime('%Y-%m-%d %H:%M UTC')}",
-        f"TOTAL ARTICLES IN COLLECTION: {len(articles)}",
+        f"TOTAL ARTICLES IN COLLECTION: {len(briefing_articles)} (filtered from {len(articles)} total)",
         f"REPORTING PERIOD: {reporting_window}",
     ]
     if trend_context:
@@ -421,7 +426,7 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
 
         # Build source article map so frontend can resolve [N] → link/title
         source_map = []
-        for i, a in enumerate(articles[:_MAX_DIGEST_ARTICLES], 1):
+        for i, a in enumerate(briefing_articles[:_MAX_DIGEST_ARTICLES], 1):
             source_map.append({
                 "index": i,
                 "title": (a.get("translated_title") or a.get("title", ""))[:120],
@@ -431,8 +436,8 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         briefing["source_articles"] = source_map
 
         briefing["generated_at"] = now.isoformat()
-        briefing["articles_analyzed"] = min(len(articles), _MAX_DIGEST_ARTICLES)
-        briefing["total_articles"] = len(articles)
+        briefing["articles_analyzed"] = min(len(briefing_articles), _MAX_DIGEST_ARTICLES)
+        briefing["total_articles"] = len(articles)  # total including darkweb
         briefing["reporting_window"] = reporting_window
         briefing["provider"] = f"{provider}/{LLM_MODEL}"
 
@@ -506,6 +511,38 @@ Respond ONLY with valid JSON (no markdown, no code fences):
 }"""
 
 
+def _filter_for_briefing(articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Filter and prioritize articles for LLM consumption.
+
+    Removes darkweb victim posts (repetitive), deduplicates by title,
+    and prioritizes high-value articles (high confidence, named actors/CVEs).
+    """
+    seen_titles = set()
+    filtered = []
+    for a in articles:
+        # Skip darkweb victim posts — too repetitive for briefing
+        if a.get("darkweb") or a.get("isDarkweb"):
+            continue
+        # Skip noise
+        if a.get("category") == "Noise" or a.get("confidence", 0) == 0:
+            continue
+        # Title dedup (case-insensitive, strip source suffix)
+        title = a.get("title", "").strip().lower()
+        # Normalize: remove "- Source Name" suffixes
+        title_key = title.rsplit(" - ", 1)[0].rsplit(" | ", 1)[0]
+        if title_key in seen_titles:
+            continue
+        seen_titles.add(title_key)
+        filtered.append(a)
+
+    # Sort: high confidence first, then by recency
+    filtered.sort(
+        key=lambda a: (a.get("confidence", 0), a.get("timestamp", "")),
+        reverse=True,
+    )
+    return filtered
+
+
 def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
     """Generate AI-curated top stories from the article collection.
 
@@ -519,7 +556,12 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
     if not articles or len(articles) < 10:
         return None
 
-    digest = _build_digest(articles)
+    # Filter and prioritize before sending to LLM
+    briefing_articles = _filter_for_briefing(articles)
+    if len(briefing_articles) < 10:
+        briefing_articles = articles  # Fallback to unfiltered
+
+    digest = _build_digest(briefing_articles)
     cache_key = "topstories_" + hashlib.sha256(digest.encode()).hexdigest()
 
     cached = get_cached_result(cache_key)
@@ -544,7 +586,7 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
     now = datetime.now(timezone.utc)
     user_content = (
         f"DATE: {now.strftime('%Y-%m-%d %H:%M UTC')}\n"
-        f"TOTAL ARTICLES: {len(articles)}\n\n"
+        f"TOTAL ARTICLES: {len(briefing_articles)} (filtered from {len(articles)})\n\n"
         f"BEGIN ARTICLES:\n{digest}\nEND ARTICLES"
     )
 
@@ -561,11 +603,11 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
 
         stories = result["top_stories"]
 
-        # Enrich with source article data
+        # Enrich with source article data (from filtered list, not raw)
         for story in stories:
             idx = story.get("article_index", 0) - 1  # 1-indexed in prompt
-            if 0 <= idx < len(articles):
-                src = articles[idx]
+            if 0 <= idx < len(briefing_articles):
+                src = briefing_articles[idx]
                 story["link"] = src.get("link", "")
                 story["source_name"] = src.get("source_name", "")
                 story["published"] = src.get("published", "")
