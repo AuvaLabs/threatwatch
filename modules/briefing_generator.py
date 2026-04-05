@@ -32,76 +32,39 @@ BRIEFING_PATH = OUTPUT_DIR / "briefing.json"
 _LAST_API_CALL_PATH = OUTPUT_DIR / ".briefing_last_call"
 _BRIEFING_COOLDOWN_SECONDS = 3600  # 1 hour minimum between API calls
 
-_BRIEFING_PROMPT = """You are a senior cyber threat intelligence analyst producing a situational awareness digest. Write with the precision and authority of a national CERT analyst. Every claim must be grounded in the provided data — do not fabricate threat actors, CVEs, or incidents.
+_BRIEFING_PROMPT = """You are a senior cyber threat intelligence analyst writing a daily intelligence digest. Write like a national CERT analyst — precise, authoritative, grounded in the data. Never fabricate incidents.
 
-THREAT LEVEL ASSESSMENT:
-Assign threat_level based on these criteria:
-- CRITICAL: Active exploitation of widespread vulnerabilities (high EPSS), major breaches at critical infrastructure, or coordinated nation-state campaigns
-- ELEVATED: Multiple ransomware campaigns active, significant breaches, or newly disclosed high-CVSS vulnerabilities with public exploits
-- MODERATE: Typical threat activity — ongoing ransomware, phishing campaigns, routine vulnerability disclosures
-- GUARDED: Below-average threat activity, no major active campaigns
-- LOW: Minimal threat activity in the reporting period
+THREAT LEVEL:
+- CRITICAL: Active exploitation of widespread vulnerabilities, critical infrastructure breaches, coordinated nation-state campaigns
+- ELEVATED: Multiple ransomware campaigns, significant breaches, high-CVSS vulns with public exploits
+- MODERATE: Typical activity — ongoing ransomware, phishing, routine disclosures
+- GUARDED/LOW: Below-average activity
 
-ANALYTICAL STANDARDS:
-- Use intelligence community confidence language: "we assess with HIGH/MODERATE/LOW confidence"
-- Be specific: name actual threat actors, malware families, CVEs, and affected organizations from the data
-- Identify correlations: if multiple incidents share TTPs, infrastructure, or timing, connect them
-- When CVEs include EPSS scores, highlight those with high exploitation probability
-- When MITRE ATT&CK tactics are provided, identify dominant attack patterns
-- Reference trending threats (spike data) to show what's accelerating
-- Forecast: project what these developments mean for the next 7-30 days
-- Recommendations must be SPECIFIC to the threats observed — never generic ("patch your systems")
-- If the data is insufficient to make a confident assessment, say so — do not pad with boilerplate
-- CRITICAL: For every finding, action, and assessment, include the "sources" array with the article numbers [N] from the input data that support it. This lets readers verify claims against source articles.
+RULES:
+- Name SPECIFIC threat actors, CVEs, organizations, malware — never say "ransomware is increasing" without naming which groups and victims
+- Every claim must cite source article numbers [N] in the "sources" array
+- "what_happened" is the MAIN SECTION — write it as a narrative that covers the most significant incidents, weaving in trending patterns, CVE details, and ATT&CK tactics. Do NOT repeat information across sections.
+- "what_to_do" actions must reference the SPECIFIC threats from what_happened — never generic ("patch your systems", "train employees")
+- If CVEs have EPSS scores, include them in the narrative (e.g., "CVE-2026-5212 affecting D-Link routers has a 94% EPSS exploitation probability — patch immediately")
+- If EARLIER THIS WEEK data is provided, write a "week_in_review" catching readers up on what they missed
+- "outlook" should project what SPECIFIC developments mean for the next 7-30 days
 
-Respond ONLY with valid JSON (no markdown, no code fences, no explanation):
+Respond ONLY with valid JSON (no markdown, no code fences):
 {
   "threat_level": "CRITICAL|ELEVATED|MODERATE|GUARDED|LOW",
-  "assessment_basis": "<1 sentence explaining WHY this threat level was assigned based on the data>",
-  "situation_overview": "<2-3 sentence analyst assessment citing specific incidents>",
-  "situation_sources": [<article numbers from input that support the overview>],
-  "key_intelligence": [
+  "assessment_basis": "<1 sentence: WHY this level, citing the key driver>",
+  "what_happened": "<4-6 sentence narrative covering the most significant incidents from the last 24 hours. Name actors, victims, CVEs, and attack methods. Weave in trending patterns and vulnerability details rather than listing them separately. Each incident should be distinct — no repetition.>",
+  "what_happened_sources": [<article numbers>],
+  "what_to_do": [
     {
-      "finding": "<specific intelligence finding tied to observed data>",
-      "confidence": "HIGH|MODERATE|LOW",
-      "source_count": <number of articles supporting this finding>,
-      "sources": [<article numbers from input>]
-    }
-  ],
-  "trending_threats": [
-    {
-      "topic": "<keyword or category that is spiking>",
-      "trend": "<description of the spike>",
-      "significance": "<why this matters for defenders>",
+      "action": "<specific defensive measure tied to an incident above>",
+      "threat": "<which specific incident or CVE this addresses>",
       "sources": [<article numbers>]
     }
   ],
-  "vulnerability_spotlight": [
-    {
-      "cve_id": "<CVE-YYYY-NNNNN>",
-      "cvss_score": <float>,
-      "epss_score": <float 0-1 if available, null otherwise>,
-      "affected": "<affected product/vendor>",
-      "assessment": "<1 sentence — why this CVE demands attention now>",
-      "sources": [<article numbers>]
-    }
-  ],
-  "week_in_review": "<2-3 sentences summarizing the most significant incidents from earlier this week (days 2-7) that readers should know about if they missed them. Reference the EARLIER THIS WEEK data. If no earlier data is provided, omit this field.>",
-  "threat_forecast": "<2-3 sentence forward-looking projection>",
-  "sector_impact": [
-    {
-      "sector": "<sector name>",
-      "impact": "<specific threat driving risk in this sector>",
-      "sources": [<article numbers>]
-    }
-  ],
-  "priority_actions": [
-    {
-      "action": "<specific, immediately actionable defensive measure>",
-      "threat_context": "<which observed threat this addresses>",
-      "sources": [<article numbers>]
-    }
-  ]
+  "week_in_review": "<2-3 sentences on the most significant incidents from days 2-7 that readers should know about. Name specific incidents. Omit if no EARLIER THIS WEEK data provided.>",
+  "week_in_review_sources": [<article numbers if available>],
+  "outlook": "<2-3 sentences: what do these SPECIFIC developments mean for the next 7-30 days? What should defenders prepare for?>"
 }"""
 
 
@@ -416,18 +379,15 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
             logger.warning("Failed to parse intelligence briefing response.")
             return None
 
-        # Schema validation — accept both new and legacy schema
-        required = {"threat_level", "situation_overview", "priority_actions"}
-        # Fallback: accept legacy field names
-        if "executive_summary" in briefing and "situation_overview" not in briefing:
-            briefing["situation_overview"] = briefing.pop("executive_summary")
-        if "recommended_actions" in briefing and "priority_actions" not in briefing:
-            # Convert legacy string list to new format
-            legacy = briefing.pop("recommended_actions")
-            briefing["priority_actions"] = [
-                {"action": a, "threat_context": ""} if isinstance(a, str) else a
-                for a in legacy
-            ]
+        # Schema validation — new 5-section schema
+        required = {"threat_level", "what_happened"}
+        # Backwards compat: map old field names to new
+        if "situation_overview" in briefing and "what_happened" not in briefing:
+            briefing["what_happened"] = briefing.pop("situation_overview")
+        if "priority_actions" in briefing and "what_to_do" not in briefing:
+            briefing["what_to_do"] = briefing.pop("priority_actions")
+        if "threat_forecast" in briefing and "outlook" not in briefing:
+            briefing["outlook"] = briefing.pop("threat_forecast")
         missing = required - briefing.keys()
         if missing:
             logger.warning(f"Intelligence briefing missing required fields: {missing}")
@@ -439,16 +399,10 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         if tl not in valid_levels:
             briefing["threat_level"] = "MODERATE"
 
-        # Ensure new optional sections have defaults
-        briefing.setdefault("trending_threats", [])
-        briefing.setdefault("vulnerability_spotlight", [])
-
-        # Normalize sector_impact: accept both string list (legacy) and object list
-        si = briefing.get("sector_impact", [])
-        if si and isinstance(si[0], str):
-            briefing["sector_impact"] = [
-                {"sector": s, "impact": s, "sources": []} for s in si
-            ]
+        # Ensure optional sections have defaults
+        briefing.setdefault("what_to_do", [])
+        briefing.setdefault("week_in_review", "")
+        briefing.setdefault("outlook", "")
 
         # Build source article map so frontend can resolve [N] → link/title
         source_map = []

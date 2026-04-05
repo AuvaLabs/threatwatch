@@ -3296,90 +3296,17 @@ function renderAIBriefing(container) {
     html += `<div style="margin-bottom:14px;font-size:11px;color:var(--text-muted);letter-spacing:0.3px;line-height:1.5;font-style:italic">${escapeHTML(b.assessment_basis)}</div>`;
   }
 
-  // Situation overview (new) or executive_summary (legacy)
-  const overview = b.situation_overview || b.executive_summary;
-  if (overview) {
+  // === Section 1: What Happened (the narrative — main section) ===
+  const whatHappened = b.what_happened || b.situation_overview || b.executive_summary;
+  if (whatHappened) {
     html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Situation Overview</div>
-      <div class="ai-section-body">${escapeHTML(overview)}${renderSources(b.situation_sources)}</div>
+      <div class="ai-section-label">What Happened</div>
+      <div class="ai-section-body" style="line-height:1.7">${escapeHTML(whatHappened)}${renderSources(b.what_happened_sources || b.situation_sources)}</div>
     </div>`;
   }
 
-  // Key intelligence findings with confidence badges
-  const intel = b.key_intelligence || b.key_developments;
-  if (intel && intel.length > 0) {
-    const confClass = c => ({ HIGH: 'b-crit', MODERATE: 'b-warn', LOW: 'b-green' }[c] || 'b-hl');
-    const intelItems = intel.map(item => {
-      if (typeof item === 'string') return `<li>${escapeHTML(item)}</li>`;
-      const conf = (item.confidence || '').toUpperCase();
-      const confBadge = conf ? `<span class="${confClass(conf)}" style="font-size:9px;letter-spacing:0.5px;margin-left:6px">[${conf} CONFIDENCE]</span>` : '';
-      const srcNote = item.source_count ? `<span style="font-size:9px;color:var(--text-muted);margin-left:4px">(${item.source_count} sources)</span>` : '';
-      return `<li>${escapeHTML(item.finding)}${confBadge}${srcNote}${renderSources(item.sources)}</li>`;
-    }).join('');
-    html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Key Intelligence</div>
-      <div class="ai-section-body"><ul>${intelItems}</ul></div>
-    </div>`;
-  }
-
-  // Trending threats — spike data
-  const trends = b.trending_threats;
-  if (trends && trends.length > 0) {
-    const trendItems = trends.map(t => {
-      const sig = t.significance ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${escapeHTML(t.significance)}</div>` : '';
-      return `<li><strong>${escapeHTML(t.topic)}</strong> &mdash; ${escapeHTML(t.trend)}${sig}${renderSources(t.sources)}</li>`;
-    }).join('');
-    html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Trending Threats</div>
-      <div class="ai-section-body"><ul>${trendItems}</ul></div>
-    </div>`;
-  }
-
-  // Vulnerability spotlight — top CVEs by exploitation probability
-  const vulns = b.vulnerability_spotlight;
-  if (vulns && vulns.length > 0) {
-    const vulnItems = vulns.map(v => {
-      const parts = [`<strong>${escapeHTML(v.cve_id || '')}</strong>`];
-      if (v.cvss_score) parts.push(`CVSS ${v.cvss_score}`);
-      if (v.epss_score) parts.push(`<span class="${v.epss_score > 0.5 ? 'b-crit' : v.epss_score > 0.1 ? 'b-warn' : 'b-green'}" style="font-size:9px">EPSS ${(v.epss_score * 100).toFixed(1)}%</span>`);
-      if (v.affected) parts.push(escapeHTML(v.affected));
-      const assessment = v.assessment ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${escapeHTML(v.assessment)}</div>` : '';
-      return `<li>${parts.join(' | ')}${assessment}${renderSources(v.sources)}</li>`;
-    }).join('');
-    html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Vulnerability Spotlight</div>
-      <div class="ai-section-body"><ul>${vulnItems}</ul></div>
-    </div>`;
-  }
-
-  // Legacy: active threats (backward compat)
-  if (b.active_threats && !b.key_intelligence) {
-    const at = b.active_threats;
-    html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Active Threats</div>
-      <div class="ai-section-body">`;
-    if (at.nation_state) html += `<p><strong>Nation-State:</strong> ${escapeHTML(at.nation_state)}</p>`;
-    if (at.ransomware) html += `<p><strong>Ransomware:</strong> ${escapeHTML(at.ransomware)}</p>`;
-    if (at.emerging) html += `<p><strong>Emerging:</strong> ${escapeHTML(at.emerging)}</p>`;
-    html += `</div></div>`;
-  }
-
-  // Sector impact — supports both string list (legacy) and object list (new)
-  const sectors = b.sector_impact || b.sector_risk;
-  if (sectors && sectors.length > 0) {
-    const sectorItems = sectors.map(s => {
-      if (typeof s === 'string') return `<li>${escapeHTML(s)}</li>`;
-      const text = s.impact ? `<strong>${escapeHTML(s.sector)}</strong> &mdash; ${escapeHTML(s.impact)}` : escapeHTML(s.sector);
-      return `<li>${text}${renderSources(s.sources)}</li>`;
-    }).join('');
-    html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Sector Impact</div>
-      <div class="ai-section-body"><ul>${sectorItems}</ul></div>
-    </div>`;
-  }
-
-  // Priority actions with threat context (new) or recommended_actions (legacy)
-  const actions = b.priority_actions || b.recommended_actions;
+  // === Section 2: What To Do (actions — immediately after narrative) ===
+  const actions = b.what_to_do || b.priority_actions || b.recommended_actions;
   if (actions && actions.length > 0) {
     const _AI_ACTION_DRILLDOWNS = [
       { re: /ransomware|ransom/i,       type: 'category', value: 'Ransomware' },
@@ -3387,43 +3314,49 @@ function renderAIBriefing(container) {
       { re: /patch|vuln|cve/i,          type: 'category', value: 'Vulnerability Disclosure' },
       { re: /zero.?day/i,               type: 'category', value: 'Zero-Day Exploit' },
       { re: /breach|data\s+loss/i,      type: 'category', value: 'Data Breach' },
-      { re: /ddos|denial/i,             type: 'category', value: 'DDoS' },
       { re: /supply\s+chain/i,          type: 'category', value: 'Supply Chain Attack' },
       { re: /nation.?state|apt|espion/i,type: 'category', value: 'Nation-State Attack' },
       { re: /malware|endpoint|detect/i, type: 'category', value: 'Malware' },
     ];
     const actionItems = actions.map(item => {
       const actionText = typeof item === 'string' ? item : (item.action || '');
-      const threatCtx = typeof item === 'object' && item.threat_context
-        ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-style:italic">Re: ${escapeHTML(item.threat_context)}</div>` : '';
+      const threatRef = typeof item === 'object' && (item.threat || item.threat_context)
+        ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-style:italic">Re: ${escapeHTML(item.threat || item.threat_context)}</div>` : '';
       const srcLinks = typeof item === 'object' ? renderSources(item.sources) : '';
       const match = _AI_ACTION_DRILLDOWNS.find(r => r.re.test(actionText));
       if (match) {
-        return `<li class="action-item" onclick="drilldownAction('${match.type}','${escapeHTML(match.value)}')" style="cursor:pointer" title="Show matching articles">&#x2192; ${escapeHTML(actionText)}${threatCtx}${srcLinks}</li>`;
+        return `<li class="action-item" onclick="drilldownAction('${match.type}','${escapeHTML(match.value)}')" style="cursor:pointer" title="Show matching articles">&#x2192; ${escapeHTML(actionText)}${threatRef}${srcLinks}</li>`;
       }
-      return `<li class="action-item">${escapeHTML(actionText)}${threatCtx}${srcLinks}</li>`;
+      return `<li class="action-item">&#x2192; ${escapeHTML(actionText)}${threatRef}${srcLinks}</li>`;
     }).join('');
     html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Priority Actions</div>
+      <div class="ai-section-label">What To Do</div>
       <div class="ai-section-body"><ul>${actionItems}</ul></div>
     </div>`;
   }
 
-  // Week in review — trailing context for users who missed earlier days
+  // === Section 3: Earlier This Week (trailing catch-up) ===
   if (b.week_in_review) {
     html += `<div class="ai-briefing-section">
       <div class="ai-section-label">Earlier This Week</div>
-      <div class="ai-section-body" style="font-style:italic;color:var(--text-secondary)">${escapeHTML(b.week_in_review)}</div>
+      <div class="ai-section-body" style="line-height:1.6;color:var(--text-secondary)">${escapeHTML(b.week_in_review)}${renderSources(b.week_in_review_sources)}</div>
     </div>`;
   }
 
-  // Threat forecast (new) or outlook (legacy)
-  const forecast = b.threat_forecast || b.outlook;
-  if (forecast) {
+  // === Section 4: Outlook (forward-looking) ===
+  const outlook = b.outlook || b.threat_forecast;
+  if (outlook) {
     html += `<div class="ai-briefing-section">
-      <div class="ai-section-label">Threat Forecast</div>
-      <div class="ai-section-body">${escapeHTML(forecast)}</div>
+      <div class="ai-section-label">Outlook</div>
+      <div class="ai-section-body">${escapeHTML(outlook)}</div>
     </div>`;
+  }
+
+  // === Legacy compat: render old-format sections if new ones are missing ===
+  const intel = b.key_intelligence;
+  if (intel && intel.length > 0 && !whatHappened) {
+    const items = intel.map(i => `<li>${escapeHTML(typeof i === 'string' ? i : i.finding || '')}${renderSources(i.sources)}</li>`).join('');
+    html += `<div class="ai-briefing-section"><div class="ai-section-label">Key Intelligence</div><div class="ai-section-body"><ul>${items}</ul></div></div>`;
   }
 
   // Timestamp + provenance
