@@ -60,15 +60,44 @@ def _get_http_session() -> requests.Session:
     return session
 
 
+def _response_format_unsupported(resp: requests.Response) -> bool:
+    """Detect Groq/OpenAI errors that indicate `response_format` isn't supported.
+
+    Returns True only if the status is 400 AND the response body mentions
+    `response_format`. We intentionally keep the match narrow so unrelated 400s
+    still bubble up as errors.
+    """
+    if resp.status_code != 400:
+        return False
+    try:
+        body = (resp.text or "").lower()
+    except Exception:
+        return False
+    return "response_format" in body
+
+
 def call_llm(user_content: str, system_prompt: str,
-             max_tokens: int = 2000) -> str:
+             max_tokens: int = 2000,
+             response_format: dict | None = None) -> str:
     """Call Groq/OpenAI-compatible API with smart key failover on 429s.
+
+    Args:
+        user_content: The user message content.
+        system_prompt: The system prompt.
+        max_tokens: Max tokens in the response.
+        response_format: Optional OpenAI-style structured output hint, e.g.
+            ``{"type": "json_object"}``. When supplied, the payload includes it
+            and the model is forced to emit valid JSON. If the upstream API
+            rejects the field with a 400 whose body mentions ``response_format``
+            (e.g. a model/provider that doesn't support it), the same key is
+            retried once without the field so callers degrade gracefully rather
+            than breaking.
 
     Returns the raw text response from the LLM.
     Raises RuntimeError if all keys are exhausted.
     """
     url = f"{LLM_BASE_URL.rstrip('/')}/chat/completions"
-    payload = {
+    base_payload = {
         "model": LLM_MODEL,
         "max_tokens": max_tokens,
         "temperature": 0.3,
@@ -77,6 +106,8 @@ def call_llm(user_content: str, system_prompt: str,
             {"role": "user", "content": user_content},
         ],
     }
+    if response_format is not None:
+        base_payload["response_format"] = response_format
 
     attempts = min(len(LLM_API_KEYS), 3) if len(LLM_API_KEYS) > 1 else 1
     last_error = None
@@ -87,24 +118,39 @@ def call_llm(user_content: str, system_prompt: str,
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
 
-        try:
-            session = _get_http_session()
-            resp = session.post(url, json=payload, headers=headers, timeout=90)
-            if resp.status_code == 429:
-                logger.warning(f"Key {attempt + 1} rate-limited (429), trying next...")
-                _advance_key()
-                last_error = f"429 on key {attempt + 1}"
-                continue
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
-        except requests.exceptions.HTTPError as e:
-            if e.response is not None and e.response.status_code == 429:
-                logger.warning(f"Key {attempt + 1} rate-limited, trying next...")
-                _advance_key()
-                last_error = str(e)
-                continue
-            raise
+        # Each attempt may retry once without response_format if the provider
+        # rejects the field. We copy so the retry doesn't mutate the base.
+        payload = dict(base_payload)
+        allow_response_format_fallback = response_format is not None
+
+        while True:
+            try:
+                session = _get_http_session()
+                resp = session.post(url, json=payload, headers=headers, timeout=90)
+                if resp.status_code == 429:
+                    logger.warning(f"Key {attempt + 1} rate-limited (429), trying next...")
+                    _advance_key()
+                    last_error = f"429 on key {attempt + 1}"
+                    break  # break inner while → outer for picks next key
+                if allow_response_format_fallback and _response_format_unsupported(resp):
+                    logger.warning(
+                        "LLM provider rejected response_format on key %d; "
+                        "retrying same key without the field.",
+                        attempt + 1,
+                    )
+                    payload = {k: v for k, v in payload.items() if k != "response_format"}
+                    allow_response_format_fallback = False
+                    continue  # retry same key, same payload minus response_format
+                resp.raise_for_status()
+                data = resp.json()
+                return data["choices"][0]["message"]["content"].strip()
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code == 429:
+                    logger.warning(f"Key {attempt + 1} rate-limited, trying next...")
+                    _advance_key()
+                    last_error = str(e)
+                    break  # break inner while → outer for picks next key
+                raise
 
     raise RuntimeError(f"All {attempts} API keys exhausted: {last_error}")
 

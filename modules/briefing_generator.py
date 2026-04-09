@@ -217,11 +217,19 @@ def _compute_reporting_window(articles: list[dict[str, Any]]) -> str:
 
 def _call_openai_compatible(user_content: str, system_prompt: str = None,
                             max_tokens: int = 2000) -> str:
-    """Call Groq/OpenAI-compatible API via shared llm_client."""
+    """Call Groq/OpenAI-compatible API via shared llm_client.
+
+    All briefing callers expect strict JSON back, so we opt into Groq's
+    structured output mode (``response_format={"type": "json_object"}``) here
+    — the single choke point for global/regional/top-stories/summary LLM calls.
+    The shared client auto-falls back to a plain call if the provider rejects
+    the field, so this is safe to ship even if Groq ever drops support.
+    """
     return _call_groq(
         user_content,
         system_prompt=system_prompt or _BRIEFING_PROMPT,
         max_tokens=max_tokens,
+        response_format={"type": "json_object"},
     )
 
 
