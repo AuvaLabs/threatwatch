@@ -22,6 +22,10 @@ sudo docker run --rm \
   alpine \
   tar czf "/backup/tw_${STAMP}.tgz" -C /data .
 
+# The tar ran as root inside the container, so the host-side file is root-owned.
+# Hand ownership back so the rotation (and any manual cleanup) works without sudo.
+sudo chown "$(id -u):$(id -g)" "$OUT"
+
 # Rotate: keep newest KEEP, delete the rest
 ls -1t "$BACKUP_DIR"/tw_*.tgz 2>/dev/null | tail -n "+$((KEEP + 1))" | xargs -r rm -f
 

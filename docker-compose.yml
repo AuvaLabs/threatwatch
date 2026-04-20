@@ -46,7 +46,10 @@ services:
       - threatwatch-data:/app/data
     depends_on:
       pipeline:
-        condition: service_healthy
+        # service_started (not service_healthy) so the dashboard stays up while
+        # the pipeline is mid-fetch. The server gracefully degrades when
+        # stats.json is missing (/api/stats returns {} rather than 500).
+        condition: service_started
     healthcheck:
       # /api/health returns `status: ok|degraded|stale` from real signals; a
       # `stale` (last-run > 25 min old) should not fail the server itself —
