@@ -203,6 +203,15 @@ def record_clusters(clusters: list[dict[str, Any]]) -> dict[str, str]:
     except Exception as exc:
         logger.warning(f"campaigns.json save failed (non-fatal): {exc}")
 
+    # Phase 1 JSON->SQLite dual-write. Failure is non-fatal; campaigns.json
+    # remains the source of truth until the read-path migration lands.
+    try:
+        from modules.db import upsert_campaign
+        for c in campaigns.values():
+            upsert_campaign(c)
+    except Exception as exc:
+        logger.debug(f"SQLite campaign dual-write skipped: {exc}")
+
     logger.info(
         f"Campaigns: {len(mapping)} active this run, {len(campaigns)} total tracked"
     )

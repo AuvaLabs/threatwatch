@@ -258,6 +258,16 @@ _CAMPAIGN_ID_RE = _re_cve.compile(
 )
 
 
+def _db_stats_safe() -> dict:
+    """Return SQLite shadow-store stats, or a disabled marker if the DB
+    isn't yet populated (first boot after the Phase 1 rollout)."""
+    try:
+        from modules.db import stats as db_stats
+        return db_stats()
+    except Exception:
+        return {"article_count": 0, "campaign_count": 0, "db_bytes": 0, "enabled": False}
+
+
 def _feedback_summary() -> dict:
     """Aggregate classifier feedback from data/state/feedback.jsonl.
 
@@ -1080,6 +1090,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                     # analysts can sort / threshold noisy feeds.
                     "feed_signal_scores": signal_scores(),
                     "classifier_feedback": _feedback_summary(),
+                    "sqlite": _db_stats_safe(),
                 }
                 body = json.dumps(quality, ensure_ascii=False).encode("utf-8")
             except Exception as exc:
