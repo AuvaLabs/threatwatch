@@ -850,6 +850,18 @@ html, body {
   white-space: nowrap;
 }
 
+.story-pill {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent-2);
+  background: rgba(100,116,139,0.08);
+  border: 1px solid rgba(100,116,139,0.18);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  white-space: nowrap;
+  cursor: help;
+}
+
 .card-country {
   font-family: var(--font-body);
   font-size: 11px;
@@ -3726,6 +3738,7 @@ function transformArticles(articles) {
       darkwebSource: article.darkweb_source || null,
       assetTags: article.asset_tags || [],
       brandTags: article.brand_tags || [],
+      cluster: article.cluster || null,
       _id: 'td-' + (article.hash || i)
     };
   });
@@ -3865,10 +3878,28 @@ function buildCardHTML(item) {
     <hr class="card-divider">
     <div class="card-footer">
       <span class="card-time">\uD83D\uDD50 ${timeAgo(item.pubDate)}</span>
+      ${buildStoryBadge(item)}
       ${countryHTML}
       <span class="card-readmore">\u2197 READ</span>
     </div>
   </div>`;
+}
+
+/* Story-cluster pill: shows "Story: 5d old · 29 sources" when the article is
+   part of a multi-outlet cluster older than 24h. Helps the reader see that a
+   fresh-looking feed entry is actually follow-on coverage of an older story. */
+function buildStoryBadge(item) {
+  const c = item.cluster;
+  if (!c || !c.first_seen || !c.article_count || c.article_count < 3) return '';
+  const firstSeen = new Date(c.first_seen).getTime();
+  if (!firstSeen) return '';
+  const ageMs = Date.now() - firstSeen;
+  if (ageMs < 86400000) return '';  // less than 24h — not a recurring story yet
+  const days = Math.floor(ageMs / 86400000);
+  const ageLabel = days >= 1 ? days + 'd old' : Math.floor(ageMs / 3600000) + 'h old';
+  const entity = c.entity_name ? String(c.entity_name) : 'Story';
+  const tip = `Part of "${entity}" story \u2014 ${c.article_count} articles across outlets, first seen ${new Date(c.first_seen).toUTCString()}`;
+  return `<span class="story-pill" title="${escapeHTML(tip)}">\uD83D\uDCCC Story: ${ageLabel} \u00B7 ${c.article_count} sources</span>`;
 }
 
 function renderFeedCards(reset = true) {

@@ -142,6 +142,53 @@ def load_clusters():
         return None
 
 
+def _annotate_with_clusters(articles: list, clusters_payload: dict | None) -> None:
+    """Attach story-cluster metadata to each article in-place.
+
+    For every clustered article we add a `cluster` sub-object with the cluster's
+    display name, its first-seen date, and its article count. The frontend uses
+    these fields to render a "Story: Nd old · X sources" pill so that recurring
+    coverage of the same underlying CVE/campaign does not look like fresh news.
+
+    When an article belongs to multiple clusters (CVE + org, say), we prefer the
+    cluster with the earliest `first_seen` so the badge reflects the true age
+    of the story.
+    """
+    if not clusters_payload:
+        return
+    cluster_list = clusters_payload.get("clusters") or []
+    if not cluster_list:
+        return
+
+    index: dict[str, dict] = {}
+    for c in cluster_list:
+        if (c.get("article_count") or 0) < 3:
+            continue
+        meta = {
+            "entity_name": c.get("entity_name"),
+            "entity_type": c.get("entity_type"),
+            "article_count": c.get("article_count"),
+            "first_seen": c.get("first_seen"),
+        }
+        for h in c.get("article_hashes") or []:
+            prev = index.get(h)
+            if prev is None:
+                index[h] = meta
+                continue
+            # Keep the cluster with the earlier first_seen (older story wins)
+            a_first = meta.get("first_seen") or ""
+            b_first = prev.get("first_seen") or ""
+            if a_first and (not b_first or a_first < b_first):
+                index[h] = meta
+
+    if not index:
+        return
+    for a in articles:
+        h = a.get("hash")
+        if h and h in index:
+            a["cluster"] = index[h]
+
+
 def load_actor_profiles():
     """Load threat actor profiles."""
     path = BASE_DIR / "data" / "output" / "actor_profiles.json"
@@ -262,6 +309,7 @@ def build_ssr_data():
             {k: v for k, v in a.items() if k != "full_content"}
             for a in articles
         ]
+        _annotate_with_clusters(ssr_articles, clusters)
 
         ssr_payload = {
             "articles": ssr_articles,

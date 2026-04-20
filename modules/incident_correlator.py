@@ -10,6 +10,7 @@ import logging
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 from modules.config import OUTPUT_DIR, STATE_DIR
@@ -65,6 +66,27 @@ _ACTOR_PATTERNS = [
     (re.compile(r"Scattered\s*Spider|UNC3944", re.I), "Scattered Spider", "Cybercrime", "Unknown"),
     (re.compile(r"ShinyHunters", re.I), "ShinyHunters", "Cybercrime", "Unknown"),
 ]
+
+
+def _parse_published(raw: str | None) -> datetime | None:
+    """Best-effort parse of `published` which may be RFC822 or ISO8601."""
+    if not raw:
+        return None
+    dt: datetime | None = None
+    # Try ISO8601 first (cheap; matches "2026-04-14T18:17:35.100")
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        dt = None
+    # Fall back to RFC822 (e.g. "Fri, 17 Apr 2026 11:30:00 GMT")
+    if dt is None:
+        try:
+            dt = parsedate_to_datetime(raw)
+        except (ValueError, TypeError):
+            dt = None
+    if dt and dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def _extract_entities(article: dict) -> list[tuple[str, str]]:
@@ -131,7 +153,7 @@ def cluster_articles(articles: list[dict[str, Any]]) -> dict[str, Any]:
         seen_indices.update(cluster_indices)
 
         cluster_articles_data = []
-        for idx in cluster_indices[:10]:  # Cap at 10 per cluster
+        for idx in cluster_indices[:10]:  # Cap at 10 per cluster (preview only)
             a = articles[idx]
             cluster_articles_data.append({
                 "title": a.get("title", ""),
@@ -142,19 +164,38 @@ def cluster_articles(articles: list[dict[str, Any]]) -> dict[str, Any]:
                 "summary": (a.get("summary") or "")[:200],
             })
 
+        # Full member list (by hash) + earliest publish date — used by the
+        # frontend to render "Story first seen N days ago" on every related
+        # article card, so recurring coverage of the same CVE does not look
+        # like distinct 24h stories.
+        article_hashes = []
+        first_seen_dt: datetime | None = None
+        for idx in cluster_indices:
+            a = articles[idx]
+            h = a.get("hash")
+            if h:
+                article_hashes.append(h)
+            dt = _parse_published(a.get("published"))
+            if dt and (first_seen_dt is None or dt < first_seen_dt):
+                first_seen_dt = dt
+
         clusters.append({
             "entity_type": entity_type,
             "entity_name": entity_name,
             "article_count": len(indices),
             "articles": cluster_articles_data,
+            "article_hashes": article_hashes,
+            "first_seen": first_seen_dt.isoformat() if first_seen_dt else None,
             "synthesis": None,  # Filled by AI if available
         })
 
     # AI synthesis for top clusters (limit token usage)
     _synthesize_clusters(clusters[:8])
 
+    # Persist every cluster (not just top 15) so the frontend can annotate
+    # all related articles. Display surfaces still slice to their own caps.
     cluster_data = {
-        "clusters": clusters[:15],  # Top 15 clusters
+        "clusters": clusters,
         "total_clusters": len(clusters),
         "articles_clustered": len(seen_indices),
         "generated_at": datetime.now(timezone.utc).isoformat(),
