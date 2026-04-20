@@ -12,6 +12,22 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
+
+# Scheduler heartbeat — touched on every loop tick so /api/health has a cheap
+# liveness signal independent of how long an individual pipeline run takes.
+# An individual run can take 3-4 hours because of LLM briefing work, which is
+# much longer than the configured INTERVAL; using the last completed run as
+# the freshness signal made healthy pipelines read as "stale".
+_HEARTBEAT_PATH = Path("/app/data/state/scheduler_heartbeat.txt")
+
+
+def _heartbeat() -> None:
+    try:
+        _HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _HEARTBEAT_PATH.write_text(str(time.time()))
+    except OSError:
+        pass  # non-fatal
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,12 +74,15 @@ def _interruptible_sleep(seconds: int) -> bool:
 def main() -> None:
     logging.info("ThreatWatch pipeline scheduler starting (interval=%ds)", INTERVAL)
 
+    _heartbeat()
     _run("scripts/cleanup.py")
     _run("threatdigest_main.py")
+    _heartbeat()
 
     run_count = 0
     while not _shutdown:
         logging.info("Sleeping %ds until next run…", INTERVAL)
+        _heartbeat()
         if not _interruptible_sleep(INTERVAL):
             break
 
@@ -72,7 +91,9 @@ def main() -> None:
 
         run_count += 1
         logging.info("Pipeline run #%d starting", run_count)
+        _heartbeat()
         _run("threatdigest_main.py")
+        _heartbeat()
 
         if run_count % CLEANUP_EVERY == 0:
             logging.info("Daily cleanup (every %d runs)", CLEANUP_EVERY)

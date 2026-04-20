@@ -468,24 +468,40 @@ def save_watchlist_data(brands: list, assets: list) -> None:
 
 
 _PIPELINE_INTERVAL_S = int(os.environ.get("PIPELINE_INTERVAL", "600"))
-# Status thresholds: last_run older than 2.5x interval = stale; analysis failure
-# rate above this on the most recent run flips the status to degraded.
-_STALE_AFTER_S = _PIPELINE_INTERVAL_S * 2.5 + 60
+# A full pipeline run takes hours because of the LLM briefing / regional
+# digest / summarisation phases, not the fetch loop. We therefore separate
+# two liveness signals:
+#   - HEARTBEAT_STALE_S: scheduler loop tick freshness (should be seconds).
+#   - RUN_STALE_S: last_completed_run freshness (tolerates long LLM phases).
+# If the heartbeat is fresh, the scheduler is alive even when the last
+# finalised run is several hours old — that's the accurate picture.
+_HEARTBEAT_STALE_S = max(_PIPELINE_INTERVAL_S * 3, 300)
+_RUN_STALE_S = int(os.environ.get("RUN_STALE_S", "21600"))  # 6h default
 _DEGRADED_FAILURE_RATE = 0.30
+_HEARTBEAT_PATH = "data/state/scheduler_heartbeat.txt"
 
 
-def _compute_status(latest_run: dict, feed_summary: dict, last_run_age: float | None) -> tuple[str, list[str]]:
-    """Decide ok / degraded / stale based on the latest run + feed health.
+def _compute_status(latest_run: dict, feed_summary: dict,
+                    last_run_age: float | None, heartbeat_age: float | None) -> tuple[str, list[str]]:
+    """Decide ok / degraded / stale / unknown.
 
-    Returns (status, reasons). Reasons explain *why* we marked it degraded/stale
-    so operators debugging a red healthcheck don't have to reverse-engineer it.
+    Priority order:
+    1. Heartbeat missing or older than HEARTBEAT_STALE_S => scheduler is dead.
+    2. Last completed run older than RUN_STALE_S => pipeline may be stuck.
+    3. Budget exceeded / analysis failures / dead feed count => degraded.
+    4. Otherwise ok.
     """
     reasons: list[str] = []
-    if last_run_age is None:
-        return ("unknown", ["no_completed_run_recorded"])
-    if last_run_age > _STALE_AFTER_S:
-        reasons.append(f"last_run_{int(last_run_age)}s_ago_threshold_{int(_STALE_AFTER_S)}s")
+    if heartbeat_age is None:
+        if last_run_age is None:
+            return ("unknown", ["no_heartbeat_no_completed_run"])
+    elif heartbeat_age > _HEARTBEAT_STALE_S:
+        reasons.append(f"heartbeat_{int(heartbeat_age)}s_ago_threshold_{int(_HEARTBEAT_STALE_S)}s")
         return ("stale", reasons)
+    if last_run_age is None:
+        reasons.append("no_completed_run_recorded")
+    elif last_run_age > _RUN_STALE_S:
+        reasons.append(f"last_run_{int(last_run_age)}s_ago_threshold_{int(_RUN_STALE_S)}s")
     if latest_run.get("budget_exceeded"):
         reasons.append("llm_budget_exceeded_last_run")
     enriched = latest_run.get("articles_enriched") or 0
@@ -532,7 +548,14 @@ def build_health() -> bytes:
         except (ValueError, TypeError):
             last_run_age = None
 
-    status, reasons = _compute_status(latest_run, feed_summary, last_run_age)
+    heartbeat_age: float | None = None
+    heartbeat_path = BASE_DIR / _HEARTBEAT_PATH
+    try:
+        heartbeat_age = time.time() - heartbeat_path.stat().st_mtime
+    except OSError:
+        heartbeat_age = None
+
+    status, reasons = _compute_status(latest_run, feed_summary, last_run_age, heartbeat_age)
 
     payload = {
         "status": status,
@@ -540,6 +563,7 @@ def build_health() -> bytes:
         "uptime_s": int(time.time() - _SERVER_START),
         "last_run_at": completed_at,
         "last_run_age_s": int(last_run_age) if last_run_age is not None else None,
+        "heartbeat_age_s": int(heartbeat_age) if heartbeat_age is not None else None,
         "articles_total": latest_run.get("articles_fetched", 0),
         "articles_cyber": latest_run.get("cyber_articles", 0),
         "articles_enriched": latest_run.get("articles_enriched", 0),
@@ -815,14 +839,17 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
 
         if path == "/api/feedback":
             # Classifier feedback — analysts flag misclassified articles so
-            # accuracy can be tracked and keyword patterns tuned. Token-gated
-            # using the same WATCHLIST_TOKEN pattern; token is required in
-            # production to prevent poisoning.
-            if WATCHLIST_TOKEN:
-                auth = self.headers.get("Authorization", "")
-                if auth != f"Bearer {WATCHLIST_TOKEN}":
-                    self._send_error_json(HTTPStatus.UNAUTHORIZED, "Invalid or missing authorization token")
-                    return
+            # accuracy can be tracked and keyword patterns tuned. FAIL CLOSED:
+            # if WATCHLIST_TOKEN isn't configured, refuse writes entirely so
+            # the endpoint can't be used to poison the dataset anonymously.
+            if not WATCHLIST_TOKEN:
+                self._send_error_json(HTTPStatus.FORBIDDEN,
+                                      "Feedback writes disabled: set WATCHLIST_TOKEN to enable")
+                return
+            auth = self.headers.get("Authorization", "")
+            if auth != f"Bearer {WATCHLIST_TOKEN}":
+                self._send_error_json(HTTPStatus.UNAUTHORIZED, "Invalid or missing authorization token")
+                return
             try:
                 length = int(self.headers.get("Content-Length", 0))
                 if length <= 0:
