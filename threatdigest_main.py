@@ -205,6 +205,16 @@ def main():
     except Exception as e:
         logging.warning(f"CVE annotation failed: {e}")
 
+    # IOC extraction — pulls IPs, domains, hashes, URLs, emails out of article
+    # body text so the dashboard and /api/iocs can surface indicators. Runs
+    # before write so values are persisted.
+    try:
+        from modules.ioc_extractor import annotate_articles_with_iocs
+        ioc_hits = annotate_articles_with_iocs(enriched_articles)
+        logging.info(f"IOC annotation: {ioc_hits}/{len(enriched_articles)} articles tagged with indicators")
+    except Exception as e:
+        logging.warning(f"IOC annotation failed: {e}")
+
     # Trend detection — update keyword/category frequency tracking
     try:
         update_trends(enriched_articles)

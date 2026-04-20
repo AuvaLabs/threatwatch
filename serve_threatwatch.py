@@ -223,6 +223,74 @@ def _annotate_with_clusters(articles: list, clusters_payload: dict | None) -> No
             a["cluster"] = index[h]
 
 
+# CVE IDs in URL paths — tight regex to avoid any injection surface in
+# `_build_cve_view`, which accepts arbitrary path tail under /api/cve/.
+import re as _re_cve
+_CVE_PATH_RE = _re_cve.compile(r"CVE-\d{4}-\d{4,7}")
+
+
+def _build_cve_view(cve_id: str) -> bytes:
+    """Return all articles referencing `cve_id`, earliest first.
+
+    The payload is self-contained so a future dedicated CVE page can render
+    with a single fetch: timeline, per-article metadata, EPSS score from
+    whichever enriched article carries it, and the full set of outlets
+    covering the story.
+    """
+    from modules.date_utils import parse_datetime
+    articles = load_articles()
+    matching = []
+    epss_score = None
+    for a in articles:
+        cves = a.get("cve_ids") or []
+        if cve_id not in cves:
+            continue
+        matching.append(a)
+        if epss_score is None:
+            for score in (a.get("epss_scores") or {}).values():
+                if isinstance(score, (int, float)):
+                    epss_score = float(score)
+                    break
+
+    def _sort_key(a: dict):
+        dt = parse_datetime(a.get("published")) or parse_datetime(a.get("timestamp"))
+        return dt or datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+    matching.sort(key=_sort_key)
+    first_reported = matching[0] if matching else None
+
+    payload = {
+        "cve_id": cve_id,
+        "article_count": len(matching),
+        "first_reported": (
+            {
+                "title": first_reported.get("title"),
+                "source_name": first_reported.get("source_name"),
+                "link": first_reported.get("link"),
+                "published": first_reported.get("published"),
+            } if first_reported else None
+        ),
+        "epss_score": epss_score,
+        "articles": [
+            {
+                "title": a.get("title"),
+                "translated_title": a.get("translated_title"),
+                "link": a.get("link"),
+                "source_name": a.get("source_name"),
+                "published": a.get("published"),
+                "timestamp": a.get("timestamp"),
+                "category": a.get("category"),
+                "confidence": a.get("confidence"),
+                "summary": a.get("summary"),
+                "feed_region": a.get("feed_region"),
+            }
+            for a in matching
+        ],
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
 def _slim_clusters_for_ssr(clusters_payload: dict | None) -> dict | None:
     """Return a copy of clusters with per-article hash lists stripped.
 
@@ -678,6 +746,24 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Render error")
                 return
             self._send_body("text/html; charset=utf-8", body, head_only)
+            return
+
+        # Route: /api/cve/<ID> — all articles referencing the given CVE, sorted
+        # by published date ascending so the earliest outlet wins the
+        # "first reported by" slot. Includes EPSS score if any article carries
+        # one, and a summary count.
+        if path.startswith("/api/cve/"):
+            cve_id = path[len("/api/cve/"):].upper()
+            if not _CVE_PATH_RE.fullmatch(cve_id):
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid CVE ID")
+                return
+            try:
+                body = _build_cve_view(cve_id)
+            except Exception as exc:
+                logger.error("CVE view error for %s: %s", cve_id, exc)
+                self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "CVE view failed")
+                return
+            self._send_body("application/json; charset=utf-8", body, head_only)
             return
 
         # Route: /api/trends — threat trend data and spike detection
