@@ -8,6 +8,7 @@ import html
 import json
 import logging
 import os
+import secrets
 import sys
 import threading
 import time
@@ -83,9 +84,26 @@ def _is_rate_limited(ip: str) -> bool:
         return False
 
 # ── Security headers ──────────────────────────────────────────────────────────
+# Per-process nonce used to authorise the single inline <script> block in
+# threatwatch.html. Rotates on every server restart — an attacker who injects
+# HTML via a compromised feed cannot guess this value, so their injected
+# <script> tags do not execute. Weaker than a per-request nonce (which would
+# defeat the 30s rendered-page cache) but strictly stronger than the prior
+# 'unsafe-inline' policy.
+_CSP_NONCE = secrets.token_urlsafe(24)
+
+# Tightened CSP: script-src no longer allows 'unsafe-inline'. Every former
+# inline onclick handler now routes through the `_dispatchClick` delegator
+# in threatwatch.html. The remaining single inline <script> block is
+# authorised by the per-process nonce. Inline event handlers, javascript:
+# URLs, and eval are all refused by the browser.
+#
+# style-src retains 'unsafe-inline' because the HTML still has 100+ style=""
+# attributes and a mix of inline <style> blocks; migrating those is a
+# separate follow-up.
 _CSP = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
+    f"script-src 'self' 'nonce-{_CSP_NONCE}'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob:; "
     "font-src 'self' https://fonts.gstatic.com; "
@@ -608,11 +626,18 @@ def render_page():
     template = read_cached(template_path).decode("utf-8")
 
     ssr_json = build_ssr_data()
-    # Escape '</' sequences to prevent script injection / tag breakout (XSS).
+    # Escape '</' sequences so an attacker-supplied article title can't break
+    # out of the containing tag. script-type='application/json' is NOT
+    # executed by browsers so script-src leaves it alone per spec — frontend
+    # reads `textContent` and JSON.parse()s.
     safe_json = ssr_json.replace("</", "<\\/")
-    # Inject data as a script tag replacing the placeholder
     ssr_script = f'<script id="ssr-data" type="application/json">{safe_json}</script>'
     rendered = template.replace(SSR_PLACEHOLDER, ssr_script)
+    # Authorise the single inline <script> block at the bottom of the
+    # template with the per-process CSP nonce. Only the bare `<script>`
+    # opener at line 2516 needs it — `<script id=...>` (ssr-data) and any
+    # future tags with attributes skip the match.
+    rendered = rendered.replace("\n<script>\n", f'\n<script nonce="{_CSP_NONCE}">\n', 1)
 
     body = rendered.encode("utf-8")
     with _cache_lock:

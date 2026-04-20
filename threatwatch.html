@@ -2240,7 +2240,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   <!-- TOP BAR                                                      -->
   <!-- =========================================================== -->
   <header id="topbar">
-    <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Toggle menu">&#9776;</button>
+    <button class="hamburger-btn" id="hamburger-btn" data-click-action="toggleMobileMenu" aria-label="Toggle menu">&#9776;</button>
     <div class="topbar-left">
       <a href="https://threatwatch.auvalabs.com" style="text-decoration:none;color:inherit"><div class="logo">THREATWATCH <span>AI-Powered Cyber Threat Intelligence</span></div></a>
       <div id="clock">--:--:-- UTC</div>
@@ -2248,46 +2248,46 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
     <div class="topbar-right">
       <div id="threat-level" class="low">THREAT: LOW</div>
       <div class="theme-picker" id="theme-picker">
-        <button class="theme-picker-btn" onclick="toggleThemeDropdown()">
+        <button class="theme-picker-btn" data-click-action="toggleThemeDropdown">
           <span class="theme-swatch" id="theme-swatch" style="background:#0b1120;border-color:#3b82f6"></span>
           <span class="theme-label" id="theme-label">MIDNIGHT</span>
         </button>
         <div class="theme-picker-dropdown" id="theme-dropdown">
-          <button class="theme-option" data-theme="dark" onclick="setTheme('dark')">
+          <button class="theme-option" data-theme="dark" data-click-action="setTheme" data-click-args="[&quot;dark&quot;]">
             <span class="theme-swatch" style="background:#0b1120;border-color:#3b82f6"></span> MIDNIGHT
           </button>
-          <button class="theme-option" data-theme="light" onclick="setTheme('light')">
+          <button class="theme-option" data-theme="light" data-click-action="setTheme" data-click-args="[&quot;light&quot;]">
             <span class="theme-swatch" style="background:#f8fafc;border-color:#2563eb"></span> LIGHT
           </button>
-          <button class="theme-option active" data-theme="solarized" onclick="setTheme('solarized')">
+          <button class="theme-option active" data-theme="solarized" data-click-action="setTheme" data-click-args="[&quot;solarized&quot;]">
             <span class="theme-swatch" style="background:#002b36;border-color:#b58900"></span> SOLARIZED
           </button>
-          <button class="theme-option" data-theme="arctic" onclick="setTheme('arctic')">
+          <button class="theme-option" data-theme="arctic" data-click-action="setTheme" data-click-args="[&quot;arctic&quot;]">
             <span class="theme-swatch" style="background:#f0f4f8;border-color:#1d4ed8"></span> ARCTIC
           </button>
-          <button class="theme-option" data-theme="phosphor" onclick="setTheme('phosphor')">
+          <button class="theme-option" data-theme="phosphor" data-click-action="setTheme" data-click-args="[&quot;phosphor&quot;]">
             <span class="theme-swatch" style="background:#0a0a0a;border-color:#33ff33"></span> PHOSPHOR
           </button>
         </div>
       </div>
       <span class="topbar-sep"></span>
-      <button class="watch-btn" id="watch-btn" onclick="openWatchDrawer()" title="Brand &amp; Asset Watch">&#128269; WATCH <span class="watch-btn-dot"></span></button>
+      <button class="watch-btn" id="watch-btn" data-click-action="openWatchDrawer" title="Brand &amp; Asset Watch">&#128269; WATCH <span class="watch-btn-dot"></span></button>
       <span class="topbar-sep"></span>
       <a href="https://nicholai.me" target="_blank" rel="noopener" class="author-name" style="text-decoration:none;color:inherit">nicholai.me</a>
       <a href="https://buymeacoffee.com/nicholai.me" target="_blank" rel="noopener" class="coffee-btn">&#9749; Buy me a coffee</a>
     </div>
   </header>
-  <div class="mobile-overlay" id="mobile-overlay" onclick="toggleMobileMenu()"></div>
+  <div class="mobile-overlay" id="mobile-overlay" data-click-action="toggleMobileMenu"></div>
 
   <!-- BRAND & ASSET WATCH DRAWER -->
-  <div class="watch-overlay" id="watch-overlay" onclick="closeWatchDrawer()"></div>
+  <div class="watch-overlay" id="watch-overlay" data-click-action="closeWatchDrawer"></div>
   <div class="watch-drawer" id="watch-drawer">
     <div class="watch-drawer-header">
       <div class="watch-drawer-title">
         &#128269; Brand &amp; Asset Watch
         <span class="watch-mode-badge hosted" id="watch-mode-badge">HOSTED</span>
       </div>
-      <button class="watch-close-btn" onclick="closeWatchDrawer()">&#x2715;</button>
+      <button class="watch-close-btn" data-click-action="closeWatchDrawer">&#x2715;</button>
     </div>
     <div class="watch-drawer-body">
       <!-- Brand Watch -->
@@ -2297,7 +2297,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
           Enter brand names or keywords to monitor across the intelligence feed.
           <span class="sh-only">Each keyword triggers targeted Google News searches in the pipeline.</span>
         </div>
-        <div class="tag-input-wrap" onclick="document.getElementById('brand-tag-input').focus()">
+        <div class="tag-input-wrap" data-click-action="focusInput" data-click-args="[&quot;brand-tag-input&quot;]">
           <div id="brand-tags-rendered"></div>
           <input type="text" id="brand-tag-input" class="tag-text-input" placeholder="Type brand name, press Enter..." onkeydown="handleTagInput(event,'brands')">
         </div>
@@ -2319,7 +2319,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div class="watch-section-desc">Track any technology not in the vendor list above — matched client-side across the feed and TECH tab.
           <span class="sh-only"> Also runs targeted pipeline searches each cycle.</span>
         </div>
-        <div class="tag-input-wrap" onclick="document.getElementById('asset-tag-input').focus()">
+        <div class="tag-input-wrap" data-click-action="focusInput" data-click-args="[&quot;asset-tag-input&quot;]">
           <div id="asset-tags-rendered"></div>
           <input type="text" id="asset-tag-input" class="tag-text-input" placeholder="Type technology keyword, press Enter..." onkeydown="handleTagInput(event,'assets')">
         </div>
@@ -2328,7 +2328,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
     </div>
     <div class="watch-drawer-footer">
       <span class="watch-save-status" id="watch-save-status"></span>
-      <button class="watch-save-btn" onclick="saveWatchlist()">Save Preferences</button>
+      <button class="watch-save-btn" data-click-action="saveWatchlist">Save Preferences</button>
     </div>
   </div>
 
@@ -2387,15 +2387,15 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
     <!-- Header with tab nav + region filters -->
     <div class="center-header" id="center-panel">
       <div class="main-tabs">
-        <button class="main-tab active" data-tab="briefing" onclick="switchMainTab('briefing')">INTEL BRIEF</button>
-        <button class="main-tab" data-tab="breach" onclick="switchMainTab('breach')">BREACH</button>
-        <button class="main-tab" data-tab="exploits" onclick="switchMainTab('exploits')">EXPLOITS</button>
-        <button class="main-tab" data-tab="malware" onclick="switchMainTab('malware')">MALWARE</button>
-        <button class="main-tab" data-tab="darkweb" onclick="switchMainTab('darkweb')">DARK WEB</button>
-        <button class="main-tab" data-tab="ransom" onclick="switchMainTab('ransom')">RANSOMWARE</button>
-        <button class="main-tab" data-tab="apt" onclick="switchMainTab('apt')">APT TRACKER</button>
-        <button class="main-tab" data-tab="brands" onclick="switchMainTab('brands')">BRANDS</button>
-        <button class="main-tab" data-tab="assets" onclick="switchMainTab('assets')">TECH</button>
+        <button class="main-tab active" data-tab="briefing" data-click-action="switchMainTab" data-click-args="[&quot;briefing&quot;]">INTEL BRIEF</button>
+        <button class="main-tab" data-tab="breach" data-click-action="switchMainTab" data-click-args="[&quot;breach&quot;]">BREACH</button>
+        <button class="main-tab" data-tab="exploits" data-click-action="switchMainTab" data-click-args="[&quot;exploits&quot;]">EXPLOITS</button>
+        <button class="main-tab" data-tab="malware" data-click-action="switchMainTab" data-click-args="[&quot;malware&quot;]">MALWARE</button>
+        <button class="main-tab" data-tab="darkweb" data-click-action="switchMainTab" data-click-args="[&quot;darkweb&quot;]">DARK WEB</button>
+        <button class="main-tab" data-tab="ransom" data-click-action="switchMainTab" data-click-args="[&quot;ransom&quot;]">RANSOMWARE</button>
+        <button class="main-tab" data-tab="apt" data-click-action="switchMainTab" data-click-args="[&quot;apt&quot;]">APT TRACKER</button>
+        <button class="main-tab" data-tab="brands" data-click-action="switchMainTab" data-click-args="[&quot;brands&quot;]">BRANDS</button>
+        <button class="main-tab" data-tab="assets" data-click-action="switchMainTab" data-click-args="[&quot;assets&quot;]">TECH</button>
       </div>
       <div class="region-filters" id="region-filters">
         <button class="region-btn active" data-region="all">GLOBAL <span class="region-count" id="rc-all"></span></button>
@@ -2424,7 +2424,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       <div class="center-section" id="section-briefing">
         <div class="center-section-title">
           <span class="section-icon">&#x1F4E1;</span> Intelligence Digest
-          <button class="briefing-mode-toggle ai-active" id="briefing-mode-toggle" onclick="toggleBriefingMode()">AI</button>
+          <button class="briefing-mode-toggle ai-active" id="briefing-mode-toggle" data-click-action="toggleBriefingMode">AI</button>
           <span id="briefing-mode-hint" style="font-size:9px;color:var(--text-muted);margin-left:8px;letter-spacing:0.3px">toggle for normal digest</span>
         </div>
         <div id="ai-briefing-content"></div>
@@ -2444,7 +2444,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 
       <!-- Detail article view (shown on click, hides sections) -->
       <div id="detail-article-center" style="display:none">
-        <div class="detail-back" onclick="closeDetail()">&#8592; BACK TO BRIEFING</div>
+        <div class="detail-back" data-click-action="closeDetail">&#8592; BACK TO BRIEFING</div>
         <div class="detail-section" id="detail-content"></div>
       </div>
 
@@ -2469,9 +2469,9 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <span class="ransom-source-badge">ransomware.live</span>
       </div>
       <div class="ransom-type-filters">
-        <button class="ransom-type-btn active" data-type="all" onclick="setRansomFilter('all')">ALL</button>
-        <button class="ransom-type-btn" data-type="victims" onclick="setRansomFilter('victims')">VICTIMS</button>
-        <button class="ransom-type-btn" data-type="news" onclick="setRansomFilter('news')">NEWS</button>
+        <button class="ransom-type-btn active" data-type="all" data-click-action="setRansomFilter" data-click-args="[&quot;all&quot;]">ALL</button>
+        <button class="ransom-type-btn" data-type="victims" data-click-action="setRansomFilter" data-click-args="[&quot;victims&quot;]">VICTIMS</button>
+        <button class="ransom-type-btn" data-type="news" data-click-action="setRansomFilter" data-click-args="[&quot;news&quot;]">NEWS</button>
       </div>
       <div class="ransom-tracker-feed" id="ransom-tracker-content">
         <div class="ransom-empty">Switch to this tab to load ransomware data</div>
@@ -3240,7 +3240,9 @@ function renderBriefing(items, allText, globalTotal) {
 
   b += `<br><br><strong>Recommended Actions:</strong><ul class="action-drilldown-list">${
     actions.slice(0, 5).map((a, i) => {
-      const dd = a.drilldown ? ` onclick="drilldownAction('${a.drilldown.type}','${a.drilldown.value.replace(/'/g, "\\'")}')" class="action-drilldown"` : '';
+      const dd = a.drilldown
+        ? ` data-click-action="drilldownAction" data-click-args="${escapeHTML(JSON.stringify([a.drilldown.type, a.drilldown.value]))}" class="action-drilldown"`
+        : '';
       return `<li${dd}>${a.html}<span class="action-arrow">${a.drilldown ? ' &#8594;' : ''}</span></li>`;
     }).join('')
   }</ul>`;
@@ -3385,7 +3387,7 @@ function renderAIBriefing(container) {
       const srcLinks = typeof item === 'object' ? renderSources(item.sources) : '';
       const match = _AI_ACTION_DRILLDOWNS.find(r => r.re.test(actionText));
       if (match) {
-        return `<li class="action-item" onclick="drilldownAction('${match.type}','${escapeHTML(match.value)}')" style="cursor:pointer" title="Show matching articles">&#x2192; ${escapeHTML(actionText)}${threatRef}${srcLinks}</li>`;
+        return `<li class="action-item" data-click-action="drilldownAction" data-click-args="[&quot;${match.type}&quot;,&quot;${escapeHTML(match.value)}&quot;]" style="cursor:pointer" title="Show matching articles">&#x2192; ${escapeHTML(actionText)}${threatRef}${srcLinks}</li>`;
       }
       return `<li class="action-item">&#x2192; ${escapeHTML(actionText)}${threatRef}${srcLinks}</li>`;
     }).join('');
@@ -3560,7 +3562,7 @@ function renderKeyIncidents(items) {
     let context = item.description || '';
     if (context.length > 150) context = context.slice(0, 147) + '...';
 
-    return `<div class="incident-card${cardClass}" onclick="selectItem(state.newsItems.find(i => i._id === '${item._id}'))">
+    return `<div class="incident-card${cardClass}" data-click-action="selectItemById" data-click-args="${escapeHTML(JSON.stringify([item._id]))}">
       <div class="incident-header">
         <span class="incident-sev ${sevClass}">${item.severity}</span>
         <span class="incident-type">${item.icon || ''} ${item.type}</span>
@@ -3599,7 +3601,7 @@ function renderActorSpotlight(items, allText) {
   if (activeName) {
     html += `<div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
       <span style="font-size:10px;color:var(--accent);font-family:var(--font-mono)">Filtered: ${escapeHTML(activeName)}</span>
-      <button onclick="clearActorFilter()" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
+      <button data-click-action="clearActorFilter" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
     </div>`;
   }
 
@@ -3615,7 +3617,7 @@ function renderActorSpotlight(items, allText) {
     const ttps = profile && profile.signature_ttps ? profile.signature_ttps.slice(0, 2).join(', ') : '';
     const profileLine = ttps ? `<div style="font-size:8px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(ttps)}</div>` : '';
 
-    return `<div class="actor-tag${isActive ? ' active' : ''}" onclick="toggleActorFilter(${actor.idx})" title="${profileTip}">
+    return `<div class="actor-tag${isActive ? ' active' : ''}" data-click-action="toggleActorFilter" data-click-args="[${actor.idx}]" title="${profileTip}">
       <div>
         <div class="actor-name" style="color:${typeColor}">${escapeHTML(actor.name)}</div>
         <div class="actor-type">${actor.type} | ${actor.origin}</div>
@@ -3674,13 +3676,13 @@ function renderSectorImpact(items, allText) {
   if (activeName) {
     html += `<div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
       <span style="font-size:10px;color:var(--warning);font-family:var(--font-mono)">Filtered: ${escapeHTML(activeName)}</span>
-      <button onclick="clearSectorFilter()" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
+      <button data-click-action="clearSectorFilter" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
     </div>`;
   }
 
   html += `<div class="sector-grid">${found.slice(0, 9).map(sector => {
     const isActive = activeName === sector.name;
-    return `<div class="sector-tag${isActive ? ' active' : ''}" data-sector-idx="${sector.idx}" onclick="toggleSectorFilter(${sector.idx})">
+    return `<div class="sector-tag${isActive ? ' active' : ''}" data-sector-idx="${sector.idx}" data-click-action="toggleSectorFilter" data-click-args="[${sector.idx}]">
       <span class="sector-icon">${sector.icon}</span>
       <span class="sector-name">${escapeHTML(sector.name)}</span>
       <span class="sector-count">${sector.count} mention${sector.count > 1 ? 's' : ''}</span>
@@ -4295,7 +4297,7 @@ function renderServerIOCSection(item) {
     const shown = vals.slice(0, 20);
     const extra = vals.length > 20 ? `<span class="ioc-more">+${vals.length - 20} more</span>` : '';
     const chips = shown.map(v =>
-      `<span class="ioc-chip" onclick="copyIOC('${escapeHTML(v)}', this)" title="${escapeHTML(v)}">${escapeHTML(v)} <span class="ioc-copy">COPY</span></span>`
+      `<span class="ioc-chip" data-click-action="copyIOC" data-click-args="[&quot;${escapeHTML(v)}&quot;,&quot;__self__&quot;]" title="${escapeHTML(v)}">${escapeHTML(v)} <span class="ioc-copy">COPY</span></span>`
     ).join('');
     rows.push(`<div class="ioc-group"><div class="ioc-group-label">${label}</div><div class="ioc-list">${chips}${extra}</div></div>`);
   }
@@ -4321,27 +4323,27 @@ function renderIOCSection(item) {
 
   if (iocs.cves.length > 0) {
     html += `<div class="ioc-group"><div class="ioc-group-label">CVE IDs</div><div class="ioc-list">${
-      iocs.cves.map(c => `<span class="ioc-chip ioc-cve" onclick="copyIOC('${escapeHTML(c)}', this)">${escapeHTML(c)} <span class="ioc-copy">COPY</span></span>`).join('')
+      iocs.cves.map(c => `<span class="ioc-chip ioc-cve" data-click-action="copyIOC" data-click-args="[&quot;${escapeHTML(c)}&quot;,&quot;__self__&quot;]">${escapeHTML(c)} <span class="ioc-copy">COPY</span></span>`).join('')
     }</div></div>`;
   }
   if (iocs.ips.length > 0) {
     html += `<div class="ioc-group"><div class="ioc-group-label">IP ADDRESSES</div><div class="ioc-list">${
-      iocs.ips.map(ip => `<span class="ioc-chip ioc-ip" onclick="copyIOC('${escapeHTML(ip)}', this)">${escapeHTML(ip)} <span class="ioc-copy">COPY</span></span>`).join('')
+      iocs.ips.map(ip => `<span class="ioc-chip ioc-ip" data-click-action="copyIOC" data-click-args="[&quot;${escapeHTML(ip)}&quot;,&quot;__self__&quot;]">${escapeHTML(ip)} <span class="ioc-copy">COPY</span></span>`).join('')
     }</div></div>`;
   }
   if (iocs.hashes.length > 0) {
     html += `<div class="ioc-group"><div class="ioc-group-label">FILE HASHES</div><div class="ioc-list">${
-      iocs.hashes.slice(0, 10).map(h => `<span class="ioc-chip ioc-hash" onclick="copyIOC('${escapeHTML(h.value)}', this)" title="${escapeHTML(h.type)}: ${escapeHTML(h.value)}">${escapeHTML(h.type)}: ${escapeHTML(h.value.slice(0, 16))}... <span class="ioc-copy">COPY</span></span>`).join('')
+      iocs.hashes.slice(0, 10).map(h => `<span class="ioc-chip ioc-hash" data-click-action="copyIOC" data-click-args="[&quot;${escapeHTML(h.value)}&quot;,&quot;__self__&quot;]" title="${escapeHTML(h.type)}: ${escapeHTML(h.value)}">${escapeHTML(h.type)}: ${escapeHTML(h.value.slice(0, 16))}... <span class="ioc-copy">COPY</span></span>`).join('')
     }</div></div>`;
   }
   if (iocs.domains.length > 0) {
     html += `<div class="ioc-group"><div class="ioc-group-label">DOMAINS</div><div class="ioc-list">${
-      iocs.domains.slice(0, 15).map(d => `<span class="ioc-chip ioc-domain" onclick="copyIOC('${escapeHTML(d)}', this)">${escapeHTML(d)} <span class="ioc-copy">COPY</span></span>`).join('')
+      iocs.domains.slice(0, 15).map(d => `<span class="ioc-chip ioc-domain" data-click-action="copyIOC" data-click-args="[&quot;${escapeHTML(d)}&quot;,&quot;__self__&quot;]">${escapeHTML(d)} <span class="ioc-copy">COPY</span></span>`).join('')
     }</div></div>`;
   }
   if (iocs.emails.length > 0) {
     html += `<div class="ioc-group"><div class="ioc-group-label">EMAIL ADDRESSES</div><div class="ioc-list">${
-      iocs.emails.slice(0, 10).map(e => `<span class="ioc-chip ioc-domain" onclick="copyIOC('${escapeHTML(e)}', this)">${escapeHTML(e)} <span class="ioc-copy">COPY</span></span>`).join('')
+      iocs.emails.slice(0, 10).map(e => `<span class="ioc-chip ioc-domain" data-click-action="copyIOC" data-click-args="[&quot;${escapeHTML(e)}&quot;,&quot;__self__&quot;]">${escapeHTML(e)} <span class="ioc-copy">COPY</span></span>`).join('')
     }</div></div>`;
   }
 
@@ -4363,6 +4365,41 @@ function escapeHTML(str) {
   if (!str) return '';
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+/* Click dispatcher — replaces every inline onclick= attribute so CSP can drop
+   'unsafe-inline' from script-src. Each clickable element carries:
+     data-click-action  the name of a global function on window
+     data-click-args    a JSON array of pre-evaluated arguments
+   The string "__self__" inside data-click-args resolves to the clicked element
+   so existing copyIOC(value, this) callers keep working. No eval / Function
+   is used — JSON.parse is the only substrate, so CSP can forbid unsafe-eval
+   as well. */
+function focusInput(id) {
+  const el = document.getElementById(id);
+  if (el) el.focus();
+}
+
+function _dispatchClick(e) {
+  const el = e.target.closest('[data-click-action]');
+  if (!el) return;
+  const fn = window[el.dataset.clickAction];
+  if (typeof fn !== 'function') return;
+  let args = [];
+  const raw = el.dataset.clickArgs;
+  if (raw) {
+    try {
+      args = JSON.parse(raw).map(v => (v === '__self__' ? el : v));
+    } catch (_err) {
+      return;
+    }
+  }
+  try {
+    fn.apply(el, args);
+  } catch (err) {
+    console.error('click handler failed:', el.dataset.clickAction, err);
+  }
+}
+document.addEventListener('click', _dispatchClick, true);
 
 /* Feed-supplied URLs are untrusted. escapeHTML neutralises angle-brackets
    but does not block javascript:/data:/vbscript: schemes, so an RSS feed can
@@ -4625,7 +4662,7 @@ function buildThreatCategoryChart(geoEvents, feedItems) {
   if (activeCatName) {
     chartHtml += `<div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
       <span style="font-size:10px;color:#00e5ff;font-family:var(--font-mono)">Filtered: ${escapeHTML(activeCatName)}</span>
-      <button onclick="clearCategoryFilter()" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
+      <button data-click-action="clearCategoryFilter" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
     </div>`;
   }
 
@@ -4633,7 +4670,7 @@ function buildThreatCategoryChart(geoEvents, feedItems) {
     const pct = Math.round((count / maxCount) * 100);
     const color = CAT_COLORS[label] || '#00aaff';
     const isActive = activeCatName === label;
-    return `<div class="cat-row${isActive ? ' active' : ''}" onclick="toggleCategoryFilter('${escapeHTML(label)}')">
+    return `<div class="cat-row${isActive ? ' active' : ''}" data-click-action="toggleCategoryFilter" data-click-args="[&quot;${escapeHTML(label)}&quot;]">
       <div class="cat-label">${escapeHTML(label)}</div>
       <div class="cat-bar-track">
         <div class="cat-bar" style="background:${color}" data-count="${count}" data-pct="${pct}"></div>
@@ -5040,7 +5077,7 @@ function renderRansomTracker() {
     const lastSeen   = lastTime ? _timeAgo(new Date(lastTime).toISOString()) : '—';
 
     html += `<div class="ransom-group-card ${isActive ? 'ransom-active' : ''} ${isSelected ? 'ransom-selected' : ''}"
-        onclick="selectRansomGroup('${escapeHTML(group)}')">
+        data-click-action="selectRansomGroup" data-click-args="[&quot;${escapeHTML(group)}&quot;]">
       <div class="ransom-group-name">${escapeHTML(displayName)}</div>
       <div class="ransom-group-stats">
         <div><div class="ransom-group-stat-val" style="color:var(--danger)">${data.victims.length}</div><div class="ransom-group-stat-label">VICTIMS</div></div>
@@ -5078,12 +5115,12 @@ function renderRansomTracker() {
   html += `<div class="ransom-articles-section">
     <div class="ransom-section-title">
       ${escapeHTML(label)}
-      ${_selectedRansomGroup ? `<span class="ransom-section-count" style="cursor:pointer" onclick="selectRansomGroup(null)">CLEAR ×</span>` : ''}
+      ${_selectedRansomGroup ? `<span class="ransom-section-count" style="cursor:pointer" data-click-action="selectRansomGroup" data-click-args="[null]">CLEAR ×</span>` : ''}
     </div>`;
 
   displayItems.slice(0, 40).forEach(item => {
     const isVictim = item.isDarkweb && item.darkwebSource === 'ransomware.live';
-    html += `<div class="ransom-article-row" onclick="selectItemById('${item._id}')">
+    html += `<div class="ransom-article-row" data-click-action="selectItemById" data-click-args="[&quot;${item._id}&quot;]">
       <div class="ransom-article-dot ${isVictim ? 'ransom-dot-victim' : ''}"></div>
       <div class="ransom-article-body">
         <div class="ransom-article-title">${escapeHTML(item.title)}</div>
@@ -5155,7 +5192,7 @@ function renderAPTTracker() {
     const isCrit = actor.critical && actor.count >= 2;
     const isSelected = _selectedAPTActor === actor.name;
     html += `<div class="apt-actor-card ${isCrit ? 'apt-critical' : ''} ${isSelected ? 'apt-selected' : ''}"
-        data-actor="${escapeHTML(actor.name)}" onclick="selectAPTActor('${escapeHTML(actor.name)}')">
+        data-actor="${escapeHTML(actor.name)}" data-click-action="selectAPTActor" data-click-args="[&quot;${escapeHTML(actor.name)}&quot;]">
       <div class="apt-actor-name">${escapeHTML(actor.name)}${isCrit ? ' <span class="apt-critical-badge">CRITICAL</span>' : ''}</div>
       <div class="apt-actor-origin">${actor.origin}</div>
       <div class="apt-actor-stats">
@@ -5186,11 +5223,11 @@ function renderAPTTracker() {
   html += `<div class="apt-articles-section">
     <div class="apt-section-title">
       ${escapeHTML(label)}
-      ${_selectedAPTActor ? `<span class="apt-section-count" style="cursor:pointer" onclick="selectAPTActor(null)">CLEAR ×</span>` : ''}
+      ${_selectedAPTActor ? `<span class="apt-section-count" style="cursor:pointer" data-click-action="selectAPTActor" data-click-args="[null]">CLEAR ×</span>` : ''}
     </div>`;
 
   displayItems.slice(0, 30).forEach(item => {
-    html += `<div class="apt-article-row" onclick="selectItemById('${item._id}')">
+    html += `<div class="apt-article-row" data-click-action="selectItemById" data-click-args="[&quot;${item._id}&quot;]">
       <div class="apt-article-dot"></div>
       <div class="apt-article-title">${escapeHTML(item.title)}</div>
       <div class="apt-article-time">${_timeAgo(item.pubDate)}</div>
@@ -5532,7 +5569,7 @@ function renderTagChips(type) {
   if (!container) return;
   const list = type === 'brands' ? watchState.customBrands : watchState.customAssets;
   container.innerHTML = list.map(v =>
-    `<span class="tw-tag-chip">${escapeHTML(v)}<span class="tw-tag-remove" onclick="removeTag('${type}',${JSON.stringify(v)})">&times;</span></span>`
+    `<span class="tw-tag-chip">${escapeHTML(v)}<span class="tw-tag-remove" data-click-action="removeTag" data-click-args="[&quot;${type}&quot;,${JSON.stringify(v)}]">&times;</span></span>`
   ).join('');
 }
 
@@ -5632,7 +5669,7 @@ function showWatchDetail(item, backTab) {
   if (!container) return;
   const backLabel = backTab === 'brands' ? 'Brand Watch' : 'Tech Watch';
   container.innerHTML = `
-    <div class="watch-detail-back" onclick="${backTab === 'brands' ? 'renderBrandsTab()' : 'renderAssetsTab()'}">&#8592; Back to ${escapeHTML(backLabel)}</div>
+    <div class="watch-detail-back" data-click-action="${backTab === 'brands' ? 'renderBrandsTab' : 'renderAssetsTab'}">&#8592; Back to ${escapeHTML(backLabel)}</div>
     <div class="watch-detail-body">
       <div class="detail-badges">
         <span class="badge badge-src ${item.sourceClass}">${escapeHTML(item.source)}</span>
@@ -5664,9 +5701,9 @@ function updateWatchFilterBanner() {
     return;
   }
   const typeLabel = state.watchFilter.type === 'brand' ? 'BRAND' : 'TECH';
-  const clearFn   = state.watchFilter.type === 'brand' ? 'selectBrand(null)' : 'selectVendor(null)';
+  const clearAction = state.watchFilter.type === 'brand' ? 'selectBrand' : 'selectVendor';
   banner.style.display = 'flex';
-  banner.innerHTML = `<span>${typeLabel}: ${escapeHTML(state.watchFilter.name)}</span><span style="cursor:pointer;opacity:0.7" onclick="${clearFn}">CLEAR ×</span>`;
+  banner.innerHTML = `<span>${typeLabel}: ${escapeHTML(state.watchFilter.name)}</span><span style="cursor:pointer;opacity:0.7" data-click-action="${clearAction}" data-click-args="[null]">CLEAR ×</span>`;
 }
 
 function selectBrand(name) {
