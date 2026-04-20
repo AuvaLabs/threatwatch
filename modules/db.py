@@ -138,6 +138,40 @@ def upsert_articles(articles: Iterable[dict[str, Any]]) -> int:
         return count
 
 
+def load_articles_from_db(
+    since_iso: str | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """Return all articles from SQLite as dicts, newest-first.
+
+    `since_iso` filters to timestamp > since_iso (for /api/since).
+    `limit` caps row count for pagination / benchmarking.
+
+    Each row's `payload_json` holds the full article dict, so reconstruction
+    is lossless — any field the pipeline wrote to JSON round-trips through
+    here unchanged.
+    """
+    with _conn_lock:
+        conn = _open()
+        sql = "SELECT payload_json FROM articles"
+        args: list[Any] = []
+        if since_iso:
+            sql += " WHERE timestamp > ?"
+            args.append(since_iso)
+        sql += " ORDER BY timestamp DESC"
+        if limit:
+            sql += " LIMIT ?"
+            args.append(int(limit))
+        rows = conn.execute(sql, args).fetchall()
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        try:
+            out.append(json.loads(r[0]))
+        except (TypeError, json.JSONDecodeError):
+            continue
+    return out
+
+
 def prune_older_than(cutoff_iso: str) -> int:
     """Delete articles whose timestamp < cutoff_iso. Returns row count."""
     with _conn_lock:

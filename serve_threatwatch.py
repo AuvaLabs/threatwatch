@@ -26,6 +26,10 @@ CACHE_TTL = 30  # seconds
 SSR_PLACEHOLDER = "<!-- __SSR_DATA__ -->"
 WATCHLIST_WRITE_ENABLED = os.environ.get("WATCHLIST_WRITE_ENABLED", "").lower() in ("1", "true", "yes")
 WATCHLIST_TOKEN = os.environ.get("WATCHLIST_TOKEN", "")
+# SQLite read path toggle. When set, load_articles prefers the shadow store
+# over JSON. Off by default so the cut-over is explicit and reversible: set
+# READ_FROM_SQLITE=1 in docker-compose to enable, unset to revert to JSON.
+_READ_FROM_SQLITE = os.environ.get("READ_FROM_SQLITE", "").lower() in ("1", "true", "yes")
 
 _cache: dict = {}
 _cache_lock = threading.Lock()  # guards all _cache writes; reads use GIL
@@ -145,13 +149,51 @@ def read_cached(file_path):
 
 
 def load_articles():
-    """Load articles JSON, cached."""
+    """Return the full article corpus as a list of dicts.
+
+    SQLite Phase 2: when READ_FROM_SQLITE=1, we pull from the shadow store
+    populated by output_writer.write_daily_output's dual-write, falling back
+    to the JSON file if the DB has fewer rows (e.g. first boot before
+    import_to_sqlite.py has run, or an ad-hoc tool wrote to JSON only).
+    JSON remains the source of truth until Phase 3 drops the dual-write.
+    """
+    if _READ_FROM_SQLITE:
+        try:
+            from modules.db import load_articles_from_db, count_articles
+            db_count = count_articles()
+            if db_count > 0:
+                arts = load_articles_from_db()
+                # Defensive parity check: if SQLite looks catastrophically
+                # behind JSON (e.g. >20% fewer rows), fall back to JSON this
+                # request so operators never see a half-empty dashboard
+                # during a migration gap. Threshold keeps normal drift tolerant.
+                json_count = _count_articles_json()
+                if json_count > 0 and db_count < json_count * 0.8:
+                    logger.warning(
+                        "SQLite read disabled for this request: "
+                        "db_count=%d json_count=%d", db_count, json_count,
+                    )
+                else:
+                    return arts
+        except Exception as exc:
+            logger.warning("SQLite read failed, falling back to JSON: %s", exc)
+
     articles_path = BASE_DIR / "data" / "output" / "daily_latest.json"
     try:
         raw = read_cached(articles_path)
         return json.loads(raw)
     except (FileNotFoundError, json.JSONDecodeError):
         return []
+
+
+def _count_articles_json() -> int:
+    """Cheap row-count for the JSON primary, used as a parity reference."""
+    try:
+        raw = read_cached(BASE_DIR / "data" / "output" / "daily_latest.json")
+        data = json.loads(raw)
+        return len(data) if isinstance(data, list) else 0
+    except (FileNotFoundError, json.JSONDecodeError):
+        return 0
 
 
 def load_stats():
@@ -259,13 +301,19 @@ _CAMPAIGN_ID_RE = _re_cve.compile(
 
 
 def _db_stats_safe() -> dict:
-    """Return SQLite shadow-store stats, or a disabled marker if the DB
-    isn't yet populated (first boot after the Phase 1 rollout)."""
+    """Return SQLite shadow-store stats and the current read-source flag so
+    operators can see at a glance whether the server is reading from SQLite
+    or from JSON for a given request."""
     try:
         from modules.db import stats as db_stats
-        return db_stats()
+        s = db_stats()
+        s["read_source"] = "sqlite" if _READ_FROM_SQLITE else "json"
+        return s
     except Exception:
-        return {"article_count": 0, "campaign_count": 0, "db_bytes": 0, "enabled": False}
+        return {
+            "article_count": 0, "campaign_count": 0, "db_bytes": 0,
+            "enabled": False, "read_source": "json",
+        }
 
 
 def _feedback_summary() -> dict:
