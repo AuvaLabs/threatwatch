@@ -196,3 +196,61 @@ class TestInferArticleRegion:
         results = infer_articles_regions(articles)
         assert results[0]["feed_region"] == "Europe"
         assert results[1]["feed_region"] == "Global"
+
+    # ── attacker-origin disambiguation (lines 118-143) ───────────────────
+
+    def test_chinese_hackers_attack_american_returns_us(self):
+        """Attacker-origin: Chinese (APAC) + American (US) → target is US."""
+        a = self._article("Chinese hackers target American government agencies")
+        result = infer_article_region(a)
+        assert result["feed_region"] == "US"
+
+    def test_north_korean_apt_hits_british(self):
+        """Attacker-origin: North Korean (APAC) + British (Europe) → Europe."""
+        a = self._article("North Korean APT37 hits British banks")
+        result = infer_article_region(a)
+        assert result["feed_region"] == "Europe"
+
+    def test_iranian_breach_american(self):
+        """Attacker-origin: Iranian (Middle East) + American (US) → US."""
+        a = self._article("Iranian-linked hackers breach American defense contractor")
+        result = infer_article_region(a)
+        assert result["feed_region"] == "US"
+
+    def test_russian_sandworm_attacks_ukraine(self):
+        """Both Russia and Ukraine map to Europe — single region."""
+        a = self._article("Russian Sandworm attacks Ukrainian power grid")
+        result = infer_article_region(a)
+        assert result["feed_region"] == "Europe"
+
+    def test_both_attacker_origins_returns_global(self):
+        """Two attacker-origin regions with no non-attacker target → Global."""
+        a = self._article("Chinese and Iranian cyber groups collaborate on Australian targets")
+        result = infer_article_region(a)
+        # Chinese=APAC, Iranian=Middle East, Australian=APAC. Attacker origins={APAC, Middle East}.
+        # targets = {APAC} - {APAC, Middle East} = {} → Global
+        assert result["feed_region"] == "Global"
+
+    def test_generic_attacker_heuristic(self):
+        """Generic fallback: APAC is generic attacker-region, LATAM is target."""
+        a = self._article("Cyberattack from Japanese group targets Brazilian companies")
+        result = infer_article_region(a)
+        assert result["feed_region"] == "LATAM"
+
+    def test_multiple_regions_no_attacker_returns_global(self):
+        """Multiple regions, no attacker pattern → Global fallback."""
+        a = self._article("Cyberattack affects companies in Germany and Japan")
+        result = infer_article_region(a)
+        assert result["feed_region"] == "Global"
+
+    # ── summary-only inference (lines 147-153) ───────────────────────────
+
+    def test_summary_single_country_inferred(self):
+        a = self._article("Major breach reported", summary="The French ministry confirmed the incident")
+        result = infer_article_region(a)
+        assert result["feed_region"] == "Europe"
+
+    def test_summary_multiple_countries_no_override(self):
+        a = self._article("Major breach reported", summary="Attacks in Germany and Japan confirmed", region="Global")
+        result = infer_article_region(a)
+        assert result["feed_region"] == "Global"

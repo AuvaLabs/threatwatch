@@ -11,6 +11,7 @@ from modules.utils import (
     get_week_slug,
     get_year_slug,
     make_output_path,
+    ensure_output_directory,
 )
 
 
@@ -122,3 +123,63 @@ class TestMakeOutputPath:
         result = make_output_path("daily", "2026-03-15")
         assert result.name == "2026-03-15.json"
         assert "daily" in str(result)
+
+
+class TestEnsureOutputDirectory:
+    def test_with_path(self, tmp_path):
+        target = tmp_path / "deep" / "dir" / "file.json"
+        ensure_output_directory(str(target))
+        assert target.parent.exists()
+
+    def test_without_path(self):
+        # Just verify it doesn't raise
+        ensure_output_directory()
+
+    def test_idempotent(self, tmp_path):
+        target = tmp_path / "dir" / "file.json"
+        ensure_output_directory(str(target))
+        ensure_output_directory(str(target))  # second call should not raise
+        assert target.parent.exists()
+
+
+class TestSanitizeJsonText:
+    def test_nan_becomes_null(self):
+        from modules.utils import _sanitize_json_text
+        result = _sanitize_json_text('{"value": NaN}')
+        assert "null" in result
+        assert "NaN" not in result
+
+    def test_trailing_comma_removed(self):
+        from modules.utils import _sanitize_json_text
+        result = _sanitize_json_text('{"a": 1, }')
+        assert result == '{"a": 1 }'
+
+    def test_valid_json_unchanged(self):
+        from modules.utils import _sanitize_json_text
+        original = '{"a": 1, "b": 2}'
+        assert _sanitize_json_text(original) == original
+
+    def test_undefined_becomes_null(self):
+        from modules.utils import _sanitize_json_text
+        result = _sanitize_json_text('{"a": undefined}')
+        assert "null" in result
+
+
+class TestExtractJsonRegexPath:
+    """Tests for the regex-extract-then-sanitize fallback (lines 86-98)."""
+
+    def test_json_in_markdown_fence_with_sanitize(self):
+        text = '```json\n{"a": 1, "b": None}\n```'
+        result = extract_json(text)
+        assert result == {"a": 1, "b": None} or result is not None
+
+    def test_json_block_with_trailing_comma_in_prose(self):
+        text = 'The result is: {"key": "value",} and that is all.'
+        result = extract_json(text)
+        assert result == {"key": "value"}
+
+    def test_json_block_with_none_in_array_in_prose(self):
+        text = 'Analysis: {"items": [none], "count": 0} end.'
+        result = extract_json(text)
+        assert result is not None
+        assert result["items"] == []

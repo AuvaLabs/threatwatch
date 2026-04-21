@@ -20,8 +20,10 @@ from modules.briefing_generator import (
     _detect_provider,
     _call_openai_compatible,
     _parse_json,
+    _build_digest,
+    _MAX_DIGEST_ARTICLES,
 )
-from modules.config import OUTPUT_DIR
+from modules.config import OUTPUT_DIR, LLM_MODEL
 
 logger = logging.getLogger(__name__)
 

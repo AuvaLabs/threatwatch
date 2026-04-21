@@ -1,6 +1,7 @@
 """Tests for modules/watchlist_monitor.py"""
 import json
 import re
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -167,3 +168,91 @@ class TestRunWatchlistMonitor:
             result = run_watchlist_monitor()
         assert mock_fetch.call_count == 1
         assert result[0]["asset_tags"] == ["CustomTech"]
+
+
+class TestFetchGnews:
+    def test_parses_rss_items(self):
+        rss_xml = """<?xml version="1.0"?>
+        <rss><channel>
+            <item>
+                <title>Test Article</title>
+                <link>https://example.com/article</link>
+                <pubDate>Mon, 21 Apr 2026 12:00:00 GMT</pubDate>
+                <description>Test description</description>
+            </item>
+        </channel></rss>"""
+        mock_resp = MagicMock()
+        mock_resp.content = rss_xml.encode()
+        mock_resp.raise_for_status = MagicMock()
+        from datetime import timedelta
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+        with patch("modules.watchlist_monitor.requests.get", return_value=mock_resp):
+            from modules.watchlist_monitor import _fetch_gnews
+            result = _fetch_gnews("test query", cutoff)
+        assert len(result) == 1
+        assert result[0]["title"] == "Test Article"
+        assert result[0]["source"] == "watchlist:gnews"
+
+    def test_filters_old_articles(self):
+        rss_xml = """<?xml version="1.0"?>
+        <rss><channel>
+            <item>
+                <title>Old Article</title>
+                <link>https://example.com/old</link>
+                <pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate>
+                <description>Very old</description>
+            </item>
+        </channel></rss>"""
+        mock_resp = MagicMock()
+        mock_resp.content = rss_xml.encode()
+        mock_resp.raise_for_status = MagicMock()
+        cutoff = datetime.now(timezone.utc) - timedelta(days=1)
+        with patch("modules.watchlist_monitor.requests.get", return_value=mock_resp):
+            from modules.watchlist_monitor import _fetch_gnews
+            result = _fetch_gnews("test", cutoff)
+        assert len(result) == 0
+
+    def test_empty_channel_returns_empty(self):
+        rss_xml = """<?xml version="1.0"?><rss><channel></channel></rss>"""
+        mock_resp = MagicMock()
+        mock_resp.content = rss_xml.encode()
+        mock_resp.raise_for_status = MagicMock()
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+        with patch("modules.watchlist_monitor.requests.get", return_value=mock_resp):
+            from modules.watchlist_monitor import _fetch_gnews
+            result = _fetch_gnews("test", cutoff)
+        assert result == []
+
+    def test_http_error_returns_empty(self):
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+        with patch("modules.watchlist_monitor.requests.get", side_effect=Exception("timeout")):
+            from modules.watchlist_monitor import _fetch_gnews
+            result = _fetch_gnews("test", cutoff)
+        assert result == []
+
+    def test_missing_channel_returns_empty(self):
+        rss_xml = """<?xml version="1.0"?><rss></rss>"""
+        mock_resp = MagicMock()
+        mock_resp.content = rss_xml.encode()
+        mock_resp.raise_for_status = MagicMock()
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+        with patch("modules.watchlist_monitor.requests.get", return_value=mock_resp):
+            from modules.watchlist_monitor import _fetch_gnews
+            result = _fetch_gnews("test", cutoff)
+        assert result == []
+
+
+class TestParseRssDate:
+    def test_valid_date(self):
+        from modules.watchlist_monitor import _parse_rss_date
+        result = _parse_rss_date("Mon, 21 Apr 2026 12:00:00 GMT")
+        assert result is not None
+        assert result.year == 2026
+
+    def test_empty_string(self):
+        from modules.watchlist_monitor import _parse_rss_date
+        assert _parse_rss_date("") is None
+
+    def test_invalid_date(self):
+        from modules.watchlist_monitor import _parse_rss_date
+        assert _parse_rss_date("not a date") is None
