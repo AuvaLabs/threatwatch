@@ -126,11 +126,11 @@ class TestFetchDarkwebIntel:
         assert len(result) == 0
 
     def test_aggregates_articles_from_all_sources(self):
+        from modules.darkweb_monitor import DARKWEB_SOURCES
         fake_article = {"title": "Test", "darkweb": True}
         with patch("modules.darkweb_monitor._fetch_source", return_value=[fake_article]):
             result = fetch_darkweb_intel()
-        # 3 sources × 1 article each
-        assert len(result) == 3 * 1
+        assert len(result) == len(DARKWEB_SOURCES) * 1
 
 
 class TestFetchSource:

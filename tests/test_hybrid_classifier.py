@@ -10,7 +10,8 @@ class TestShouldEscalate:
     """Test the escalation decision logic."""
 
     def test_no_escalation_without_api_key(self):
-        with patch("modules.hybrid_classifier.ANTHROPIC_API_KEY", None):
+        with patch("modules.hybrid_classifier.ANTHROPIC_API_KEY", None), \
+             patch("modules.llm_client.LLM_API_KEY", ""):
             result = {"is_cyber_attack": True, "category": "General Cyber Threat", "confidence": 50}
             assert _should_escalate(result) is False
 
@@ -67,7 +68,8 @@ class TestHybridClassifier:
         monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")
         monkeypatch.setattr("modules.hybrid_classifier.ANTHROPIC_API_KEY", "sk-test")
 
-        with patch("modules.hybrid_classifier.keyword_classify") as mock_kw:
+        with patch("modules.hybrid_classifier.keyword_classify") as mock_kw, \
+             patch("modules.llm_client.LLM_API_KEY", ""):
             mock_kw.return_value = {
                 "is_cyber_attack": True,
                 "category": "General Cyber Threat",
@@ -94,7 +96,8 @@ class TestHybridClassifier:
         monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")
         monkeypatch.setattr("modules.hybrid_classifier.ANTHROPIC_API_KEY", "sk-test")
 
-        with patch("modules.hybrid_classifier.keyword_classify") as mock_kw:
+        with patch("modules.hybrid_classifier.keyword_classify") as mock_kw, \
+             patch("modules.llm_client.LLM_API_KEY", ""):
             mock_kw.return_value = {
                 "is_cyber_attack": True,
                 "category": "General Cyber Threat",
@@ -121,7 +124,8 @@ class TestHybridClassifier:
         monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")
         monkeypatch.setattr("modules.hybrid_classifier.ANTHROPIC_API_KEY", "sk-test")
 
-        with patch("modules.hybrid_classifier.keyword_classify") as mock_kw:
+        with patch("modules.hybrid_classifier.keyword_classify") as mock_kw, \
+             patch("modules.llm_client.LLM_API_KEY", ""):
             mock_kw.return_value = {
                 "is_cyber_attack": True,
                 "category": "General Cyber Threat",
@@ -146,7 +150,8 @@ class TestHybridClassifier:
         monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")
         monkeypatch.setattr("modules.hybrid_classifier.ANTHROPIC_API_KEY", "sk-test")
 
-        with patch("modules.hybrid_classifier.keyword_classify") as mock_kw:
+        with patch("modules.hybrid_classifier.keyword_classify") as mock_kw, \
+             patch("modules.llm_client.LLM_API_KEY", ""):
             mock_kw.return_value = {
                 "is_cyber_attack": True,
                 "category": "General Cyber Threat",

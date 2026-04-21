@@ -4,6 +4,7 @@
 import collections
 import gzip
 import hashlib
+import hmac
 import html
 import json
 import logging
@@ -904,7 +905,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                                       "Feedback writes disabled: set WATCHLIST_TOKEN to enable")
                 return
             auth = self.headers.get("Authorization", "")
-            if auth != f"Bearer {WATCHLIST_TOKEN}":
+            if not hmac.compare_digest(auth.encode(), f"Bearer {WATCHLIST_TOKEN}".encode()):
                 self._send_error_json(HTTPStatus.UNAUTHORIZED, "Invalid or missing authorization token")
                 return
             try:
@@ -951,12 +952,15 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                                       "Watchlist write not enabled on this instance. "
                                       "Set WATCHLIST_WRITE_ENABLED=true to allow.")
                 return
-            # Token auth when WATCHLIST_TOKEN is configured
-            if WATCHLIST_TOKEN:
-                auth = self.headers.get("Authorization", "")
-                if auth != f"Bearer {WATCHLIST_TOKEN}":
-                    self._send_error_json(HTTPStatus.UNAUTHORIZED, "Invalid or missing authorization token")
-                    return
+            # Fail-closed: require a token even if operator forgot to set one
+            if not WATCHLIST_TOKEN:
+                self._send_error_json(HTTPStatus.FORBIDDEN,
+                                      "Watchlist writes require WATCHLIST_TOKEN to be set")
+                return
+            auth = self.headers.get("Authorization", "")
+            if not hmac.compare_digest(auth.encode(), f"Bearer {WATCHLIST_TOKEN}".encode()):
+                self._send_error_json(HTTPStatus.UNAUTHORIZED, "Invalid or missing authorization token")
+                return
             try:
                 length = int(self.headers.get("Content-Length", 0))
                 if length > 65536:  # 64 KB max payload
@@ -1248,6 +1252,11 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
 
         # Route: /api/watchlist — GET returns current watchlist + vendor suggest-list
         if path == "/api/watchlist":
+            if WATCHLIST_TOKEN:
+                auth = self.headers.get("Authorization", "")
+                if not hmac.compare_digest(auth.encode(), f"Bearer {WATCHLIST_TOKEN}".encode()):
+                    self._send_error_json(HTTPStatus.UNAUTHORIZED, "Invalid or missing authorization token")
+                    return
             try:
                 from modules.watchlist_monitor import VENDOR_SUGGEST_LIST
                 watchlist = load_watchlist_data()

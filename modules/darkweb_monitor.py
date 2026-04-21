@@ -39,13 +39,14 @@ DARKWEB_SOURCES = [
         "parser": "_parse_ransomware_live",
         "description": "Ransomware victim posts from leak sites",
     },
-    {
-        "name": "github-iocs",
-        "url": "https://raw.githubusercontent.com/montysecurity/C2-Tracker/main/data/all.txt",
-        "type": "ioc_list",
-        "parser": "_parse_c2_tracker",
-        "description": "Active C2 server IPs",
-    },
+    # Disabled 2026-04-21: montysecurity/C2-Tracker repo archived, data files removed.
+    # {
+    #     "name": "github-iocs",
+    #     "url": "https://raw.githubusercontent.com/montysecurity/C2-Tracker/main/data/all.txt",
+    #     "type": "ioc_list",
+    #     "parser": "_parse_c2_tracker",
+    #     "description": "Active C2 server IPs",
+    # },
 ]
 
 # Known ransomware group .onion sites (for optional Tor monitoring)

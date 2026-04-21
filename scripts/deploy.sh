@@ -31,14 +31,8 @@ import json, sys
 d = json.load(sys.stdin)
 print('  status:', d.get('status'))
 print('  briefing_stale:', d.get('briefing_stale'))
-print('  sqlite read_source:', end=' ')
-" || true
-
-curl -s http://localhost:8098/api/quality | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-print(d.get('sqlite', {}).get('read_source', '?'))
-print('  sqlite articles:', d.get('sqlite', {}).get('article_count', '?'))
+print('  articles_total:', d.get('articles_total'))
+print('  feed_health:', d.get('feed_health'))
 " || true
 
 echo "[deploy] done."

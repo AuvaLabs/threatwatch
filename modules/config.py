@@ -100,7 +100,7 @@ def validate_config():
         )
     if LLM_API_KEY:
         logger.info(
-            f"LLM configured — AI briefing enabled ({LLM_PROVIDER}/{LLM_MODEL} via {LLM_BASE_URL})."
+            f"LLM configured — AI briefing enabled ({LLM_PROVIDER}/{LLM_MODEL} via {LLM_BASE_URL.split('@')[-1]})."
         )
     else:
         logger.info("No LLM API key — AI briefing disabled (zero cost).")

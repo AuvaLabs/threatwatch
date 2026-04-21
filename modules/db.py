@@ -238,7 +238,6 @@ def stats() -> dict[str, Any]:
             "article_count": a_count,
             "campaign_count": c_count,
             "db_bytes": a_size,
-            "db_path": str(DB_PATH),
         }
 
 

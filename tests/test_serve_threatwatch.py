@@ -475,22 +475,23 @@ class TestWatchlistRoute:
         assert data["ok"] is True
         assert data["brands"] == 1
 
-    def test_watchlist_post_no_token_required_when_unset(self, test_server, tmp_path):
+    def test_watchlist_post_requires_token_when_unset(self, test_server, tmp_path):
         state_dir = tmp_path / "data" / "state"
         state_dir.mkdir(parents=True)
         with patch.object(sw, "WATCHLIST_WRITE_ENABLED", True), \
              patch.object(sw, "WATCHLIST_TOKEN", ""), \
              patch("serve_threatwatch.BASE_DIR", tmp_path):
             status, _, _ = _post(test_server + "/api/watchlist", {"brands": ["X"]})
-        assert status == 200
+        assert status == 403
 
     def test_watchlist_post_rejects_invalid_json(self, test_server):
         with patch.object(sw, "WATCHLIST_WRITE_ENABLED", True), \
-             patch.object(sw, "WATCHLIST_TOKEN", ""):
+             patch.object(sw, "WATCHLIST_TOKEN", "testtoken"):
             req = Request(
                 test_server + "/api/watchlist",
                 data=b"not json",
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json",
+                         "Authorization": "Bearer testtoken"},
                 method="POST"
             )
             try:
@@ -502,12 +503,14 @@ class TestWatchlistRoute:
 
     def test_watchlist_post_rejects_oversized_payload(self, test_server):
         with patch.object(sw, "WATCHLIST_WRITE_ENABLED", True), \
-             patch.object(sw, "WATCHLIST_TOKEN", ""):
+             patch.object(sw, "WATCHLIST_TOKEN", "testtoken"):
             big_data = b"x" * 70000
             req = Request(
                 test_server + "/api/watchlist",
                 data=big_data,
-                headers={"Content-Type": "application/json", "Content-Length": str(len(big_data))},
+                headers={"Content-Type": "application/json",
+                         "Content-Length": str(len(big_data)),
+                         "Authorization": "Bearer testtoken"},
                 method="POST"
             )
             try:
@@ -540,11 +543,12 @@ class TestErrorSanitization:
 
     def test_bad_json_does_not_leak_exception(self, test_server):
         with patch.object(sw, "WATCHLIST_WRITE_ENABLED", True), \
-             patch.object(sw, "WATCHLIST_TOKEN", ""):
+             patch.object(sw, "WATCHLIST_TOKEN", "testtoken"):
             req = Request(
                 test_server + "/api/watchlist",
                 data=b"{bad",
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json",
+                         "Authorization": "Bearer testtoken"},
                 method="POST"
             )
             try:
