@@ -2,9 +2,9 @@
 
 All notable changes to ThreatWatch are documented here.
 
-## [Unreleased]
+## 2026-04-21 — CTI Platform + Security Hardening + SQLite Migration
 
-### Added (2026-04-20 CTI batch)
+### Added
 - Campaign persistence (`modules/campaign_tracker.py`): stable UUIDs keyed by `(entity_type, entity_name)` that survive across pipeline reclusters. Persists to `data/output/campaigns.json`. Tracks `first_observed` (ever-earliest), `last_observed`, `total_observed_articles`, `status` (active, dormant, archived by 14d and 90d thresholds), capped at 500 hashes per campaign. Atomic tmp+rename writes.
 - Victim-sector taxonomy (`modules/victim_tagger.py`): 14-sector regex taxonomy (Healthcare, Finance, Government, Education, Energy, Technology, Telecom, Retail, Manufacturing, Transportation, Media, Legal, Critical Infrastructure, Hospitality). Writes `victim_sectors` list onto each article.
 - IOC extraction (`modules/ioc_extractor.py`): IPv4, IPv6, domains, URLs, SHA256, SHA1, MD5, emails with defang handling (`[.]`, `hxxp://`, `[at]`), TLD allowlist, placeholder-IP blocklist. Writes `iocs` dict on each article.
@@ -15,54 +15,42 @@ All notable changes to ThreatWatch are documented here.
 - Frontend pills on each article card: CVE pill (clickable, filters feed), IOC pill (type-grouped tooltip), sector pill (clickable, filters feed), story pill (prefers campaign `first_observed` so long-running campaigns keep their true age across 7-day corpus rotations).
 - Nightly Docker volume backup (`scripts/backup_volume.sh`), rotates to 7 archives in `~/backups/threatwatch/`. Cron at 03:15 UTC.
 - `scripts/cleanup.py` applies `ARCHIVE_RETENTION_DAYS` (default 30) to `hourly/` and `daily/` subdirs; previously retained 365 days of archive snapshots.
-
-### Security (2026-04-20 CTI batch)
-- Fix `javascript:` URI XSS via feed `<link>`: new `safeHref()` allowlist (`http:`, `https:`, `mailto:`) wrapping every feed-supplied href insertion.
-- Rate limiter reads `X-Real-IP` only when the TCP peer is a trusted proxy (new `TRUSTED_PROXIES` env var, default `127.0.0.1,::1`). Previously every nginx-proxied request bucketed into `127.0.0.1`, giving all public users one shared 120/min window.
-- Thread-safety fixes on shared in-process state: `serve_threatwatch._cache`, `url_resolver._CACHE` (including FIFO eviction), `feed_health.record_fetch` (8 concurrent fetch threads), `hybrid_classifier._escalation_count` (two threads could both exceed the budget cap).
-- `/api/health` returns real `status` (`ok`, `degraded`, `stale`, `unknown`) with `reasons[]`, driven by last-run freshness (2.5x `PIPELINE_INTERVAL` + 60s), LLM budget, analysis-failure rate, dead-feed count.
-- Pipeline container healthcheck tests `stats.json` mtime under 25 minutes. Previously the file just needed to exist so a stuck pipeline stayed "healthy" forever.
-
-### Fixed (2026-04-20 CTI batch)
-- `output_writer._parse_pub_date` no longer falls back to `datetime.now()` on parse failure. The cutoff filter previously kept corrupt-date articles inside the window indefinitely. RSS pubDate keeps the `now()` fallback because `feedgen` requires a valid RFC 822 date.
-- `darkweb_monitor._parse_date` format-slice bug (`fmt[:len(date_str)]` inverted intent) replaced with shared `date_utils.parse_datetime`. The ThreatFox ` UTC` suffix convention is normalised explicitly.
-- `deduplicate_articles` no longer mutates caller article dicts. Each article is shallow-copied at loop entry; `_add_related` rebuilds `related_articles` as a new list.
-- Incident correlator persists all clusters (not just top 15) and emits `first_seen` + `article_hashes` per cluster so the frontend can annotate every related article.
-
-### Changed (2026-04-20 CTI batch)
-- `_MAX_SUMMARIES_PER_RUN` raised from 30 to 150 (env-overridable `MAX_SUMMARIES_PER_RUN`). Previous cap covered about 2 percent of the ~1600-article daily backlog.
-- SSR payload strips `article_hashes` from per-cluster objects after article-level annotation runs, saving 50 to 500 hashes per cluster from the wire.
-- `depends_on: service_started` (not `service_healthy`) for the server so the dashboard stays up while the pipeline is mid-fetch.
+- STIX 2.1: confidence field, relationship objects, `object_refs` including indicator IDs.
+- RSS: `<guid>`, `<category>`, `atom:link rel="self"` per item.
+- Briefing staleness detection (`modules/briefing_health.py`): never-raising freshness check compares `generated_at` against `BRIEFING_STALE_HOURS` (default 3h). Surfaces via pipeline ERROR log, self-healing flag file (`data/state/briefing_stale.flag`), and new `briefing_stale` / `briefing_age_hours` fields on `/api/health`.
+- SQLite migration complete: Phase 1 shadow-write (commit `a433720`), Phase 2 env-gated read adapter (commit `4ffd1d7`), Phase 3 prune cutoff + `READ_FROM_SQLITE=1` active in production. JSON files kept as fallback for parity-check.
+- Per-feed signal score, `/api/since` cursor, `/api/feedback` endpoint, offsite volume backup.
+- `scripts/backfill_summaries.py`: one-shot script to generate AI summaries for articles that predate the pipeline's summarization window.
 
 ### Security
-- Add bearer token auth for POST `/api/watchlist` (`WATCHLIST_TOKEN` env var)
-- Add HSTS (Strict-Transport-Security) header
-- Fix CSP to allow Google Fonts (font-src, style-src-elem)
-- Add 64KB payload size limit on POST `/api/watchlist`
-- Sanitize error responses — no internal paths or exceptions leaked to clients
-- Fix XSS variable shadowing bug in `app/dashboard.py` — `html` module was overwritten by string concatenation
-- Restrict CORS on sensitive endpoints (`/api/health`, `/api/watchlist`) — no wildcard
-- Add `CORS_ORIGIN` env var for cross-origin access to restricted endpoints
-- Add rate limiter IP eviction to prevent unbounded memory growth
-- Add thread-safe atomic writes for watchlist persistence (tmp+rename pattern)
+- Fix `javascript:` URI XSS via feed `<link>`: `safeHref()` allowlist (`http:`, `https:`, `mailto:`).
+- Rate limiter reads `X-Real-IP` only when TCP peer is a configured trusted proxy (`TRUSTED_PROXIES` env var, default `127.0.0.1,::1`). Prevents shared rate-limit bucket for all nginx-proxied users.
+- Thread-safety fixes on `serve_threatwatch._cache`, `url_resolver._CACHE` (FIFO eviction), `feed_health.record_fetch`, `hybrid_classifier._escalation_count`.
+- Pipeline container healthcheck now tests `stats.json` mtime under 25 minutes (was: file-exists-only).
+- Bearer token auth for POST `/api/watchlist` (`WATCHLIST_TOKEN` env var).
+- HSTS header, CSP Google Fonts allowlist, 64KB POST limit on `/api/watchlist`.
+- Sanitized error responses — no internal paths or exceptions exposed.
+- CORS restricted on `/api/health` and `/api/watchlist`; `CORS_ORIGIN` env var for opt-in.
+- Rate limiter IP eviction prevents unbounded memory growth.
+- Thread-safe atomic writes for watchlist persistence (tmp+rename).
+- Remove `CSP script-src 'unsafe-inline'` via `data-click-action` delegation.
+
+### Fixed
+- `output_writer._parse_pub_date` no longer falls back to `datetime.now()` on parse failure.
+- `darkweb_monitor._parse_date` format-slice bug replaced with shared `date_utils.parse_datetime`.
+- `deduplicate_articles` no longer mutates caller article dicts.
+- Incident correlator persists all clusters (not just top 15) and emits `first_seen` + `article_hashes` per cluster.
+- Tag darkweb victim posts from title only; expanded benign-domain list.
+- Sector false-positives on darkweb posts; benign-domain IOC filter.
+- `/api/feedback` fail-closed; scheduler heartbeat.
 
 ### Changed
-- Strip `full_content` from SSR payload to reduce initial page size
-- Raise CI coverage threshold from 65% to 75%
-- `/api/articles` now always returns envelope `{articles, total, offset, limit, has_more}` (breaking: previously returned raw array when no limit specified)
-
-### Added
-- STIX 2.1: confidence field mapped from article confidence score
-- STIX 2.1: relationship objects linking indicators to identity
-- STIX 2.1: report `object_refs` now includes indicator IDs
-- RSS: `<guid>` element per item for reliable deduplication
-- RSS: `<category>` element per item from article category
-- RSS: proper `atom:link rel="self"` pointing to feed URL
-- API response examples in README
-- Missing API endpoints documented (health, stix, watchlist)
-- `.env.example` updated with all current env vars
-- `SECURITY.md` updated with security controls list
-- 157 new tests (541 total, up from 345) — coverage at 82%
+- `_MAX_SUMMARIES_PER_RUN` raised from 30 to 150 (env-overridable `MAX_SUMMARIES_PER_RUN`).
+- SSR payload strips `article_hashes` from per-cluster objects after annotation.
+- `depends_on: service_started` (not `service_healthy`) for the server container.
+- Strip `full_content` from SSR payload.
+- `/api/articles` always returns envelope `{articles, total, offset, limit, has_more}`.
+- Coverage threshold raised from 65% to 75%; 765 tests total.
 
 ## 2026-03-19 — UI Redesign + Multi-Theme System
 
