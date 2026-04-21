@@ -270,6 +270,26 @@ def main():
     except Exception as e:
         logging.warning(f"AI enrichment skipped: {e}")
 
+    # Briefing staleness check — runs regardless of AI enrichment success/failure.
+    # Self-healing flag surfaces on /api/health. Double-wrapped so a bug here
+    # can never crash the pipeline run.
+    try:
+        from modules.briefing_health import (
+            check_briefing_freshness, write_stale_flag, clear_stale_flag,
+        )
+        max_age = float(os.getenv("BRIEFING_STALE_HOURS", "3"))
+        freshness = check_briefing_freshness(max_age_hours=max_age)
+        if freshness["stale"]:
+            logging.error(
+                f"Briefing is stale: age={freshness['age_hours']:.1f}h, "
+                f"reason={freshness['reason']}"
+            )
+            write_stale_flag(freshness)
+        else:
+            clear_stale_flag()
+    except Exception as e:
+        logging.debug(f"Briefing staleness check skipped: {e}")
+
     # Incident clustering + actor profiles on FULL corpus
     try:
         if all_articles:
