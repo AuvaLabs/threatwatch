@@ -297,10 +297,14 @@
 # CERT-NZ advisory RSS returns 404 (verified 2026-03-14)
 
 # Tier 12: Industry Blogs & Analysis
-# Disabled 2026-04-21: sophos.com/en-us/blog.xml returns 404 (feed URL changed, no replacement found)
-# - url: https://www.sophos.com/en-us/blog.xml
-#   category: Native
-#   region: Global
+# Old sophos.com/en-us/blog.xml returned 404. Replaced with news.sophos.com feeds:
+- url: https://news.sophos.com/en-us/feed
+  category: Native
+  region: Global
+
+- url: https://news.sophos.com/en-us/category/threat-research/feed/
+  category: Native
+  region: Global
 
 # Arctic Wolf — returns 404 (verified 2026-03-22)
 # - url: https://www.arcticwolf.com/resources/blog/feed/
@@ -423,5 +427,30 @@
   region: Global
 
 - url: https://www.cybereason.com/blog/rss.xml
+  category: Native
+  region: Global
+
+# Tier 19: Major Vendor Blogs (round 2, verified 2026-04-21)
+- url: https://www.reversinglabs.com/blog/rss.xml
+  category: Native
+  region: Global
+
+- url: https://www.greynoise.io/blog/rss.xml
+  category: Native
+  region: Global
+
+- url: https://www.deepinstinct.com/blog/feed
+  category: Native
+  region: Global
+
+- url: https://orca.security/resources/blog/feed/
+  category: Native
+  region: Global
+
+- url: https://blogs.vmware.com/security/feed
+  category: Native
+  region: Global
+
+- url: https://threatconnect.com/blog/feed/
   category: Native
   region: Global
