@@ -148,3 +148,70 @@ class TestLogHealthSummary:
         with caplog.at_level(logging.WARNING, logger="root"):
             fh.log_health_summary()
         assert "dead" in caplog.text.lower()
+
+
+class TestSignalScore:
+    def test_perfect_feed(self):
+        entry = {
+            "fetches_total": 100,
+            "fetches_successful": 100,
+            "entries_total": 2000,
+            "status": "ok",
+        }
+        score = fh._signal_score(entry)
+        assert score == 100.0
+
+    def test_zero_fetches(self):
+        entry = {"fetches_total": 0, "fetches_successful": 0, "entries_total": 0, "status": "ok"}
+        assert fh._signal_score(entry) == 0.0
+
+    def test_dead_feed_penalized(self):
+        entry = {
+            "fetches_total": 100,
+            "fetches_successful": 100,
+            "entries_total": 2000,
+            "status": "dead",
+        }
+        score = fh._signal_score(entry)
+        assert score < 20  # Heavy penalty
+
+    def test_low_productivity(self):
+        entry = {
+            "fetches_total": 100,
+            "fetches_successful": 100,
+            "entries_total": 100,  # 1 entry per fetch = low productivity
+            "status": "ok",
+        }
+        score = fh._signal_score(entry)
+        assert score < 10  # Low productivity
+
+    def test_partial_success_rate(self):
+        entry = {
+            "fetches_total": 100,
+            "fetches_successful": 50,
+            "entries_total": 1000,
+            "status": "ok",
+        }
+        score = fh._signal_score(entry)
+        assert 40 < score < 60
+
+
+class TestSignalScores:
+    def test_returns_sorted_list(self):
+        fh.record_fetch("https://good.example.com/feed", success=True, entry_count=20)
+        fh.record_fetch("https://bad.example.com/feed", success=False)
+        result = fh.signal_scores()
+        assert isinstance(result, list)
+        assert len(result) >= 2
+        # Should be sorted by score descending
+        scores = [r["signal_score"] for r in result]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_entry_has_expected_fields(self):
+        fh.record_fetch(URL, success=True, entry_count=5)
+        result = fh.signal_scores()
+        entry = result[0]
+        assert "url" in entry
+        assert "status" in entry
+        assert "signal_score" in entry
+        assert "fetches_total" in entry
