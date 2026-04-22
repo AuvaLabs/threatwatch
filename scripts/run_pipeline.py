@@ -37,6 +37,11 @@ logging.basicConfig(
 
 INTERVAL = int(os.environ.get("PIPELINE_INTERVAL", "600"))
 CLEANUP_EVERY = int(os.environ.get("CLEANUP_EVERY", "144"))
+# Run AI enrichment every Nth tick. Default: 3 ticks (30 min) between AI
+# passes. Independent of the fetch pipeline so Groq rate limits don't drag
+# feed ingestion. Set to 0 to disable out-of-band AI entirely (e.g. when
+# AI_ENRICHMENT_INLINE=1 is preferred).
+AI_ENRICHMENT_EVERY = int(os.environ.get("AI_ENRICHMENT_EVERY", "3"))
 
 _shutdown = False
 
@@ -94,6 +99,18 @@ def main() -> None:
         _heartbeat()
         _run("threatdigest_main.py")
         _heartbeat()
+
+        # Out-of-band AI enrichment on its own cadence. Guards:
+        # - AI_ENRICHMENT_EVERY=0 → disabled (falls back to inline via env)
+        # - AI_ENRICHMENT_INLINE=1 → also skip out-of-band (belt + braces)
+        if (
+            AI_ENRICHMENT_EVERY > 0
+            and run_count % AI_ENRICHMENT_EVERY == 0
+            and os.environ.get("AI_ENRICHMENT_INLINE", "1") != "1"
+        ):
+            logging.info("AI enrichment run (every %d pipeline ticks)", AI_ENRICHMENT_EVERY)
+            _run("scripts/run_ai_enrichment.py")
+            _heartbeat()
 
         if run_count % CLEANUP_EVERY == 0:
             logging.info("Daily cleanup (every %d runs)", CLEANUP_EVERY)

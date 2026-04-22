@@ -12,6 +12,13 @@ services:
       - LLM_BASE_URL=${LLM_BASE_URL:-}
       - LLM_MODEL=${LLM_MODEL:-}
       - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      # AI enrichment runs out-of-band by default (every 3rd pipeline tick,
+      # i.e. every 30 min) so Groq rate limits don't block fetch ingestion.
+      # Set AI_ENRICHMENT_INLINE=1 to run AI on every pipeline tick (legacy).
+      - AI_ENRICHMENT_INLINE=${AI_ENRICHMENT_INLINE:-0}
+      - AI_ENRICHMENT_EVERY=${AI_ENRICHMENT_EVERY:-3}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-30}
+      - LLM_CIRCUIT_THRESHOLD=${LLM_CIRCUIT_THRESHOLD:-3}
       - WEBHOOK_URL=${WEBHOOK_URL:-}
       - WEBHOOK_MIN_CONF=${WEBHOOK_MIN_CONF:-80}
       - NEWSAPI_KEY=${NEWSAPI_KEY:-}

@@ -258,22 +258,18 @@ def main():
     if not all_articles:
         all_articles = enriched_articles
 
-    # AI enrichment (optional — only runs if LLM API key is set)
-    try:
-        from modules.briefing_generator import (
-            generate_briefing, generate_top_stories, summarize_articles,
-            generate_regional_briefings,
-        )
-        # Tier 1: Global intelligence digest (1x/hour, ~7K tokens)
-        generate_briefing(all_articles)
-        # Tier 1b: Regional digests — NA, EMEA, APAC (1x/hour each, ~4K tokens each)
-        generate_regional_briefings(all_articles)
-        # Tier 2: Top stories (1x/hour, ~5K tokens)
-        generate_top_stories(all_articles)
-        # Tier 3: Article summaries on new batch only (up to 30/run)
-        summarize_articles(enriched_articles)
-    except Exception as e:
-        logging.warning(f"AI enrichment skipped: {e}")
+    # AI enrichment (optional — only runs if LLM API key is set).
+    # When AI_ENRICHMENT_INLINE=0 the scheduler runs AI features on a
+    # separate cadence (scripts/run_ai_enrichment.py) so Groq rate limits
+    # and load-shed events don't block feed fetching.
+    if os.getenv("AI_ENRICHMENT_INLINE", "1") == "1":
+        try:
+            from modules.ai_enrichment import run_ai_enrichment
+            run_ai_enrichment(all_articles, new_batch=enriched_articles)
+        except Exception as e:
+            logging.warning(f"AI enrichment skipped: {e}")
+    else:
+        logging.info("AI enrichment skipped in pipeline (AI_ENRICHMENT_INLINE=0) — runs out-of-band")
 
     # Briefing staleness check — runs regardless of AI enrichment success/failure.
     # Self-healing flag surfaces on /api/health. Double-wrapped so a bug here
