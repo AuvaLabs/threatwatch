@@ -206,3 +206,42 @@ class TestSynthesizeClusters:
         with patch("modules.llm_client.is_available", return_value=True):
             ic._synthesize_clusters(clusters)
         assert clusters[0].get("synthesis") is None
+
+
+class TestClusterSkipPaths:
+    """Covers the continue-branches in cluster_articles: small entities and
+    entities whose new unique indices fall below threshold."""
+
+    def test_entity_below_threshold_skipped(self, tmp_path, monkeypatch):
+        """An entity mentioned in fewer than 3 articles is not clustered."""
+        monkeypatch.setattr(ic, "CLUSTERS_PATH", tmp_path / "clusters.json")
+        # Only 2 articles mention LockBit — below threshold of 3.
+        articles = [
+            {"title": "LockBit hits hospital", "summary": "", "link": "http://x/1"},
+            {"title": "LockBit affiliate news", "summary": "", "link": "http://x/2"},
+        ]
+        ic.cluster_articles(articles)
+        data = ic.load_clusters()
+        # No clusters built — entity didn't meet threshold.
+        assert all("LockBit" not in c.get("entity_name", "") for c in data.get("clusters", []))
+
+
+class TestCampaignTrackingFailure:
+    """Campaign tracking errors must not crash cluster_articles."""
+
+    def test_campaign_failure_is_non_fatal(self, tmp_path, monkeypatch, caplog):
+        import logging
+        monkeypatch.setattr(ic, "CLUSTERS_PATH", tmp_path / "clusters.json")
+        articles = [
+            {"title": f"LockBit attack {i}", "summary": "", "link": f"http://x/{i}"}
+            for i in range(5)
+        ]
+        # Force record_clusters to raise — the real API name.
+        with patch("modules.campaign_tracker.record_clusters",
+                   side_effect=RuntimeError("boom")):
+            with caplog.at_level(logging.WARNING, logger="modules.incident_correlator"):
+                # Must not raise.
+                ic.cluster_articles(articles)
+        # Logged the non-fatal warning.
+        assert any("Campaign tracking failed" in r.message for r in caplog.records) or \
+               any("campaign" in r.message.lower() for r in caplog.records)

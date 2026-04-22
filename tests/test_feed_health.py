@@ -215,3 +215,59 @@ class TestSignalScores:
         assert "status" in entry
         assert "signal_score" in entry
         assert "fetches_total" in entry
+
+
+class TestGetHealthJson:
+    """The API endpoint consumer — /api/feed-health."""
+
+    def test_summary_counts_by_status(self):
+        fh.record_fetch("https://ok1.example.com/feed", success=True, entry_count=10)
+        fh.record_fetch("https://err1.example.com/feed", success=False)
+        payload = fh.get_health_json()
+        assert payload["total_tracked"] == 2
+        assert payload["ok"] == 1
+        assert payload["error"] == 1
+        assert isinstance(payload["dead_feeds"], list)
+        assert isinstance(payload["suspect_feeds"], list)
+
+    def test_dead_feeds_include_last_success_trimmed(self):
+        """Dead feed entries should include a trimmed last_success date
+        (first 10 chars = YYYY-MM-DD)."""
+        fh.record_fetch(URL, success=True, entry_count=5)
+        data = fh.load_health()
+        data[URL]["status"] = "dead"
+        data[URL]["last_success"] = "2026-01-15T12:34:56+00:00"
+        data[URL]["consecutive_errors"] = 10
+        fh.save_health(data)
+        payload = fh.get_health_json()
+        assert payload["dead"] == 1
+        assert payload["dead_feeds"][0]["last_success"] == "2026-01-15"
+        assert payload["dead_feeds"][0]["errors"] == 10
+
+
+class TestPrintReport:
+    def test_prints_all_sections(self, capsys):
+        """print_report is a manual CLI — just verify it runs and outputs
+        the expected section headers without crashing."""
+        fh.record_fetch("https://ok.example.com/feed", success=True, entry_count=10)
+        fh.record_fetch("https://err.example.com/feed", success=False)
+        # Force one into suspect so we hit the suspect section loop.
+        data = fh.load_health()
+        data["https://err.example.com/feed"]["status"] = "suspect"
+        fh.save_health(data)
+        fh.print_report()
+        out = capsys.readouterr().out
+        assert "FEED HEALTH REPORT" in out
+        assert "Total tracked" in out
+        assert "[SUSPECT]" in out
+
+    def test_log_summary_lists_suspect_feeds(self, caplog):
+        """Coverage for the suspect-feed logging branch in log_health_summary."""
+        fh.record_fetch(URL, success=True, entry_count=5)
+        data = fh.load_health()
+        data[URL]["status"] = "suspect"
+        fh.save_health(data)
+        import logging
+        with caplog.at_level(logging.WARNING, logger="root"):
+            fh.log_health_summary()
+        assert "SUSPECT" in caplog.text or "suspect" in caplog.text

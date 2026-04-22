@@ -102,3 +102,22 @@ class TestFormatSlack:
     def test_single_article_no_ellipsis(self):
         payload = wh._format_slack([CYBER_ARTICLE])
         assert "…and" not in payload["text"]
+
+
+class TestGetSessionLazy:
+    """_get_session caches a single Session instance across calls."""
+
+    def setup_method(self):
+        wh._session = None
+
+    def test_returns_cached_session_on_second_call(self):
+        s1 = wh._get_session()
+        s2 = wh._get_session()
+        assert s1 is s2
+
+    def test_session_has_retry_adapter(self):
+        s = wh._get_session()
+        adapter = s.get_adapter("https://example.com")
+        # Retry stays enabled here (unlike llm_client) — webhooks are one-shot
+        # fire-and-forget so retry can't cascade into a runtime blowup.
+        assert adapter.max_retries.total == 2

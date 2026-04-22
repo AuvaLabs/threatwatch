@@ -208,3 +208,77 @@ class TestGetSession:
             assert s1 is s2
         finally:
             nvd._SESSION = None
+
+
+class TestFetchErrorHandling:
+    """Timeout/HTTPError/generic exceptions must not crash the pipeline."""
+
+    def test_timeout_swallowed(self, tmp_path, monkeypatch):
+        from unittest.mock import patch
+        import modules.nvd_fetcher as nf
+        import requests
+        monkeypatch.setattr(nf, "NVD_STATE_FILE", tmp_path / "nvd.json")
+        with patch("modules.nvd_fetcher._get_session") as mock_session:
+            mock_session.return_value.get.side_effect = requests.exceptions.Timeout()
+            result = nf.fetch_nvd_cves()
+        assert result == []
+
+    def test_http_error_swallowed(self, tmp_path, monkeypatch):
+        from unittest.mock import patch
+        import modules.nvd_fetcher as nf
+        import requests
+        monkeypatch.setattr(nf, "NVD_STATE_FILE", tmp_path / "nvd.json")
+        with patch("modules.nvd_fetcher._get_session") as mock_session:
+            mock_session.return_value.get.side_effect = requests.exceptions.HTTPError("503")
+            result = nf.fetch_nvd_cves()
+        assert result == []
+
+    def test_generic_exception_swallowed(self, tmp_path, monkeypatch):
+        from unittest.mock import patch
+        import modules.nvd_fetcher as nf
+        monkeypatch.setattr(nf, "NVD_STATE_FILE", tmp_path / "nvd.json")
+        with patch("modules.nvd_fetcher._get_session") as mock_session:
+            mock_session.return_value.get.side_effect = RuntimeError("weird")
+            result = nf.fetch_nvd_cves()
+        assert result == []
+
+    def test_skips_cve_without_id(self, tmp_path, monkeypatch):
+        """NVD items lacking a CVE id must be skipped (guard branch)."""
+        from unittest.mock import patch, MagicMock
+        import modules.nvd_fetcher as nf
+        monkeypatch.setattr(nf, "NVD_STATE_FILE", tmp_path / "nvd.json")
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {
+            "vulnerabilities": [
+                {"cve": {}},  # no id
+                {"cve": {"id": ""}},  # empty id
+            ],
+        }
+        with patch("modules.nvd_fetcher._get_session") as mock_session, \
+             patch("modules.nvd_fetcher._should_fetch", return_value=True):
+            mock_session.return_value.get.return_value = mock_resp
+            result = nf.fetch_nvd_cves()
+        assert result == []
+
+    def test_skips_low_cvss(self, tmp_path, monkeypatch):
+        """Items below MIN_CVSS_SCORE are skipped."""
+        from unittest.mock import patch, MagicMock
+        import modules.nvd_fetcher as nf
+        monkeypatch.setattr(nf, "NVD_STATE_FILE", tmp_path / "nvd.json")
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {
+            "vulnerabilities": [{
+                "cve": {
+                    "id": "CVE-2026-1111",
+                    "metrics": {"cvssMetricV31": [{"cvssData": {"baseScore": 3.0, "vectorString": ""}}]},
+                    "descriptions": [{"lang": "en", "value": "low sev"}],
+                },
+            }],
+        }
+        with patch("modules.nvd_fetcher._get_session") as mock_session, \
+             patch("modules.nvd_fetcher._should_fetch", return_value=True):
+            mock_session.return_value.get.return_value = mock_resp
+            result = nf.fetch_nvd_cves()
+        assert result == []

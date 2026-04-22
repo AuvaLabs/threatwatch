@@ -110,3 +110,74 @@ class TestGetTrendsReport:
         assert "categories_7d" in report
         assert "top_keywords_7d" in report
         assert "daily_totals" in report
+
+
+class TestSpikeBranches:
+    """Explicit coverage for detection branches — emergence, keyword spikes,
+    and the below-threshold skip."""
+
+    def test_keyword_spike_detected(self):
+        dates = [(datetime.now(timezone.utc) - timedelta(days=i)).strftime("%Y-%m-%d")
+                 for i in range(7, 0, -1)]
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        daily_counts = {}
+        for d in dates:
+            daily_counts[d] = {"categories": {}, "keywords": {"LockBit": 2}}
+        daily_counts[today] = {"categories": {}, "keywords": {"LockBit": 10}}
+        spikes = _detect_spikes(daily_counts, today)
+        assert any(s["type"] == "tracked_keyword" and s["keyword"] == "LockBit"
+                   for s in spikes)
+
+    def test_new_keyword_emergence(self):
+        """A keyword with zero historical count but significant today count
+        should be surfaced as 'new_emergence'."""
+        dates = [(datetime.now(timezone.utc) - timedelta(days=i)).strftime("%Y-%m-%d")
+                 for i in range(7, 0, -1)]
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        daily_counts = {d: {"categories": {}, "keywords": {}} for d in dates}
+        daily_counts[today] = {"categories": {}, "keywords": {"NovelMalware": 10}}
+        spikes = _detect_spikes(daily_counts, today)
+        assert any(s["type"] == "new_emergence" for s in spikes)
+
+    def test_below_threshold_skipped(self):
+        """Both category and keyword counts under _MIN_COUNT_FOR_SPIKE should
+        NOT surface as spikes even with a huge ratio."""
+        dates = [(datetime.now(timezone.utc) - timedelta(days=i)).strftime("%Y-%m-%d")
+                 for i in range(7, 0, -1)]
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        daily_counts = {d: {"categories": {"X": 0}, "keywords": {"Y": 0}} for d in dates}
+        # Small today counts — below minimum to qualify as a spike.
+        daily_counts[today] = {"categories": {"X": 1}, "keywords": {"Y": 1}}
+        spikes = _detect_spikes(daily_counts, today)
+        assert spikes == []
+
+
+class TestUpdateTrendsLogging:
+    def test_logs_spike_when_detected(self, mock_trend_file, caplog):
+        """Seed historical data then feed a spike run — exercises the
+        'TREND SPIKES detected' warning branch."""
+        import logging
+        trend_file = mock_trend_file
+        dates = [(datetime.now(timezone.utc) - timedelta(days=i)).strftime("%Y-%m-%d")
+                 for i in range(7, 0, -1)]
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        seed = {d: {"categories": {"Ransomware": 2}, "keywords": {}} for d in dates}
+        trend_file.write_text(json.dumps({"daily_counts": seed}))
+        # Current run adds 10 Ransomware articles — should spike.
+        articles = [
+            {"title": f"Ransomware article {i}", "summary": "", "category": "Ransomware"}
+            for i in range(10)
+        ]
+        with caplog.at_level(logging.WARNING, logger="modules.trend_detector"):
+            update_trends(articles)
+        assert "SPIKES" in caplog.text.upper()
+
+
+class TestLoadTrendsCorrupt:
+    def test_corrupt_file_returns_default(self, mock_trend_file):
+        """A corrupt trend file must not crash the pipeline — fall back to
+        the empty default."""
+        mock_trend_file.write_text("not valid json {{{")
+        from modules.trend_detector import _load_trends
+        data = _load_trends()
+        assert data == {"daily_counts": {}, "generated_at": None}

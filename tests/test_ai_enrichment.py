@@ -80,3 +80,52 @@ class TestRunAiEnrichment:
              patch("modules.llm_client.reset_circuit", reset_mock):
             ai_enrichment.run_ai_enrichment(self._articles())
         assert reset_mock.called
+
+    def test_reset_circuit_exception_swallowed(self):
+        """reset_circuit raising must not break the enrichment run — the
+        breaker reset is best-effort."""
+        with patch("modules.briefing_generator.generate_briefing"), \
+             patch("modules.briefing_generator.generate_regional_briefings"), \
+             patch("modules.briefing_generator.generate_top_stories"), \
+             patch("modules.briefing_generator.summarize_articles"), \
+             patch("modules.llm_client.reset_circuit",
+                   side_effect=ImportError("module gone")):
+            # Should not raise.
+            ai_enrichment.run_ai_enrichment(self._articles())
+
+    def test_regional_failure_does_not_abort(self):
+        called = []
+        with patch("modules.briefing_generator.generate_briefing"), \
+             patch("modules.briefing_generator.generate_regional_briefings",
+                   side_effect=RuntimeError("regional boom")), \
+             patch("modules.briefing_generator.generate_top_stories",
+                   side_effect=lambda a: called.append("top")), \
+             patch("modules.briefing_generator.summarize_articles",
+                   side_effect=lambda a: called.append("summaries")), \
+             patch("modules.llm_client.reset_circuit"):
+            ai_enrichment.run_ai_enrichment(self._articles())
+        assert called == ["top", "summaries"]
+
+    def test_top_stories_failure_does_not_abort_summaries(self):
+        called = []
+        with patch("modules.briefing_generator.generate_briefing"), \
+             patch("modules.briefing_generator.generate_regional_briefings"), \
+             patch("modules.briefing_generator.generate_top_stories",
+                   side_effect=RuntimeError("top boom")), \
+             patch("modules.briefing_generator.summarize_articles",
+                   side_effect=lambda a: called.append("summaries")), \
+             patch("modules.llm_client.reset_circuit"):
+            ai_enrichment.run_ai_enrichment(self._articles())
+        assert called == ["summaries"]
+
+    def test_summaries_failure_does_not_raise(self):
+        """The final tier raising should still leave the function returning
+        cleanly (never raises — guarded)."""
+        with patch("modules.briefing_generator.generate_briefing"), \
+             patch("modules.briefing_generator.generate_regional_briefings"), \
+             patch("modules.briefing_generator.generate_top_stories"), \
+             patch("modules.briefing_generator.summarize_articles",
+                   side_effect=RuntimeError("summaries boom")), \
+             patch("modules.llm_client.reset_circuit"):
+            # Should not raise.
+            ai_enrichment.run_ai_enrichment(self._articles())

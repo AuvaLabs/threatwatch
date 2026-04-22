@@ -447,3 +447,40 @@ class TestCallOpenaiCompatible:
             result = bg._call_openai_compatible("test prompt")
         assert result == "response"
         mock.assert_called_once()
+
+
+class TestRegionalBriefingPersistence:
+    """Cover the regional briefing load/save helpers — low-value code but
+    not tested and eating coverage percentage."""
+
+    def test_save_and_load_roundtrip(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(bg, "OUTPUT_DIR", tmp_path)
+        briefing = {"region": "na", "what_happened": "Test", "generated_at": "2026-01-01"}
+        bg._save_regional_briefing("na", briefing)
+        loaded = bg.load_regional_briefing("na")
+        assert loaded == briefing
+
+    def test_load_returns_none_when_missing(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(bg, "OUTPUT_DIR", tmp_path / "empty")
+        assert bg.load_regional_briefing("na") is None
+
+    def test_load_returns_none_when_corrupt(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(bg, "OUTPUT_DIR", tmp_path)
+        path = bg._regional_briefing_path("na")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("not json {{{")
+        assert bg.load_regional_briefing("na") is None
+
+    def test_load_all_regional_briefings_returns_by_key(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(bg, "OUTPUT_DIR", tmp_path)
+        bg._save_regional_briefing("na", {"region": "na"})
+        bg._save_regional_briefing("emea", {"region": "emea"})
+        result = bg.load_all_regional_briefings()
+        assert "na" in result and "emea" in result
+        assert result["na"]["region"] == "na"
+
+    def test_load_all_skips_missing(self, tmp_path, monkeypatch):
+        """Missing regional files don't break aggregation."""
+        monkeypatch.setattr(bg, "OUTPUT_DIR", tmp_path / "empty")
+        # No files written — should return empty dict.
+        assert bg.load_all_regional_briefings() == {}

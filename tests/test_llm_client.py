@@ -320,6 +320,83 @@ class TestTimeoutFailover:
         assert mock_session.post.call_count == 2
 
 
+class TestConnectionErrorFailover:
+    def test_connection_error_rotates_to_next_key(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1", "k2"])
+        ok = _mock_response()
+        mock_session.post.side_effect = [
+            requests.exceptions.ConnectionError("tcp reset"),
+            ok,
+        ]
+        result = call_llm("x", system_prompt="y")
+        assert result == "ok"
+
+
+class TestHTTPErrorRateLimitPath:
+    """raise_for_status() → HTTPError with status 429 must rotate keys too.
+
+    The earlier 429 check on resp.status_code handles the normal path, but
+    resp.raise_for_status() turning a 429 into an HTTPError is a separate
+    code path that also needs failover — regression lock.
+    """
+
+    def test_http_error_429_rotates(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1", "k2"])
+        # First response: status=200 but raise_for_status() raises with 429
+        # response attached (simulates raise_for_status quirk).
+        fail = MagicMock(spec=requests.Response)
+        fail.status_code = 200
+        fail.text = ""
+        fail.json.return_value = {"choices": [{"message": {"content": "x"}}]}
+        err = requests.exceptions.HTTPError("429 via raise")
+        err429_resp = MagicMock(spec=requests.Response)
+        err429_resp.status_code = 429
+        err.response = err429_resp
+        fail.raise_for_status = MagicMock(side_effect=err)
+
+        ok = _mock_response()
+        mock_session.post.side_effect = [fail, ok]
+        result = call_llm("x", system_prompt="y")
+        assert result == "ok"
+
+
+class TestKeyRotationPersistence:
+    """_next_api_key persists the index to disk; _advance_key bumps it."""
+
+    def test_key_index_round_robin(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1", "k2", "k3"])
+        monkeypatch.setattr(llm_client, "_key_index_path", tmp_path / ".idx")
+        keys = [llm_client._next_api_key() for _ in range(7)]
+        assert keys == ["k1", "k2", "k3", "k1", "k2", "k3", "k1"]
+
+    def test_corrupt_index_resets_to_zero(self, tmp_path, monkeypatch):
+        idx = tmp_path / ".idx"
+        idx.write_text("not-a-number")
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1", "k2"])
+        monkeypatch.setattr(llm_client, "_key_index_path", idx)
+        # Should not raise; resets to 0 (returns k1).
+        assert llm_client._next_api_key() == "k1"
+
+    def test_advance_key_survives_corrupt_index(self, tmp_path, monkeypatch):
+        idx = tmp_path / ".idx"
+        idx.write_text("garbage")
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1", "k2"])
+        monkeypatch.setattr(llm_client, "_key_index_path", idx)
+        # Should not raise.
+        llm_client._advance_key()
+
+
+class TestResponseFormatUnsupportedEdge:
+    def test_text_access_exception_returns_false(self):
+        """Defensive: resp.text raising an exception shouldn't crash
+        _response_format_unsupported — just return False and let the
+        caller surface the underlying error."""
+        resp = MagicMock(spec=requests.Response)
+        resp.status_code = 400
+        type(resp).text = property(lambda self: (_ for _ in ()).throw(RuntimeError("oops")))
+        assert llm_client._response_format_unsupported(resp) is False
+
+
 class TestCircuitBreaker:
     """Circuit breaker caps cascade failures within a single pipeline run."""
 

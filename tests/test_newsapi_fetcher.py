@@ -143,3 +143,33 @@ class TestFetchNewsapiArticles:
 
         result = fetch_newsapi_articles()
         assert result == []
+
+
+class TestLastCallHelpers:
+    """Persistence helpers for the rate-limit gate — silent failure is fine."""
+
+    def test_load_last_call_returns_zero_when_no_file(self, tmp_path, monkeypatch):
+        import modules.newsapi_fetcher as na
+        monkeypatch.setattr(na, "_LAST_CALL_FILE", tmp_path / "nope.txt")
+        assert na._load_last_call() == 0.0
+
+    def test_load_last_call_roundtrip(self, tmp_path, monkeypatch):
+        import modules.newsapi_fetcher as na
+        p = tmp_path / "last.txt"
+        monkeypatch.setattr(na, "_LAST_CALL_FILE", p)
+        na._save_last_call(12345.0)
+        assert na._load_last_call() == 12345.0
+
+    def test_load_last_call_swallows_corrupt(self, tmp_path, monkeypatch):
+        import modules.newsapi_fetcher as na
+        p = tmp_path / "last.txt"
+        p.write_text("not-a-float")
+        monkeypatch.setattr(na, "_LAST_CALL_FILE", p)
+        assert na._load_last_call() == 0.0
+
+    def test_save_last_call_swallows_oserror(self, tmp_path, monkeypatch):
+        """save failure must not crash the pipeline — just log a warning."""
+        import modules.newsapi_fetcher as na
+        monkeypatch.setattr(na, "_LAST_CALL_FILE", tmp_path / "locked.txt")
+        with patch("pathlib.Path.write_text", side_effect=OSError("readonly")):
+            na._save_last_call(1.0)  # should not raise

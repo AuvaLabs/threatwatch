@@ -217,6 +217,60 @@ class TestObservedTTPs:
         assert result["LockBit"]["observed_techniques"] == [{"id": "T1486", "count": 2}]
         assert result["LockBit"]["observed_tactics"] == [{"name": "Impact", "count": 2}]
 
+    def test_single_profile_returns_none_when_llm_unavailable(self):
+        """_generate_single_profile bails cleanly when no API key is set."""
+        with patch("modules.llm_client.is_available", return_value=False):
+            result = ap._generate_single_profile(
+                "LockBit", {"type": "Ransomware-as-a-Service", "origin": "Russia"}
+            )
+        assert result is None
+
+    def test_single_profile_returns_none_on_llm_exception(self):
+        """LLM call raising must be swallowed and return None so the caller
+        can skip this actor and continue with the rest."""
+        with patch("modules.llm_client.is_available", return_value=True), \
+             patch("modules.llm_client.call_llm", side_effect=RuntimeError("429")):
+            result = ap._generate_single_profile(
+                "LockBit", {"type": "RaaS", "origin": "Russia"}
+            )
+        assert result is None
+
+    def test_single_profile_returns_none_on_missing_name_field(self):
+        """LLM reply that parses to JSON but lacks 'name' is rejected."""
+        with patch("modules.llm_client.is_available", return_value=True), \
+             patch("modules.llm_client.call_llm", return_value='{"origin":"Russia"}'), \
+             patch("modules.utils.extract_json", return_value={"origin": "Russia"}):
+            result = ap._generate_single_profile(
+                "LockBit", {"type": "RaaS", "origin": "Russia"}
+            )
+        assert result is None
+
+    def test_max_new_profiles_per_run_enforced(self, tmp_path, monkeypatch):
+        """Only _MAX_NEW_PROFILES_PER_RUN fresh profiles generated per run."""
+        profiles_path = tmp_path / "state" / "profiles.json"
+        output_path = tmp_path / "output"
+        monkeypatch.setattr(ap, "_MAX_NEW_PROFILES_PER_RUN", 1)
+        # Two different actors both above the threshold.
+        articles = [
+            {"title": "LockBit a", "summary": ""},
+            {"title": "LockBit b", "summary": ""},
+            {"title": "BlackCat a", "summary": ""},
+            {"title": "BlackCat b", "summary": ""},
+        ]
+        gen_calls = []
+
+        def fake_gen(name, meta):
+            gen_calls.append(name)
+            return {"name": name}
+
+        with patch.object(ap, "PROFILES_PATH", profiles_path), \
+             patch.object(ap, "OUTPUT_DIR", output_path), \
+             patch("modules.actor_profiler._generate_single_profile", side_effect=fake_gen):
+            result = generate_profiles(articles)
+        assert len(gen_calls) == 1  # stopped after 1
+        # One profile got created; the other actor did not.
+        assert len([k for k in result if k in ("LockBit", "BlackCat")]) == 1
+
     def test_existing_profile_observed_ttps_refreshed(self, tmp_path):
         """Existing profiles must pick up current observations every run so
         the evidence base reflects this week's reporting, not last week's."""
