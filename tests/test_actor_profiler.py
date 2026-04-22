@@ -189,6 +189,37 @@ class TestObservedTTPs:
         actors = extract_actors_from_articles(articles)
         assert actors["LockBit"]["techniques"]["T1566"] == 2
 
+    def test_attack_tagger_real_schema_aggregated(self):
+        """attack_tagger emits {technique_id, technique_name, tactic}.
+
+        This test locks in support for that exact shape — a production
+        schema mismatch initially caused zero observed_techniques because
+        the profiler was reading the wrong key.
+        """
+        articles = [
+            {
+                "title": "LockBit hits hospital",
+                "summary": "",
+                "attack_techniques": [
+                    {"technique_id": "T1566", "technique_name": "Phishing", "tactic": "Initial Access"},
+                    {"technique_id": "T1486", "technique_name": "Data Encrypted for Impact", "tactic": "Impact"},
+                ],
+                "attack_tactics": ["Initial Access", "Impact"],
+            },
+            {
+                "title": "LockBit affiliate news",
+                "summary": "",
+                "attack_techniques": [
+                    {"technique_id": "T1566", "technique_name": "Phishing", "tactic": "Initial Access"},
+                ],
+                "attack_tactics": ["Initial Access"],
+            },
+        ]
+        actors = extract_actors_from_articles(articles)
+        assert actors["LockBit"]["techniques"]["T1566"] == 2
+        assert actors["LockBit"]["techniques"]["T1486"] == 1
+        assert actors["LockBit"]["tactics"]["Initial Access"] == 2
+
     def test_new_profile_gets_observed_ttps_stamped(self, tmp_path):
         profiles_path = tmp_path / "state" / "profiles.json"
         output_path = tmp_path / "output"

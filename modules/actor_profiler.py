@@ -93,12 +93,13 @@ def extract_actors_from_articles(articles: list[dict]) -> dict[str, dict]:
                     }
                     actor_counts[name] = entry
                 entry["count"] += 1
-                # Techniques are expected to be {"id": "T1566", "name": "..."}
-                # dicts from attack_tagger. Fall back gracefully for plain
-                # string IDs so older cached articles still contribute.
+                # attack_tagger emits {"technique_id": "T1566",
+                # "technique_name": "...", "tactic": "..."} dicts. Also
+                # accept plain string IDs and the simpler {"id": "..."}
+                # shape for forward-compat and test ergonomics.
                 for t in techniques:
                     if isinstance(t, dict):
-                        tid = t.get("id")
+                        tid = t.get("technique_id") or t.get("id")
                         if tid:
                             entry["techniques"][tid] += 1
                     elif isinstance(t, str):
