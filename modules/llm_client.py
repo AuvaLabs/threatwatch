@@ -5,9 +5,8 @@ Supports multiple API keys via LLM_API_KEYS env var (comma-separated).
 """
 
 import logging
+import os
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from pathlib import Path
 
 from modules.config import (
@@ -17,6 +16,39 @@ from modules.config import (
 logger = logging.getLogger(__name__)
 
 _key_index_path = OUTPUT_DIR / ".llm_key_index"
+
+# Process-local circuit breaker. If the upstream LLM has failed this many
+# times in a row within a single process (pipeline run), skip remaining LLM
+# calls. Previously, a single Groq load-shedding incident (503 with a long
+# Retry-After) would cascade through every AI feature in a run and stretch
+# runtimes to 5+ hours. Tripping the breaker caps the blast radius.
+_LLM_CIRCUIT_THRESHOLD = int(os.environ.get("LLM_CIRCUIT_THRESHOLD", "3"))
+_consecutive_failures = 0
+_circuit_tripped = False
+
+
+def _record_success() -> None:
+    global _consecutive_failures, _circuit_tripped
+    _consecutive_failures = 0
+    _circuit_tripped = False
+
+
+def _record_failure() -> None:
+    global _consecutive_failures, _circuit_tripped
+    _consecutive_failures += 1
+    if _consecutive_failures >= _LLM_CIRCUIT_THRESHOLD:
+        _circuit_tripped = True
+
+
+def _circuit_open() -> bool:
+    return _circuit_tripped
+
+
+def reset_circuit() -> None:
+    """Reset the circuit breaker. Call at the start of each pipeline run."""
+    global _consecutive_failures, _circuit_tripped
+    _consecutive_failures = 0
+    _circuit_tripped = False
 
 
 def _next_api_key() -> str:
@@ -46,18 +78,15 @@ def _advance_key() -> None:
 
 
 def _get_http_session() -> requests.Session:
-    """Return a requests session with retry logic."""
-    session = requests.Session()
-    retry = Retry(
-        total=3,
-        backoff_factor=2,
-        status_forcelist=[500, 502, 503, 504],
-        allowed_methods=["POST"],
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-    return session
+    """Return a requests session.
+
+    No urllib3 retry layer: when the provider returns 429/503 with a long
+    Retry-After header (Groq load-shedding), urllib3 respects it and sleeps
+    the full duration per retry. That turned a single load-shed into hours
+    of blocked pipeline time. We let the outer loop handle failures by
+    rotating keys instead.
+    """
+    return requests.Session()
 
 
 def _response_format_unsupported(resp: requests.Response) -> bool:
@@ -96,6 +125,11 @@ def call_llm(user_content: str, system_prompt: str,
     Returns the raw text response from the LLM.
     Raises RuntimeError if all keys are exhausted.
     """
+    if _circuit_open():
+        raise RuntimeError(
+            f"LLM circuit breaker open: >= {_LLM_CIRCUIT_THRESHOLD} consecutive failures"
+        )
+
     url = f"{LLM_BASE_URL.rstrip('/')}/chat/completions"
     base_payload = {
         "model": LLM_MODEL,
@@ -111,6 +145,10 @@ def call_llm(user_content: str, system_prompt: str,
 
     attempts = min(len(LLM_API_KEYS), 3) if len(LLM_API_KEYS) > 1 else 1
     last_error = None
+    # Groq responds in <5s for typical briefing prompts. 30s covers long
+    # generation + modest network jitter without dragging a single stuck call
+    # into multi-minute territory. Tunable via LLM_TIMEOUT env var.
+    timeout = float(os.environ.get("LLM_TIMEOUT", "30"))
 
     for attempt in range(attempts):
         api_key = _next_api_key()
@@ -126,12 +164,22 @@ def call_llm(user_content: str, system_prompt: str,
         while True:
             try:
                 session = _get_http_session()
-                resp = session.post(url, json=payload, headers=headers, timeout=90)
+                resp = session.post(url, json=payload, headers=headers, timeout=timeout)
                 if resp.status_code == 429:
                     logger.warning(f"Key {attempt + 1} rate-limited (429), trying next...")
                     _advance_key()
                     last_error = f"429 on key {attempt + 1}"
                     break  # break inner while → outer for picks next key
+                if resp.status_code in (500, 502, 503, 504):
+                    # Upstream unavailable — skip this key immediately rather
+                    # than retrying (urllib3 retry used to respect
+                    # Retry-After and block for the entire header duration).
+                    logger.warning(
+                        "Key %d got %d from upstream, trying next...",
+                        attempt + 1, resp.status_code,
+                    )
+                    last_error = f"{resp.status_code} on key {attempt + 1}"
+                    break
                 if allow_response_format_fallback and _response_format_unsupported(resp):
                     logger.warning(
                         "LLM provider rejected response_format on key %d; "
@@ -143,6 +191,7 @@ def call_llm(user_content: str, system_prompt: str,
                     continue  # retry same key, same payload minus response_format
                 resp.raise_for_status()
                 data = resp.json()
+                _record_success()
                 return data["choices"][0]["message"]["content"].strip()
             except requests.exceptions.HTTPError as e:
                 if e.response is not None and e.response.status_code == 429:
@@ -151,7 +200,21 @@ def call_llm(user_content: str, system_prompt: str,
                     last_error = str(e)
                     break  # break inner while → outer for picks next key
                 raise
+            except requests.exceptions.Timeout as e:
+                logger.warning(
+                    "Key %d timed out after %ss, trying next...",
+                    attempt + 1, timeout,
+                )
+                last_error = f"timeout on key {attempt + 1}: {e}"
+                break
+            except requests.exceptions.ConnectionError as e:
+                logger.warning(
+                    "Key %d connection error, trying next: %s", attempt + 1, e,
+                )
+                last_error = f"connection error on key {attempt + 1}: {e}"
+                break
 
+    _record_failure()
     raise RuntimeError(f"All {attempts} API keys exhausted: {last_error}")
 
 

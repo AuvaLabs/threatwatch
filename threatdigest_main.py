@@ -109,6 +109,11 @@ def main():
     # tricked into hitting localhost / cloud IMDS via DNS rebinding.
     from modules.safe_http import install_ssrf_guard
     install_ssrf_guard()
+    # Reset the LLM circuit breaker for this run — it's process-local state
+    # that persists across calls within a run but should start clean at the
+    # top of each run.
+    from modules.llm_client import reset_circuit
+    reset_circuit()
     logging.info("==== Starting ThreatDigest Main Run ====")
 
     stats = RunStats()

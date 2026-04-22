@@ -15,7 +15,16 @@ from modules import llm_client
 from modules.llm_client import (
     call_llm, _response_format_unsupported,
     _next_api_key, _advance_key, _get_http_session, is_available,
+    reset_circuit,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_breaker():
+    """Reset circuit breaker before each test so process-local state doesn't leak."""
+    reset_circuit()
+    yield
+    reset_circuit()
 
 
 def _mock_response(status_code=200, json_body=None, text=""):
@@ -243,11 +252,15 @@ class TestAdvanceKey:
 
 
 class TestGetHttpSession:
-    def test_returns_session_with_retry(self):
+    def test_returns_plain_session(self):
+        """urllib3 Retry was removed: it used to sleep for the full Retry-After
+        header duration on 429/503, which turned a single Groq load-shed into
+        hours of blocked pipeline time. Retry is now handled by key rotation
+        in the outer loop."""
         session = _get_http_session()
         assert isinstance(session, requests.Session)
         adapter = session.get_adapter("https://example.com")
-        assert adapter.max_retries.total == 3
+        assert adapter.max_retries.total == 0
 
 
 class TestIsAvailable:
@@ -267,3 +280,88 @@ class TestAllKeysExhausted:
         mock_session.post.return_value = rl
         with pytest.raises(RuntimeError, match="exhausted"):
             call_llm("x", system_prompt="y")
+
+
+class TestUpstream5xxFailover:
+    """500/502/503/504 must rotate to next key without retry.
+
+    Previously urllib3.Retry retried in-adapter and respected Retry-After on
+    503s, which blocked the pipeline for hours during Groq load-shed events.
+    """
+
+    def test_503_rotates_to_next_key(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1", "k2"])
+        fail = _mock_response(status_code=503, text="unavailable")
+        ok = _mock_response(json_body={"choices": [{"message": {"content": "hi"}}]})
+        mock_session.post.side_effect = [fail, ok]
+        result = call_llm("x", system_prompt="y")
+        assert result == "hi"
+        assert mock_session.post.call_count == 2
+
+    def test_500_rotates_to_next_key(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1", "k2"])
+        fail = _mock_response(status_code=500, text="internal error")
+        ok = _mock_response()
+        mock_session.post.side_effect = [fail, ok]
+        call_llm("x", system_prompt="y")
+        assert mock_session.post.call_count == 2
+
+
+class TestTimeoutFailover:
+    def test_timeout_rotates_to_next_key(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1", "k2"])
+        ok = _mock_response()
+        mock_session.post.side_effect = [
+            requests.exceptions.Timeout("read timed out"),
+            ok,
+        ]
+        result = call_llm("x", system_prompt="y")
+        assert result == "ok"
+        assert mock_session.post.call_count == 2
+
+
+class TestCircuitBreaker:
+    """Circuit breaker caps cascade failures within a single pipeline run."""
+
+    def test_trips_after_threshold_consecutive_failures(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1"])
+        monkeypatch.setattr(llm_client, "_LLM_CIRCUIT_THRESHOLD", 2)
+        mock_session.post.return_value = _mock_response(status_code=503, text="err")
+
+        # First two failures should actually attempt the network call.
+        with pytest.raises(RuntimeError):
+            call_llm("x", system_prompt="y")
+        with pytest.raises(RuntimeError):
+            call_llm("x", system_prompt="y")
+
+        calls_before = mock_session.post.call_count
+        # Third call should short-circuit without hitting the network.
+        with pytest.raises(RuntimeError, match="circuit breaker open"):
+            call_llm("x", system_prompt="y")
+        assert mock_session.post.call_count == calls_before
+
+    def test_success_resets_consecutive_failures(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1"])
+        monkeypatch.setattr(llm_client, "_LLM_CIRCUIT_THRESHOLD", 2)
+        fail = _mock_response(status_code=503, text="err")
+        ok = _mock_response()
+        # Fail once, succeed once, fail once — circuit should NOT trip since
+        # failures are not consecutive.
+        mock_session.post.side_effect = [fail, ok, fail]
+        with pytest.raises(RuntimeError):
+            call_llm("x", system_prompt="y")
+        call_llm("x", system_prompt="y")  # success resets
+        with pytest.raises(RuntimeError):
+            call_llm("x", system_prompt="y")
+        # Still only one consecutive failure; circuit not tripped.
+        assert not llm_client._circuit_open()
+
+    def test_reset_circuit_clears_state(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["k1"])
+        monkeypatch.setattr(llm_client, "_LLM_CIRCUIT_THRESHOLD", 1)
+        mock_session.post.return_value = _mock_response(status_code=503, text="err")
+        with pytest.raises(RuntimeError):
+            call_llm("x", system_prompt="y")
+        assert llm_client._circuit_open()
+        reset_circuit()
+        assert not llm_client._circuit_open()
