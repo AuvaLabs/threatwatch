@@ -2,6 +2,19 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-04-23 — Free-Tier Groq Capitalization (CVE narratives · TTP extractor · LLM ATT&CK fallback · tokens tile)
+
+Context: per-caller Groq usage (landed 2026-04-22) showed we were using <5% of the free daily token budget. This session capitalises on the unused headroom with three LLM-backed enrichments and swaps the dashboard's always-$0 cost tile for live token throughput.
+
+### Added
+- **CVE exploitation narratives (`modules/cve_narrative.py`)**: new LLM pass that turns raw NVD metadata (CVSS, vector, CWE, affected products, EPSS percentile) into a 3-sentence analyst narrative — *what an attacker practically does, who's exposed, how urgent*. Gated at CVSS ≥ 8.0 OR EPSS percentile ≥ 0.80 so only actually-dangerous CVEs burn tokens. Cached by CVE ID (descriptions are immutable per NVD), so each CVE is paid for exactly once across its lifetime. Envelope at 20–30 new high-sev CVEs/day × ~1.5K tokens ≈ 30–45K tokens/day before cache hits. Wired into `threatdigest_main.main` between EPSS enrichment and ATT&CK tagging. `caller="cve_narrative"`.
+- **Deep TTP extractor (`modules/ttp_extractor.py`)**: second LLM pass over the *full scraped body* of high-signal incident articles, producing structured `tactical_analysis = {summary, ttps[], persistence[], lateral_movement[], impact[], confidence}`. Today's classifier and ATT&CK tagger only see title + short summary, so the tactical gold (exact persistence mechanisms, lateral-movement paths, C2 behaviours) that lives in body paragraphs was being discarded. Gated on `is_cyber_attack` + body ≥ 500 chars; cache-first by article hash; hard-capped at `TTP_EXTRACT_MAX_CALLS=40`/run so one noisy feed day can't exhaust the budget. `caller="ttp_extract"`.
+- **LLM fallback for ATT&CK under-tagging (`modules/attack_tagger.py`)**: opt-in (`LLM_ATTACK_FALLBACK=true`) pass that escalates cyber-incident articles the regex pass tagged with fewer than `LLM_ATTACK_FALLBACK_MIN=2` techniques to the LLM, which returns up to 5 canonical ATT&CK IDs. Regex-validated (`Txxxx` / `Txxxx.yyy`) before merge so hallucinated IDs are dropped; each LLM-sourced technique is stamped `source="llm"` for transparency. Cache-first by article hash; budget-capped by `LLM_ATTACK_FALLBACK_MAX_CALLS=100`/run. `caller="attack_llm"`.
+- **AI tokens tile on dashboard (`threatwatch.html`)**: bottom-left footer tile switched from "API COST TODAY" (which read `pipeline_summary.api_cost_today`, an Anthropic-SDK-only figure that was always $0.00 on this deployment) to "AI TOKENS TODAY" sourced from `/api/groq-usage`. Shows total prompt + completion tokens for the day, human-formatted (12.3K / 1.45M); hover tooltip breaks down total calls, avg tokens/call, and prompt vs completion split.
+
+### Testing
+- 1270 tests / 95%+ coverage — up from 1233. +37 tests across the three new LLM paths: cache hit/miss, gating thresholds (CVSS/EPSS, body length, is_cyber_attack), budget caps, malformed-JSON / invalid-ID / hallucinated-ID defences, merge semantics (regex ∪ LLM, no duplicates, tactic deduping), and caller tagging so the Groq usage tracker attributes spend correctly.
+
 ## 2026-04-22 — Pipeline Runtime + AI Decoupling + ATT&CK on Actors
 
 ### Fixed
