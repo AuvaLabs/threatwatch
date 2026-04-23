@@ -1,18 +1,43 @@
 """MITRE ATT&CK technique tagger.
 
 Maps articles to ATT&CK techniques using keyword-based pattern matching.
-Zero cost — runs entirely locally with compiled regex patterns.
+Zero cost by default — runs entirely locally with compiled regex patterns.
+
+Optional LLM fallback (``LLM_ATTACK_FALLBACK=true``): articles whose regex
+pass yields fewer than ``LLM_ATTACK_FALLBACK_MIN`` techniques (default 2)
+AND that are flagged as cyber incidents are escalated to the LLM to catch
+novel TTP phrasings that hand-tuned regex misses. Cached by article hash.
 
 Each article gets a list of matched ATT&CK technique IDs with names,
 grouped by tactic. This transforms news articles into structured
 threat intelligence with TTP context.
 """
 
-import re
+import hashlib
+import json
 import logging
+import os
+import re
 from typing import Any
 
+from modules.ai_cache import cache_result, get_cached_result
+
 logger = logging.getLogger(__name__)
+
+_LLM_FALLBACK_ENABLED = os.environ.get("LLM_ATTACK_FALLBACK", "").lower() in {"1", "true", "yes"}
+_LLM_FALLBACK_MIN_TECHNIQUES = int(os.environ.get("LLM_ATTACK_FALLBACK_MIN", "2"))
+_LLM_FALLBACK_MAX_CALLS = int(os.environ.get("LLM_ATTACK_FALLBACK_MAX_CALLS", "100"))
+_LLM_CALLER = "attack_llm"
+
+_LLM_SYSTEM_PROMPT = (
+    "You tag cybersecurity news articles with MITRE ATT&CK techniques. "
+    "Respond with ONLY a JSON object of the form "
+    '{"techniques": [{"technique_id": "T1566", "technique_name": "Phishing", '
+    '"tactic": "Initial Access"}]}. '
+    "Use canonical MITRE ATT&CK technique IDs (Txxxx or Txxxx.yyy). "
+    "Include up to 5 techniques; if no technique is clearly supported by the "
+    'text, return {"techniques": []}. Do not invent IDs.'
+)
 
 # ATT&CK technique patterns: (technique_id, technique_name, tactic, regex_pattern)
 # Covers the most commonly referenced techniques in threat reporting.
@@ -162,12 +187,163 @@ def tag_article_with_attack(article: dict) -> dict:
     }
 
 
+_VALID_TECH_ID = re.compile(r"^T\d{4}(?:\.\d{3})?$")
+
+
+def _article_cache_key(article: dict) -> str:
+    raw = article.get("hash") or article.get("link") or article.get("title") or ""
+    return "attack_llm:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _build_llm_prompt(article: dict) -> str:
+    title = article.get("title", "") or ""
+    summary = article.get("summary", "") or ""
+    body = (article.get("full_content", "") or "")[:2000]
+    return f"Title: {title}\n\nSummary: {summary}\n\nBody: {body}"
+
+
+def _parse_llm_techniques(raw: str) -> list[dict]:
+    """Parse LLM JSON response into a list of technique dicts.
+
+    Defensively handles malformed output (missing fields, unknown IDs).
+    Returns at most 5 entries.
+    """
+    if not raw:
+        return []
+    try:
+        obj = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    items = obj.get("techniques") if isinstance(obj, dict) else None
+    if not isinstance(items, list):
+        return []
+    cleaned: list[dict] = []
+    seen: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        tid = str(item.get("technique_id") or "").strip().upper()
+        if not _VALID_TECH_ID.match(tid) or tid in seen:
+            continue
+        tname = str(item.get("technique_name") or "").strip() or tid
+        tactic = str(item.get("tactic") or "").strip() or "Unknown"
+        cleaned.append({
+            "technique_id": tid,
+            "technique_name": tname,
+            "tactic": tactic,
+            "source": "llm",
+        })
+        seen.add(tid)
+        if len(cleaned) >= 5:
+            break
+    return cleaned
+
+
+def _llm_tag_article(article: dict) -> list[dict]:
+    """Call the LLM to propose ATT&CK techniques. Cache-first.
+
+    Returns a list of technique dicts; empty list on failure (callers
+    must treat missing LLM output as non-fatal — the regex matches
+    always stand on their own).
+    """
+    cache_key = _article_cache_key(article)
+    cached = get_cached_result(cache_key)
+    if isinstance(cached, list):
+        return cached
+
+    try:
+        from modules.llm_client import call_llm
+        raw = call_llm(
+            user_content=_build_llm_prompt(article),
+            system_prompt=_LLM_SYSTEM_PROMPT,
+            max_tokens=600,
+            response_format={"type": "json_object"},
+            caller=_LLM_CALLER,
+        )
+    except Exception as exc:
+        logger.debug("attack_tagger LLM fallback failed: %s", exc)
+        return []
+
+    techniques = _parse_llm_techniques(raw)
+    cache_result(cache_key, techniques)
+    return techniques
+
+
+def _should_escalate_to_llm(article: dict) -> bool:
+    """Decide whether an article deserves the LLM fallback pass."""
+    if not _LLM_FALLBACK_ENABLED:
+        return False
+    if not article.get("is_cyber_attack"):
+        return False
+    existing = article.get("attack_techniques") or []
+    return len(existing) < _LLM_FALLBACK_MIN_TECHNIQUES
+
+
+def _merge_techniques(base: list[dict], extra: list[dict]) -> list[dict]:
+    seen = {t.get("technique_id") for t in base if t.get("technique_id")}
+    merged = list(base)
+    for t in extra:
+        tid = t.get("technique_id")
+        if tid and tid not in seen:
+            merged.append(t)
+            seen.add(tid)
+    return merged
+
+
 def tag_articles_with_attack(articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Batch version — tag all articles with ATT&CK techniques."""
+    """Batch version — tag all articles with ATT&CK techniques.
+
+    Runs the regex pass on every article, then (if enabled) escalates
+    under-tagged incident articles to the LLM. Budget-capped via
+    ``LLM_ATTACK_FALLBACK_MAX_CALLS`` to protect daily token budget.
+    """
     tagged = [tag_article_with_attack(a) for a in articles]
     tagged_count = sum(1 for a in tagged if a.get("attack_techniques"))
+
+    if not _LLM_FALLBACK_ENABLED:
+        logger.info(
+            f"ATT&CK: tagged {tagged_count}/{len(articles)} articles with "
+            f"MITRE ATT&CK techniques"
+        )
+        return tagged
+
+    llm_calls = 0
+    llm_hits = 0
+    for i, article in enumerate(tagged):
+        if not _should_escalate_to_llm(article):
+            continue
+        cached = get_cached_result(_article_cache_key(article))
+        if isinstance(cached, list):
+            if cached:
+                tagged[i] = {
+                    **article,
+                    "attack_techniques": _merge_techniques(article.get("attack_techniques") or [], cached),
+                    "attack_tactics": sorted({
+                        *(article.get("attack_tactics") or []),
+                        *[t.get("tactic") for t in cached if t.get("tactic")],
+                    }),
+                }
+                llm_hits += 1
+            continue
+        if llm_calls >= _LLM_FALLBACK_MAX_CALLS:
+            continue
+        proposed = _llm_tag_article(article)
+        llm_calls += 1
+        if proposed:
+            tagged[i] = {
+                **article,
+                "attack_techniques": _merge_techniques(article.get("attack_techniques") or [], proposed),
+                "attack_tactics": sorted({
+                    *(article.get("attack_tactics") or []),
+                    *[t.get("tactic") for t in proposed if t.get("tactic")],
+                }),
+            }
+            llm_hits += 1
+
+    final_count = sum(1 for a in tagged if a.get("attack_techniques"))
     logger.info(
-        f"ATT&CK: tagged {tagged_count}/{len(articles)} articles with "
-        f"MITRE ATT&CK techniques"
+        f"ATT&CK: tagged {final_count}/{len(articles)} articles "
+        f"(regex {tagged_count}, +{final_count - tagged_count} via LLM; "
+        f"{llm_calls} LLM calls, {llm_hits} with usable output)"
     )
     return tagged
