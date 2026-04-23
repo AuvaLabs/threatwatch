@@ -2366,7 +2366,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div class="lf-stat"><span class="lf-label">DARK WEB</span><span class="lf-value" id="lf-darkweb">--</span></div>
         <div class="lf-stat"><span class="lf-label">SOURCES</span><span class="lf-value" id="lf-sources">--</span></div>
         <div class="lf-stat"><span class="lf-label">FEEDS</span><span class="lf-value" id="lf-feeds">--</span></div>
-        <div class="lf-stat"><span class="lf-label">API COST TODAY</span><span class="lf-value" id="lf-cost">--</span></div>
+        <div class="lf-stat" title="Total Groq tokens consumed today (prompt + completion). Hover for avg/call."><span class="lf-label">AI TOKENS TODAY</span><span class="lf-value" id="lf-tokens">--</span></div>
       </div>
       <div class="left-footer-links">
         <a href="https://auvalabs.github.io/threatwatch/feed.xml" target="_blank" rel="noopener" title="RSS Feed">RSS</a>
@@ -4885,8 +4885,37 @@ function updateLeftFooter(items) {
   el('lf-darkweb', darkwebCount);
   el('lf-sources', sources);
   el('lf-feeds', ps.feeds_loaded || '--');
-  const cost = ps.api_cost_today;
-  el('lf-cost', cost != null ? '$' + Number(cost).toFixed(4) : '--');
+  refreshTokenStat();
+}
+
+function _formatTokens(n) {
+  if (n == null || !isFinite(n)) return '--';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
+  return String(n);
+}
+
+async function refreshTokenStat() {
+  const el = document.getElementById('lf-tokens');
+  const wrap = el ? el.closest('.lf-stat') : null;
+  if (!el) return;
+  try {
+    const u = await fetchJSON('/api/groq-usage');
+    const today = u && u.today ? u.today : {};
+    const prompt = Number(today.total_prompt_tokens || 0);
+    const completion = Number(today.total_completion_tokens || 0);
+    const total = prompt + completion;
+    const calls = Number(today.total_calls || 0);
+    const avg = calls > 0 ? Math.round(total / calls) : 0;
+    el.textContent = _formatTokens(total);
+    if (wrap) {
+      wrap.title = `Today: ${total.toLocaleString()} tokens across ${calls} calls\n` +
+                   `Avg: ${avg.toLocaleString()} tokens/call\n` +
+                   `Prompt: ${prompt.toLocaleString()} · Completion: ${completion.toLocaleString()}`;
+    }
+  } catch {
+    el.textContent = '--';
+  }
 }
 
 async function refreshData() {
