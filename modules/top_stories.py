@@ -139,7 +139,11 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
         briefing_articles = all_filtered[:_MAX_DIGEST_ARTICLES]
 
     digest = _build_digest(briefing_articles)
-    cache_key = "topstories_" + hashlib.sha256(digest.encode()).hexdigest()
+    # Date-bucket the cache key so a near-static corpus still triggers a
+    # fresh editorial pass at least once per day. Without the bucket, the
+    # ai_cache (no read-side TTL) returns the same selection forever.
+    date_bucket = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    cache_key = f"topstories_{date_bucket}_" + hashlib.sha256(digest.encode()).hexdigest()
 
     cached = get_cached_result(cache_key)
     if cached is not None:
