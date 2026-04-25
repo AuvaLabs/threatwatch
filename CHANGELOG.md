@@ -2,6 +2,27 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-04-25 — Cache-staleness fixes, historical enrichment backfills, top_stories on 8B
+
+Context: the free-tier capitalization features shipped 2026-04-23 were verified live this session — `cve_narrative`, `ttp_extract`, and `attack_llm` all firing in production telemetry. Two regressions surfaced and got fixed: top_stories had been silently returning stale 28-hour-old selections (cache had no TTL), and once that fix landed it 429'd every cycle because its 70B prompt loses TPM contention against briefing/regional that fire seconds before. 1129 historical articles were also backfilled with the new enrichers (366 TTPs, 37 CVE narratives, 446 summaries) — ~63% of the ~2300-article corpus brought up to current enrichment standards in one pass.
+
+### Fixed
+- **top_stories cache staleness (`modules/top_stories.py`)**: `ai_cache` has no read-side TTL, so a digest-only cache key let `top_stories` return the same selection forever when fuzzy-dedup was making the corpus near-static day-to-day. Observed: 28 hours since the last LLM call despite a 1-hour cooldown window. Fix: bucket the cache key by UTC date (`topstories_2026-04-25_<digest_hash>`) so the editorial pass is forced to rerun ≥1×/day even when the underlying digest hash is unchanged.
+- **top_stories TPM contention (`modules/llm_client.py`, `modules/briefing_generator.py`, `modules/top_stories.py`)**: the AI enrichment chain runs briefing → regional (×3) → top_stories → summaries back-to-back. By the time `top_stories`' 5K-token 70B prompt fires, every key has 429'd from the burst. Plumbed an optional `model` kwarg through `call_llm` and `_call_openai_compatible` so callers can opt into a lighter Groq model. `top_stories` now defaults to `llama-3.1-8b-instant` (env: `TOP_STORIES_MODEL`) and caps its digest at 30 articles (env: `TOP_STORIES_MAX_ARTICLES`) to fit 8B's 8K context window — editorial selection doesn't need 70B's depth, and the smaller token cost fits within the TPM left after briefing/regional. Verified live: ~3.5K tokens/call, 8 stories generated, `provider: openai/llama-3.1-8b-instant`.
+- **backfill_summaries TPM trips (`scripts/backfill_summaries.py`)**: original script blasted batches with no inter-pass delay, tripped the circuit breaker mid-run under contention with the live pipeline. Added `BACKFILL_SUMMARY_SLEEP` between passes (default 10s), a `reset_circuit()` per pass, and a single retry-after-pause on empty pass — a streak of transient 429s no longer truncates the run.
+
+### Added
+- **Daily-average AI tokens tile (`threatwatch.html`)**: today's count is partial and resets each midnight UTC, which made the bottom-left tile read low for most of the day. Switched to a daily average computed from `/api/groq-usage`'s `last_7d` window (today excluded as partial). Tile label is now "AI TOKENS / DAY"; tooltip retains today-so-far for context.
+- **Historical CVE narrative backfill script (`scripts/backfill_cve_narratives.py`)**: one-shot iteration over `daily_latest.json` running the existing `cve_narrative` enricher against qualifying CVEs (CVSS ≥ 8.0 or EPSS percentile ≥ 0.80) that lack a narrative. Writes back via merge-by-hash and mirrors into SQLite. 8s pacing, 3 lifetime backoffs, fits free-tier TPM cleanly because narrative prompts are ~500 tokens. Cleared the 37-article backlog this session.
+- **Historical TTP backfill script (`scripts/backfill_tactical_analysis.py`)**: same shape for `ttp_extract`, with two important differences born of pain: (a) per-call retry budget instead of lifetime — a TPM streak can no longer exhaust a single global counter and starve every subsequent article; (b) always sleeps `--sleep` between articles regardless of outcome, so a give-up path can't burn through the queue at hundreds per second. The 70B model is too token-heavy for free-tier TPM under contention with the live pipeline (~1.8K tokens/call saturates a per-key minute window), so override `LLM_MODEL=llama-3.1-8b-instant` when running this script. Cleared the 366-article backlog this session.
+
+### Operations
+- **1129 articles enriched this session** across three backfills: 366 TTPs (`tactical_analysis`), 37 CVE narratives, 446 summaries (730 of 1180 stragglers remain — the 8B model couldn't generate non-empty JSON for articles with thin body content; left for another session).
+- **Day's token usage 683K of ~1M envelope (~68%)** — TTP backfill alone burned ~480K via 8B model. Multi-key rotation is account-scoped on Groq free tier (not per-key) — when account TPM caps out, all 3 keys 429 in the same second. Smaller prompts dodge this; pacing helps.
+
+### Testing
+- 89 tests on the changed modules (`test_top_stories`, `test_briefing_generator`, `test_llm_client`) — patched `_TOP_STORIES_MODEL` rather than `LLM_MODEL` in the success-generation test, and added implicit coverage for the new `model` kwarg via the existing call paths.
+
 ## 2026-04-23 — Free-Tier Groq Capitalization (CVE narratives · TTP extractor · LLM ATT&CK fallback · tokens tile)
 
 Context: per-caller Groq usage (landed 2026-04-22) showed we were using <5% of the free daily token budget. This session capitalises on the unused headroom with three LLM-backed enrichments and swaps the dashboard's always-$0 cost tile for live token throughput.
