@@ -66,6 +66,15 @@ def run_ai_enrichment(
     except Exception as e:
         logger.warning(f"Briefing alert dispatch failed: {e}")
 
+    # Independent Telegram channel post — same level/cooldown logic but its own
+    # state file so an org can drive Slack and Telegram in parallel without
+    # one path muting the other.
+    try:
+        from modules.telegram import dispatch_telegram_briefing
+        dispatch_telegram_briefing(briefing)
+    except Exception as e:
+        logger.warning(f"Telegram briefing dispatch failed: {e}")
+
     # Tier 1b: Regional digests — NA, EMEA, APAC
     try:
         generate_regional_briefings(all_articles)

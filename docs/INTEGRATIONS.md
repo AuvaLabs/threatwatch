@@ -235,7 +235,59 @@ threat-intelligence platforms.
 
 ---
 
-## Recipe 5 — RSS in Outlook / Feedly / Slack
+## Recipe 5 — Telegram channel (built-in)
+
+ThreatWatch ships a first-class Telegram dispatcher (`modules/telegram.py`)
+that posts the global briefing to a channel via the Bot API. Two delivery
+modes are supported and can be combined:
+
+**Mode A — alert on threat-level change (in-process):** Same dedup logic as
+the Slack/Discord webhook (level-change OR cooldown lapsed). Set these in
+`.env`:
+
+```bash
+TELEGRAM_BOT_TOKEN=123456:AA-...           # from @BotFather
+TELEGRAM_CHAT_ID=@your_channel             # or -100123456789 for private
+TELEGRAM_MIN_LEVEL=ELEVATED                # CRITICAL | ELEVATED | MODERATE | …
+TELEGRAM_COOLDOWN_HOURS=6
+TELEGRAM_DASHBOARD_URL=https://threatwatch.auvalabs.com
+```
+
+The dispatcher fires automatically inside `ai_enrichment.run_ai_enrichment`
+right after the briefing is generated. Independent state file
+(`data/state/telegram_briefing_last_alert.json`) — fully decoupled from the
+existing webhook dedup, so an org can drive both Slack and Telegram in
+parallel without one path muting the other.
+
+**Mode B — guaranteed daily post (system cron):** When you want a once-a-day
+post regardless of threat level, use the standalone script. Add to your
+host crontab:
+
+```bash
+# Post the latest briefing to Telegram every day at 08:00 UTC
+0 8 * * * /home/deploy/threatwatch/scripts/post_briefing_to_telegram.py
+```
+
+The script exits 1 on failure so cron MAILTO catches delivery problems.
+It does not consume the alert dedup state, so Mode A and Mode B can both
+fire on the same briefing without interfering.
+
+**Bot setup (one time):**
+1. Message `@BotFather` on Telegram, run `/newbot`, follow the prompts → save the token.
+2. For a public channel, your `chat_id` is `@channel_handle`. For a private
+   channel/group: add the bot, send any message, then call
+   `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy the numeric
+   `chat.id` from the response.
+3. Make the bot a channel admin (so it can post). Permissions needed: *Post Messages*.
+
+**Message format:** Telegram-compatible HTML (escaped). Includes the level
+badge, the LLM-written `headline` if present, the truncated `what_happened`
+narrative, up to three priority actions, and a "Open dashboard →" link.
+Capped at 4000 chars to stay safely under Telegram's 4096 limit.
+
+---
+
+## Recipe 6 — RSS in Outlook / Feedly / Slack
 
 `GET /api/rss` is a standard RSS 2.0 feed of every article that survived
 the pipeline (dedup + enrichment). Each item carries title, link, category,
