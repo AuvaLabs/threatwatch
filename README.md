@@ -79,7 +79,13 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 - Article detail view with IOC extraction (CVEs, IPs, hashes, domains)
 - Watchlist preferences saved to localStorage; self-hosted installs can persist keywords server-side
 - **AI Intelligence Digest** — 5-section briefing: What Happened (24h narrative with source links), What To Do (specific actions), Earlier This Week (catch-up), Outlook (forecast). **Regional digests** for NA, EMEA, APAC — auto-switches when region selected
+- **TL;DR lead-story hero** — LLM-written single-sentence headline above each briefing; falls back to a regex-distilled first sentence when the model field is absent
+- **Escalation banner** — when threat level shifts vs the prior briefing, an arrow + colour-coded "Escalated MODERATE → ELEVATED" row surfaces the change with the assessment basis as the why
 - **Headlines panel** — AI-curated 5-8 most significant incidents from last 72 hours, with cluster-related article badges
+- **Trending Threats panel** — spike detection (today vs 14d baseline) plus a 7-day top-mentioned leaderboard for ransomware groups, APTs, CVEs, and attack types
+- **CISA KEV badges** — articles referencing CVEs in the CISA Known Exploited Vulnerabilities catalog get an unmistakable "act now" pill, with darker shading for ransomware-linked entries
+- **"X new since HH:MM UTC" pill** — returning-reader counter at the top of the feed; persistent NEW badge on each article published since your last visit, dismissible with one click
+- **Share buttons** — copy-link on each article (`?article=<hash>` permalinks) and a one-click share that copies the briefing's level + headline + dashboard URL ready to paste into Slack/Teams/Telegram
 - Auto-generated statistical briefing as fallback (zero cost, no API key needed)
 - **5 switchable themes** — Nightwatch (dark brass), Parchment (light cream), Solarized (default), Arctic (clean blue), Phosphor (retro CRT)
 - Both live URLs displayed in the page footer
@@ -91,8 +97,11 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 
 ### Integration
 - RSS feed output for feed readers and SIEMs
-- JSON API for programmatic access
-- CORS enabled for embedding in other dashboards
+- STIX 2.1 bundle export for Microsoft Sentinel, Splunk, Elastic, OpenCTI, MISP
+- JSON API for programmatic access (CORS enabled)
+- **Telegram dispatcher** — built-in bot that posts CRITICAL briefing escalations and per-CVE CISA KEV alerts to a channel, dedup-aware so you only hear what you need to hear
+- **Slack / Discord / generic webhooks** — built-in dispatcher with level-change + cooldown deduplication
+- See [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) for copy-paste recipes (Microsoft Teams via Azure Logic Apps, /api/since alert flows, RSS in Outlook/Feedly)
 
 ---
 
