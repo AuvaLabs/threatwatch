@@ -354,6 +354,35 @@ html, body {
 .ai-threat-level.GUARDED { background: rgba(34,197,94,0.08); color: var(--success); border: 1px solid rgba(34,197,94,0.18); }
 .ai-threat-level.LOW { background: rgba(34,197,94,0.08); color: var(--success); border: 1px solid rgba(34,197,94,0.18); }
 
+/* Threat-level shift banner: shown when the current briefing's threat_level
+   differs from the prior briefing's. Up/down arrow + colour cues the
+   direction, the assessment_basis sentence answers "why?" without making
+   the reader hunt for it. Suppressed when there is no prior to compare. */
+.briefing-shift {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: -2px 0 14px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.briefing-shift .bs-arrow {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+.briefing-shift .bs-text { flex: 1; min-width: 0; }
+.briefing-shift .bs-from-to { font-weight: 600; letter-spacing: 0.2px; }
+.briefing-shift .bs-since { color: var(--text-muted); margin-left: 6px; font-size: 11px; }
+.briefing-shift .bs-why { color: var(--text-secondary); display: block; margin-top: 2px; }
+.briefing-shift.up   { background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.30); color: var(--warning); }
+.briefing-shift.up.crit { background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.30); color: var(--danger); }
+.briefing-shift.down { background: rgba(34,197,94,0.10);  border: 1px solid rgba(34,197,94,0.30);  color: var(--success); }
+
 /* Briefing lead story: scannable TL;DR pulled from what_happened or
    assessment_basis after stripping LLM throat-clearing. Sits between the
    threat-level chip and the full What Happened narrative so a 5-second scan
@@ -1482,6 +1511,54 @@ html, body {
   transition: opacity 0.15s, box-shadow 0.15s;
 }
 .detail-open-link:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(59,130,246,0.25); }
+
+/* Detail-panel actions row: keeps OPEN ARTICLE and COPY LINK on the same
+   baseline so the analyst's hand stays in one spot when sharing. */
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.detail-actions .detail-open-link { margin-top: 0; }
+.detail-copy-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.detail-copy-link:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+.detail-copy-link.copied { background: rgba(34,197,94,0.10); color: var(--success); border-color: rgba(34,197,94,0.35); }
+.detail-copy-link.copy-failed { background: rgba(239,68,68,0.10); color: var(--danger); border-color: rgba(239,68,68,0.35); }
+
+/* Briefing card share button — sits inside the section title, mirrors the
+   AI/NORMAL toggle's styling so the row reads as related controls. */
+.briefing-share-btn {
+  margin-left: 10px;
+  padding: 3px 10px;
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.briefing-share-btn:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+.briefing-share-btn.copied { background: rgba(34,197,94,0.10); color: var(--success); border-color: rgba(34,197,94,0.35); }
+.briefing-share-btn.copy-failed { background: rgba(239,68,68,0.10); color: var(--danger); border-color: rgba(239,68,68,0.35); }
 
 /* IOC Extraction */
 .ioc-section {
@@ -2614,6 +2691,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
           <span class="section-icon">&#x1F4E1;</span> Intelligence Digest
           <button class="briefing-mode-toggle ai-active" id="briefing-mode-toggle" data-click-action="toggleBriefingMode">AI</button>
           <span id="briefing-mode-hint" style="font-size:9px;color:var(--text-muted);margin-left:8px;letter-spacing:0.3px">toggle for normal digest</span>
+          <button class="briefing-share-btn" data-click-action="copyBriefingShare" title="Copy headline + level + dashboard link to clipboard for sharing">&#x1F517; SHARE</button>
         </div>
         <div id="ai-briefing-content"></div>
       </div>
@@ -3276,6 +3354,34 @@ const _LEAD_BOILERPLATE_RE = new RegExp(
   'i'
 );
 
+/* Build the escalation/de-escalation banner string, or '' when nothing
+   meaningful to show. Returns valid HTML; caller injects directly. */
+const _LEVEL_RANK = { LOW: 0, GUARDED: 1, MODERATE: 2, ELEVATED: 3, CRITICAL: 4 };
+function _renderBriefingShift(b) {
+  if (!b) return '';
+  const cur = (b.threat_level || '').toUpperCase();
+  const prev = (b.previous_threat_level || '').toUpperCase();
+  if (!cur || !prev || cur === prev) return '';
+  if (!(cur in _LEVEL_RANK) || !(prev in _LEVEL_RANK)) return '';
+  const direction = _LEVEL_RANK[cur] > _LEVEL_RANK[prev] ? 'up' : 'down';
+  const verb = direction === 'up' ? 'Escalated' : 'De-escalated';
+  const arrow = direction === 'up' ? '↑' : '↓';
+  const cls = direction === 'up' && cur === 'CRITICAL' ? 'briefing-shift up crit' : `briefing-shift ${direction}`;
+  const since = b.previous_generated_at
+    ? ` <span class="bs-since">vs ${timeAgo(b.previous_generated_at)} prior briefing</span>`
+    : '';
+  const why = b.assessment_basis
+    ? `<span class="bs-why">${escapeHTML(b.assessment_basis)}</span>`
+    : '';
+  return `<div class="${cls}">
+    <span class="bs-arrow">${arrow}</span>
+    <div class="bs-text">
+      <span class="bs-from-to">${verb} from ${escapeHTML(prev)} to ${escapeHTML(cur)}</span>${since}
+      ${why}
+    </div>
+  </div>`;
+}
+
 function _extractBriefingLead(b) {
   if (!b) return null;
   if (typeof b.headline === 'string' && b.headline.trim().length >= 20) {
@@ -3605,6 +3711,12 @@ function renderAIBriefing(container) {
   if (b.assessment_basis) {
     html += `<div style="margin-bottom:14px;font-size:11px;color:var(--text-muted);letter-spacing:0.3px;line-height:1.5;font-style:italic">${escapeHTML(b.assessment_basis)}</div>`;
   }
+
+  // Threat-level shift banner: rendered only when the prior on-disk briefing
+  // had a different threat_level. Surfaces movement (up vs down) so a
+  // returning reader sees what changed since they last looked at the page.
+  const shift = _renderBriefingShift(b);
+  if (shift) html += shift;
 
   // Lead-story hero: scannable headline above the dense narrative.
   // Tries (1) explicit briefing.headline (forward-compat), (2) the first
@@ -4873,7 +4985,10 @@ function selectItem(item) {
     <div class="detail-body">${escapeHTML(item.description)}</div>
     ${cveBlock}
     ${renderIOCSection(item)}
-    <a class="detail-open-link" href="${escapeHTML(safeHref(item.link))}" target="_blank" rel="noopener">OPEN ARTICLE &rarr;</a>
+    <div class="detail-actions">
+      <a class="detail-open-link" href="${escapeHTML(safeHref(item.link))}" target="_blank" rel="noopener">OPEN ARTICLE &rarr;</a>
+      <button class="detail-copy-link" data-click-action="copyArticlePermalink" data-click-args="${escapeHTML(JSON.stringify([item._id]))}" title="Copy a permalink to share this article">&#x1F517; COPY LINK</button>
+    </div>
   `;
 
   document.querySelectorAll('.center-section').forEach(s => s.style.display = 'none');
@@ -5775,6 +5890,75 @@ function selectItemById(id) {
   if (item) selectItem(item);
 }
 
+/* Permalink + share helpers — both write to the user's clipboard then flash a
+   visual "Copied!" cue on the source button so the action is unambiguous. */
+function _flashCopied(btn, ok = true) {
+  if (!btn) return;
+  const orig = btn.innerHTML;
+  btn.innerHTML = ok ? '&#x2713; COPIED' : '&#x2717; FAILED';
+  btn.classList.add(ok ? 'copied' : 'copy-failed');
+  setTimeout(() => {
+    btn.innerHTML = orig;
+    btn.classList.remove('copied', 'copy-failed');
+  }, 1500);
+}
+
+async function _writeClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try { await navigator.clipboard.writeText(text); return true; } catch {}
+  }
+  // Fallback for non-HTTPS / older browsers — execCommand path.
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
+function _articlePermalink(id) {
+  // _id is "td-<hash>"; URL form drops the prefix for cleanness.
+  const hash = id.startsWith('td-') ? id.slice(3) : id;
+  const base = window.location.origin + window.location.pathname;
+  return `${base}?article=${encodeURIComponent(hash)}`;
+}
+
+async function copyArticlePermalink(id) {
+  const btn = document.querySelector(`[data-click-action="copyArticlePermalink"][data-click-args*="${id}"]`);
+  const ok = await _writeClipboard(_articlePermalink(id));
+  _flashCopied(btn, ok);
+}
+
+async function copyBriefingShare() {
+  const b = state.aiBriefing;
+  const btn = document.querySelector('[data-click-action="copyBriefingShare"]');
+  if (!b) return _flashCopied(btn, false);
+  const lead = (b.headline || (b.what_happened || '')).trim();
+  const url = window.location.origin + window.location.pathname;
+  const text = `ThreatWatch — ${b.threat_level || 'UNKNOWN'}\n${lead}\n\n${url}`;
+  const ok = await _writeClipboard(text);
+  _flashCopied(btn, ok);
+}
+
+/* On first load, honour ?article=<hash> so a permalink opens the article
+   detail panel directly. Runs after applyData has populated state.newsItems
+   so the lookup can resolve; if the hash is unknown (article rotated out of
+   the corpus) we silently fall through to the regular dashboard view. */
+function _consumeArticlePermalinkParam() {
+  try {
+    const hash = new URLSearchParams(window.location.search).get('article');
+    if (!hash) return;
+    const id = `td-${hash}`;
+    const item = state.newsItems.find(i => i._id === id);
+    if (item) selectItem(item);
+  } catch {}
+}
+
 /* ============================================================= */
 /* INITIALIZATION                                                 */
 /* ============================================================= */
@@ -5805,6 +5989,10 @@ function init() {
   if (!ssr || !(ssr.articles || []).length) {
     refreshData();
   }
+
+  // Phase 2b: Honour ?article=<hash> permalinks AFTER state.newsItems is
+  // populated by applyData above (or by refreshData on the no-SSR path).
+  _consumeArticlePermalinkParam();
 
   // Phase 3: Schedule periodic refresh (local API only — fast)
   setInterval(refreshData, REFRESH_INTERVAL);
