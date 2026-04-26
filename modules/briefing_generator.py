@@ -46,7 +46,8 @@ RULES:
 - Every claim must cite source article numbers [N] in the "sources" array
 - "what_happened" is the MAIN SECTION — write it as a narrative that covers the most significant incidents, weaving in trending patterns, CVE details, and ATT&CK tactics. Do NOT repeat information across sections.
 - "what_to_do" actions must reference the SPECIFIC threats from what_happened — never generic ("patch your systems", "train employees")
-- If CVEs have EPSS scores, include them in the narrative (e.g., "CVE-2026-5212 affecting D-Link routers has a 94% EPSS exploitation probability — patch immediately")
+- KEV-listed CVEs (marked "KEV-listed [date]" in the vuln context) are CONFIRMED exploited in the wild by CISA — when one appears, lead with it and surface the KEV status explicitly (e.g., "CVE-2026-3844 was added to the CISA KEV catalog on 2026-04-25, confirming active in-the-wild exploitation"). Mark the matching what_to_do action as urgent.
+- If CVEs have EPSS scores, include them in the narrative (e.g., "CVE-2026-5212 affecting D-Link routers has a 94% EPSS exploitation probability — patch immediately"). EPSS = probability; KEV = confirmed fact. Prefer KEV phrasing when both exist.
 - If EARLIER THIS WEEK data is provided, write a "week_in_review" catching readers up on what they missed
 - "outlook" should project what SPECIFIC developments mean for the next 7-30 days
 
@@ -117,6 +118,15 @@ def _build_digest(articles: list[dict[str, Any]]) -> str:
         epss_risk = a.get("epss_risk", "")
         if epss_risk and epss_risk != "LOW":
             meta_parts.append(f"Exploit risk: {epss_risk}")
+        # CISA KEV — authoritative "actively exploited" flag
+        if a.get("kev_listed"):
+            kev_tag = "KEV-listed"
+            kev_date = a.get("kev_min_date_added", "")
+            if kev_date:
+                kev_tag = f"KEV-listed {kev_date}"
+            if a.get("kev_ransomware_use") == "Known":
+                kev_tag += " (ransomware-linked)"
+            meta_parts.append(kev_tag)
         # Include ATT&CK tactics
         tactics = a.get("attack_tactics", [])
         if tactics:
@@ -155,7 +165,7 @@ def _build_trend_context() -> str:
 
 
 def _build_vuln_context(articles: list[dict[str, Any]]) -> str:
-    """Extract top CVEs by EPSS/CVSS from enriched articles."""
+    """Extract top CVEs by KEV listing → EPSS → CVSS from enriched articles."""
     cves = []
     for a in articles:
         cve_id = a.get("cve_id", "")
@@ -171,14 +181,25 @@ def _build_vuln_context(articles: list[dict[str, Any]]) -> str:
             "severity": a.get("cvss_severity", ""),
             "products": ", ".join(a.get("affected_products", [])[:3]),
             "title": a.get("title", "")[:80],
+            "kev_listed": bool(a.get("kev_listed")),
+            "kev_date": a.get("kev_min_date_added", ""),
+            "kev_ransomware": a.get("kev_ransomware_use") == "Known",
         })
     if not cves:
         return ""
-    # Sort by EPSS desc, then CVSS desc
-    cves.sort(key=lambda c: (c["epss"], c["cvss"]), reverse=True)
-    lines = ["TOP VULNERABILITIES BY EXPLOITATION PROBABILITY:"]
+    # KEV-listed first, then EPSS desc, then CVSS desc — defenders should see
+    # confirmed-in-the-wild CVEs at the top regardless of probability scores.
+    cves.sort(key=lambda c: (c["kev_listed"], c["epss"], c["cvss"]), reverse=True)
+    lines = ["TOP VULNERABILITIES (KEV-listed first, then EPSS/CVSS):"]
     for c in cves[:8]:
         parts = [f"{c['cve_id']}"]
+        if c["kev_listed"]:
+            kev_part = "KEV-listed"
+            if c["kev_date"]:
+                kev_part = f"KEV-listed {c['kev_date']}"
+            if c["kev_ransomware"]:
+                kev_part += " (ransomware-linked)"
+            parts.append(kev_part)
         if c["cvss"]:
             parts.append(f"CVSS {c['cvss']}")
         if c["epss"]:

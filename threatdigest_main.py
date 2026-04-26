@@ -32,6 +32,7 @@ from modules.newsapi_fetcher import fetch_newsapi_articles
 from modules.region_inferrer import infer_articles_regions
 from modules.nvd_fetcher import fetch_nvd_cves
 from modules.epss_enricher import enrich_articles_with_epss
+from modules.kev_enricher import enrich_articles_with_kev
 from modules.attack_tagger import tag_articles_with_attack
 from modules.trend_detector import update_trends
 
@@ -194,6 +195,13 @@ def main():
         enriched_articles = enrich_articles_with_epss(enriched_articles)
     except Exception as e:
         logging.warning(f"EPSS enrichment failed: {e}")
+
+    # CISA KEV — flag CVEs confirmed exploited in the wild. Authoritative
+    # "act now" signal; complements EPSS (probability) with verified fact.
+    try:
+        enriched_articles = enrich_articles_with_kev(enriched_articles)
+    except Exception as e:
+        logging.warning(f"KEV enrichment failed: {e}")
 
     # CVE exploitation narratives (LLM-generated, cached by CVE ID).
     # Only fires for CVSS>=8.0 or EPSS>=80th percentile; cache makes

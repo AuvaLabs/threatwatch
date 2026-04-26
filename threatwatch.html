@@ -891,6 +891,24 @@ html, body {
 }
 .cve-pill:hover, .sector-pill:hover { filter: brightness(1.1); }
 
+.kev-pill {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  white-space: nowrap;
+  cursor: help;
+  color: var(--danger);
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.kev-pill.ransomware {
+  background: rgba(192,57,43,0.12);
+  border-color: rgba(192,57,43,0.35);
+}
+
 /* Full IOC block inside detail panel — grouped by type, each row lists every
    indicator of that type with monospace so hashes and IPs line up cleanly. */
 .detail-iocs { margin: 12px 0; font-family: var(--font-mono); font-size: 11px; }
@@ -3823,6 +3841,10 @@ function transformArticles(articles) {
       cluster: article.cluster || null,
       cveIds: Array.isArray(article.cve_ids) ? article.cve_ids : [],
       iocs: article.iocs || null,
+      kevListed: !!article.kev_listed,
+      kevDateAdded: article.kev_min_date_added || '',
+      kevRansomware: article.kev_ransomware_use === 'Known',
+      kevEntries: Array.isArray(article.kev_entries) ? article.kev_entries : [],
       victimSectors: Array.isArray(article.victim_sectors) ? article.victim_sectors : [],
       _id: 'td-' + (article.hash || i)
     };
@@ -3972,6 +3994,7 @@ function buildCardHTML(item) {
     <div class="card-footer">
       <span class="card-time">\uD83D\uDD50 ${timeAgo(item.pubDate)}</span>
       ${buildStoryBadge(item)}
+      ${buildKevPill(item)}
       ${buildCvePill(item)}
       ${buildIocPill(item)}
       ${buildSectorPill(item)}
@@ -3985,6 +4008,20 @@ function buildCardHTML(item) {
    feed to every article referencing the primary CVE — the same view an
    analyst would expect from /api/cve/<ID>, rendered inline. Event is captured
    on card click handler via data attribute so we don't stop propagation. */
+/* KEV pill: surfaces the CISA Known Exploited Vulnerabilities flag.
+   This is the most authoritative "act now" signal — a CVE on KEV is
+   confirmed exploited in the wild by CISA, not just probabilistically
+   risky. Ransomware-linked KEV entries get a darker shade. */
+function buildKevPill(item) {
+  if (!item.kevListed) return '';
+  const cls = item.kevRansomware ? 'kev-pill ransomware' : 'kev-pill';
+  const dateLabel = item.kevDateAdded ? ` ${escapeHTML(item.kevDateAdded)}` : '';
+  const ransomTip = item.kevRansomware ? ' • Linked to known ransomware campaigns.' : '';
+  const cveList = (item.kevEntries || []).map(e => e.cve_id).filter(Boolean).join(', ');
+  const tip = `CISA KEV-listed${dateLabel ? ' (added ' + dateLabel.trim() + ')' : ''} — confirmed actively exploited in the wild.${ransomTip}${cveList ? ' Matched: ' + cveList : ''}`;
+  return `<span class="${cls}" title="${escapeHTML(tip)}">🚨 CISA KEV${dateLabel}</span>`;
+}
+
 function buildCvePill(item) {
   if (!item.cveIds || !item.cveIds.length) return '';
   const primary = item.cveIds[0];
