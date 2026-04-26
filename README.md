@@ -12,7 +12,7 @@
 [![Feeds](https://img.shields.io/badge/feeds-155+-blue)]()
 [![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/threatwatch?style=social)](https://github.com/AuvaLabs/threatwatch)
 
-**[Live Demo](https://threatwatch.auvalabs.com)** · **[GitHub Pages](https://auvalabs.github.io/threatwatch/)**
+**[Live Demo](https://threatwatch.auvalabs.com)**
 
 AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web sources, and NewsAPI — classifies, deduplicates, and generates analyst-grade intelligence digests with AI-curated top stories, incident clustering, threat actor profiles, and actionable priority recommendations with source citations. Runs entirely free using Groq's API free tier. Self-hosted, zero-cost infrastructure.
 
@@ -242,7 +242,6 @@ config/
   ├── feeds_google.yaml      # Google News feeds
   └── feeds_bing.yaml        # Bing News feeds
 scripts/
-  ├── deploy_gh_pages.py     # GitHub Pages static deploy
   ├── validate_feeds.py      # Feed health checker
   └── cleanup.py             # Data cleanup utility
 data/

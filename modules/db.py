@@ -11,7 +11,7 @@ Phase 1 (this file): schema + write helpers + one-shot import of the current
 Phase 2 (future): server and pipeline read from SQLite via a thin API-level
     adapter. JSON write becomes an export, not the source of truth.
 Phase 3 (future): drop JSON writes; keep periodic JSON exports for external
-    consumers (RSS feed, gh-pages static site).
+    consumers (RSS feed).
 
 The schema is deliberately conservative: one row per article, indexed on the
 hash and on ingest timestamp so the existing cutoff and de-dup behaviours map

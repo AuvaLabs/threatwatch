@@ -68,7 +68,6 @@ Browser → serve_threatwatch.py (SSR injection)
 ## Links
 
 - **Live Demo**: https://threatwatch.auvalabs.com
-- **GitHub Pages**: https://auvalabs.github.io/threatwatch/
 - **Repository**: https://github.com/AuvaLabs/threatwatch
 
 Last updated: 2026-04-22
