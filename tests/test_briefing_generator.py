@@ -11,6 +11,8 @@ from modules.briefing_generator import (
     _parse_json,
     _detect_provider,
     _normalise_headline,
+    _read_prior_level,
+    _stamp_previous_level,
     generate_briefing,
     load_briefing,
     _MAX_DIGEST_ARTICLES,
@@ -184,6 +186,52 @@ class TestNormaliseHeadline:
         assert result.endswith("…")
         assert " " in result  # ended on a word boundary, not mid-word
         assert len(result) <= _HEADLINE_SOFT_CAP + 1
+
+
+# ---------------------------------------------------------------------------
+# _read_prior_level / _stamp_previous_level (escalation banner support)
+# ---------------------------------------------------------------------------
+class TestReadPriorLevel:
+    def test_missing_file_returns_none_pair(self, tmp_path):
+        assert _read_prior_level(tmp_path / "absent.json") == (None, None)
+
+    def test_unreadable_json_returns_none_pair(self, tmp_path):
+        path = tmp_path / "broken.json"
+        path.write_text("not valid json {")
+        assert _read_prior_level(path) == (None, None)
+
+    def test_returns_level_and_generated_at(self, tmp_path):
+        path = tmp_path / "briefing.json"
+        path.write_text(json.dumps({
+            "threat_level": "ELEVATED",
+            "generated_at": "2026-04-26T10:00:00+00:00",
+            "what_happened": "x",
+        }))
+        assert _read_prior_level(path) == ("ELEVATED", "2026-04-26T10:00:00+00:00")
+
+    def test_missing_fields_return_none_in_tuple(self, tmp_path):
+        path = tmp_path / "briefing.json"
+        path.write_text(json.dumps({"what_happened": "x"}))
+        assert _read_prior_level(path) == (None, None)
+
+
+class TestStampPreviousLevel:
+    def test_first_run_stamps_none(self, tmp_path):
+        briefing = {"threat_level": "ELEVATED"}
+        _stamp_previous_level(briefing, tmp_path / "absent.json")
+        assert briefing["previous_threat_level"] is None
+        assert briefing["previous_generated_at"] is None
+
+    def test_subsequent_run_stamps_prior_level(self, tmp_path):
+        path = tmp_path / "briefing.json"
+        path.write_text(json.dumps({
+            "threat_level": "MODERATE",
+            "generated_at": "2026-04-25T08:00:00+00:00",
+        }))
+        briefing = {"threat_level": "ELEVATED"}
+        _stamp_previous_level(briefing, path)
+        assert briefing["previous_threat_level"] == "MODERATE"
+        assert briefing["previous_generated_at"] == "2026-04-25T08:00:00+00:00"
 
 
 # ---------------------------------------------------------------------------

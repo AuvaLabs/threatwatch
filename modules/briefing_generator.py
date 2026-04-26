@@ -534,8 +534,34 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
 from modules.utils import extract_json as _parse_json
 
 
+def _read_prior_level(path: Path) -> tuple[str | None, str | None]:
+    """Return (threat_level, generated_at) of the briefing currently on disk.
+
+    Used to stamp `previous_threat_level` on the new briefing so the dashboard
+    can render an escalation/de-escalation banner. Returns (None, None) for
+    first-ever runs or unreadable files — the frontend treats those as "no
+    prior to compare against" and suppresses the banner.
+    """
+    if not path.exists():
+        return (None, None)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return (data.get("threat_level"), data.get("generated_at"))
+    except (OSError, json.JSONDecodeError):
+        return (None, None)
+
+
+def _stamp_previous_level(briefing: dict[str, Any], path: Path) -> None:
+    """Mutate briefing in-place to record the prior on-disk level/timestamp."""
+    prev_level, prev_at = _read_prior_level(path)
+    briefing["previous_threat_level"] = prev_level
+    briefing["previous_generated_at"] = prev_at
+
+
 def _save_briefing(briefing: dict[str, Any]) -> None:
     """Save briefing to disk for the server to serve."""
+    _stamp_previous_level(briefing, BRIEFING_PATH)
     BRIEFING_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(BRIEFING_PATH, "w", encoding="utf-8") as f:
         json.dump(briefing, f, ensure_ascii=False)
@@ -739,6 +765,7 @@ def generate_regional_briefings(articles: list[dict[str, Any]]) -> dict[str, Any
 
 def _save_regional_briefing(region_key: str, briefing: dict) -> None:
     path = _regional_briefing_path(region_key)
+    _stamp_previous_level(briefing, path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(briefing, f, ensure_ascii=False)
