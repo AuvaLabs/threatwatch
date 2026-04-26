@@ -2357,6 +2357,26 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   .detail-headline { font-size: 18px; }
   .detail-body { font-size: 14px; }
   .filter-btn { padding: 8px 12px; }
+
+  /* Phase 2 surfaces — defaults assume desktop space; collapse for phones. */
+
+  /* TL;DR hero: stack label above body so the 48px label doesn't squeeze
+     the sentence into 5–6 wrapped lines on a 360px screen. */
+  .briefing-lead { flex-direction: column; gap: 4px; padding: 12px; }
+  .briefing-lead-label { width: auto; padding-top: 0; }
+  .briefing-lead-body { font-size: 14px; line-height: 1.6; }
+
+  /* "X new since HH:MM UTC" pill: allow the text + button to wrap, shrink
+     padding so the dismiss button stays one finger-tap wide. */
+  .new-visit-pill { flex-wrap: wrap; padding: 6px 8px; gap: 6px; }
+  .new-visit-pill .nv-clear { padding: 4px 8px; }
+
+  /* Trending panel: bump pill type for tap-target/scannability and let the
+     "Last 7d · 24-day baseline" subtitle drop beneath the section title
+     so the heading row never elbows past the viewport edge. */
+  .trending-pill { font-size: 11px; padding: 4px 9px; }
+  .trending-pill .tp-count { font-size: 10px; }
+  .trending-subtitle { display: block; margin-left: 0; margin-top: 2px; }
 }
 
 /* ── Page loader ─────────────────────────────────────────────────────────── */
