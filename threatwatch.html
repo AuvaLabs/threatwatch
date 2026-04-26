@@ -462,10 +462,12 @@ html, body {
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-#threat-level.low { background: rgba(34,197,94,0.08); color: var(--success); border: 1px solid rgba(34,197,94,0.18); }
-#threat-level.medium { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(59,130,246,0.2); }
-#threat-level.high { background: rgba(245,158,11,0.1); color: var(--warning); border: 1px solid rgba(245,158,11,0.25); }
+#threat-level.low      { background: rgba(34,197,94,0.08); color: var(--success); border: 1px solid rgba(34,197,94,0.18); }
+#threat-level.guarded  { background: rgba(34,197,94,0.08); color: var(--success); border: 1px solid rgba(34,197,94,0.18); }
+#threat-level.moderate { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(59,130,246,0.2); }
+#threat-level.elevated { background: rgba(245,158,11,0.1); color: var(--warning); border: 1px solid rgba(245,158,11,0.25); }
 #threat-level.critical { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); animation: threat-pulse 2s ease-in-out infinite; }
+#threat-level.unknown  { background: var(--panel-bg); color: var(--text-muted); border: 1px solid var(--panel-border); }
 @keyframes threat-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
   50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.15); }
@@ -4804,14 +4806,23 @@ function highlightActiveAction(value) {
 /* THREAT LEVEL COMPUTATION                                       */
 /* ============================================================= */
 function updateThreatLevel() {
-  const critCount = state.newsItems.filter(i => i.severity === 'CRITICAL').length;
   const el = document.getElementById('threat-level');
-  el.className = '';
+  if (!el) return;
 
-  if (critCount === 0) { el.className = 'low'; el.textContent = 'THREAT: LOW'; }
-  else if (critCount <= 3) { el.className = 'medium'; el.textContent = 'THREAT: MEDIUM'; }
-  else if (critCount <= 9) { el.className = 'high'; el.textContent = 'THREAT: HIGH'; }
-  else { el.className = 'critical'; el.textContent = 'THREAT: CRITICAL'; }
+  const briefing = state.aiBriefing;
+  const raw = (briefing && briefing.threat_level || '').toUpperCase();
+  const validLevels = ['LOW', 'GUARDED', 'MODERATE', 'ELEVATED', 'CRITICAL'];
+
+  if (!validLevels.includes(raw)) {
+    el.className = 'unknown';
+    el.textContent = 'THREAT: —';
+    el.title = 'Awaiting intel digest assessment';
+    return;
+  }
+
+  el.className = raw.toLowerCase();
+  el.textContent = 'THREAT: ' + raw;
+  el.title = 'Posture from intel digest briefing — see Briefing for assessment basis';
 }
 
 /* ============================================================= */
@@ -4934,7 +4945,10 @@ async function refreshData() {
   // Refresh AI briefing
   try {
     const b = await fetchJSON('/api/briefing');
-    if (b && b.executive_summary) state.aiBriefing = b;
+    if (b && b.executive_summary) {
+      state.aiBriefing = b;
+      updateThreatLevel();
+    }
   } catch {}
 }
 
