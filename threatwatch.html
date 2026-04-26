@@ -354,6 +354,37 @@ html, body {
 .ai-threat-level.GUARDED { background: rgba(34,197,94,0.08); color: var(--success); border: 1px solid rgba(34,197,94,0.18); }
 .ai-threat-level.LOW { background: rgba(34,197,94,0.08); color: var(--success); border: 1px solid rgba(34,197,94,0.18); }
 
+/* Briefing lead story: scannable TL;DR pulled from what_happened or
+   assessment_basis after stripping LLM throat-clearing. Sits between the
+   threat-level chip and the full What Happened narrative so a 5-second scan
+   delivers the headline without wading through the full paragraph. */
+.briefing-lead {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 4px 0 16px;
+  padding: 12px 14px;
+  background: var(--accent-dim);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+.briefing-lead-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+  padding-top: 2px;
+  width: 48px;
+}
+.briefing-lead-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
 /* Topbar right group */
 .topbar-right {
   display: flex;
@@ -3206,6 +3237,52 @@ function analyzeIntelligence() {
 
 const debouncedAnalyze = debounce(analyzeIntelligence, 150);
 
+/* LLM briefings reliably open with throat-clearing ("Over the last 24 hours,
+   several significant incidents have occurred, including ..."). For a
+   scannable TL;DR we strip the boilerplate prefix, capitalise what's left,
+   and trim at a sentence or clause boundary near the target length. */
+const _LEAD_BOILERPLATE_RE = new RegExp(
+  '^(' + [
+    'over\\s+the\\s+(last|past)\\s+\\d+\\s*(hours?|days?|weeks?),?\\s*',
+    'in\\s+(the\\s+)?(last|past|recent)\\s+\\d*\\s*(hours?|days?|weeks?),?\\s*',
+    'in\\s+recent\\s+(hours?|days?|weeks?),?\\s*',
+    'this\\s+(week|past\\s+week|reporting\\s+window),?\\s*',
+    'today,?\\s*',
+    'recently,?\\s*',
+    '(several|multiple|a\\s+number\\s+of|numerous)\\s+(significant\\s+)?(incidents?|events?|developments?)\\s+(have\\s+)?(occurred|emerged|been\\s+observed),?\\s*(including\\s+|such\\s+as\\s+)?',
+    'the\\s+(current|present)\\s+threat\\s+landscape\\s+(is\\s+)?(continues\\s+to\\s+be\\s+)?(marked\\s+by\\s+)?',
+    'the\\s+global\\s+(cyber\\s+)?threat\\s+landscape\\s+(remains?|is)\\s+',
+  ].join('|') + ')+',
+  'i'
+);
+
+function _extractBriefingLead(b) {
+  if (!b) return null;
+  if (typeof b.headline === 'string' && b.headline.trim().length >= 20) {
+    return b.headline.trim();
+  }
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const trimToFit = (s, max = 240) => {
+    if (s.length <= max) return s;
+    // Prefer sentence-end break, then clause break, then hard cut + ellipsis.
+    const window = s.slice(0, max);
+    const sentenceEnd = window.lastIndexOf('. ');
+    if (sentenceEnd >= max * 0.6) return window.slice(0, sentenceEnd + 1);
+    const clauseEnd = Math.max(window.lastIndexOf(', '), window.lastIndexOf('; '));
+    if (clauseEnd >= max * 0.6) return window.slice(0, clauseEnd) + '…';
+    return window.replace(/\s+\S*$/, '') + '…';
+  };
+  const distil = (raw) => {
+    if (!raw || typeof raw !== 'string') return null;
+    let text = raw.trim();
+    text = text.replace(_LEAD_BOILERPLATE_RE, '').trim();
+    if (text.length < 40) return null;
+    text = cap(text);
+    return trimToFit(text);
+  };
+  return distil(b.what_happened) || distil(b.assessment_basis) || null;
+}
+
 function renderBriefing(items, allText, globalTotal) {
   const container = document.getElementById('ai-briefing-content');
   const region = state.activeRegion;
@@ -3507,6 +3584,18 @@ function renderAIBriefing(container) {
   html += `<span class="briefing-ai-notice">AI INTELLIGENCE</span></div>`;
   if (b.assessment_basis) {
     html += `<div style="margin-bottom:14px;font-size:11px;color:var(--text-muted);letter-spacing:0.3px;line-height:1.5;font-style:italic">${escapeHTML(b.assessment_basis)}</div>`;
+  }
+
+  // Lead-story hero: scannable headline above the dense narrative.
+  // Tries (1) explicit briefing.headline (forward-compat), (2) the first
+  // sentence of what_happened with throat-clearing stripped, (3) first
+  // sentence of assessment_basis. Rendered only when a usable result lands.
+  const lead = _extractBriefingLead(b);
+  if (lead) {
+    html += `<div class="briefing-lead">
+      <div class="briefing-lead-label">TL;DR</div>
+      <div class="briefing-lead-body">${escapeHTML(lead)}</div>
+    </div>`;
   }
 
   // === Section 1: What Happened (the narrative — main section) ===
