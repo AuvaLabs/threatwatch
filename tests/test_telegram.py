@@ -171,6 +171,140 @@ class TestDispatchTelegramBriefing:
 
 
 # ---------------------------------------------------------------------------
+# dispatch_telegram_kev_alerts
+# ---------------------------------------------------------------------------
+def _kev_article(cve_id: str, date_added: str = "2026-04-25",
+                 ransomware: str = "Unknown", title: str = "Article title",
+                 vendor: str = "Cisco", product: str = "ASA"):
+    """Build an article dict already enriched as if kev_enricher had run."""
+    return {
+        "title": title,
+        "kev_listed": True,
+        "kev_min_date_added": date_added,
+        "kev_ransomware_use": ransomware,
+        "kev_entries": [{
+            "cve_id": cve_id,
+            "date_added": date_added,
+            "ransomware_use": ransomware,
+            "vendor": vendor,
+            "product": product,
+            "name": f"{vendor} {product} vulnerability",
+        }],
+    }
+
+
+class TestDispatchKEVAlerts:
+    def test_noop_when_no_token(self):
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", ""), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch("modules.telegram._get_session") as mock_sess:
+            assert tg.dispatch_telegram_kev_alerts([_kev_article("CVE-2026-1")]) == 0
+            mock_sess.assert_not_called()
+
+    def test_noop_when_no_chat(self):
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", ""), \
+             patch("modules.telegram._get_session") as mock_sess:
+            assert tg.dispatch_telegram_kev_alerts([_kev_article("CVE-2026-1")]) == 0
+            mock_sess.assert_not_called()
+
+    def test_empty_or_no_kev_articles(self, tmp_path):
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_KEV_STATE_PATH", tmp_path / "k.json"), \
+             patch("modules.telegram._get_session") as mock_sess:
+            assert tg.dispatch_telegram_kev_alerts([]) == 0
+            assert tg.dispatch_telegram_kev_alerts([{"title": "no kev"}]) == 0
+            mock_sess.assert_not_called()
+
+    def test_fires_one_alert_per_new_cve(self, tmp_path):
+        state_path = tmp_path / "k.json"
+        articles = [_kev_article("CVE-2026-1"), _kev_article("CVE-2026-2")]
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_KEV_STATE_PATH", state_path), \
+             patch("modules.telegram._get_session") as mock_sess:
+            mock_sess.return_value.post.return_value.raise_for_status.return_value = None
+            sent = tg.dispatch_telegram_kev_alerts(articles)
+            assert sent == 2
+            assert mock_sess.return_value.post.call_count == 2
+            import json as _json
+            saved = _json.loads(state_path.read_text())
+            assert "CVE-2026-1" in saved and "CVE-2026-2" in saved
+
+    def test_dedup_collapses_multiple_articles_same_cve(self, tmp_path):
+        articles = [
+            _kev_article("CVE-2026-9", title="First write-up"),
+            _kev_article("CVE-2026-9", title="Second write-up"),
+            _kev_article("CVE-2026-9", title="Third write-up"),
+        ]
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_KEV_STATE_PATH", tmp_path / "k.json"), \
+             patch("modules.telegram._get_session") as mock_sess:
+            mock_sess.return_value.post.return_value.raise_for_status.return_value = None
+            sent = tg.dispatch_telegram_kev_alerts(articles)
+            assert sent == 1
+            assert mock_sess.return_value.post.call_count == 1
+
+    def test_already_alerted_cve_skipped_forever(self, tmp_path):
+        state_path = tmp_path / "k.json"
+        state_path.write_text('{"CVE-2026-1": "2026-01-01T00:00:00+00:00"}')
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_KEV_STATE_PATH", state_path), \
+             patch("modules.telegram._get_session") as mock_sess:
+            sent = tg.dispatch_telegram_kev_alerts([_kev_article("CVE-2026-1")])
+            assert sent == 0
+            mock_sess.assert_not_called()  # nothing to send
+
+    def test_per_batch_cap_truncates_flood(self, tmp_path):
+        articles = [_kev_article(f"CVE-2026-{i}") for i in range(20)]
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_KEV_STATE_PATH", tmp_path / "k.json"), \
+             patch.object(tg, "_KEV_MAX_ALERTS_PER_BATCH", 5), \
+             patch("modules.telegram._get_session") as mock_sess:
+            mock_sess.return_value.post.return_value.raise_for_status.return_value = None
+            sent = tg.dispatch_telegram_kev_alerts(articles)
+            assert sent == 5
+
+    def test_send_failure_stops_and_preserves_unstamped(self, tmp_path):
+        state_path = tmp_path / "k.json"
+        articles = [_kev_article("CVE-2026-1"), _kev_article("CVE-2026-2")]
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_KEV_STATE_PATH", state_path), \
+             patch("modules.telegram._get_session") as mock_sess:
+            mock_sess.return_value.post.side_effect = requests.RequestException("boom")
+            sent = tg.dispatch_telegram_kev_alerts(articles)
+            assert sent == 0
+            # Nothing persisted — un-alerted CVEs will retry next run
+            assert not state_path.exists()
+
+    def test_message_format_includes_cve_date_ransomware_link(self, tmp_path):
+        article = _kev_article("CVE-2026-77", date_added="2026-04-25",
+                               ransomware="Known", vendor="Acme",
+                               product="VPN", title="Acme VPN actively exploited")
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_KEV_STATE_PATH", tmp_path / "k.json"), \
+             patch.object(tg, "TELEGRAM_DASHBOARD_URL", "https://example.test"), \
+             patch("modules.telegram._get_session") as mock_sess:
+            mock_sess.return_value.post.return_value.raise_for_status.return_value = None
+            tg.dispatch_telegram_kev_alerts([article])
+            payload = mock_sess.return_value.post.call_args.kwargs["json"]
+            text = payload["text"]
+            assert "CVE-2026-77" in text
+            assert "2026-04-25" in text
+            assert "ransomware" in text.lower()
+            assert "Acme" in text
+            # NVD link is the canonical CVE reference (not the JSON API endpoint)
+            assert "https://nvd.nist.gov/vuln/detail/CVE-2026-77" in text
+            assert "https://example.test" in text
+
+
+# ---------------------------------------------------------------------------
 # post_briefing_unconditional (used by the cron script)
 # ---------------------------------------------------------------------------
 class TestPostUnconditional:

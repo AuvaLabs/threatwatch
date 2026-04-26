@@ -52,6 +52,12 @@ _LEVEL_EMOJI = {
 }
 
 _STATE_PATH = STATE_DIR / "telegram_briefing_last_alert.json"
+_KEV_STATE_PATH = STATE_DIR / "telegram_kev_alerts.json"
+
+# Per-batch safety cap so a back-fill of historical KEVs (or a one-off
+# pipeline reprocessing) cannot blast 50 messages in 30 seconds. The
+# remaining alerts are silently dropped and will fire on subsequent runs.
+_KEV_MAX_ALERTS_PER_BATCH = 5
 
 _session: requests.Session | None = None
 
@@ -207,6 +213,123 @@ def dispatch_telegram_briefing(briefing: dict | None) -> bool:
     })
     logger.info("Telegram briefing dispatched: threat_level=%s", level)
     return True
+
+
+def _load_kev_state() -> dict:
+    try:
+        if _KEV_STATE_PATH.exists():
+            return json.loads(_KEV_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def _save_kev_state(state: dict) -> None:
+    try:
+        _KEV_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _KEV_STATE_PATH.write_text(json.dumps(state), encoding="utf-8")
+    except OSError as e:
+        logger.warning("Could not persist telegram KEV alert state: %s", e)
+
+
+def _format_kev_alert(cve_id: str, kev_entry: dict, articles: list[dict]) -> str:
+    """Render a single KEV alert as Telegram-compatible HTML."""
+    date_added = kev_entry.get("date_added", "")
+    ransomware = kev_entry.get("ransomware_use") == "Known"
+    vendor = kev_entry.get("vendor", "")
+    product = kev_entry.get("product", "")
+    name = kev_entry.get("name", "")
+
+    head = f"🚨 <b>CISA KEV — {_html_escape(cve_id)}</b>"
+    if vendor or product:
+        target = " ".join(filter(None, [vendor, product])).strip()
+        head += f"\n<b>{_html_escape(target)}</b>"
+    if name:
+        head += f"\n{_html_escape(_truncate(name, 200))}"
+
+    fact = f"Confirmed actively exploited in the wild — added to CISA KEV on {_html_escape(date_added or 'unknown date')}."
+    if ransomware:
+        fact += " Linked to known ransomware campaigns."
+
+    coverage = ""
+    titles = [a.get("title", "").strip() for a in articles[:2] if a.get("title")]
+    if titles:
+        bullets = "\n".join(f"• {_html_escape(_truncate(t, 140))}" for t in titles)
+        coverage = f"\n\n<b>Coverage</b>\n{bullets}"
+
+    # NVD detail page is the canonical record for a CVE — far more useful
+    # than the JSON-only /api/cve/ endpoint for an analyst opening an alert
+    # on their phone. Dashboard link comes second for cross-referencing.
+    nvd_url = _html_escape(f"https://nvd.nist.gov/vuln/detail/{cve_id}", quote=True)
+    parts = [f'<a href="{nvd_url}">NVD detail →</a>']
+    if TELEGRAM_DASHBOARD_URL:
+        kev_section = _html_escape(f"{TELEGRAM_DASHBOARD_URL}/#kev", quote=True)
+        parts.append(f'<a href="{kev_section}">Open ThreatWatch</a>')
+    link = "\n\n" + " · ".join(parts)
+
+    body = f"{head}\n\n{fact}{coverage}{link}"
+    if len(body) > _TELEGRAM_MAX_BODY:
+        body = body[: _TELEGRAM_MAX_BODY - 3] + "…"
+    return body
+
+
+def dispatch_telegram_kev_alerts(articles: list[dict]) -> int:
+    """Fire one Telegram alert per never-before-alerted KEV CVE in this batch.
+
+    KEV listing is permanent (CISA never removes entries), so the dedup is
+    forever — once a CVE has been alerted, it never re-alerts even if more
+    articles cover it. Hard-capped at _KEV_MAX_ALERTS_PER_BATCH to avoid
+    flooding on a backfill or first run.
+
+    Returns the number of alerts actually sent. Safe to call when token /
+    chat-id are unset, when the article list is empty, or when no articles
+    are KEV-tagged — all return 0 silently.
+    """
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not articles:
+        return 0
+
+    state = _load_kev_state()
+    sent = 0
+    # Group articles by CVE so a single CVE referenced by 5 articles is
+    # one alert, not five. Picks the earliest date_added entry per CVE
+    # (most authoritative) and the first 2 article titles for coverage.
+    by_cve: dict[str, dict] = {}
+    for art in articles:
+        if not art.get("kev_listed"):
+            continue
+        for entry in art.get("kev_entries") or []:
+            cve = entry.get("cve_id") or ""
+            if not cve or cve in state:
+                continue
+            slot = by_cve.setdefault(cve, {"entry": entry, "articles": []})
+            slot["articles"].append(art)
+            # Prefer the earliest known date_added for a CVE that appears
+            # under multiple matched entries.
+            cur_d = slot["entry"].get("date_added") or "9999"
+            new_d = entry.get("date_added") or "9999"
+            if new_d < cur_d:
+                slot["entry"] = entry
+
+    for cve in sorted(by_cve.keys()):
+        if sent >= _KEV_MAX_ALERTS_PER_BATCH:
+            logger.warning(
+                "Telegram KEV alerts: hit per-batch cap (%d); %d remaining will fire next run",
+                _KEV_MAX_ALERTS_PER_BATCH, len(by_cve) - sent,
+            )
+            break
+        slot = by_cve[cve]
+        text = _format_kev_alert(cve, slot["entry"], slot["articles"])
+        if not _send(text):
+            # Stop on first failure to avoid hammering a down endpoint;
+            # un-alerted CVEs stay out of state and will fire next run.
+            break
+        state[cve] = datetime.now(timezone.utc).isoformat()
+        sent += 1
+
+    if sent:
+        _save_kev_state(state)
+        logger.info("Telegram KEV alerts dispatched: %d new CVE(s)", sent)
+    return sent
 
 
 def post_briefing_unconditional(briefing: dict | None) -> bool:

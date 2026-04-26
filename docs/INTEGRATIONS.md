@@ -248,10 +248,15 @@ the Slack/Discord webhook (level-change OR cooldown lapsed). Set these in
 ```bash
 TELEGRAM_BOT_TOKEN=123456:AA-...           # from @BotFather
 TELEGRAM_CHAT_ID=@your_channel             # or -100123456789 for private
-TELEGRAM_MIN_LEVEL=ELEVATED                # CRITICAL | ELEVATED | MODERATE | …
+TELEGRAM_MIN_LEVEL=CRITICAL                # CRITICAL | ELEVATED | MODERATE | …
 TELEGRAM_COOLDOWN_HOURS=6
 TELEGRAM_DASHBOARD_URL=https://threatwatch.auvalabs.com
 ```
+
+> **Recommended threshold:** `CRITICAL`. The platform sits at `ELEVATED`
+> on most days, so an `ELEVATED` floor turns Telegram into a daily ping.
+> `CRITICAL` is genuinely rare (active multi-victim emergency) — you'll
+> get 2–5 of these per month and each one is worth interrupting for.
 
 The dispatcher fires automatically inside `ai_enrichment.run_ai_enrichment`
 right after the briefing is generated. Independent state file
@@ -259,7 +264,23 @@ right after the briefing is generated. Independent state file
 existing webhook dedup, so an org can drive both Slack and Telegram in
 parallel without one path muting the other.
 
-**Mode B — guaranteed daily post (system cron):** When you want a once-a-day
+**Mode B — KEV-listed CVE alerts (in-process):** Per-CVE one-shot alert
+when a new article references a CVE that CISA has flagged as actively
+exploited in the wild. Permanent dedup — once a CVE is alerted, it never
+re-alerts even if more articles cover it. Capped at 5 alerts per pipeline
+batch to prevent flooding on backfill / first-deploy. No additional env
+vars; gated by the same `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`.
+
+State file: `data/state/telegram_kev_alerts.json` (delete to re-allow
+alerts for previously-seen CVEs). Fires from the fetch pipeline so alerts
+arrive on the ~10-min cadence, not the slower 30-min AI cycle.
+
+Each alert includes the CVE ID, vendor/product, KEV `date_added`, an
+explicit "linked to known ransomware" flag when applicable, the first 1–2
+covering articles, and links to NVD's CVE detail page + the ThreatWatch
+dashboard.
+
+**Mode C — guaranteed daily post (system cron):** When you want a once-a-day
 post regardless of threat level, use the standalone script. Add to your
 host crontab:
 
@@ -269,8 +290,8 @@ host crontab:
 ```
 
 The script exits 1 on failure so cron MAILTO catches delivery problems.
-It does not consume the alert dedup state, so Mode A and Mode B can both
-fire on the same briefing without interfering.
+It does not consume the alert dedup state, so Modes A, B, and C can all
+fire independently without interfering.
 
 **Bot setup (one time):**
 1. Message `@BotFather` on Telegram, run `/newbot`, follow the prompts → save the token.

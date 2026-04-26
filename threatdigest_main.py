@@ -278,6 +278,16 @@ def main():
     except Exception as e:
         logging.debug(f"Webhook dispatch skipped: {e}")
 
+    # Telegram KEV alerts (optional — only runs if TELEGRAM_BOT_TOKEN +
+    # TELEGRAM_CHAT_ID are configured). Per-CVE permanent dedup so the same
+    # KEV entry never re-alerts; per-batch cap of 5 prevents flooding on a
+    # backfill or fresh deployment.
+    try:
+        from modules.telegram import dispatch_telegram_kev_alerts
+        dispatch_telegram_kev_alerts(enriched_articles)
+    except Exception as e:
+        logging.debug(f"Telegram KEV dispatch skipped: {e}")
+
     # Load full corpus for AI features (not just new batch)
     from modules.output_writer import load_existing, STATIC_DAILY
     all_articles = load_existing(STATIC_DAILY)
