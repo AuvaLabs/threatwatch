@@ -23,7 +23,7 @@ from pathlib import Path
 
 
 from modules.config import (
-    LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER,
+    LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER, BRIEFING_MODEL,
     LLM_API_KEYS, ANTHROPIC_API_KEY, MAX_CONTENT_CHARS, OUTPUT_DIR,
 )
 from modules.ai_cache import get_cached_result, cache_result
@@ -90,8 +90,17 @@ def _detect_provider() -> str | None:
     return "openai"
 
 
-_MAX_DIGEST_ARTICLES = 80  # articles sent to the LLM
+_MAX_DIGEST_ARTICLES = 80  # articles sent to the LLM (regional briefings)
+# Global briefing has a tighter cap because Groq free-tier TPM is 6K per request
+# (system prompt ~1.5K + max_tokens reserve ~1.5K leaves ~3K for the digest).
+# Regional digests are fine at 80 because their per-region article count rarely
+# fills the cap. Lift if the briefing moves to a paid tier or larger context.
+_MAX_BRIEFING_ARTICLES = 40
 _HEADLINE_SOFT_CAP = 160   # belt-and-braces trim if model overshoots the prompt cap
+# Per-article summary char budget in the briefing prompt. Sized so the full
+# digest stays under Groq free-tier 6K TPM ceiling. Lift if the briefing moves
+# to a paid tier or larger context model.
+_DIGEST_SUMMARY_CHARS = 80
 
 
 def _normalise_headline(raw: str | None) -> str:
@@ -121,7 +130,7 @@ def _build_digest(articles: list[dict[str, Any]]) -> str:
         region = a.get("feed_region", "Global")
         source = a.get("source_name", "")
         published = a.get("published", "")[:16]
-        summary = (a.get("summary") or "")[:250]
+        summary = (a.get("summary") or "")[:_DIGEST_SUMMARY_CHARS]
         lines.append(f"[{i}] [{category}] [{region}] {title}")
         meta_parts = []
         if source:
@@ -380,7 +389,7 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
     # analysed — much worse than a slightly-less-time-focused digest.
     if not briefing_articles:
         briefing_articles = list(all_filtered)
-    briefing_articles = briefing_articles[:_MAX_DIGEST_ARTICLES]
+    briefing_articles = briefing_articles[:_MAX_BRIEFING_ARTICLES]
 
     # Build trailing "this week" context from older articles, excluding
     # anything already pulled into briefing_articles (day3 overflow).
@@ -452,7 +461,10 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         if provider == "anthropic":
             reply = _call_anthropic(user_content)
         else:
-            reply = _call_openai_compatible(user_content, caller="briefing")
+            reply = _call_openai_compatible(
+                user_content, caller="briefing",
+                model=BRIEFING_MODEL, max_tokens=1200,
+            )
 
         briefing = _parse_json(reply)
         if briefing is None:
@@ -502,7 +514,7 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
 
         # Build source article map so frontend can resolve [N] → link/title
         source_map = []
-        for i, a in enumerate(briefing_articles[:_MAX_DIGEST_ARTICLES], 1):
+        for i, a in enumerate(briefing_articles[:_MAX_BRIEFING_ARTICLES], 1):
             source_map.append({
                 "index": i,
                 "title": (a.get("translated_title") or a.get("title", ""))[:120],
@@ -516,15 +528,16 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         # `now` made the briefing look hours old the moment it hit disk and
         # tripped the staleness alarm immediately on save.
         briefing["generated_at"] = datetime.now(timezone.utc).isoformat()
-        briefing["articles_analyzed"] = min(len(briefing_articles), _MAX_DIGEST_ARTICLES)
+        briefing["articles_analyzed"] = min(len(briefing_articles), _MAX_BRIEFING_ARTICLES)
         briefing["total_articles"] = len(articles)  # total including darkweb
         briefing["reporting_window"] = reporting_window
-        briefing["provider"] = f"{provider}/{LLM_MODEL}"
+        briefing_model_name = LLM_MODEL if provider == "anthropic" else BRIEFING_MODEL
+        briefing["provider"] = f"{provider}/{briefing_model_name}"
 
         _record_api_call()
         cache_result(cache_key, briefing)
         _save_briefing(briefing)
-        logger.info(f"Intelligence briefing generated via {provider}/{LLM_MODEL}.")
+        logger.info(f"Intelligence briefing generated via {provider}/{briefing_model_name}.")
         return briefing
 
     except Exception as e:

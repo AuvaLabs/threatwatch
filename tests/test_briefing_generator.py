@@ -16,6 +16,7 @@ from modules.briefing_generator import (
     generate_briefing,
     load_briefing,
     _MAX_DIGEST_ARTICLES,
+    _MAX_BRIEFING_ARTICLES,
     _HEADLINE_SOFT_CAP,
     BRIEFING_PATH,
 )
@@ -72,12 +73,13 @@ class TestBuildDigest:
         assert f"Article {_MAX_DIGEST_ARTICLES - 1}" in digest
         assert f"Article {_MAX_DIGEST_ARTICLES}" not in digest
 
-    def test_truncates_summary_at_250_chars(self):
+    def test_truncates_summary_at_digest_summary_chars(self):
+        from modules.briefing_generator import _DIGEST_SUMMARY_CHARS
         long_summary = "x" * 400
         a = _article(summary=long_summary)
         digest = _build_digest([a])
-        assert "x" * 250 in digest
-        assert "x" * 251 not in digest
+        assert "x" * _DIGEST_SUMMARY_CHARS in digest
+        assert "x" * (_DIGEST_SUMMARY_CHARS + 1) not in digest
 
     def test_uses_translated_title_if_available(self):
         a = _article(title="Original")
@@ -310,7 +312,7 @@ class TestGenerateBriefing:
         mock_call.return_value = self._mock_reply(_valid_briefing())
         articles = [_article(title=f"A{i}") for i in range(120)]
         result = generate_briefing(articles)
-        assert result["articles_analyzed"] == _MAX_DIGEST_ARTICLES
+        assert result["articles_analyzed"] == _MAX_BRIEFING_ARTICLES
         assert result["total_articles"] == 120
 
     @patch("modules.briefing_generator._record_api_call")

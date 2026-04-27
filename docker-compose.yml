@@ -11,6 +11,7 @@ services:
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_BASE_URL=${LLM_BASE_URL:-}
       - LLM_MODEL=${LLM_MODEL:-}
+      - BRIEFING_MODEL=${BRIEFING_MODEL:-}
       - LLM_PROVIDER=${LLM_PROVIDER:-auto}
       # AI enrichment runs out-of-band by default (every 3rd pipeline tick,
       # i.e. every 30 min) so Groq rate limits don't block fetch ingestion.

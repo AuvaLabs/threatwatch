@@ -1,8 +1,10 @@
 import logging
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from modules.config import STATE_DIR, OUTPUT_DIR, MAX_SEEN_HASHES
 
 logging.basicConfig(

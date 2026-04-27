@@ -249,7 +249,7 @@ class TestGenerateBriefing:
              patch.object(bg, "_record_api_call"), \
              patch.object(bg, "cache_result"), \
              patch.object(bg, "_save_briefing"), \
-             patch.object(bg, "LLM_MODEL", "test-model"), \
+             patch.object(bg, "BRIEFING_MODEL", "test-model"), \
              patch.object(bg, "_build_trend_context", return_value=""), \
              patch.object(bg, "_build_vuln_context", return_value=""):
             result = bg.generate_briefing(self._articles())

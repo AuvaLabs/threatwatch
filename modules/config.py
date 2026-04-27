@@ -19,6 +19,11 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
 LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "auto")  # auto, openai, anthropic, ollama
 
+# The global daily briefing prompt (~7-8K tokens with 80 articles + enrichment)
+# exceeds Groq free-tier TPM for 70B (~6K/min), causing every call to 429.
+# Default the briefing to the lighter 8B model which has higher TPM headroom.
+BRIEFING_MODEL = os.getenv("BRIEFING_MODEL", "llama-3.1-8b-instant")
+
 # Multiple API keys for round-robin rotation (comma-separated in env)
 # Doubles the free-tier budget: 2 keys x 500K tokens/day = 1M tokens/day
 LLM_API_KEYS = [
