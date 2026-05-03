@@ -11,6 +11,8 @@ from pathlib import Path
 
 from modules.config import (
     LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_API_KEYS, OUTPUT_DIR,
+    FEATHERLESS_API_KEY, FEATHERLESS_BASE_URL, FEATHERLESS_MODEL,
+    CLAUDE_BRIDGE_URL, CLAUDE_BRIDGE_MODEL, CLAUDE_BRIDGE_TIMEOUT,
 )
 
 logger = logging.getLogger(__name__)
@@ -233,3 +235,183 @@ def call_llm(user_content: str, system_prompt: str,
 def is_available() -> bool:
     """Check if any LLM API key is configured."""
     return bool(LLM_API_KEY)
+
+
+# ---------------------------------------------------------------------------
+# Featherless.ai — paid OpenAI-compatible provider.
+#
+# Used ONLY for the daily global briefing where Groq free-tier 6K TPM is
+# the bottleneck (briefing prompt ~7-8K). The token is shared across
+# multiple projects (effective platform-wide concurrency ≈ 1 for cost-4
+# models like deepseek-v3.2/kimi-k2/glm46), so this client makes a SINGLE
+# attempt and surfaces failure to the caller — callers fall back to Groq
+# rather than retrying. Retrying here would just queue against other
+# projects holding the slot and make the contention worse.
+# ---------------------------------------------------------------------------
+
+
+def featherless_available() -> bool:
+    """Check if Featherless is configured."""
+    return bool(FEATHERLESS_API_KEY)
+
+
+def call_featherless(user_content: str, system_prompt: str,
+                     max_tokens: int = 2000,
+                     response_format: dict | None = None,
+                     caller: str | None = None,
+                     model: str | None = None) -> str:
+    """Single-shot call to Featherless.ai.
+
+    Returns the model reply on success; raises RuntimeError on any failure
+    (no retries, no key rotation — Featherless gives one key per subscription
+    and contention against other projects is best handled by the caller's
+    Groq fallback path, not by retrying here).
+
+    The ``response_format`` graceful-fallback (retry once without the field
+    if the provider returns 400 mentioning ``response_format``) mirrors
+    ``call_llm`` so JSON-mode callers don't break on models that don't
+    natively support it (DeepSeek, GLM).
+    """
+    if not FEATHERLESS_API_KEY:
+        raise RuntimeError("Featherless not configured (FEATHERLESS_API_KEY unset)")
+
+    url = f"{FEATHERLESS_BASE_URL.rstrip('/')}/chat/completions"
+    payload: dict = {
+        "model": model or FEATHERLESS_MODEL,
+        "max_tokens": max_tokens,
+        "temperature": 0.3,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ],
+    }
+    if response_format is not None:
+        payload["response_format"] = response_format
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {FEATHERLESS_API_KEY}",
+    }
+    # Featherless big models can take 20-40s on cold infer; give more
+    # headroom than Groq while still capping the worst case.
+    timeout = float(os.environ.get("FEATHERLESS_TIMEOUT", "60"))
+    allow_response_format_fallback = response_format is not None
+
+    while True:
+        try:
+            session = _get_http_session()
+            resp = session.post(url, json=payload, headers=headers, timeout=timeout)
+            if allow_response_format_fallback and _response_format_unsupported(resp):
+                logger.warning(
+                    "Featherless rejected response_format on %s; retrying once without it.",
+                    payload["model"],
+                )
+                payload = {k: v for k, v in payload.items() if k != "response_format"}
+                allow_response_format_fallback = False
+                continue
+            if resp.status_code == 429:
+                # Concurrency exhausted (shared token, another project holds the slot).
+                # Surface immediately so the caller can fall back to Groq.
+                raise RuntimeError("Featherless 429 (concurrency exhausted)")
+            if resp.status_code in (500, 502, 503, 504):
+                raise RuntimeError(f"Featherless {resp.status_code} (upstream unavailable)")
+            resp.raise_for_status()
+            data = resp.json()
+            try:
+                from modules.groq_usage import record_usage
+                # Tag caller with provider prefix so usage is distinguishable
+                # from Groq calls in the shared usage file.
+                tagged_caller = f"featherless:{caller}" if caller else "featherless"
+                record_usage(FEATHERLESS_API_KEY, data, caller=tagged_caller)
+            except Exception as _e:
+                logger.debug("featherless usage record failed: %s", _e)
+            return data["choices"][0]["message"]["content"].strip()
+        except requests.exceptions.Timeout as e:
+            raise RuntimeError(f"Featherless timeout after {timeout}s: {e}") from e
+        except requests.exceptions.ConnectionError as e:
+            raise RuntimeError(f"Featherless connection error: {e}") from e
+        except requests.exceptions.HTTPError as e:
+            raise RuntimeError(f"Featherless HTTP error: {e}") from e
+
+
+# ---------------------------------------------------------------------------
+# Claude Bridge — host-local OpenAI-compatible shim that proxies to the
+# `claude` CLI using the user's Claude Max subscription. Operated by
+# RedBlue's claude-bridge service on this host (default :8400).
+#
+# Used as the 2nd-tier briefing fallback (Featherless → Bridge → Groq).
+# Single-shot, no retries — the bridge already calls a 300s subprocess
+# internally, so retrying here would just stack timeouts. The bridge
+# silently ignores `max_tokens` and `response_format` (CLI doesn't expose
+# them); we still send response_format so JSON-shaped output is encouraged
+# in the prompt itself, but callers must be prepared for non-strict JSON.
+# Quota is the user's shared Max subscription session; coordinate with
+# RedBlue/ARBI before widening usage.
+# ---------------------------------------------------------------------------
+
+
+def claude_bridge_available() -> bool:
+    """Check if the Claude Bridge URL is configured."""
+    return bool(CLAUDE_BRIDGE_URL)
+
+
+def call_claude_bridge(user_content: str, system_prompt: str,
+                       max_tokens: int = 2000,
+                       response_format: dict | None = None,
+                       caller: str | None = None,
+                       model: str | None = None) -> str:
+    """Single-shot call to the local Claude Bridge.
+
+    Returns the model reply on success; raises RuntimeError on any failure.
+    No retries — the bridge subprocess is already long-running (up to 300s)
+    and contention against RedBlue/ARBI traffic is best handled by the
+    caller's next fallback tier (Groq), not by piling on more requests.
+
+    `max_tokens` and `response_format` are accepted for API compatibility
+    but the bridge ignores them (the `claude` CLI doesn't expose either).
+    Pass them anyway so the code reads symmetrically with the other
+    OpenAI-compatible callers.
+    """
+    if not CLAUDE_BRIDGE_URL:
+        raise RuntimeError("Claude Bridge not configured (CLAUDE_BRIDGE_URL unset)")
+
+    url = f"{CLAUDE_BRIDGE_URL.rstrip('/')}/chat/completions"
+    payload: dict = {
+        "model": model or CLAUDE_BRIDGE_MODEL,
+        "max_tokens": max_tokens,
+        "temperature": 0.3,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ],
+    }
+    if response_format is not None:
+        payload["response_format"] = response_format
+
+    headers = {"Content-Type": "application/json"}
+    timeout = CLAUDE_BRIDGE_TIMEOUT
+
+    try:
+        session = _get_http_session()
+        resp = session.post(url, json=payload, headers=headers, timeout=timeout)
+        if resp.status_code == 504:
+            raise RuntimeError("Claude Bridge 504 (subprocess timeout)")
+        if resp.status_code in (500, 502, 503):
+            raise RuntimeError(f"Claude Bridge {resp.status_code} (upstream unavailable)")
+        resp.raise_for_status()
+        data = resp.json()
+        try:
+            from modules.groq_usage import record_usage
+            tagged_caller = f"claude_bridge:{caller}" if caller else "claude_bridge"
+            # Bridge has no API key (auth via ~/.claude). Use a synthetic
+            # identifier so usage masking still produces a stable bucket.
+            record_usage("claude-bridge-session", data, caller=tagged_caller)
+        except Exception as _e:
+            logger.debug("claude_bridge usage record failed: %s", _e)
+        return data["choices"][0]["message"]["content"].strip()
+    except requests.exceptions.Timeout as e:
+        raise RuntimeError(f"Claude Bridge timeout after {timeout}s: {e}") from e
+    except requests.exceptions.ConnectionError as e:
+        raise RuntimeError(f"Claude Bridge connection error: {e}") from e
+    except requests.exceptions.HTTPError as e:
+        raise RuntimeError(f"Claude Bridge HTTP error: {e}") from e

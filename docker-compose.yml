@@ -20,6 +20,18 @@ services:
       - AI_ENRICHMENT_EVERY=${AI_ENRICHMENT_EVERY:-3}
       - LLM_TIMEOUT=${LLM_TIMEOUT:-30}
       - LLM_CIRCUIT_THRESHOLD=${LLM_CIRCUIT_THRESHOLD:-3}
+      # Featherless.ai — paid OpenAI-compatible provider for the daily
+      # briefing only (32K ctx > Groq 6K TPM). Falls back to Groq+8B.
+      - FEATHERLESS_API_KEY=${FEATHERLESS_API_KEY:-}
+      - FEATHERLESS_BASE_URL=${FEATHERLESS_BASE_URL:-}
+      - FEATHERLESS_MODEL=${FEATHERLESS_MODEL:-}
+      - FEATHERLESS_TIMEOUT=${FEATHERLESS_TIMEOUT:-60}
+      # Claude Bridge — host-local OpenAI-compatible shim using the user's
+      # Claude Max subscription (operated by RedBlue's claude-bridge:8400).
+      # 2nd-tier briefing fallback (Featherless → Bridge → Groq+8B).
+      - CLAUDE_BRIDGE_URL=${CLAUDE_BRIDGE_URL:-}
+      - CLAUDE_BRIDGE_MODEL=${CLAUDE_BRIDGE_MODEL:-sonnet}
+      - CLAUDE_BRIDGE_TIMEOUT=${CLAUDE_BRIDGE_TIMEOUT:-300}
       # Fetch parallelism. Raising to 16 (from 8) roughly halves the
       # critical-path tail of slow feed tails that used to serialise
       # behind a small pool.

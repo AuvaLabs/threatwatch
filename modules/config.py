@@ -30,6 +30,29 @@ LLM_API_KEYS = [
     k.strip() for k in os.getenv("LLM_API_KEYS", "").split(",") if k.strip()
 ] or ([LLM_API_KEY] if LLM_API_KEY else [])
 
+# Featherless.ai — paid OpenAI-compatible provider used ONLY for the daily
+# global briefing. Groq free-tier 6K TPM rejects the ~7-8K briefing prompt;
+# Featherless gives 32K context. The token is shared across multiple projects
+# (effective platform-wide concurrency ≈ 1 for cost-4 models like
+# deepseek-v3.2/kimi-k2/glm46), so we use it sparingly and fall back to
+# Groq+8B on any failure rather than retrying.
+FEATHERLESS_API_KEY = os.getenv("FEATHERLESS_API_KEY", "").strip()
+FEATHERLESS_BASE_URL = os.getenv(
+    "FEATHERLESS_BASE_URL", "https://api.featherless.ai/v1"
+).rstrip("/")
+FEATHERLESS_MODEL = os.getenv("FEATHERLESS_MODEL", "deepseek-v3.2")
+
+# Claude Bridge — host-local OpenAI-compatible shim that routes requests
+# through the `claude` CLI using the user's Claude Max subscription. Used
+# as the 2nd-tier fallback for the daily briefing (Featherless → Bridge
+# → Groq+8B). No per-token cost, but rate-limited by the shared Max
+# session and ignores `max_tokens` / `response_format` (CLI doesn't
+# expose them). Operated by RedBlue's claude-bridge service on this host;
+# leave URL blank to disable.
+CLAUDE_BRIDGE_URL = os.getenv("CLAUDE_BRIDGE_URL", "").strip().rstrip("/")
+CLAUDE_BRIDGE_MODEL = os.getenv("CLAUDE_BRIDGE_MODEL", "sonnet")
+CLAUDE_BRIDGE_TIMEOUT = float(os.getenv("CLAUDE_BRIDGE_TIMEOUT", "300"))
+
 SITE_DOMAIN = os.getenv("SITE_DOMAIN", "threatwatch.auvalabs.com")
 SITE_URL = f"https://{SITE_DOMAIN}"
 
@@ -114,3 +137,13 @@ def validate_config():
         )
     else:
         logger.info("No LLM API key — AI briefing disabled (zero cost).")
+    if FEATHERLESS_API_KEY:
+        logger.info(
+            f"Featherless configured — global briefing will prefer "
+            f"{FEATHERLESS_MODEL} (32K ctx); Groq+{BRIEFING_MODEL} fallback."
+        )
+    if CLAUDE_BRIDGE_URL:
+        logger.info(
+            f"Claude Bridge configured at {CLAUDE_BRIDGE_URL} "
+            f"({CLAUDE_BRIDGE_MODEL}); 2nd-tier briefing fallback."
+        )

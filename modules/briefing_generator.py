@@ -26,9 +26,16 @@ from pathlib import Path
 from modules.config import (
     LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER, BRIEFING_MODEL,
     LLM_API_KEYS, ANTHROPIC_API_KEY, MAX_CONTENT_CHARS, OUTPUT_DIR,
+    FEATHERLESS_MODEL, CLAUDE_BRIDGE_MODEL,
 )
 from modules.ai_cache import get_cached_result, cache_result
-from modules.llm_client import call_llm as _call_groq
+from modules.llm_client import (
+    call_llm as _call_groq,
+    call_featherless as _call_featherless,
+    featherless_available as _featherless_available,
+    call_claude_bridge as _call_claude_bridge,
+    claude_bridge_available as _claude_bridge_available,
+)
 
 BRIEFING_PATH = OUTPUT_DIR / "briefing.json"
 
@@ -438,7 +445,9 @@ def _compute_reporting_window(articles: list[dict[str, Any]]) -> str:
 def _call_openai_compatible(user_content: str, system_prompt: str = None,
                             max_tokens: int = 2000,
                             caller: str | None = None,
-                            model: str | None = None) -> str:
+                            model: str | None = None,
+                            prefer_featherless: bool = False,
+                            feather_max_tokens: int | None = None) -> str:
     """Call Groq/OpenAI-compatible API via shared llm_client.
 
     All briefing callers expect strict JSON back, so we opt into Groq's
@@ -450,10 +459,60 @@ def _call_openai_compatible(user_content: str, system_prompt: str = None,
     The ``model`` kwarg lets a caller opt into a lighter Groq model (e.g.
     ``llama-3.1-8b-instant``) for tasks where the default 70B is too
     token-heavy for free-tier TPM. Defaults to the global ``LLM_MODEL``.
+
+    When ``prefer_featherless=True`` and Featherless is configured, the
+    call is routed there first (32K context — required for the global
+    briefing prompt that exceeds Groq's 6K TPM ceiling). Any failure
+    transparently falls back to Groq with the ``model`` kwarg, so the
+    caller never sees a Featherless-specific error. This is the only
+    Featherless usage in the codebase by design — keep the shared token
+    spend minimal so other projects sharing it aren't crowded out.
+
+    ``feather_max_tokens`` (optional) decouples the Featherless output cap
+    from the Groq cap. Featherless's 32K context lets the briefing produce
+    a richer narrative than Groq's 6K TPM allows. If None, Featherless uses
+    the same ``max_tokens`` as the Groq fallback — preserves prior behavior
+    for callers that don't opt in.
     """
+    sys_prompt = system_prompt or _BRIEFING_PROMPT
+    if prefer_featherless and _featherless_available():
+        try:
+            return _call_featherless(
+                user_content,
+                system_prompt=sys_prompt,
+                max_tokens=feather_max_tokens or max_tokens,
+                response_format={"type": "json_object"},
+                caller=caller,
+                model=FEATHERLESS_MODEL,
+            )
+        except Exception as e:
+            logger.warning(
+                "Featherless briefing call failed (%s); trying Claude Bridge.", e,
+            )
+    # 2nd tier: Claude Bridge (host-local, subscription-covered Claude Max).
+    # Bridge ignores max_tokens and response_format — pass feather_max_tokens
+    # so the prompt stays consistent with the Featherless path; the bridge
+    # silently drops the cap and the CLI emits whatever Sonnet wants. JSON
+    # is encouraged by the prompt itself, so non-strict-JSON output here is
+    # the same risk we already handle in _parse_json downstream.
+    if prefer_featherless and _claude_bridge_available():
+        try:
+            return _call_claude_bridge(
+                user_content,
+                system_prompt=sys_prompt,
+                max_tokens=feather_max_tokens or max_tokens,
+                response_format={"type": "json_object"},
+                caller=caller,
+                model=CLAUDE_BRIDGE_MODEL,
+            )
+        except Exception as e:
+            logger.warning(
+                "Claude Bridge briefing call failed (%s); falling back to Groq+%s.",
+                e, model or LLM_MODEL,
+            )
     return _call_groq(
         user_content,
-        system_prompt=system_prompt or _BRIEFING_PROMPT,
+        system_prompt=sys_prompt,
         max_tokens=max_tokens,
         response_format={"type": "json_object"},
         caller=caller,
@@ -629,7 +688,10 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         else:
             reply = _call_openai_compatible(
                 user_content, caller="briefing",
-                model=BRIEFING_MODEL, max_tokens=1200,
+                model=BRIEFING_MODEL,
+                max_tokens=1200,           # Groq fallback — fits 6K TPM
+                feather_max_tokens=4000,   # Featherless 32K — richer narrative
+                prefer_featherless=True,
             )
 
         briefing = _parse_json(reply)
