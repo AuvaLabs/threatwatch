@@ -34,13 +34,13 @@ LLM_API_KEYS = [
 # global briefing. Groq free-tier 6K TPM rejects the ~7-8K briefing prompt;
 # Featherless gives 32K context. The token is shared across multiple projects
 # (effective platform-wide concurrency ≈ 1 for cost-4 models like
-# deepseek-v3.2/kimi-k2/glm46), so we use it sparingly and fall back to
+# deepseek-ai/DeepSeek-V3.2/kimi-k2/glm46), so we use it sparingly and fall back to
 # Groq+8B on any failure rather than retrying.
 FEATHERLESS_API_KEY = os.getenv("FEATHERLESS_API_KEY", "").strip()
 FEATHERLESS_BASE_URL = os.getenv(
     "FEATHERLESS_BASE_URL", "https://api.featherless.ai/v1"
 ).rstrip("/")
-FEATHERLESS_MODEL = os.getenv("FEATHERLESS_MODEL", "deepseek-v3.2")
+FEATHERLESS_MODEL = os.getenv("FEATHERLESS_MODEL", "deepseek-ai/DeepSeek-V3.2")
 
 # Claude Bridge — host-local OpenAI-compatible shim that routes requests
 # through the `claude` CLI using the user's Claude Max subscription. Used

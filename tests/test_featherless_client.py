@@ -46,7 +46,7 @@ def featherless_configured(monkeypatch):
     """Default: Featherless IS configured. Individual tests can blank it."""
     monkeypatch.setattr(llm_client, "FEATHERLESS_API_KEY", "rc_testkey1234")
     monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "https://api.featherless.ai/v1")
-    monkeypatch.setattr(llm_client, "FEATHERLESS_MODEL", "deepseek-v3.2")
+    monkeypatch.setattr(llm_client, "FEATHERLESS_MODEL", "deepseek-ai/DeepSeek-V3.2")
 
 
 @pytest.fixture(autouse=True)
@@ -92,7 +92,7 @@ class TestCallFeatherlessSuccessPath:
         mock_session.post.return_value = _mock_response()
         call_featherless("u", system_prompt="s")
         payload = mock_session.post.call_args.kwargs["json"]
-        assert payload["model"] == "deepseek-v3.2"
+        assert payload["model"] == "deepseek-ai/DeepSeek-V3.2"
         assert payload["messages"][0] == {"role": "system", "content": "s"}
         assert payload["messages"][1] == {"role": "user", "content": "u"}
 

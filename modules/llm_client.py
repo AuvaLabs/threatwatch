@@ -243,7 +243,7 @@ def is_available() -> bool:
 # Used ONLY for the daily global briefing where Groq free-tier 6K TPM is
 # the bottleneck (briefing prompt ~7-8K). The token is shared across
 # multiple projects (effective platform-wide concurrency ≈ 1 for cost-4
-# models like deepseek-v3.2/kimi-k2/glm46), so this client makes a SINGLE
+# models like deepseek-ai/DeepSeek-V3.2/kimi-k2/glm46), so this client makes a SINGLE
 # attempt and surfaces failure to the caller — callers fall back to Groq
 # rather than retrying. Retrying here would just queue against other
 # projects holding the slot and make the contention worse.

@@ -203,7 +203,7 @@ The global daily briefing prompt (~7-8K tokens) exceeds Groq free-tier per-reque
 |---|---|---|---|
 | `FEATHERLESS_API_KEY` | 1 (paid) | _(empty)_ | Featherless.ai key (`rc_...`) — primary briefing path, 32K context |
 | `FEATHERLESS_BASE_URL` | 1 | `https://api.featherless.ai/v1` | OpenAI-compatible endpoint |
-| `FEATHERLESS_MODEL` | 1 | `deepseek-v3.2` | Featherless model id (also: `kimi-k2`, `glm46-357b`) |
+| `FEATHERLESS_MODEL` | 1 | `deepseek-ai/DeepSeek-V3.2` | Featherless model id (also: `kimi-k2`, `glm46-357b`) |
 | `FEATHERLESS_TIMEOUT` | 1 | `60` | Per-request seconds |
 | `CLAUDE_BRIDGE_URL` | 2 (subscription) | _(empty)_ | Local OpenAI-compatible shim wrapping the `claude` CLI (e.g. `http://host-gateway:8400/v1`) |
 | `CLAUDE_BRIDGE_MODEL` | 2 | `sonnet` | Claude model id (`sonnet`, `opus`, `haiku`) |

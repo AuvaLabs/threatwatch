@@ -49,7 +49,7 @@ class TestPreferFeatherlessTrue:
         """When routing to Featherless we override the Groq-tuned `model`
         kwarg with FEATHERLESS_MODEL — passing llama-3.1-8b-instant to
         Featherless would 404."""
-        monkeypatch.setattr(briefing_generator, "FEATHERLESS_MODEL", "deepseek-v3.2")
+        monkeypatch.setattr(briefing_generator, "FEATHERLESS_MODEL", "deepseek-ai/DeepSeek-V3.2")
         with patch.object(briefing_generator, "_call_featherless", return_value="ok") as ff, \
              patch.object(briefing_generator, "_call_groq"):
             briefing_generator._call_openai_compatible(
@@ -58,7 +58,7 @@ class TestPreferFeatherlessTrue:
                 prefer_featherless=True,
             )
         kwargs = ff.call_args.kwargs
-        assert kwargs["model"] == "deepseek-v3.2"
+        assert kwargs["model"] == "deepseek-ai/DeepSeek-V3.2"
 
     def test_falls_back_to_groq_on_featherless_failure(self, feather_on):
         with patch.object(
