@@ -195,6 +195,22 @@ LLM_API_KEYS=gsk_key1,gsk_key2,gsk_key3
 
 Also works with OpenAI, Together, Ollama (local), Mistral, DeepSeek, and any OpenAI-compatible API. Smart key rotation automatically fails over on rate limits (429).
 
+### Optional: premium tiers for the daily briefing
+
+The global daily briefing prompt (~7-8K tokens) exceeds Groq free-tier per-request 6K TPM, which forces the briefing to run on the lighter `llama-3.1-8b-instant` model with a clipped 1200-token output. Two optional layers can give it real headroom — either or both can be enabled:
+
+| Variable | Tier | Default | Description |
+|---|---|---|---|
+| `FEATHERLESS_API_KEY` | 1 (paid) | _(empty)_ | Featherless.ai key (`rc_...`) — primary briefing path, 32K context |
+| `FEATHERLESS_BASE_URL` | 1 | `https://api.featherless.ai/v1` | OpenAI-compatible endpoint |
+| `FEATHERLESS_MODEL` | 1 | `deepseek-v3.2` | Featherless model id (also: `kimi-k2`, `glm46-357b`) |
+| `FEATHERLESS_TIMEOUT` | 1 | `60` | Per-request seconds |
+| `CLAUDE_BRIDGE_URL` | 2 (subscription) | _(empty)_ | Local OpenAI-compatible shim wrapping the `claude` CLI (e.g. `http://host-gateway:8400/v1`) |
+| `CLAUDE_BRIDGE_MODEL` | 2 | `sonnet` | Claude model id (`sonnet`, `opus`, `haiku`) |
+| `CLAUDE_BRIDGE_TIMEOUT` | 2 | `300` | Per-request seconds |
+
+The briefing tries tier 1 → tier 2 → Groq+8B in order. Each tier is independent and a failure (429, 5xx, timeout) drops straight to the next tier without retrying. Regional briefings, top stories, classifier, and the other AI features keep using Groq directly — only the global briefing opts into the cascade.
+
 ### Feed configuration
 
 Feeds are defined in YAML files under `config/`:
