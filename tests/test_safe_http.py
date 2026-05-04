@@ -161,3 +161,48 @@ class TestInstallSsrfGuard:
                 # Should not raise
                 install_ssrf_guard()
                 assert safe_http._installed is False
+
+
+class TestAllowlist:
+    """Allowlist for configured internal URLs (e.g. Claude Bridge)."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate(self):
+        from urllib3.util import connection as urllib3_conn
+        original_fn = urllib3_conn.create_connection
+        original_installed = safe_http._installed
+        safe_http._installed = False
+        yield
+        urllib3_conn.create_connection = original_fn
+        safe_http._installed = original_installed
+
+    def test_allowlist_skips_check_for_configured_bridge(self, monkeypatch):
+        monkeypatch.setenv("CLAUDE_BRIDGE_URL", "http://172.21.0.1:8400/v1")
+        install_ssrf_guard()
+        from urllib3.util import connection as urllib3_conn
+        with patch("modules.safe_http.socket.getaddrinfo") as ga:
+            try:
+                urllib3_conn.create_connection(("172.21.0.1", 8400))
+            except ConnectionRefusedError:
+                pytest.fail("Allowlisted host should bypass SSRF guard")
+            except OSError:
+                pass
+            # No ConnectionRefusedError = guard short-circuited correctly.
+
+    def test_allowlist_does_not_leak_to_other_hosts(self, monkeypatch):
+        monkeypatch.setenv("CLAUDE_BRIDGE_URL", "http://172.21.0.1:8400/v1")
+        install_ssrf_guard()
+        from urllib3.util import connection as urllib3_conn
+        fake_info = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("172.21.0.1", 80))]
+        with patch("modules.safe_http.socket.getaddrinfo", return_value=fake_info):
+            with pytest.raises(ConnectionRefusedError, match="non-public"):
+                urllib3_conn.create_connection(("evil.attacker.com", 80))
+
+    def test_unset_bridge_url_leaves_allowlist_empty(self, monkeypatch):
+        monkeypatch.delenv("CLAUDE_BRIDGE_URL", raising=False)
+        install_ssrf_guard()
+        from urllib3.util import connection as urllib3_conn
+        fake_info = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("172.21.0.1", 80))]
+        with patch("modules.safe_http.socket.getaddrinfo", return_value=fake_info):
+            with pytest.raises(ConnectionRefusedError, match="non-public"):
+                urllib3_conn.create_connection(("172.21.0.1", 8400))

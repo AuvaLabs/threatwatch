@@ -13,7 +13,7 @@ addresses at connect time, no matter what the pre-check said.
 
 One trade-off: this is a process-wide monkeypatch, applied once. That is
 acceptable here because the pipeline and server only talk to public feeds —
-there are no legitimate internal HTTP calls from these containers.
+plus the explicit allowlist for configured internal URLs (Claude Bridge).
 
 Usage:
     from modules.safe_http import install_ssrf_guard
@@ -23,7 +23,9 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import os
 import socket
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,26 @@ def _is_public_ip(ip_str: str) -> bool:
     )
 
 
+def _build_allowlist() -> frozenset[str]:
+    """Hosts explicitly allowed despite resolving to non-public IPs.
+
+    Currently sources from CLAUDE_BRIDGE_URL — the bridge is a sibling Docker
+    container reachable only through the bridge gateway (intentionally
+    non-public). Read at install time; changing the env requires a process
+    restart, same lifecycle as install_ssrf_guard itself.
+    """
+    allowed: set[str] = set()
+    bridge_url = os.getenv("CLAUDE_BRIDGE_URL", "").strip()
+    if bridge_url:
+        try:
+            host = urlparse(bridge_url).hostname
+        except Exception:
+            host = None
+        if host:
+            allowed.add(host)
+    return frozenset(allowed)
+
+
 def install_ssrf_guard() -> None:
     """Install a urllib3-level SSRF guard. Idempotent."""
     global _installed
@@ -55,9 +77,14 @@ def install_ssrf_guard() -> None:
         return
 
     original = urllib3_connection.create_connection
+    allowlist = _build_allowlist()
+    if allowlist:
+        logger.info("SSRF guard allowlist: %s", sorted(allowlist))
 
     def guarded(address, *args, **kwargs):
         host, port = address
+        if host in allowlist:
+            return original(address, *args, **kwargs)
         # Re-resolve at connect time. Any IP in the getaddrinfo list that maps
         # to a blocked range poisons the whole attempt — we refuse to race
         # with happy-eyeballs / round-robin DNS.
