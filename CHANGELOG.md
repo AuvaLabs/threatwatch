@@ -2,6 +2,21 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-05-04 — SSRF guard allowlist (unblock Claude Bridge tier 2)
+
+Context: yesterday's multi-tier briefing fallback (`0b5f9c3`) shipped with tier 2 structurally broken in production. Pipeline logs from `2026-05-04 02:43:54` showed every Featherless 429 falling straight through to Groq+8B, never exercising Claude Bridge. Root cause: the process-wide SSRF guard (`modules/safe_http.py`, added 2026-04-21) refuses any hostname resolving to a non-public IP — but the bridge URL `http://172.21.0.1:8400/v1` is *intentionally* the docker bridge gateway. Correct guard, legitimate target, zero way through.
+
+### Fixed
+- **SSRF guard now allowlists configured internal URLs (`modules/safe_http.py`)**: new `_build_allowlist()` reads `CLAUDE_BRIDGE_URL` at install time, parses out the host, and short-circuits the public-IP check for that one host. An unconfigured bridge URL leaves the allowlist empty — previous behaviour preserved. Allowlist is logged at install: `SSRF guard allowlist: ['172.21.0.1']`. Read-once at startup; changing the env requires a process restart, same lifecycle as `install_ssrf_guard` itself.
+
+### Testing
+- 26/26 tests on `test_safe_http.py` pass (15 existing untouched + 3 new `TestAllowlist` cases): allowlisted host bypasses the IP check; non-allowlisted host at the same private IP is still blocked; unset `CLAUDE_BRIDGE_URL` keeps the allowlist empty so generic private-IP refusal still fires.
+
+### Operations
+- Hot-deploy via `docker cp modules/safe_http.py threatwatch-pipeline:/app/modules/safe_http.py && docker restart threatwatch-pipeline`. Container healthy after 8s. Live verification: `2026-05-04 17:41:12 | INFO | SSRF guard allowlist: ['172.21.0.1']` followed by `SSRF guard installed on urllib3 create_connection`. Closes #2.
+- Tier 2 (Claude Bridge) is now reachable when Featherless 429s. Confirmation that tier 2 actually serves a briefing end-to-end will land in a future entry once the next Featherless throttle event happens organically.
+
+
 ## 2026-05-03 — Multi-tier LLM routing for the daily briefing (Featherless → Claude Bridge → Groq+8B)
 
 Context: the global briefing prompt (~7-8K) had been clamped (40 articles × 80 chars/summary × 1200 max_tokens) to fit Groq free-tier 6K TPM. That worked but left the briefing perpetually one feed-volume spike away from a 429-cliff and capped output detail at ~1200 tokens. Introduce a 3-tier cascade so the briefing has real headroom while still degrading gracefully when premium tiers fail.
