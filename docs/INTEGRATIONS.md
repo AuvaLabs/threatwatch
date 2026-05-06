@@ -237,6 +237,13 @@ threat-intelligence platforms.
 
 ## Recipe 5 — Telegram channel (built-in)
 
+> **Operator note for the live demo:** the hosted instance at
+> [threatwatch.auvalabs.com](https://threatwatch.auvalabs.com) operates
+> [`@threatwatchCTI_bot`](https://t.me/threatwatchCTI_bot) for internal
+> threat-level alerts. There is no public broadcast channel yet — to
+> receive briefings today, self-host or follow the recipe below to
+> provision your own bot.
+
 ThreatWatch ships a first-class Telegram dispatcher (`modules/telegram.py`)
 that posts the global briefing to a channel via the Bot API. Two delivery
 modes are supported and can be combined:
