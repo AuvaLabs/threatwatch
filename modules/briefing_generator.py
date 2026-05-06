@@ -107,6 +107,7 @@ _MAX_DIGEST_ARTICLES = 80  # articles sent to the LLM (regional briefings)
 # Regional digests are fine at 80 because their per-region article count rarely
 # fills the cap. Lift if the briefing moves to a paid tier or larger context.
 _MAX_BRIEFING_ARTICLES = 40
+_HIGH_PRIORITY_TENURE_H = int(os.getenv("HIGH_PRIORITY_TENURE_HOURS", "72"))
 _HEADLINE_SOFT_CAP = 160   # belt-and-braces trim if model overshoots the prompt cap
 # Per-article summary char budget in the briefing prompt. Sized so the full
 # digest stays under Groq free-tier 6K TPM ceiling. Lift if the briefing moves
@@ -292,6 +293,43 @@ def _normalise_headline(raw: str | None) -> str:
     if clause >= 100:
         return cut[:clause] + "…"
     return cut.rstrip() + "…"
+
+
+def _hoist_kev_listed(
+    day1: list[dict[str, Any]],
+    day3: list[dict[str, Any]],
+    max_age_hours: int,
+    now: datetime | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Move KEV-listed articles from day3 -> day1 if within the high-priority
+    tenure window. Once CISA confirms a CVE is actively exploited, the
+    operational patch window stays urgent for ~72h — readers expect to see
+    the item leading what_happened even after it ages past 24h. Articles
+    with unparseable timestamps are kept in day3 (defensive)."""
+    if not day3:
+        return day1, day3
+    now = now or datetime.now(timezone.utc)
+    hoisted: list[dict[str, Any]] = []
+    keep: list[dict[str, Any]] = []
+    for a in day3:
+        if not a.get("kev_listed"):
+            keep.append(a)
+            continue
+        try:
+            age_h = (now - datetime.fromisoformat(a.get("timestamp", ""))).total_seconds() / 3600
+        except Exception:
+            keep.append(a)
+            continue
+        if age_h <= max_age_hours:
+            hoisted.append(a)
+        else:
+            keep.append(a)
+    if hoisted:
+        logger.info(
+            "Hoisted %d KEV-listed article(s) from days 2-3 -> headline section "
+            "(within %dh tenure window)", len(hoisted), max_age_hours,
+        )
+    return day1 + hoisted, keep
 
 
 def _build_digest(articles: list[dict[str, Any]]) -> str:
@@ -602,7 +640,18 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
     if len(all_filtered) < 10:
         all_filtered = articles
 
+    # Re-apply KEV enrichment so out-of-band briefings
+    # (AI_ENRICHMENT_INLINE=0, which loads from disk without per-article
+    # kev_listed) have current KEV signal. Idempotent on already-enriched
+    # articles. Defensive: catalog fetch failure leaves articles unchanged.
+    try:
+        from modules.kev_enricher import enrich_articles_with_kev
+        all_filtered = enrich_articles_with_kev(all_filtered)
+    except Exception as _kev_err:
+        logger.debug("KEV enrichment in briefing path skipped: %s", _kev_err)
+
     day1, day3, older = _split_by_age(all_filtered)
+    day1, day3 = _hoist_kev_listed(day1, day3, _HIGH_PRIORITY_TENURE_H)
 
     # Digest focuses on last 24h (with overflow from day 2-3 if sparse)
     briefing_articles = day1[:]

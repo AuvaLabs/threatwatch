@@ -494,3 +494,61 @@ class TestLoadBriefing:
             result = load_briefing()
         assert result["threat_level"] == "ELEVATED"
         assert result["situation_overview"] == "Threat activity is elevated globally."
+
+
+# ---------------------------------------------------------------------------
+# _hoist_kev_listed — KEV-listed articles get extended tenure in what_happened
+# ---------------------------------------------------------------------------
+class TestHoistKevListed:
+    """KEV-listed articles in days 2-3 get hoisted into the headline section
+    when within the high-priority tenure window."""
+
+    def _at(self, now, hours_ago):
+        from datetime import timedelta
+        return (now - timedelta(hours=hours_ago)).isoformat()
+
+    def test_hoists_kev_within_tenure(self):
+        from datetime import datetime, timezone
+        from modules.briefing_generator import _hoist_kev_listed
+        now = datetime(2026, 5, 6, 12, 0, tzinfo=timezone.utc)
+        day1 = [{"title": "fresh", "timestamp": self._at(now, 12)}]
+        day3 = [
+            {"title": "kev30", "timestamp": self._at(now, 30), "kev_listed": True},
+            {"title": "kev100", "timestamp": self._at(now, 100), "kev_listed": True},
+            {"title": "non-kev30", "timestamp": self._at(now, 30)},
+        ]
+        new_day1, new_day3 = _hoist_kev_listed(day1, day3, max_age_hours=72, now=now)
+        assert {a["title"] for a in new_day1} == {"fresh", "kev30"}
+        assert {a["title"] for a in new_day3} == {"kev100", "non-kev30"}
+
+    def test_no_hoist_when_outside_tenure(self):
+        from datetime import datetime, timezone
+        from modules.briefing_generator import _hoist_kev_listed
+        now = datetime(2026, 5, 6, 12, 0, tzinfo=timezone.utc)
+        day3 = [{"title": "kev100", "timestamp": self._at(now, 100), "kev_listed": True}]
+        new_day1, new_day3 = _hoist_kev_listed([], day3, max_age_hours=72, now=now)
+        assert new_day1 == []
+        assert new_day3 == day3
+
+    def test_empty_day3_is_noop(self):
+        from modules.briefing_generator import _hoist_kev_listed
+        new_day1, new_day3 = _hoist_kev_listed([{"title": "a"}], [], max_age_hours=72)
+        assert new_day1 == [{"title": "a"}]
+        assert new_day3 == []
+
+    def test_invalid_timestamp_keeps_in_day3(self):
+        from modules.briefing_generator import _hoist_kev_listed
+        day3 = [{"title": "bad", "timestamp": "not-a-date", "kev_listed": True}]
+        new_day1, new_day3 = _hoist_kev_listed([], day3, max_age_hours=72)
+        # Defensive: don't hoist if we can't verify age.
+        assert new_day1 == []
+        assert new_day3 == day3
+
+    def test_non_kev_articles_never_hoisted(self):
+        from datetime import datetime, timezone
+        from modules.briefing_generator import _hoist_kev_listed
+        now = datetime(2026, 5, 6, 12, 0, tzinfo=timezone.utc)
+        day3 = [{"title": "fresh-non-kev", "timestamp": self._at(now, 30)}]
+        new_day1, new_day3 = _hoist_kev_listed([], day3, max_age_hours=72, now=now)
+        assert new_day1 == []
+        assert new_day3 == day3
