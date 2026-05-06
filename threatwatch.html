@@ -5938,11 +5938,63 @@ async function copyBriefingShare() {
   const b = state.aiBriefing;
   const btn = document.querySelector('[data-click-action="copyBriefingShare"]');
   if (!b) return _flashCopied(btn, false);
-  const lead = (b.headline || (b.what_happened || '')).trim();
-  const url = window.location.origin + window.location.pathname;
-  const text = `ThreatWatch — ${b.threat_level || 'UNKNOWN'}\n${lead}\n\n${url}`;
+  const text = _formatBriefingShare(b);
   const ok = await _writeClipboard(text);
   _flashCopied(btn, ok);
+}
+
+/* Build the rich share payload pasted into Slack/Teams/Telegram/email.
+   Mirrors modules/telegram.py output: level + timestamp header, headline,
+   one-paragraph context, top 3 priority actions, outlook, dashboard URL.
+   Falls through gracefully if any field is missing. */
+function _formatBriefingShare(b) {
+  const url = window.location.origin + window.location.pathname;
+  const level = b.threat_level || 'UNKNOWN';
+  const ts = _formatBriefingTimestamp(b.generated_at);
+  const lines = [];
+
+  lines.push(`ThreatWatch — ${level}${ts ? ' · ' + ts : ''}`);
+
+  const headline = (b.headline || '').trim();
+  if (headline) lines.push(headline);
+
+  const wh = (b.what_happened || '').trim();
+  if (wh) {
+    lines.push('');
+    const truncated = wh.length > 280 ? wh.slice(0, 277).trimEnd() + '…' : wh;
+    lines.push(`What happened: ${truncated}`);
+  }
+
+  const actions = Array.isArray(b.what_to_do) ? b.what_to_do : [];
+  const actionText = actions.slice(0, 3)
+    .map(a => (typeof a === 'string' ? a : (a && a.action) || '').trim())
+    .filter(Boolean);
+  if (actionText.length) {
+    lines.push('');
+    lines.push('Priority actions:');
+    actionText.forEach(a => lines.push(`• ${a}`));
+  }
+
+  const outlook = (b.outlook || '').trim();
+  if (outlook) {
+    lines.push('');
+    lines.push(`Outlook: ${outlook}`);
+  }
+
+  lines.push('');
+  lines.push(`→ ${url}`);
+
+  return lines.join('\n');
+}
+
+function _formatBriefingTimestamp(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+  } catch { return ''; }
 }
 
 /* On first load, honour ?article=<hash> so a permalink opens the article
