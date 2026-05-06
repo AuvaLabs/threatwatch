@@ -7,7 +7,7 @@
 - **Live Threat Intelligence Feed** — 164 RSS/API sources, filtered by category (breach, ransomware, APT, phishing, malware, zero-day, vuln, dark web) and region; confidence score badge with hover tooltip explaining classification drivers
 - **Threat Intelligence Briefing** — zero-cost rule-based briefing + optional AI-generated executive summary via any OpenAI-compatible LLM provider (default: Groq free tier); LLM-written `headline` field renders as a TL;DR hero above the narrative
 - **Escalation banner** — when threat level shifts vs the prior briefing, an arrow + colour-coded "Escalated/De-escalated from X to Y" row surfaces the change with the assessment basis as the why
-- **CISA KEV ingestion** — articles referencing CVEs in the CISA Known Exploited Vulnerabilities catalog get distinctive pills (darker for ransomware-linked entries) and feed the briefing prompt as authoritative "actively exploited" signal
+- **CISA KEV ingestion** — articles referencing CVEs in the CISA Known Exploited Vulnerabilities catalog get distinctive pills (darker for ransomware-linked entries) and feed the briefing prompt as authoritative "actively exploited" signal; KEV-listed CVEs get extended tenure in the briefing headline section (default 72h, env-tunable via `HIGH_PRIORITY_TENURE_HOURS`)
 - **Trending Threats panel** — spike detection (today vs 14d baseline) plus a 7-day top-mentioned leaderboard for ransomware groups, APTs, CVEs, and attack types
 - **Campaign Tracker** — stable UUIDs for persistent incident campaigns with active/dormant/archived status
 - **Incident Clustering** — auto-groups related articles by CVE, threat actor, or organization with AI-synthesized narratives
@@ -23,7 +23,7 @@
 - **Server-side rendering** — zero-latency page load via embedded JSON data
 - **Auto-refresh** — polls for new data every 2 minutes
 - **"X new since HH:MM UTC" pill** — returning-reader counter; persistent NEW badge on each article published since your last visit, dismissible with one click
-- **Share buttons** — copy-link on each article (`?article=<hash>` permalinks) and a one-click share that copies the briefing's level + headline + dashboard URL ready to paste into Slack/Teams/Telegram
+- **Share buttons** — copy-link on each article (`?article=<hash>` permalinks) and a one-click share that copies a paste-ready briefing block (level + UTC timestamp + headline + one-paragraph what_happened + top 3 priority actions + outlook + dashboard URL) ready for Slack/Teams/Telegram/email
 - **5 switchable themes** — Nightwatch (dark brass), Parchment (light cream), Solarized, Arctic (clean blue), Phosphor (retro CRT with scanline overlay)
 - **SQLite storage** — Phase 3 complete with READ_FROM_SQLITE=1 in production; JSON files kept as fallback
 - **Briefing staleness detection** — automatic health monitoring with `/api/health` alarm
@@ -78,4 +78,4 @@ Browser → serve_threatwatch.py (SSR injection)
 - **Live Demo**: https://threatwatch.auvalabs.com
 - **Repository**: https://github.com/AuvaLabs/threatwatch
 
-Last updated: 2026-04-22
+Last updated: 2026-05-06

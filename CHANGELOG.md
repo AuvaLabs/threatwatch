@@ -2,6 +2,25 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-05-06 — Briefing share-payload enrichment + KEV-listed extended tenure (72h default)
+
+Context: shipped two quality-of-life upgrades to the briefing surface plus a side-fix for a latent KEV signal bug discovered during planning.
+
+### Added
+- **Rich briefing share payload (`threatwatch.html`)**: SHARE button on the briefing card now copies a paste-ready block with level + UTC timestamp header, headline, one-paragraph what_happened (truncated at 280 chars), top 3 priority actions, outlook, and dashboard URL. Mirrors `modules/telegram.py` shape so the same content fits Slack, Teams, Telegram, email signatures (~600-1400 chars). Previous payload was just `level\nheadline\n\nurl` — three lines, no context, useless on its own.
+- **KEV-listed extended tenure in what_happened (`modules/briefing_generator.py`)**: actively-exploited CVEs (CISA KEV-listed) get hoisted from days 2-3 back into the headline section when within `HIGH_PRIORITY_TENURE_HOURS` (default 72). Patches typically roll out across 3-day windows; previous strict 24h bucketing dropped urgent items off the headline even while they were operationally fresh. Cap at 72h so the section doesn't converge with `week_in_review`. Env-tunable; new helper `_hoist_kev_listed()`.
+
+### Fixed
+- **KEV signal missing from briefing prompt (`modules/briefing_generator.py`)**: out-of-band AI enrichment (`AI_ENRICHMENT_INLINE=0`, prod default since 2026-04-22) loads articles from `daily_latest.json` which does NOT persist the `kev_listed` field — KEV enrichment writes in-memory and the save path strips it. Result: the briefing prompt's KEV-prominent treatment had been firing on zero KEV signal for weeks. Re-apply `enrich_articles_with_kev()` at briefing time before `_split_by_age`. Idempotent for already-enriched articles. Latent bug — no telemetry to detect because the success log always tags the briefing as `via openai/llama-3.1-8b-instant` regardless of tier (see #3).
+
+### Testing
+- 48 tests on `test_briefing_generator.py` pass (43 existing untouched + 5 new `TestHoistKevListed`): hoist within tenure / outside tenure / empty day3 / invalid-timestamp defensive keep / non-KEV never hoisted.
+
+### Operations
+- New env var: `HIGH_PRIORITY_TENURE_HOURS=72` (set lower for stricter "breaking only" cadence, higher to ride out CRITICAL items longer).
+- Hot-deploy: `docker cp` + `docker restart` per service; `CACHE_TTL=30s` for the server HTML cache so the share-button change can also propagate without restart.
+- Verification (next ~30-min AI cycle): pipeline log shows `Hoisted N KEV-listed article(s) from days 2-3 -> headline section (within 72h tenure window)` when applicable.
+
 ## 2026-05-04 — SSRF guard allowlist (unblock Claude Bridge tier 2)
 
 Context: yesterday's multi-tier briefing fallback (`0b5f9c3`) shipped with tier 2 structurally broken in production. Pipeline logs from `2026-05-04 02:43:54` showed every Featherless 429 falling straight through to Groq+8B, never exercising Claude Bridge. Root cause: the process-wide SSRF guard (`modules/safe_http.py`, added 2026-04-21) refuses any hostname resolving to a non-public IP — but the bridge URL `http://172.21.0.1:8400/v1` is *intentionally* the docker bridge gateway. Correct guard, legitimate target, zero way through.
