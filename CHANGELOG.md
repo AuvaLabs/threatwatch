@@ -2,6 +2,25 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-05-10 — Feed triage: -7 dead/broken sources, +2 working replacements
+
+Context: `/api/quality` reported 5 dead + 16 error-status feeds (out of 164 tracked). Triage probing from the VPS network with the production UA showed most "error" status feeds were false positives (slow publishers with no fresh content within `FEED_CUTOFF_DAYS=7`), but several high-value sources had genuinely drifted URLs or been sunset.
+
+### Operations
+- **Removed (commented out with audit trail in `config/feeds_native.yaml`)**:
+  - `https://threatpost.com/feed/` — site frozen since Kaspersky sunset (2022); will never produce fresh content within the cutoff window.
+  - `https://news.sophos.com/en-us/feed`, `https://news.sophos.com/en-us/category/threat-research/feed/` — both 301-redirect to `www.sophos.com/en-us/blog/feed` which times out from the VPS network (bot-blocked or down).
+  - `https://msrc.microsoft.com/blog/feed` — Microsoft sunset the RSS feed; URL now 301-redirects to an HTML landing page. No drop-in RSS replacement located.
+  - `https://www.trendmicro.com/en_us/research.rss.html` — 404; replaced (see below).
+  - `https://googleprojectzero.blogspot.com/feeds/posts/default` — 302-redirects to the new canonical URL; replaced (see below).
+  - `https://blog.sekoia.io/feed/` — Sekoia's WAF returns 403 specifically to the Chrome UA used by `feed_fetcher.py` (feedparser/curl/ThreatWatch UAs all get 200). Re-enable once per-feed UA overrides land in `feed_fetcher.py`.
+
+- **Added (verified from VPS with production UA)**:
+  - `https://feeds.feedburner.com/TrendMicroResearch` — 100 entries, latest dated today.
+  - `https://projectzero.google/feed.xml` — Project Zero's new canonical URL; 10 entries (slow but high-value publisher; latest entry is typically outside the 7-day window, will surface when they post).
+
+- Net change: 79 → 74 active feeds; 16 erroring → ~10 expected after next cycle (false-positive low-signal feeds remain since they're not actually broken). No code change; `threatdigest_main.py` reloads `feeds_native.yaml` at the start of each fetch cycle, so changes apply on the next pipeline tick after `git pull`.
+
 ## 2026-05-07 — Briefing success log reports the actual served tier (closes #3)
 
 Context: with three briefing tiers in play (Featherless → Claude Bridge → Groq+8B), the success log line `Intelligence briefing generated via openai/llama-3.1-8b-instant` always echoed the configured `BRIEFING_MODEL` regardless of which tier actually served. This was load-bearing telemetry that masked the KEV-signal-missing bug for weeks (caught only by reading prompt source, not logs — see 2026-05-06 entry). The data existed in `data/state/groq_usage.json` per-caller tags, but the in-process result of the dispatch never surfaced which tier won.

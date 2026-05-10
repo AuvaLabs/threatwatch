@@ -22,9 +22,11 @@
   category: Native
   region: US
 
-- url: https://threatpost.com/feed/
-  category: Native
-  region: Global
+# Threatpost — sunset by Kaspersky in 2022; site frozen, no fresh content
+# within FEED_CUTOFF_DAYS=7. Removed 2026-05-10.
+# - url: https://threatpost.com/feed/
+#   category: Native
+#   region: Global
 
 # Tier 2: Government and institutional
 # CISA news — returns 403 from VPS IP (verified 2026-04-03)
@@ -98,8 +100,10 @@
   category: Native
   region: Global
 
-# Google Project Zero — in-depth zero-day research from Google's bug hunters
-- url: https://googleprojectzero.blogspot.com/feeds/posts/default
+# Google Project Zero — in-depth zero-day research from Google's bug hunters.
+# blogspot.com URL 302-redirects to projectzero.google/feed.xml as of 2026-05-10;
+# updated to the new canonical URL.
+- url: https://projectzero.google/feed.xml
   category: Native
   region: Global
 
@@ -148,7 +152,9 @@
   category: Native
   region: Global
 
-- url: https://www.trendmicro.com/en_us/research.rss.html
+# Trend Micro Research — original /en_us/research.rss.html URL 404s as of
+# 2026-05-10; switched to the FeedBurner-hosted feed which serves 100 entries.
+- url: https://feeds.feedburner.com/TrendMicroResearch
   category: Native
   region: Global
 
@@ -209,9 +215,12 @@
   region: Global
 
 # Tier 9: Vendor Security Advisories
-- url: https://msrc.microsoft.com/blog/feed
-  category: Native
-  region: Global
+# MSRC blog — feed sunset by Microsoft; URL now 301-redirects to an HTML
+# landing page (microsoft.com/en-us/msrc/blog) which feedparser can't extract
+# entries from. Removed 2026-05-10. No drop-in RSS replacement located.
+# - url: https://msrc.microsoft.com/blog/feed
+#   category: Native
+#   region: Global
 
 - url: https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml
   category: Native
@@ -297,14 +306,16 @@
 # CERT-NZ advisory RSS returns 404 (verified 2026-03-14)
 
 # Tier 12: Industry Blogs & Analysis
-# Old sophos.com/en-us/blog.xml returned 404. Replaced with news.sophos.com feeds:
-- url: https://news.sophos.com/en-us/feed
-  category: Native
-  region: Global
-
-- url: https://news.sophos.com/en-us/category/threat-research/feed/
-  category: Native
-  region: Global
+# Sophos news feeds: news.sophos.com 301-redirects to www.sophos.com/en-us/blog/feed
+# which times out from the VPS network (verified 2026-05-10). The redirect
+# target appears bot-blocked or down. Removed both Sophos URLs 2026-05-10.
+# - url: https://news.sophos.com/en-us/feed
+#   category: Native
+#   region: Global
+#
+# - url: https://news.sophos.com/en-us/category/threat-research/feed/
+#   category: Native
+#   region: Global
 
 # Arctic Wolf — returns 404 (verified 2026-03-22)
 # - url: https://www.arcticwolf.com/resources/blog/feed/
@@ -383,9 +394,13 @@
   category: Native
   region: Global
 
-- url: https://blog.sekoia.io/feed/
-  category: Native
-  region: Europe
+# Sekoia blog — WAF returns 403 to the Chrome UA used by feed_fetcher
+# (verified 2026-05-10: feedparser/curl/ThreatWatch UA all return 200, but
+# the production Chrome UA gets 403). Re-enable once per-feed UA overrides
+# land in feed_fetcher.py. Removed 2026-05-10.
+# - url: https://blog.sekoia.io/feed/
+#   category: Native
+#   region: Europe
 
 - url: https://flashpoint.io/blog/feed/
   category: Native
