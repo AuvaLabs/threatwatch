@@ -108,6 +108,12 @@ _MAX_DIGEST_ARTICLES = 80  # articles sent to the LLM (regional briefings)
 # fills the cap. Lift if the briefing moves to a paid tier or larger context.
 _MAX_BRIEFING_ARTICLES = 40
 _HIGH_PRIORITY_TENURE_H = int(os.getenv("HIGH_PRIORITY_TENURE_HOURS", "72"))
+# Tier-aware downgrade guard: when the new briefing was served by a lower-
+# quality tier than the one currently on disk AND the prior is younger than
+# this window, keep the prior. Prevents 8b fallback briefings from wiping out
+# Featherless/Claude-Bridge briefings during transient outages on tier 1/2.
+# Set to 0 to disable the guard and always overwrite (legacy behavior).
+_BRIEFING_DOWNGRADE_GUARD_H = float(os.getenv("BRIEFING_DOWNGRADE_GUARD_HOURS", "4"))
 _HEADLINE_SOFT_CAP = 160   # belt-and-braces trim if model overshoots the prompt cap
 # Per-article summary char budget in the briefing prompt. Sized so the full
 # digest stays under Groq free-tier 6K TPM ceiling. Lift if the briefing moves
@@ -492,6 +498,72 @@ def _compute_reporting_window(articles: list[dict[str, Any]]) -> str:
 _LAST_SERVED_TIER: str | None = None
 
 
+# Lower rank = higher quality. Featherless is the primary tier; Anthropic and
+# Claude Bridge are second-tier (Claude-class models); Groq + 8b is the
+# last-resort fallback. Keep this in sync with the tier branches inside
+# `_call_openai_compatible`.
+_TIER_RANKS = {
+    "featherless":   1,
+    "anthropic":     2,
+    "claude_bridge": 2,
+    "openai":        3,
+    "groq":          3,
+    "ollama":        4,
+}
+
+
+def _tier_rank(provider: str | None) -> int:
+    """Return the tier rank for a provider string (lower = higher quality).
+
+    Provider format is ``'<tier>/<model>'`` (e.g. ``'featherless/deepseek-ai/DeepSeek-V3.2'``,
+    ``'groq/llama-3.1-8b-instant'``). Unknown tiers rank 99.
+    """
+    if not provider:
+        return 99
+    head = provider.split("/", 1)[0]
+    return _TIER_RANKS.get(head, 99)
+
+
+def _briefing_age_hours(briefing: dict[str, Any] | None) -> float:
+    """Hours since the briefing's ``generated_at``, or ``inf`` if missing/unparseable."""
+    if not briefing or not briefing.get("generated_at"):
+        return float("inf")
+    try:
+        gen_at = briefing["generated_at"].replace("Z", "+00:00")
+        gen = datetime.fromisoformat(gen_at)
+        if gen.tzinfo is None:
+            gen = gen.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - gen).total_seconds() / 3600.0
+    except (ValueError, TypeError, AttributeError):
+        return float("inf")
+
+
+def _should_skip_downgrade(prior: dict[str, Any] | None, new_tier: str) -> bool:
+    """Return True if the prior briefing should be kept instead of overwritten
+    by a new lower-tier briefing.
+
+    Triggers when ALL of the following are true:
+      - ``BRIEFING_DOWNGRADE_GUARD_HOURS`` > 0 (guard enabled)
+      - A prior briefing exists with a parseable ``provider`` field
+      - The new tier rank is strictly worse than the prior tier rank
+      - The prior briefing is younger than the guard window
+
+    The user-stated invariant is "primary will always be featherless" — this
+    function enforces it by refusing to drop a Featherless briefing for a Groq
+    one within the guard window. Same logic protects Claude Bridge briefings
+    from being clobbered by Groq.
+    """
+    if _BRIEFING_DOWNGRADE_GUARD_H <= 0:
+        return False
+    if not prior or not prior.get("provider"):
+        return False
+    prior_rank = _tier_rank(prior.get("provider"))
+    new_rank = _tier_rank(new_tier)
+    if new_rank <= prior_rank:
+        return False  # same-or-better tier — always overwrite
+    return _briefing_age_hours(prior) < _BRIEFING_DOWNGRADE_GUARD_H
+
+
 def _call_openai_compatible(user_content: str, system_prompt: str = None,
                             max_tokens: int = 2000,
                             caller: str | None = None,
@@ -868,6 +940,23 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         else:
             served_tier = _LAST_SERVED_TIER or f"openai/{BRIEFING_MODEL}"
         briefing["provider"] = served_tier
+
+        # Tier-aware downgrade guard. When tier 1 (Featherless) is the primary
+        # and falls through to tier 3 (Groq 8b), the resulting briefing is
+        # noticeably shallower. Don't overwrite a fresher higher-tier briefing
+        # within `BRIEFING_DOWNGRADE_GUARD_HOURS`. Skip cache_result +
+        # _save_briefing + _record_api_call so the next pipeline tick can retry
+        # the premium tier without the hourly cooldown blocking it.
+        prior = load_briefing()
+        if _should_skip_downgrade(prior, served_tier):
+            prior_age = _briefing_age_hours(prior)
+            logger.info(
+                "Briefing downgrade skipped — kept prior %s (age %.1fh) instead "
+                "of overwriting with %s (BRIEFING_DOWNGRADE_GUARD_HOURS=%.1f).",
+                prior.get("provider"), prior_age, served_tier,
+                _BRIEFING_DOWNGRADE_GUARD_H,
+            )
+            return prior
 
         _record_api_call()
         cache_result(cache_key, briefing)

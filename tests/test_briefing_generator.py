@@ -597,6 +597,239 @@ class TestServedTierLogging:
 
 
 # ---------------------------------------------------------------------------
+# Tier-aware downgrade guard — Featherless (primary) is protected from being
+# overwritten by Groq 8b fallback within BRIEFING_DOWNGRADE_GUARD_HOURS.
+# ---------------------------------------------------------------------------
+class TestTierRank:
+    def test_featherless_is_rank_1(self):
+        from modules.briefing_generator import _tier_rank
+        assert _tier_rank("featherless/deepseek-ai/DeepSeek-V3.2") == 1
+
+    def test_anthropic_is_rank_2(self):
+        from modules.briefing_generator import _tier_rank
+        assert _tier_rank("anthropic/claude-sonnet") == 2
+
+    def test_claude_bridge_is_rank_2(self):
+        from modules.briefing_generator import _tier_rank
+        assert _tier_rank("claude_bridge/sonnet") == 2
+
+    def test_groq_is_rank_3(self):
+        from modules.briefing_generator import _tier_rank
+        assert _tier_rank("groq/llama-3.1-8b-instant") == 3
+
+    def test_legacy_openai_is_rank_3(self):
+        from modules.briefing_generator import _tier_rank
+        assert _tier_rank("openai/llama-3.1-8b-instant") == 3
+
+    def test_none_is_rank_99(self):
+        from modules.briefing_generator import _tier_rank
+        assert _tier_rank(None) == 99
+
+    def test_unknown_is_rank_99(self):
+        from modules.briefing_generator import _tier_rank
+        assert _tier_rank("mystery/whatever") == 99
+
+
+class TestBriefingAgeHours:
+    def test_missing_briefing_is_infinity(self):
+        from modules.briefing_generator import _briefing_age_hours
+        assert _briefing_age_hours(None) == float("inf")
+        assert _briefing_age_hours({}) == float("inf")
+        assert _briefing_age_hours({"generated_at": None}) == float("inf")
+
+    def test_unparseable_is_infinity(self):
+        from modules.briefing_generator import _briefing_age_hours
+        assert _briefing_age_hours({"generated_at": "not a date"}) == float("inf")
+
+    def test_recent_iso_returns_small_hours(self):
+        from datetime import datetime, timezone, timedelta
+        from modules.briefing_generator import _briefing_age_hours
+        ts = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        h = _briefing_age_hours({"generated_at": ts})
+        assert 1.9 < h < 2.1
+
+    def test_z_suffix_iso_parses(self):
+        from datetime import datetime, timezone, timedelta
+        from modules.briefing_generator import _briefing_age_hours
+        ts = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        h = _briefing_age_hours({"generated_at": ts})
+        assert 0.9 < h < 1.1
+
+
+class TestShouldSkipDowngrade:
+    def _prior(self, provider, age_hours):
+        from datetime import datetime, timezone, timedelta
+        ts = (datetime.now(timezone.utc) - timedelta(hours=age_hours)).isoformat()
+        return {"provider": provider, "generated_at": ts}
+
+    def test_guard_disabled_never_skips(self):
+        import modules.briefing_generator as bg
+        prior = self._prior("featherless/deepseek-ai/DeepSeek-V3.2", 1)
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 0):
+            assert bg._should_skip_downgrade(prior, "groq/llama-3.1-8b-instant") is False
+
+    def test_no_prior_never_skips(self):
+        import modules.briefing_generator as bg
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            assert bg._should_skip_downgrade(None, "groq/llama-3.1-8b-instant") is False
+            assert bg._should_skip_downgrade({}, "groq/llama-3.1-8b-instant") is False
+
+    def test_prior_without_provider_never_skips(self):
+        import modules.briefing_generator as bg
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            assert bg._should_skip_downgrade({"generated_at": "2026-05-14T00:00:00+00:00"},
+                                              "groq/llama-3.1-8b-instant") is False
+
+    def test_same_tier_never_skips(self):
+        import modules.briefing_generator as bg
+        prior = self._prior("featherless/deepseek-ai/DeepSeek-V3.2", 1)
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            assert bg._should_skip_downgrade(prior, "featherless/deepseek-ai/DeepSeek-V3.2") is False
+
+    def test_upgrade_never_skips(self):
+        import modules.briefing_generator as bg
+        prior = self._prior("groq/llama-3.1-8b-instant", 1)
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            assert bg._should_skip_downgrade(prior, "featherless/deepseek-ai/DeepSeek-V3.2") is False
+
+    def test_downgrade_within_window_skips(self):
+        """Featherless 1h old, new Groq → keep the Featherless one."""
+        import modules.briefing_generator as bg
+        prior = self._prior("featherless/deepseek-ai/DeepSeek-V3.2", 1)
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            assert bg._should_skip_downgrade(prior, "groq/llama-3.1-8b-instant") is True
+
+    def test_downgrade_outside_window_overwrites(self):
+        """Featherless 5h old (guard=4h), new Groq → save the new one."""
+        import modules.briefing_generator as bg
+        prior = self._prior("featherless/deepseek-ai/DeepSeek-V3.2", 5)
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            assert bg._should_skip_downgrade(prior, "groq/llama-3.1-8b-instant") is False
+
+    def test_claude_bridge_protected_from_groq(self):
+        """Tier 2 (Bridge) is still better than tier 3 (Groq) — guard fires."""
+        import modules.briefing_generator as bg
+        prior = self._prior("claude_bridge/sonnet", 1)
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            assert bg._should_skip_downgrade(prior, "groq/llama-3.1-8b-instant") is True
+
+    def test_featherless_not_protected_from_claude_bridge(self):
+        """A Bridge briefing is acceptable if Featherless is unreachable, but
+        the guard treats Featherless > Bridge. So a fresh Featherless prior
+        DOES skip a Bridge new briefing within the window. Documents intent."""
+        import modules.briefing_generator as bg
+        prior = self._prior("featherless/deepseek-ai/DeepSeek-V3.2", 1)
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            assert bg._should_skip_downgrade(prior, "claude_bridge/sonnet") is True
+
+
+class TestDowngradeGuardEndToEnd:
+    """Drive generate_briefing through the guard logic end-to-end."""
+    def setup_method(self):
+        import modules.briefing_generator as _bg
+        _bg._LAST_SERVED_TIER = None
+
+    def teardown_method(self):
+        import modules.briefing_generator as _bg
+        _bg._LAST_SERVED_TIER = None
+
+    @patch("modules.briefing_generator._record_api_call")
+    @patch("modules.briefing_generator._is_rate_limited", return_value=False)
+    @patch("modules.briefing_generator._save_briefing")
+    @patch("modules.briefing_generator.cache_result")
+    @patch("modules.briefing_generator.get_cached_result", return_value=None)
+    @patch("modules.briefing_generator._call_groq")
+    @patch("modules.briefing_generator._call_claude_bridge", side_effect=Exception("bridge 502"))
+    @patch("modules.briefing_generator._claude_bridge_available", return_value=True)
+    @patch("modules.briefing_generator._call_featherless", side_effect=Exception("featherless 429"))
+    @patch("modules.briefing_generator._featherless_available", return_value=True)
+    @patch("modules.briefing_generator.load_briefing")
+    @patch("modules.briefing_generator._detect_provider", return_value="openai")
+    def test_fresh_featherless_prior_blocks_groq_downgrade(
+        self, _, mock_load_prior, _ff_avail, _ff_call, _cb_avail, _cb_call,
+        mock_groq, _cache_get, _cache_set, mock_save, _rl, _rec,
+    ):
+        """When Featherless prior is 1h old and the new attempt falls through
+        to Groq, _save_briefing must NOT be called and the prior is returned."""
+        import modules.briefing_generator as bg
+        from datetime import datetime, timezone, timedelta
+        prior_ts = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        prior = {
+            "threat_level": "ELEVATED",
+            "what_happened": "Featherless-served briefing content.",
+            "provider": "featherless/deepseek-ai/DeepSeek-V3.2",
+            "generated_at": prior_ts,
+        }
+        mock_load_prior.return_value = prior
+        mock_groq.return_value = json.dumps(_valid_briefing())
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            result = generate_briefing([_article() for _ in range(5)])
+        assert result is not None
+        # The prior briefing (Featherless) was returned, NOT the Groq one
+        assert result["provider"] == "featherless/deepseek-ai/DeepSeek-V3.2"
+        assert result["what_happened"] == "Featherless-served briefing content."
+        # Critical: save was NOT called — the disk-state Featherless briefing is preserved
+        mock_save.assert_not_called()
+
+    @patch("modules.briefing_generator._record_api_call")
+    @patch("modules.briefing_generator._is_rate_limited", return_value=False)
+    @patch("modules.briefing_generator._save_briefing")
+    @patch("modules.briefing_generator.cache_result")
+    @patch("modules.briefing_generator.get_cached_result", return_value=None)
+    @patch("modules.briefing_generator._call_groq")
+    @patch("modules.briefing_generator._call_claude_bridge", side_effect=Exception("bridge 502"))
+    @patch("modules.briefing_generator._claude_bridge_available", return_value=True)
+    @patch("modules.briefing_generator._call_featherless", side_effect=Exception("featherless 429"))
+    @patch("modules.briefing_generator._featherless_available", return_value=True)
+    @patch("modules.briefing_generator.load_briefing")
+    @patch("modules.briefing_generator._detect_provider", return_value="openai")
+    def test_stale_featherless_prior_allows_groq_overwrite(
+        self, _, mock_load_prior, _ff_avail, _ff_call, _cb_avail, _cb_call,
+        mock_groq, _cache_get, _cache_set, mock_save, _rl, _rec,
+    ):
+        """When Featherless prior is older than the guard window, the new Groq
+        briefing overwrites — better stale Groq than really-stale Featherless."""
+        import modules.briefing_generator as bg
+        from datetime import datetime, timezone, timedelta
+        prior_ts = (datetime.now(timezone.utc) - timedelta(hours=10)).isoformat()
+        prior = {
+            "provider": "featherless/deepseek-ai/DeepSeek-V3.2",
+            "generated_at": prior_ts,
+        }
+        mock_load_prior.return_value = prior
+        mock_groq.return_value = json.dumps(_valid_briefing())
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            result = generate_briefing([_article() for _ in range(5)])
+        assert result is not None
+        # The new Groq briefing was saved
+        from modules.briefing_generator import BRIEFING_MODEL
+        assert result["provider"] == f"groq/{BRIEFING_MODEL}"
+        mock_save.assert_called_once()
+
+    @patch("modules.briefing_generator._record_api_call")
+    @patch("modules.briefing_generator._is_rate_limited", return_value=False)
+    @patch("modules.briefing_generator._save_briefing")
+    @patch("modules.briefing_generator.cache_result")
+    @patch("modules.briefing_generator.get_cached_result", return_value=None)
+    @patch("modules.briefing_generator._call_groq")
+    @patch("modules.briefing_generator._claude_bridge_available", return_value=False)
+    @patch("modules.briefing_generator._featherless_available", return_value=False)
+    @patch("modules.briefing_generator.load_briefing", return_value=None)
+    @patch("modules.briefing_generator._detect_provider", return_value="openai")
+    def test_no_prior_saves_new_groq(
+        self, _, _load_prior, _ff_avail, _cb_avail, mock_groq,
+        _cache_get, _cache_set, mock_save, _rl, _rec,
+    ):
+        """First-run case: no prior on disk, Groq tier serves → save normally."""
+        import modules.briefing_generator as bg
+        mock_groq.return_value = json.dumps(_valid_briefing())
+        with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
+            result = generate_briefing([_article() for _ in range(5)])
+        assert result is not None
+        mock_save.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
 # load_briefing
 # ---------------------------------------------------------------------------
 class TestLoadBriefing:

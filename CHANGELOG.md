@@ -2,6 +2,28 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-05-14 — Tier-aware downgrade guard: Featherless briefings survive Groq-fallback regens
+
+Context: operator reported the briefing's `week_in_review` was missing major 2-day-old incidents (Canvas LMS / ShinyHunters mega-breach, Google AI-attack warning, ScreenConnect malware campaign, Foxconn restart). Live diagnosis showed the briefing engine + KEV enrichment were fine (9 KEV articles hoisted per cycle) — the actual cause was tier dispatch: Featherless (tier 1) 429ing on concurrency exhaustion and Claude Bridge (tier 2) 502ing on Claude Max session quota, every cycle. Every ~2h, an 8b Groq briefing was overwriting the previous Featherless-served briefing, and the 8b model couldn't synthesize trailing-context into a useful `week_in_review`.
+
+### Fixed
+- **Tier-aware downgrade guard (`modules/briefing_generator.py`)**: a new module-level helper trio (`_tier_rank`, `_briefing_age_hours`, `_should_skip_downgrade`) plus an in-flow check in `generate_briefing` that loads the prior briefing from disk and refuses to overwrite it if the new attempt downgraded to a lower-quality tier AND the prior is younger than `BRIEFING_DOWNGRADE_GUARD_HOURS` (default 4h; set to 0 to disable). When the guard fires, `_save_briefing`, `cache_result`, and `_record_api_call` are all skipped — so the next pipeline tick can retry the premium tier immediately instead of waiting out the 1h cooldown. Tier ranks: `featherless=1` (primary) > `anthropic=claude_bridge=2` > `openai=groq=3` > `ollama=4`; unknown = 99.
+- User-stated invariant — "primary will always be featherless" — is now enforced structurally: a fresh Featherless briefing on disk cannot be wiped by a Groq fallback within the 4h window.
+
+### Operations
+- New env knob: `BRIEFING_DOWNGRADE_GUARD_HOURS=4` (default 4). Tune up for longer "premium-tier preservation" windows; set to 0 to revert to the prior always-overwrite behavior.
+- New log line: `Briefing downgrade skipped — kept prior featherless/deepseek-ai/DeepSeek-V3.2 (age 1.3h) instead of overwriting with groq/llama-3.1-8b-instant (BRIEFING_DOWNGRADE_GUARD_HOURS=4.0).` — surfaced any time the guard fires, so the operator can see exactly when premium-tier preservation is in effect.
+- Hot-deploy: `docker cp modules/briefing_generator.py threatwatch-pipeline:/app/modules/briefing_generator.py && docker restart threatwatch-pipeline`. No env changes required (defaults apply).
+- Companion infra concern (not in this commit): Featherless 429s ("concurrency exhausted") indicate another project is saturating the shared plan; Claude Bridge 502s indicate Claude Max session quota is being hit. Both worth addressing at the subscription/plan level so tier 1 + tier 2 actually serve more reliably.
+
+### Testing
+- 23 new tests across 4 classes in `test_briefing_generator.py`:
+  - `TestTierRank` (7 cases): rank values for each known tier + unknown + None.
+  - `TestBriefingAgeHours` (4 cases): missing/unparseable timestamps, recent ISO, Z-suffix variant.
+  - `TestShouldSkipDowngrade` (9 cases): guard disabled, no prior, no provider, same tier, upgrade, within-window downgrade, outside-window downgrade, Bridge protection from Groq, Featherless protection from Bridge.
+  - `TestDowngradeGuardEndToEnd` (3 cases): fresh Featherless prior blocks Groq overwrite, stale Featherless prior allows Groq overwrite, no prior saves new briefing normally.
+- 76/76 pass on `test_briefing_generator.py`; 157/158 pass across all three briefing test modules. The single remaining failure (`test_generated_at_stamped_after_llm_call` in `test_briefing_gen.py`) is the same pre-existing flake noted in the 2026-05-07 entry, unrelated.
+
 ## 2026-05-10 — Feed triage: -7 dead/broken sources, +2 working replacements
 
 Context: `/api/quality` reported 5 dead + 16 error-status feeds (out of 164 tracked). Triage probing from the VPS network with the production UA showed most "error" status feeds were false positives (slow publishers with no fresh content within `FEED_CUTOFF_DAYS=7`), but several high-value sources had genuinely drifted URLs or been sunset.
