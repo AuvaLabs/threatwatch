@@ -2,6 +2,29 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-05-14 — Featherless primary model swap: DeepSeek-V3.2 → openai/gpt-oss-120b
+
+Context: with the tier-aware downgrade guard now in place, the next constraint was that Featherless itself was 429ing every single call for 24h+ ("concurrency_limit_exceeded"). Direct probe of the Featherless API showed `feather_pro_plus` has a 4-unit concurrency cap, DeepSeek-V3.2 costs 4 units per request, and 2 units were persistently in use by an unidentified workload — leaving only 2 units headroom. Net: zero possibility of DeepSeek-V3.2 ever serving until the plan is upgraded or the phantom 2-unit holder is identified and stopped.
+
+### Operations
+- **`FEATHERLESS_MODEL` swapped from `deepseek-ai/DeepSeek-V3.2` (cost 4) to `openai/gpt-oss-120b` (cost 2)** in production `~/threatwatch/.env`. `.env.example` updated with a model-selection comment block documenting the concurrency-cost trade-off so self-hosters know which models fit their plan tier.
+- Container recreated via `docker compose up -d --force-recreate pipeline` (NOT `docker restart` — that keeps the original env). Pipeline tier-init log confirms: "Featherless configured — global briefing will prefer openai/gpt-oss-120b (32K ctx)".
+- User-stated invariant ("primary will always be featherless") preserved — only the model identity changed, the tier ordering and the downgrade guard remain in force.
+- **Known unresolved:** 2 of 4 Featherless concurrency units are persistently occupied by an unidentified workload despite operator confirming ThreatWatch is the only consumer of the key. Worth a Featherless support ticket using `org_bpTBrVnRedrQXGYw7eNxF` from the error payload; could be a stuck Featherless-side slot, a leaked long-running call, or a misattribution.
+
+### Why this model
+- `openai/gpt-oss-120b` is OpenAI's open-source 120B reasoning model. Largest parameter count available at concurrency_cost ≤ 2 on `feather_pro_plus`.
+- Verified working live (~5s response, clean structured output, includes a `reasoning` field) when DeepSeek-V3.2 was rejecting every request.
+- Strong at strict-JSON output and multi-document synthesis, which is exactly what the briefing prompt needs to produce a usable `week_in_review`.
+- Same 32K context as DeepSeek-V3.2 — no prompt-length regression.
+- Fully reversible: flip `FEATHERLESS_MODEL` back to `deepseek-ai/DeepSeek-V3.2` and recreate the container once the 2-unit phantom is resolved or the plan is upgraded.
+
+### Alternatives considered (canonical 2-unit options at `feather_pro_plus`)
+- `zai-org/GLM-4.7-Flash` — strong reasoning, multilingual; operator KB already lists GLM-4.6 as a fallback preference. Viable second choice.
+- `Qwen/Qwen3.6-27B` — latest Qwen, smaller but very recent; good multilingual for non-English feeds.
+- `Qwen/Qwen3-Coder-Next` — 80B MoE but coder-tuned; weaker on narrative synthesis.
+- `mistralai/Mistral-Small-3.1-24B`, `google/gemma-4-31B` — solid baselines but smaller.
+
 ## 2026-05-14 — Tier-aware downgrade guard: Featherless briefings survive Groq-fallback regens
 
 Context: operator reported the briefing's `week_in_review` was missing major 2-day-old incidents (Canvas LMS / ShinyHunters mega-breach, Google AI-attack warning, ScreenConnect malware campaign, Foxconn restart). Live diagnosis showed the briefing engine + KEV enrichment were fine (9 KEV articles hoisted per cycle) — the actual cause was tier dispatch: Featherless (tier 1) 429ing on concurrency exhaustion and Claude Bridge (tier 2) 502ing on Claude Max session quota, every cycle. Every ~2h, an 8b Groq briefing was overwriting the previous Featherless-served briefing, and the 8b model couldn't synthesize trailing-context into a useful `week_in_review`.
