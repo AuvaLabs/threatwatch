@@ -152,3 +152,49 @@ class TestClose:
     def test_close_idempotent(self):
         db.close()
         db.close()  # Should not raise
+
+
+class TestSyncCorpus:
+    """sync_corpus must make SQLite exactly mirror the merged JSON corpus."""
+
+    def _a(self, h, title="t"):
+        return {"hash": h, "title": title, "published": "2026-06-10T00:00:00+00:00"}
+
+    def test_upserts_and_removes_absent_rows(self):
+        db.upsert_articles([self._a("keep"), self._a("stale-row")])
+        n = db.sync_corpus([self._a("keep"), self._a("brand-new")])
+        assert n == 2
+        hashes = {a["hash"] for a in db.load_articles_from_db()}
+        assert hashes == {"keep", "brand-new"}
+
+    def test_empty_corpus_empties_table(self):
+        db.upsert_articles([self._a("x"), self._a("y")])
+        assert db.sync_corpus([]) == 0
+        assert db.load_articles_from_db() == []
+
+    def test_idempotent(self):
+        corpus = [self._a("a"), self._a("b")]
+        assert db.sync_corpus(corpus) == 2
+        assert db.sync_corpus(corpus) == 2
+
+    def test_count_matches_corpus_after_sync(self):
+        """The exact invariant behind the /api/articles vs /api/health
+        divergence: after sync, row count == corpus length."""
+        corpus = [self._a(f"h{i}") for i in range(50)]
+        assert db.sync_corpus(corpus) == len(corpus)
+        assert db.count_articles() == len(corpus)
+
+
+class TestLoadOrderIsPublicationOrder:
+    def test_newest_published_first_despite_older_ingestion(self):
+        rows = [
+            {"hash": "old-event", "title": "old",
+             "published": "2026-06-01T00:00:00+00:00",
+             "timestamp": "2026-06-12T09:00:00+00:00"},   # re-ingested today
+            {"hash": "new-event", "title": "new",
+             "published": "2026-06-11T00:00:00+00:00",
+             "timestamp": "2026-06-11T01:00:00+00:00"},
+        ]
+        db.sync_corpus(rows)
+        loaded = db.load_articles_from_db()
+        assert [a["hash"] for a in loaded] == ["new-event", "old-event"]

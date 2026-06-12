@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 
 from modules.config import STATE_DIR, DAILY_BUDGET_USD
+from modules.utils import write_json_atomic
 
 COST_FILE  = STATE_DIR / "api_costs.json"
 _cost_lock = threading.Lock()
@@ -29,9 +30,8 @@ def _load_costs():
 
 
 def _save_costs(data):
-    COST_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(COST_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    # Atomic: /api/health reads spend totals concurrently.
+    write_json_atomic(COST_FILE, data, indent=2, ensure_ascii=False)
 
 
 def _calculate_cost(usage):

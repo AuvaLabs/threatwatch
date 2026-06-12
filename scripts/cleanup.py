@@ -19,6 +19,28 @@ ARCHIVE_RETENTION_DAYS = int(os.environ.get("ARCHIVE_RETENTION_DAYS", "30"))
 OUTPUT_RETENTION_DAYS = int(os.environ.get("OUTPUT_RETENTION_DAYS", "365"))
 _ARCHIVE_SUBDIRS = ("hourly", "daily")
 
+# Live output files the server reads on every request. These are rewritten in
+# place by the pipeline (not date-stamped archives) and must NEVER be
+# age-deleted: on a long-running install, an old mtime (quiet feeds, paused
+# AI tier) would otherwise delete the dashboard's data sources from under it.
+_LIVE_OUTPUT_FILES = frozenset({
+    "daily_latest.json",
+    "hourly_latest.json",
+    "stats.json",
+    "briefing.json",
+    "briefing_na.json",
+    "briefing_emea.json",
+    "briefing_apac.json",
+    "top_stories.json",
+    "clusters.json",
+    "campaigns.json",
+    "actor_profiles.json",
+    "trends.json",
+    "api_costs.json",
+    "feed_health.json",
+    "watchlist.json",
+})
+
 
 def cleanup_seen_hashes():
     hashes_file = STATE_DIR / "seen_hashes.txt"
@@ -49,6 +71,8 @@ def cleanup_old_outputs():
     deleted_count = 0
     for file in OUTPUT_DIR.rglob("*.json"):
         if not file.is_file():
+            continue
+        if file.name in _LIVE_OUTPUT_FILES:
             continue
         in_archive = any(part in _ARCHIVE_SUBDIRS for part in file.relative_to(OUTPUT_DIR).parts)
         cutoff_days = ARCHIVE_RETENTION_DAYS if in_archive else OUTPUT_RETENTION_DAYS

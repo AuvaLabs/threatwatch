@@ -49,6 +49,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 from modules.config import STATE_DIR
+from modules.utils import write_json_atomic
 
 USAGE_FILE = STATE_DIR / "groq_usage.json"
 _lock = threading.Lock()
@@ -85,8 +86,7 @@ def _load() -> dict[str, Any]:
 
 def _save(data: dict[str, Any]) -> None:
     try:
-        USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        USAGE_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        write_json_atomic(USAGE_FILE, data, indent=2, ensure_ascii=False)
     except OSError as e:
         # Persist failures must never break the pipeline; tracking is
         # observability, not correctness.

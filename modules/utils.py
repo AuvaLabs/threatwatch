@@ -98,3 +98,19 @@ def extract_json(text):
                 pass
     return None
 
+
+
+def write_json_atomic(path, obj, *, indent=None, ensure_ascii=False):
+    """Write JSON via temp file + atomic rename.
+
+    Readers (the dashboard server polls these files every request) must never
+    observe a partially-written file. os.replace() is atomic on POSIX when
+    source and target share a filesystem, which holds because the temp file
+    lives next to the target.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=indent, ensure_ascii=ensure_ascii)
+    os.replace(tmp, path)

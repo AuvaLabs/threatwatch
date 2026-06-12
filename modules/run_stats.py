@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 from modules.config import OUTPUT_DIR
 from modules.cost_tracker import get_today_spend, get_total_spend
+from modules.utils import write_json_atomic
 
 STATS_FILE = OUTPUT_DIR / "stats.json"
 
@@ -22,9 +23,8 @@ def _load_stats():
 
 
 def _save_stats(data):
-    STATS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(STATS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    # Atomic: /api/stats and /api/health read this file concurrently.
+    write_json_atomic(STATS_FILE, data, indent=2, ensure_ascii=False)
 
 
 class RunStats:

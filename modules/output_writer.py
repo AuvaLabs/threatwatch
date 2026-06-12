@@ -10,6 +10,7 @@ from feedgen.feed import FeedGenerator
 
 from modules.config import SITE_URL, SITE_DOMAIN, OUTPUT_DIR, FEED_CUTOFF_DAYS
 from modules.date_utils import parse_datetime
+from modules.utils import write_json_atomic
 from modules.regions import collapse_regions as _collapse_regions
 from modules.regions import MAX_MERGED_REGIONS as _MAX_MERGED_REGIONS
 
@@ -25,9 +26,9 @@ def _ensure_dir(path):
 
 
 def _write_json(data, path):
-    _ensure_dir(path.parent)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
+    # Atomic tmp+rename: the server reads these files concurrently and used
+    # to be able to observe (and cache for 30s) a truncated half-write.
+    write_json_atomic(path, data, ensure_ascii=False)
     logger.info(f"Saved JSON to {path} ({len(data)} articles)")
 
 
@@ -146,21 +147,23 @@ def write_hourly_output(articles):
 def write_daily_output(articles):
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     _write_json(articles, DAILY_DIR / f"{date}.json")
-    # SQLite write (Phase 3): upsert batch and prune to the same cutoff window
-    # used by the JSON merge. Server reads from SQLite (READ_FROM_SQLITE=1);
-    # JSON files below remain as backup and for the parity-check fallback.
-    try:
-        from modules.db import upsert_articles, prune_older_than
-        n = upsert_articles(articles)
-        cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=FEED_CUTOFF_DAYS)).isoformat()
-        pruned = prune_older_than(cutoff_iso)
-        logger.debug(f"SQLite: {n} articles upserted, {pruned} pruned (cutoff={FEED_CUTOFF_DAYS}d)")
-    except Exception as exc:
-        logger.warning(f"SQLite write skipped: {exc}")
     # Merge into rolling daily latest (keeps all articles within cutoff window)
     existing = load_existing(STATIC_DAILY)
     merged = _merge_articles(existing, articles)
     _write_json(merged, STATIC_DAILY)
+    # SQLite write: mirror the FULL merged corpus, not just this run's batch.
+    # Batch-only upserts let SQLite drift below the JSON corpus (any article
+    # not re-fetched in a run was invisible to the SQLite read path until
+    # re-ingested), so /api/articles and /api/health disagreed about corpus
+    # size. sync_corpus upserts everything and deletes rows not in `merged`
+    # in one transaction — SQLite (the production read source) and
+    # daily_latest.json (the parity reference) stay identical by construction.
+    try:
+        from modules.db import sync_corpus
+        n = sync_corpus(merged)
+        logger.debug(f"SQLite: corpus synced to {n} rows (== daily_latest.json)")
+    except Exception as exc:
+        logger.warning(f"SQLite write skipped: {exc}")
 
 
 def _parse_pub_date(date_str):

@@ -332,10 +332,18 @@ class TestReadCached:
         f.write_text("hello")
         result = sw.read_cached(f)
         assert result == b"hello"
-        # Modify file — should still return cached version
+        # Unchanged file within TTL is served from cache.
+        assert sw.read_cached(f) == b"hello"
+        assert str(f) in sw._cache
+
+    def test_modified_file_invalidates_cache(self, tmp_path):
+        """The pipeline rewrites outputs atomically (mtime bumps); the cache
+        must serve the NEW bytes immediately, not pin stale data for the TTL."""
+        f = tmp_path / "test.txt"
+        f.write_text("hello")
+        assert sw.read_cached(f) == b"hello"
         f.write_text("changed")
-        result2 = sw.read_cached(f)
-        assert result2 == b"hello"
+        assert sw.read_cached(f) == b"changed"
 
     def test_raises_on_missing_file(self, tmp_path):
         with pytest.raises(FileNotFoundError):

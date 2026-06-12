@@ -28,6 +28,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from modules.config import STATE_DIR
+from modules.utils import write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -99,8 +100,10 @@ def _load_json_state(path: Path) -> dict[str, str]:
 def _save_json_state(path: Path, state: dict[str, str]) -> None:
     """Persist a Telegram dedup state file; warns and continues on I/O error."""
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(state), encoding="utf-8")
+        # Atomic: a crash mid-write must not corrupt the dedup state — a
+        # corrupt/partial state file reads back as {} and every previously
+        # alerted level/CVE would re-alert.
+        write_json_atomic(path, state)
     except OSError as e:
         logger.warning("Could not persist telegram state (%s): %s", path.name, e)
 

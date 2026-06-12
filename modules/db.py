@@ -24,6 +24,7 @@ import json
 import logging
 import sqlite3
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -96,46 +97,81 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
 
 
 # ── public write API ──────────────────────────────────────────────────────────
-def upsert_articles(articles: Iterable[dict[str, Any]]) -> int:
-    """Write each article to SQLite via INSERT OR REPLACE on `hash`.
+def _upsert_rows(conn, articles: Iterable[dict[str, Any]]) -> int:
+    """INSERT OR REPLACE each article on `hash` using an open connection.
 
     Returns the count of rows written. Articles without a `hash` are skipped
     (mirrors the invariant enforced by output_writer._merge_articles).
     """
+    count = 0
+    for a in articles:
+        h = a.get("hash")
+        if not h:
+            continue
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO articles
+            (hash, title, translated_title, link, published, timestamp,
+             source_name, feed_region, language, category, confidence,
+             summary, payload_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                h,
+                a.get("title", ""),
+                a.get("translated_title"),
+                a.get("link"),
+                a.get("published"),
+                a.get("timestamp") or "",
+                a.get("source_name"),
+                a.get("feed_region"),
+                a.get("language"),
+                a.get("category"),
+                a.get("confidence") or 0,
+                a.get("summary"),
+                json.dumps(a, ensure_ascii=False),
+            ),
+        )
+        count += 1
+    return count
+
+
+def upsert_articles(articles: Iterable[dict[str, Any]]) -> int:
+    """Write each article to SQLite via INSERT OR REPLACE on `hash`."""
     with _conn_lock:
         conn = _open()
-        count = 0
         with conn:
-            for a in articles:
-                h = a.get("hash")
-                if not h:
-                    continue
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO articles
-                    (hash, title, translated_title, link, published, timestamp,
-                     source_name, feed_region, language, category, confidence,
-                     summary, payload_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        h,
-                        a.get("title", ""),
-                        a.get("translated_title"),
-                        a.get("link"),
-                        a.get("published"),
-                        a.get("timestamp") or "",
-                        a.get("source_name"),
-                        a.get("feed_region"),
-                        a.get("language"),
-                        a.get("category"),
-                        a.get("confidence") or 0,
-                        a.get("summary"),
-                        json.dumps(a, ensure_ascii=False),
-                    ),
-                )
-                count += 1
-        return count
+            return _upsert_rows(conn, articles)
+
+
+def sync_corpus(articles: list[dict[str, Any]]) -> int:
+    """Make the articles table exactly mirror the merged JSON corpus.
+
+    Upserts every article AND deletes rows whose hash is absent from the
+    given list, in one transaction. This is the only write path that
+    guarantees SQLite (the production read source) and daily_latest.json
+    (the parity reference) can never diverge — batch-only upserts plus
+    timestamp-based pruning previously let the two drift apart, so
+    /api/articles and /api/health disagreed about corpus size.
+
+    Returns the number of rows in the table after the sync.
+    """
+    hashes = [a.get("hash") for a in articles if a.get("hash")]
+    with _conn_lock:
+        conn = _open()
+        with conn:
+            _upsert_rows(conn, articles)
+            conn.execute("CREATE TEMP TABLE IF NOT EXISTS keep_hashes (hash TEXT PRIMARY KEY)")
+            conn.execute("DELETE FROM keep_hashes")
+            conn.executemany(
+                "INSERT OR IGNORE INTO keep_hashes (hash) VALUES (?)",
+                [(h,) for h in hashes],
+            )
+            conn.execute(
+                "DELETE FROM articles WHERE hash NOT IN (SELECT hash FROM keep_hashes)"
+            )
+            row = conn.execute("SELECT COUNT(*) FROM articles").fetchone()
+            return int(row[0])
 
 
 def load_articles_from_db(
@@ -169,6 +205,13 @@ def load_articles_from_db(
             out.append(json.loads(r[0]))
         except (TypeError, json.JSONDecodeError):
             continue
+    # Order by publication date (event order), matching the JSON corpus.
+    # The SQL ORDER BY timestamp above is ingestion order — kept only so
+    # `limit` stays deterministic — and `published` can't be sorted in SQL
+    # because feeds ship mixed RFC-2822/ISO strings.
+    from modules.date_utils import article_datetime
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    out.sort(key=lambda a: article_datetime(a) or epoch, reverse=True)
     return out
 
 
@@ -238,6 +281,9 @@ def stats() -> dict[str, Any]:
             "article_count": a_count,
             "campaign_count": c_count,
             "db_bytes": a_size,
+            # import_to_sqlite.py reports this; omitting it crashed the
+            # import script with KeyError on every run.
+            "db_path": str(DB_PATH),
         }
 
 

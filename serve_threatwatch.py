@@ -127,7 +127,14 @@ _SECURITY_HEADERS = {
 
 
 def read_cached(file_path):
-    """Read file with in-memory cache (TTL-based).
+    """Read file with an mtime-validated in-memory cache.
+
+    A cache hit additionally checks the file's mtime: the pipeline rewrites
+    these files atomically (tmp+rename bumps mtime), so a changed mtime means
+    the cached bytes are stale even inside the TTL window. A pure-TTL cache
+    served up-to-30s-old data right after a pipeline write and let the
+    SQLite/JSON parity check compare a fresh DB count against a stale JSON
+    count. The stat() costs microseconds; the TTL still bounds entry age.
 
     Reads of `_cache` rely on the GIL for atomicity; writes take `_cache_lock`
     so a concurrent read never sees a half-populated tuple, and the
@@ -136,12 +143,19 @@ def read_cached(file_path):
     now = time.time()
     key = str(file_path)
     entry = _cache.get(key)
-    if entry and (now - entry[0]) < CACHE_TTL:
-        return entry[1]
+    if entry and len(entry) == 3 and (now - entry[0]) < CACHE_TTL:
+        try:
+            if file_path.stat().st_mtime == entry[2]:
+                return entry[1]
+        except FileNotFoundError:
+            with _cache_lock:
+                _cache.pop(key, None)
+            raise
     try:
+        mtime = file_path.stat().st_mtime
         data = file_path.read_bytes()
         with _cache_lock:
-            _cache[key] = (now, data)
+            _cache[key] = (now, data, mtime)
         return data
     except FileNotFoundError:
         with _cache_lock:
@@ -1200,7 +1214,6 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 articles = load_articles()
                 from collections import Counter
                 cat_counts = Counter(a.get("category", "Unknown") for a in articles)
-                conf_counts = Counter(a.get("confidence", 0) for a in articles)
                 unclassified = sum(1 for a in articles
                                    if a.get("category") == "General Cyber Threat"
                                    and a.get("confidence", 0) == 60)

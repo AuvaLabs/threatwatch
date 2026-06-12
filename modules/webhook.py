@@ -31,6 +31,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from modules.config import STATE_DIR
+from modules.utils import write_json_atomic
 
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 WEBHOOK_MIN_CONF = int(os.environ.get("WEBHOOK_MIN_CONF", "80"))
@@ -147,8 +148,8 @@ def _load_briefing_alert_state() -> dict:
 
 def _save_briefing_alert_state(state: dict) -> None:
     try:
-        _BRIEFING_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _BRIEFING_STATE_PATH.write_text(json.dumps(state), encoding="utf-8")
+        # Atomic: partial state reads back as {} and re-fires alerts.
+        write_json_atomic(_BRIEFING_STATE_PATH, state)
     except OSError as e:
         logger.warning("Could not persist briefing alert state: %s", e)
 
