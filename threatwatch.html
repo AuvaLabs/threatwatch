@@ -48,6 +48,52 @@
   --radius: 8px;
   --radius-sm: 4px;
   --radius-lg: 12px;
+  /* Type scale (rem so browser font-size settings are honoured; 10px floor —
+     the old 8-9px micro text failed readability for a tool watched all day) */
+  --text-2xs: 0.625rem;   /* 10px — micro labels, badges */
+  --text-xs: 0.6875rem;   /* 11px — metadata, secondary */
+  --text-sm: 0.75rem;     /* 12px — small body */
+  --text-md: 0.8125rem;   /* 13px — body */
+  --text-base: 0.875rem;  /* 14px — emphasized body */
+  --text-lg: 1rem;        /* 16px */
+  --text-xl: 1.125rem;    /* 18px */
+  --text-2xl: 1.25rem;    /* 20px */
+  --text-3xl: 1.5rem;     /* 24px */
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  /* Category chart palette — theme-overridable so bars stay legible on
+     light backgrounds */
+  --cat-ransomware: #ff2b2b;
+  --cat-zeroday: #ff4444;
+  --cat-breach: #ff6600;
+  --cat-apt: #cc44ff;
+  --cat-ddos: #ff8800;
+  --cat-phishing: #ffaa00;
+  --cat-malware: #ff3366;
+  --cat-supplychain: #ff0055;
+  --cat-vuln: #00aaff;
+  --cat-bec: #ffcc00;
+  --cat-ics: #ff5500;
+  --cat-cloud: #0099ff;
+  --cat-crypto: #f7931a;
+  --cat-hacktivism: #44cc44;
+  --cat-patch: #00ccaa;
+}
+
+/* Light themes: darken palette entries that vanish on white */
+[data-theme="light"], [data-theme="arctic"] {
+  --cat-phishing: #b45309;
+  --cat-bec: #a16207;
+  --cat-hacktivism: #15803d;
+  --cat-patch: #0f766e;
+  --cat-crypto: #b45309;
+  --cat-vuln: #0369a1;
+  --cat-cloud: #0369a1;
 }
 
 /* Light theme — Clean Slate */
@@ -97,7 +143,7 @@
   --purple: #6c71c4;
   --text-primary: #93a1a1;
   --text-secondary: #839496;
-  --text-muted: #586e75;
+  --text-muted: #657b83; /* #586e75 was 4.2:1 on #002b36 — below AA */
   --scrollbar-track: rgba(131,148,150,0.04);
   --scrollbar-thumb: rgba(131,148,150,0.15);
 }
@@ -148,8 +194,8 @@
   --success: #33ff33;
   --purple: #cc66ff;
   --text-primary: #33ff33;
-  --text-secondary: rgba(51,255,51,0.6);
-  --text-muted: rgba(51,255,51,0.25);
+  --text-secondary: rgba(51,255,51,0.78); /* 0.6 failed AA on near-black */
+  --text-muted: rgba(51,255,51,0.45);     /* 0.25 was unreadable */
   --scrollbar-track: rgba(51,255,51,0.03);
   --scrollbar-thumb: rgba(51,255,51,0.15);
 }
@@ -192,7 +238,7 @@ html, body {
   background: var(--bg);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 0.9375rem;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -228,7 +274,7 @@ html, body {
   align-items: center;
   gap: 6px;
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 500;
   padding: 5px 12px;
   border: 1px solid var(--panel-border);
@@ -274,7 +320,7 @@ html, body {
   background: transparent;
   color: var(--text-secondary);
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: 0.2px;
   cursor: pointer;
@@ -285,11 +331,11 @@ html, body {
 .theme-option:hover { background: var(--card-hover); color: var(--text-primary); }
 .theme-option.active { color: var(--accent); background: var(--accent-dim); }
 .theme-option .theme-swatch { border-width: 2px; }
-.theme-option.active::after { content: '\2713'; margin-left: auto; font-size: 12px; color: var(--accent); }
+.theme-option.active::after { content: '\2713'; margin-left: auto; font-size: var(--text-sm); color: var(--accent); }
 
 .briefing-mode-toggle {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 500;
   padding: 4px 10px;
   border: 1px solid var(--panel-border);
@@ -309,7 +355,7 @@ html, body {
 .briefing-ai-notice {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--purple);
   background: rgba(167,139,250,0.06);
   border: 1px solid rgba(167,139,250,0.15);
@@ -321,7 +367,7 @@ html, body {
 .ai-briefing-section { margin-bottom: 28px; }
 .ai-briefing-section .ai-section-label {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-sm);
   letter-spacing: 1.2px;
   color: var(--accent);
   margin-bottom: 12px;
@@ -332,7 +378,7 @@ html, body {
 }
 .ai-briefing-section .ai-section-body {
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1.75;
   color: var(--text-primary);
 }
@@ -342,7 +388,7 @@ html, body {
 .ai-threat-level {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   padding: 3px 10px;
   border-radius: var(--radius-sm);
@@ -365,11 +411,11 @@ html, body {
   margin: -2px 0 14px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 .briefing-shift .bs-arrow {
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 700;
   font-family: var(--font-mono);
   flex-shrink: 0;
@@ -377,7 +423,7 @@ html, body {
 }
 .briefing-shift .bs-text { flex: 1; min-width: 0; }
 .briefing-shift .bs-from-to { font-weight: 600; letter-spacing: 0.2px; }
-.briefing-shift .bs-since { color: var(--text-muted); margin-left: 6px; font-size: 11px; }
+.briefing-shift .bs-since { color: var(--text-muted); margin-left: 6px; font-size: var(--text-xs); }
 .briefing-shift .bs-why { color: var(--text-secondary); display: block; margin-top: 2px; }
 .briefing-shift.up   { background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.30); color: var(--warning); }
 .briefing-shift.up.crit { background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.30); color: var(--danger); }
@@ -399,7 +445,7 @@ html, body {
 }
 .briefing-lead-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   letter-spacing: 1px;
   color: var(--accent);
   font-weight: 700;
@@ -408,7 +454,7 @@ html, body {
   width: 48px;
 }
 .briefing-lead-body {
-  font-size: 13px;
+  font-size: var(--text-md);
   line-height: 1.55;
   color: var(--text-primary);
   font-weight: 500;
@@ -427,14 +473,14 @@ html, body {
 }
 .topbar-right .author-name {
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   letter-spacing: 0;
   white-space: nowrap;
 }
 .topbar-right .coffee-btn {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
@@ -489,14 +535,14 @@ html, body {
 #topbar .logo {
   font-family: var(--font-title);
   font-weight: 700;
-  font-size: 17px;
+  font-size: 1.0625rem;
   color: var(--text-primary);
   letter-spacing: 2px;
   text-transform: uppercase;
 }
 
 #topbar .logo span {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-family: var(--font-body);
   font-weight: 400;
   color: var(--text-muted);
@@ -507,7 +553,7 @@ html, body {
 
 #clock {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   letter-spacing: 0.3px;
   opacity: 0.8;
@@ -515,7 +561,7 @@ html, body {
 
 #threat-level {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 600;
   padding: 5px 14px;
   border-radius: var(--radius);
@@ -560,7 +606,7 @@ html, body {
 .panel-title {
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--text-primary);
   letter-spacing: 0.3px;
   text-transform: none;
@@ -583,7 +629,7 @@ html, body {
 
 .cached-badge {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--warning);
   background: rgba(183,121,31,0.08);
   padding: 2px 6px;
@@ -610,7 +656,7 @@ html, body {
 .feed-filters::-webkit-scrollbar { display: none; }
 .filter-btn {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 500;
   padding: 4px 10px;
   border: 1px solid var(--panel-border);
@@ -638,7 +684,7 @@ html, body {
 .feed-search-input {
   width: 100%;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: var(--text-md);
   padding: 8px 12px;
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
@@ -668,7 +714,7 @@ html, body {
   align-items: center;
   gap: 8px;
   margin-top: 6px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
@@ -679,7 +725,7 @@ html, body {
   margin: 10px auto;
   padding: 10px 0;
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: 0.3px;
   border: 1px solid var(--panel-border);
@@ -731,7 +777,7 @@ html, body {
 }
 .lf-label {
   font-family: var(--font-body);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   letter-spacing: 0.3px;
   text-transform: uppercase;
@@ -739,7 +785,7 @@ html, body {
 }
 .lf-value {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   font-weight: 500;
 }
@@ -747,7 +793,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-family: var(--font-mono);
   color: var(--text-muted);
 }
@@ -765,7 +811,7 @@ html, body {
   border-top: 1px solid var(--panel-border);
 }
 .left-footer-urls a {
-  font-size: 9px; color: var(--text-muted); text-decoration: none;
+  font-size: var(--text-2xs); color: var(--text-muted); text-decoration: none;
   font-family: var(--font-mono); letter-spacing: 0.3px;
 }
 .left-footer-urls a:hover { color: var(--accent); }
@@ -810,7 +856,7 @@ html, body {
 
 .badge {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   letter-spacing: 0.3px;
@@ -839,7 +885,7 @@ html, body {
   padding: 2px 7px;
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: uppercase;
@@ -870,7 +916,7 @@ html, body {
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-family: var(--font-body);
   line-height: 1.5;
   max-width: 280px;
@@ -907,14 +953,14 @@ html, body {
 
 .card-time {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .story-pill {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--accent-2);
   background: rgba(100,116,139,0.08);
   border: 1px solid rgba(100,116,139,0.18);
@@ -926,7 +972,7 @@ html, body {
 
 .cve-pill, .ioc-pill, .sector-pill {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   border-radius: var(--radius-sm);
   padding: 1px 6px;
   white-space: nowrap;
@@ -953,7 +999,7 @@ html, body {
 
 .kev-pill {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   border-radius: var(--radius-sm);
   padding: 1px 6px;
   white-space: nowrap;
@@ -975,17 +1021,17 @@ html, body {
    degrades gracefully: if no spikes today, it still shows the 7-day
    leaderboard so the section is never empty. */
 .trending-subtitle {
-  margin-left: 8px; font-size: 9px; color: var(--text-muted);
+  margin-left: 8px; font-size: var(--text-2xs); color: var(--text-muted);
   letter-spacing: 0.5px; text-transform: uppercase;
   font-family: var(--font-mono); font-weight: 500;
 }
 .trending-empty {
-  font-size: 11px; color: var(--text-muted); padding: 12px 4px;
+  font-size: var(--text-xs); color: var(--text-muted); padding: 12px 4px;
   font-style: italic;
 }
 .trending-block { margin: 10px 0 14px; }
 .trending-block-label {
-  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.8px;
+  font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: 0.8px;
   text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;
   display: flex; align-items: center; gap: 6px;
 }
@@ -1000,7 +1046,7 @@ html, body {
 }
 .trending-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .trending-pill {
-  font-family: var(--font-mono); font-size: 10px;
+  font-family: var(--font-mono); font-size: var(--text-2xs);
   border-radius: var(--radius-sm);
   padding: 3px 8px; white-space: nowrap;
   color: var(--text-primary);
@@ -1011,7 +1057,7 @@ html, body {
 }
 .trending-pill .tp-name { font-weight: 600; letter-spacing: 0.2px; }
 .trending-pill .tp-count {
-  color: var(--text-muted); font-size: 9px;
+  color: var(--text-muted); font-size: var(--text-2xs);
   background: rgba(125, 125, 125, 0.18);
   padding: 1px 5px; border-radius: 4px;
 }
@@ -1037,19 +1083,19 @@ html, body {
 
 /* Full IOC block inside detail panel — grouped by type, each row lists every
    indicator of that type with monospace so hashes and IPs line up cleanly. */
-.detail-iocs { margin: 12px 0; font-family: var(--font-mono); font-size: 11px; }
+.detail-iocs { margin: 12px 0; font-family: var(--font-mono); font-size: var(--text-xs); }
 .detail-iocs .ioc-group { margin: 6px 0; }
 .detail-iocs .ioc-label {
   display: inline-block; min-width: 72px; color: var(--text-muted);
-  font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
+  font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.5px;
 }
 .detail-iocs .ioc-values { color: var(--text-primary); word-break: break-all; }
 .detail-iocs .ioc-values code {
   display: inline-block; padding: 1px 4px; margin: 1px 2px;
   background: var(--stat-bg); border: 1px solid var(--stat-border);
-  border-radius: var(--radius-sm); font-size: 10px;
+  border-radius: var(--radius-sm); font-size: var(--text-2xs);
 }
-.detail-cves { margin: 10px 0; font-family: var(--font-mono); font-size: 11px; }
+.detail-cves { margin: 10px 0; font-family: var(--font-mono); font-size: var(--text-xs); }
 .detail-cves .cve-chip {
   display: inline-block; padding: 2px 6px; margin: 2px 3px 0 0;
   background: var(--accent-dim); color: var(--accent);
@@ -1058,7 +1104,7 @@ html, body {
 
 .card-country {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -1067,7 +1113,7 @@ html, body {
 
 .card-readmore {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--accent);
   opacity: 0;
   transition: opacity 0.15s;
@@ -1082,7 +1128,7 @@ html, body {
   top: 6px;
   right: 6px;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   padding: 1px 5px;
   background: var(--success);
   color: #fff;
@@ -1114,7 +1160,7 @@ html, body {
   background: rgba(45,140,255,0.10);
   border-bottom: 1px solid rgba(45,140,255,0.22);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.5px;
   color: var(--accent);
 }
@@ -1129,7 +1175,7 @@ html, body {
   border: 1px solid rgba(45,140,255,0.35);
   color: var(--accent);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.6px;
   padding: 2px 8px;
   border-radius: var(--radius-sm);
@@ -1161,7 +1207,7 @@ html, body {
 .center-header .panel-title {
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--text-primary);
   letter-spacing: 0.3px;
   text-transform: none;
@@ -1176,7 +1222,7 @@ html, body {
 
 .region-btn {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 500;
   letter-spacing: 0.2px;
   padding: 5px 12px;
@@ -1189,7 +1235,7 @@ html, body {
   text-transform: uppercase;
 }
 .region-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-.region-count { font-size: 9px; opacity: 0.6; font-weight: 400; }
+.region-count { font-size: var(--text-2xs); opacity: 0.6; font-weight: 400; }
 .region-btn.active {
   background: var(--accent);
   border-color: var(--accent);
@@ -1226,7 +1272,7 @@ html, body {
 .stats-bar .stat-box:last-child { border-right: none; }
 .stats-bar .stat-box .count {
   font-family: var(--font-mono);
-  font-size: 20px;
+  font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--accent);
   display: inline;
@@ -1234,7 +1280,7 @@ html, body {
 }
 .stats-bar .stat-box .label {
   font-family: var(--font-body);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 500;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -1256,7 +1302,7 @@ html, body {
 .center-section-title {
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 0.9375rem;
   color: var(--text-primary);
   letter-spacing: 0;
   text-transform: none;
@@ -1274,7 +1320,7 @@ html, body {
 /* Threat Briefing */
 .briefing-text {
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 400;
   color: var(--text-primary);
   line-height: 1.8;
@@ -1307,7 +1353,7 @@ html, body {
 }
 .action-drilldown-list li.action-drilldown .action-arrow {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-sm);
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -1318,7 +1364,7 @@ html, body {
 }
 
 .briefing-timestamp {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   font-family: var(--font-mono);
   margin-top: 16px;
@@ -1346,7 +1392,7 @@ html, body {
 }
 .incident-card .incident-sev {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   padding: 1px 5px;
   border-radius: 2px;
   letter-spacing: 0.3px;
@@ -1355,12 +1401,12 @@ html, body {
 .incident-card .incident-sev.high { background: rgba(245,158,11,0.08); color: var(--warning); border: 1px solid rgba(245,158,11,0.18); }
 .incident-card .incident-type {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
 }
 .incident-card .incident-title {
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 500;
   color: var(--text-primary);
   line-height: 1.4;
@@ -1368,7 +1414,7 @@ html, body {
 }
 .incident-card .incident-context {
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--text-secondary);
   line-height: 1.5;
 }
@@ -1387,15 +1433,15 @@ html, body {
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: var(--text-md);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 .actor-tag:hover { background: var(--card-hover); border-color: var(--accent); }
 .actor-tag.active { border-color: var(--accent); background: var(--card-active); }
 .actor-tag .actor-name { font-family: var(--font-body); font-weight: 600; color: var(--text-primary); }
-.actor-tag .actor-type { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.3px; }
-.actor-tag .actor-count { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+.actor-tag .actor-type { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text-muted); letter-spacing: 0.3px; }
+.actor-tag .actor-count { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
 
 /* Sector Impact */
 .sector-grid {
@@ -1414,9 +1460,9 @@ html, body {
 }
 .sector-tag:hover { background: var(--card-hover); border-color: var(--accent); }
 .sector-tag.active { border-color: var(--accent); background: var(--accent-dim); }
-.sector-tag .sector-icon { font-size: 16px; display: block; margin-bottom: 4px; }
-.sector-tag .sector-name { font-family: var(--font-body); font-size: 12px; font-weight: 500; color: var(--text-primary); display: block; }
-.sector-tag .sector-count { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.sector-tag .sector-icon { font-size: var(--text-lg); display: block; margin-bottom: 4px; }
+.sector-tag .sector-name { font-family: var(--font-body); font-size: var(--text-sm); font-weight: 500; color: var(--text-primary); display: block; }
+.sector-tag .sector-count { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text-muted); }
 
 /* ============================================================= */
 /* DETAIL VIEW                                                    */
@@ -1430,7 +1476,7 @@ html, body {
   gap: 8px;
   padding: 14px 32px;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 500;
   color: var(--accent);
   cursor: pointer;
@@ -1455,7 +1501,7 @@ html, body {
 .detail-headline {
   font-family: var(--font-title);
   font-weight: 700;
-  font-size: 26px;
+  font-size: 1.625rem;
   color: var(--text-primary);
   line-height: 1.3;
   margin-bottom: 16px;
@@ -1465,7 +1511,7 @@ html, body {
 
 .detail-meta {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.8;
 }
@@ -1475,7 +1521,7 @@ html, body {
 
 .detail-body {
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: var(--text-base);
   color: var(--text-primary);
   line-height: 1.8;
   max-width: 680px;
@@ -1487,7 +1533,7 @@ html, body {
   background: var(--surface);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
-  font-size: 13px;
+  font-size: var(--text-md);
   line-height: 1.7;
   font-family: var(--font-mono);
 }
@@ -1505,7 +1551,7 @@ html, body {
   border-radius: var(--radius);
   color: #fff;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 500;
   text-decoration: none;
   transition: opacity 0.15s, box-shadow 0.15s;
@@ -1532,7 +1578,7 @@ html, body {
   border-radius: var(--radius);
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   letter-spacing: 0.6px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -1551,7 +1597,7 @@ html, body {
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.6px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -1570,7 +1616,7 @@ html, body {
 }
 .ioc-section-title {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 1px;
@@ -1583,7 +1629,7 @@ html, body {
 .ioc-group { margin-bottom: 10px; }
 .ioc-group-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   letter-spacing: 0.5px;
   margin-bottom: 4px;
@@ -1599,7 +1645,7 @@ html, body {
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-secondary);
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
@@ -1613,7 +1659,7 @@ html, body {
 .ioc-chip.ioc-hash:hover { background: rgba(183,121,31,0.08); }
 .ioc-chip.ioc-domain { color: var(--purple); border-color: rgba(91,33,182,0.2); background: rgba(91,33,182,0.04); }
 .ioc-chip.ioc-domain:hover { background: rgba(91,33,182,0.08); }
-.ioc-chip .ioc-copy { font-size: 9px; opacity: 0.4; }
+.ioc-chip .ioc-copy { font-size: var(--text-2xs); opacity: 0.4; }
 .ioc-chip .ioc-copy:hover { opacity: 0.8; }
 .ioc-copied {
   position: fixed;
@@ -1624,7 +1670,7 @@ html, body {
   padding: 10px 20px;
   border-radius: var(--radius);
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 500;
   z-index: 9999;
   animation: fadeOut 1.5s forwards;
@@ -1649,23 +1695,23 @@ html, body {
   background: var(--stat-bg);
   border-bottom: 1px solid var(--stat-border);
 }
-.category-hero-icon { font-size: 20px; flex-shrink: 0; line-height: 1; }
+.category-hero-icon { font-size: var(--text-2xl); flex-shrink: 0; line-height: 1; }
 .category-hero-body { flex: 1; min-width: 0; }
 .category-hero-name {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 1px;
   font-family: var(--font-mono);
   text-transform: uppercase;
 }
 .category-hero-desc {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   margin-top: 3px;
   line-height: 1.45;
 }
 .category-hero-count {
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 700;
   font-family: var(--font-mono);
   text-align: right;
@@ -1674,7 +1720,7 @@ html, body {
 }
 .category-hero-count span {
   display: block;
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   font-weight: 400;
   letter-spacing: 0.5px;
@@ -1685,7 +1731,7 @@ html, body {
 .section-title {
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 0.9375rem;
   color: var(--text-primary);
   letter-spacing: 0;
   text-transform: none;
@@ -1701,10 +1747,10 @@ html, body {
 .cat-row { display:flex; align-items:center; gap:8px; margin:4px 0; cursor:pointer; border-radius:4px; padding:3px 6px; transition:background 0.15s; }
 .cat-row:hover { background:rgba(0,0,0,0.03); }
 .cat-row.active { background:rgba(26,86,219,0.05); outline:1px solid rgba(26,86,219,0.15); }
-.cat-label { width:100px; font-family:var(--font-body); font-size:12px; color:var(--text-secondary); text-align:right; flex-shrink:0; font-weight:500; }
+.cat-label { width:100px; font-family:var(--font-body); font-size:var(--text-sm); color:var(--text-secondary); text-align:right; flex-shrink:0; font-weight:500; }
 .cat-bar-track { flex:1; height:18px; background:var(--accent-dim); border-radius:var(--radius-sm); overflow:hidden; }
 .cat-bar { height:100%; border-radius:var(--radius-sm); width:0%; transition:width 1s ease-out; }
-.cat-count { width:36px; font-family:var(--font-mono); font-size:12px; color:var(--text-secondary); text-align:right; flex-shrink:0; }
+.cat-count { width:36px; font-family:var(--font-mono); font-size:var(--text-sm); color:var(--text-secondary); text-align:right; flex-shrink:0; }
 
 /* Skeleton bars */
 .cat-skeleton-row { display:flex; align-items:center; gap:8px; margin:4px 0; }
@@ -1720,12 +1766,12 @@ html, body {
 
 .section-item-count {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   letter-spacing: 0.5px;
 }
 
-.country-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:13px; }
+.country-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:var(--text-md); }
 .country-name { display:flex; align-items:center; gap:6px; }
 .country-count { color: var(--text-primary); font-weight: 600; }
 
@@ -1734,13 +1780,13 @@ html, body {
   text-align: center;
   padding: 10px 6px;
 }
-.stat-box .count { font-family:var(--font-mono); font-size:28px; font-weight:700; color:var(--text-primary); display:block; line-height:1; }
-.stat-box .label { font-family:var(--font-mono); font-size:11px; color:var(--text-muted); letter-spacing:1px; margin-top:4px; display:block; text-transform:uppercase; }
+.stat-box .count { font-family:var(--font-mono); font-size:1.75rem; font-weight:700; color:var(--text-primary); display:block; line-height:1; }
+.stat-box .label { font-family:var(--font-mono); font-size:var(--text-xs); color:var(--text-muted); letter-spacing:1px; margin-top:4px; display:block; text-transform:uppercase; }
 .stat-box.critical .count { color: var(--danger); }
 .stat-box.high .count { color: #d35400; }
 
 .feed-sources-status { display:flex; flex-direction:column; gap:4px; }
-.source-status { display:flex; align-items:center; justify-content:space-between; font-size:12px; padding:3px 0; font-family:var(--font-body); color:var(--text-secondary); }
+.source-status { display:flex; align-items:center; justify-content:space-between; font-size:var(--text-sm); padding:3px 0; font-family:var(--font-body); color:var(--text-secondary); }
 .source-status .dot { width:6px; height:6px; border-radius:50%; margin-right:8px; display:inline-block; flex-shrink:0; }
 .source-status .dot.online { background: var(--success); }
 .source-status .dot.offline { background: var(--danger); opacity:0.5; }
@@ -1767,7 +1813,7 @@ html, body {
 .main-tabs::-webkit-scrollbar { display: none; }
 .main-tab {
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: 0.3px;
   padding: 12px 16px;
@@ -1794,7 +1840,7 @@ html, body {
 /* ============================================================= */
 .watch-btn {
   display: flex; align-items: center; gap: 6px;
-  font-family: var(--font-body); font-size: 11px; font-weight: 500;
+  font-family: var(--font-body); font-size: var(--text-xs); font-weight: 500;
   padding: 5px 12px; border: 1px solid var(--panel-border); border-radius: var(--radius);
   background: transparent; color: var(--text-secondary); cursor: pointer;
   transition: all 0.15s; letter-spacing: 0.2px;
@@ -1821,33 +1867,33 @@ html, body {
   padding: 14px 16px; border-bottom: 1px solid var(--panel-border); flex-shrink: 0;
 }
 .watch-drawer-title {
-  font-family: var(--font-body); font-weight: 600; font-size: 14px; color: var(--text-primary);
+  font-family: var(--font-body); font-weight: 600; font-size: var(--text-base); color: var(--text-primary);
   display: flex; align-items: center; gap: 8px;
   letter-spacing: 0; text-transform: none;
 }
 .watch-mode-badge {
-  font-family: var(--font-mono); font-size: 9px; padding: 2px 6px; border-radius: 3px; border: 1px solid;
+  font-family: var(--font-mono); font-size: var(--text-2xs); padding: 2px 6px; border-radius: 3px; border: 1px solid;
 }
 .watch-mode-badge.hosted { color: var(--text-muted); border-color: var(--panel-border); background: transparent; }
 .watch-mode-badge.self-hosted { color: var(--success); border-color: var(--success); background: rgba(30,126,78,0.06); }
 .watch-close-btn {
-  background: transparent; border: none; font-size: 16px; color: var(--text-muted);
+  background: transparent; border: none; font-size: var(--text-lg); color: var(--text-muted);
   cursor: pointer; padding: 4px 8px; border-radius: 3px; line-height: 1; transition: background 0.15s;
 }
 .watch-close-btn:hover { background: var(--surface); color: var(--text-primary); }
 .watch-drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 22px; }
 
 .watch-section-head {
-  font-family: var(--font-mono); font-weight: 600; font-size: 11px; color: var(--text-primary);
+  font-family: var(--font-mono); font-weight: 600; font-size: var(--text-xs); color: var(--text-primary);
   margin-bottom: 4px; display: flex; align-items: center; gap: 8px;
   letter-spacing: 0.5px; text-transform: uppercase;
 }
-.watch-section-desc { font-size: 12px; color: var(--text-muted); line-height: 1.55; margin-bottom: 10px; }
+.watch-section-desc { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.55; margin-bottom: 10px; }
 .watch-section-desc .sh-only { display: none; color: var(--success); font-style: italic; }
 body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 
 .vendor-search {
-  width: 100%; font-family: var(--font-body); font-size: 12px; padding: 6px 10px;
+  width: 100%; font-family: var(--font-body); font-size: var(--text-sm); padding: 6px 10px;
   border: 1px solid var(--panel-border); border-radius: 4px; background: var(--surface);
   color: var(--text-primary); outline: none; margin-bottom: 10px; transition: border-color 0.15s; box-sizing: border-box;
 }
@@ -1856,24 +1902,24 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 
 .vendor-category { margin-bottom: 12px; }
 .vendor-cat-label {
-  font-family: var(--font-mono); font-size: 9px; color: var(--text-muted);
+  font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text-muted);
   letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px;
   display: flex; align-items: center; justify-content: space-between;
 }
 .vendor-cat-all {
   background: none; border: none; color: var(--accent); font-family: var(--font-mono);
-  font-size: 9px; cursor: pointer; padding: 0; letter-spacing: 0.5px;
+  font-size: var(--text-2xs); cursor: pointer; padding: 0; letter-spacing: 0.5px;
 }
 .vendor-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .vendor-chip {
   display: inline-flex; align-items: center; gap: 3px; padding: 5px 10px;
   border: 1px solid var(--panel-border); border-radius: var(--radius); background: transparent;
   cursor: pointer; transition: all 0.12s; user-select: none; font-family: var(--font-body);
-  font-size: 12px; color: var(--text-secondary);
+  font-size: var(--text-sm); color: var(--text-secondary);
 }
 .vendor-chip:hover { border-color: var(--accent); background: var(--accent-dim); color: var(--text-primary); }
 .vendor-chip.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
-.vendor-chip-check { font-size: 10px; display: none; }
+.vendor-chip-check { font-size: var(--text-2xs); display: none; }
 .vendor-chip.selected .vendor-chip-check { display: inline; }
 
 .tag-input-wrap {
@@ -1884,27 +1930,27 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .tag-input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 .tw-tag-chip {
   display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: #fff;
-  border-radius: 3px; padding: 2px 7px; font-size: 11px; font-family: var(--font-body);
+  border-radius: 3px; padding: 2px 7px; font-size: var(--text-xs); font-family: var(--font-body);
 }
-.tw-tag-remove { cursor: pointer; opacity: 0.75; font-size: 12px; line-height: 1; transition: opacity 0.1s; }
+.tw-tag-remove { cursor: pointer; opacity: 0.75; font-size: var(--text-sm); line-height: 1; transition: opacity 0.1s; }
 .tw-tag-remove:hover { opacity: 1; }
 .tag-text-input {
   border: none; background: transparent; outline: none; font-family: var(--font-body);
-  font-size: 12px; color: var(--text-primary); flex: 1; min-width: 130px; padding: 2px;
+  font-size: var(--text-sm); color: var(--text-primary); flex: 1; min-width: 130px; padding: 2px;
 }
 .tag-text-input::placeholder { color: var(--text-muted); }
-.tag-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.tag-hint { font-size: var(--text-xs); color: var(--text-muted); margin-top: 4px; }
 
 .watch-drawer-footer {
   padding: 12px 16px; border-top: 1px solid var(--panel-border);
   display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 10px;
 }
 .watch-save-btn {
-  font-family: var(--font-body); font-weight: 600; font-size: 13px; padding: 10px 24px;
+  font-family: var(--font-body); font-weight: 600; font-size: var(--text-md); padding: 10px 24px;
   border: none; border-radius: var(--radius); background: var(--accent); color: #fff; cursor: pointer; transition: opacity 0.15s;
 }
 .watch-save-btn:hover { opacity: 0.88; }
-.watch-save-status { font-size: 11px; color: var(--text-muted); }
+.watch-save-status { font-size: var(--text-xs); color: var(--text-muted); }
 .watch-save-status.ok { color: var(--success); }
 .watch-save-status.err { color: var(--danger); }
 
@@ -1916,28 +1962,28 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
 }
 .watch-tab-title {
-  font-family: var(--font-mono); font-weight: 600; font-size: 11px;
+  font-family: var(--font-mono); font-weight: 600; font-size: var(--text-xs);
   color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase;
 }
-.watch-tab-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
-.watch-empty { padding: 48px 28px; text-align: center; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
-.watch-empty strong { color: var(--text-secondary); display: block; margin-bottom: 8px; font-size: 14px; }
+.watch-tab-count { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+.watch-empty { padding: 48px 28px; text-align: center; color: var(--text-muted); font-size: var(--text-md); line-height: 1.7; }
+.watch-empty strong { color: var(--text-secondary); display: block; margin-bottom: 8px; font-size: var(--text-base); }
 .watch-article {
   padding: 12px 28px; border-bottom: 1px solid var(--panel-border); cursor: pointer; transition: background 0.12s;
 }
 .watch-article:hover { background: var(--surface); }
 .watch-match-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
 .watch-match-tag {
-  font-family: var(--font-mono); font-size: 9px; padding: 2px 6px;
+  font-family: var(--font-mono); font-size: var(--text-2xs); padding: 2px 6px;
   border-radius: 2px; letter-spacing: 0.3px;
 }
 .watch-match-tag.brand { background: rgba(183,121,31,0.09); color: var(--warning); border: 1px solid rgba(183,121,31,0.22); }
 .watch-match-tag.asset { background: rgba(14,165,233,0.09); color: #0ea5e9; border: 1px solid rgba(14,165,233,0.22); }
 .watch-article-title {
-  font-family: var(--font-body); font-size: 13px; font-weight: 500;
+  font-family: var(--font-body); font-size: var(--text-md); font-weight: 500;
   color: var(--text-primary); line-height: 1.4; margin-bottom: 4px;
 }
-.watch-article-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.watch-article-meta { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text-muted); }
 @media (max-width: 768px) {
   .watch-drawer { width: 100vw; }
   .watch-tab-header, .watch-article { padding-left: 16px; padding-right: 16px; }
@@ -1956,13 +2002,13 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 }
 .ransom-stat-header-val {
   font-family: var(--font-mono);
-  font-size: 20px;
+  font-size: var(--text-2xl);
   font-weight: 700;
   line-height: 1;
 }
 .ransom-stat-header-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.5px;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -1971,7 +2017,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .ransom-source-badge {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   padding: 3px 8px;
   background: rgba(192,57,43,0.07);
   color: var(--danger);
@@ -1987,7 +2033,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 }
 .ransom-type-btn {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 500;
   letter-spacing: 0.3px;
   padding: 5px 12px;
@@ -2018,7 +2064,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .ransom-group-card.ransom-active { border-left: 3px solid var(--danger); }
 .ransom-group-card.ransom-selected { background: rgba(192,57,43,0.04); border-color: var(--danger); }
 .ransom-group-name {
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 8px;
@@ -2026,13 +2072,13 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .ransom-group-stats { display: flex; gap: 16px; margin-bottom: 6px; }
 .ransom-group-stat-val {
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 700;
   line-height: 1;
 }
 .ransom-group-stat-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   letter-spacing: 0.3px;
   margin-top: 2px;
@@ -2053,7 +2099,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .ransom-articles-section { margin-top: 4px; }
 .ransom-section-title {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.5px;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -2067,7 +2113,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   border: 1px solid var(--panel-border);
   border-radius: 3px;
   padding: 1px 6px;
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
 }
 .ransom-article-row {
@@ -2092,20 +2138,20 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .ransom-article-dot.ransom-dot-victim { background: var(--danger); }
 .ransom-article-body { flex: 1; min-width: 0; }
 .ransom-article-title {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-primary);
   line-height: 1.4;
 }
 .ransom-article-group {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--danger);
   margin-top: 2px;
   letter-spacing: 0.3px;
 }
 .ransom-article-time {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   flex-shrink: 0;
 }
@@ -2114,12 +2160,12 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   padding: 60px 20px;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 1.8;
 }
 .apt-critical-badge {
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: var(--text-2xs);
   padding: 1px 5px;
   background: rgba(192,57,43,0.1);
   color: var(--danger);
@@ -2155,14 +2201,14 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .apt-actor-card.apt-critical { border-left: 3px solid var(--danger); }
 .apt-actor-card.apt-critical.apt-selected { border-color: var(--danger); background: rgba(192,57,43,0.04); }
 .apt-actor-name {
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 2px;
 }
 .apt-actor-origin {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   letter-spacing: 0.3px;
   margin-bottom: 8px;
@@ -2170,7 +2216,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .apt-actor-stats { display: flex; gap: 16px; margin-bottom: 6px; }
 .apt-stat-val {
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--accent);
   line-height: 1;
@@ -2178,7 +2224,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .apt-actor-card.apt-critical .apt-stat-val { color: var(--danger); }
 .apt-stat-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   letter-spacing: 0.3px;
   margin-top: 2px;
@@ -2199,7 +2245,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 .apt-actor-card.apt-critical .apt-activity-fill { background: var(--danger); }
 .apt-section-title {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.5px;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -2213,7 +2259,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   border: 1px solid var(--panel-border);
   border-radius: 3px;
   padding: 1px 6px;
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
 }
 .apt-article-row {
@@ -2237,12 +2283,12 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 }
 .apt-article-title-wrap { flex: 1; min-width: 0; }
 .apt-article-title {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-primary);
   line-height: 1.4;
 }
 .apt-article-snippet {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-secondary);
   line-height: 1.45;
   margin-top: 3px;
@@ -2253,7 +2299,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 }
 .apt-article-time {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--text-muted);
   flex-shrink: 0;
 }
@@ -2262,7 +2308,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   padding: 60px 20px;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 1.8;
 }
 @media (max-width: 768px) {
@@ -2278,12 +2324,12 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 14px; background: transparent; border-bottom: 1px solid var(--panel-border);
 }
-.brand-section-name { font-family: var(--font-title); font-weight: 600; font-size: 13px; color: var(--text-primary); }
-.brand-section-count { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
-.brand-no-news { padding: 14px; font-size: 12px; color: var(--text-muted); font-family: var(--font-body); font-style: italic; }
-.brand-more { padding: 6px 14px 10px; font-size: 11px; color: var(--accent); font-family: var(--font-body); cursor: pointer; }
+.brand-section-name { font-family: var(--font-title); font-weight: 600; font-size: var(--text-md); color: var(--text-primary); }
+.brand-section-count { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text-muted); }
+.brand-no-news { padding: 14px; font-size: var(--text-sm); color: var(--text-muted); font-family: var(--font-body); font-style: italic; }
+.brand-more { padding: 6px 14px 10px; font-size: var(--text-xs); color: var(--accent); font-family: var(--font-body); cursor: pointer; }
 .watch-detail-back {
-  padding: 14px 20px; border-bottom: 1px solid var(--panel-border); font-size: 12px;
+  padding: 14px 20px; border-bottom: 1px solid var(--panel-border); font-size: var(--text-sm);
   font-family: var(--font-body); font-weight: 600; color: var(--accent); cursor: pointer;
 }
 .watch-detail-back:hover { opacity: 0.75; }
@@ -2294,7 +2340,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   align-items: center;
   gap: 10px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   padding: 20px 24px;
   text-align: center;
@@ -2339,7 +2385,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 /* ============================================================= */
 .hamburger-btn {
   display: none;
-  font-size: 18px;
+  font-size: var(--text-xl);
   background: transparent;
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
@@ -2394,13 +2440,13 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   #topbar { padding: 0 14px; gap: 8px; }
   .topbar-left { gap: 10px; }
   #topbar .logo span { display: none; }
-  #topbar .logo { font-size: 13px; }
+  #topbar .logo { font-size: var(--text-md); }
   .topbar-right .author-name { display: none; }
   .topbar-sep { display: none; }
-  .topbar-right .coffee-btn { font-size: 10px; padding: 4px 8px; }
+  .topbar-right .coffee-btn { font-size: var(--text-2xs); padding: 4px 8px; }
   .topbar-right { gap: 6px; }
-  #clock { font-size: 11px; }
-  #threat-level { font-size: 10px; padding: 4px 10px; }
+  #clock { font-size: var(--text-xs); }
+  #threat-level { font-size: var(--text-2xs); padding: 4px 10px; }
   .feed-filters { flex-wrap: wrap; }
   .ransom-tracker-stats { flex-wrap: wrap; gap: 10px; }
   .ransom-source-badge { margin-left: 0; }
@@ -2416,23 +2462,23 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   .center-header { padding: 0; }
   .stats-bar { flex-wrap: wrap; gap: 6px; padding: 8px 16px; height: auto; }
   .feed-card { padding: 10px 12px 10px 14px; }
-  .detail-headline { font-size: 20px; }
-  .filter-btn { padding: 7px 12px; font-size: 12px; }
+  .detail-headline { font-size: var(--text-2xl); }
+  .filter-btn { padding: 7px 12px; font-size: var(--text-sm); }
   .theme-label { display: none; }
   .theme-picker-btn { padding: 5px 8px; }
 }
 
 @media (max-width: 480px) {
-  #topbar .logo { font-size: 12px; letter-spacing: 1px; }
+  #topbar .logo { font-size: var(--text-sm); letter-spacing: 1px; }
   #clock { display: none; }
   .topbar-right .coffee-btn { display: none; }
   .sector-grid { grid-template-columns: 1fr 1fr; gap: 4px; }
   .sector-tag { padding: 10px; }
-  .sector-tag .sector-icon { font-size: 14px; }
-  .sector-tag .sector-name { font-size: 11px; }
-  .briefing-text { font-size: 14px; line-height: 1.7; }
-  .detail-headline { font-size: 18px; }
-  .detail-body { font-size: 14px; }
+  .sector-tag .sector-icon { font-size: var(--text-base); }
+  .sector-tag .sector-name { font-size: var(--text-xs); }
+  .briefing-text { font-size: var(--text-base); line-height: 1.7; }
+  .detail-headline { font-size: var(--text-xl); }
+  .detail-body { font-size: var(--text-base); }
   .filter-btn { padding: 8px 12px; }
 
   /* Phase 2 surfaces — defaults assume desktop space; collapse for phones. */
@@ -2441,7 +2487,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
      the sentence into 5–6 wrapped lines on a 360px screen. */
   .briefing-lead { flex-direction: column; gap: 4px; padding: 12px; }
   .briefing-lead-label { width: auto; padding-top: 0; }
-  .briefing-lead-body { font-size: 14px; line-height: 1.6; }
+  .briefing-lead-body { font-size: var(--text-base); line-height: 1.6; }
 
   /* "X new since HH:MM UTC" pill: allow the text + button to wrap, shrink
      padding so the dismiss button stays one finger-tap wide. */
@@ -2451,8 +2497,8 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   /* Trending panel: bump pill type for tap-target/scannability and let the
      "Last 7d · 24-day baseline" subtitle drop beneath the section title
      so the heading row never elbows past the viewport edge. */
-  .trending-pill { font-size: 11px; padding: 4px 9px; }
-  .trending-pill .tp-count { font-size: 10px; }
+  .trending-pill { font-size: var(--text-xs); padding: 4px 9px; }
+  .trending-pill .tp-count { font-size: var(--text-2xs); }
   .trending-subtitle { display: block; margin-left: 0; margin-top: 2px; }
 }
 
@@ -2470,7 +2516,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   pointer-events: none;
 }
 .loader-logo {
-  font-size: 24px; font-weight: 700; letter-spacing: 3px;
+  font-size: var(--text-3xl); font-weight: 700; letter-spacing: 3px;
   color: var(--text-primary); font-family: var(--font-title);
 }
 .loader-spinner {
@@ -2482,7 +2528,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loader-status {
-  font-size: 12px; color: var(--text-muted);
+  font-size: var(--text-sm); color: var(--text-muted);
   letter-spacing: 0.5px; font-family: var(--font-body);
 }
 </style>
@@ -2602,7 +2648,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       <div class="panel-header-top">
         <div class="panel-title">
           <span class="live-dot"></span>
-          Live Threat Intelligence <span id="feed-count-badge" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:0.5px"></span>
+          Live Threat Intelligence <span id="feed-count-badge" style="font-family:var(--font-mono);font-size:var(--text-2xs);color:var(--text-muted);letter-spacing:0.5px"></span>
         </div>
         <span id="badge-feeds" class="cached-badge">FEEDS OFFLINE</span>
       </div>
@@ -2610,7 +2656,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <input type="text" id="feed-search" class="feed-search-input" placeholder="Search feed…"
           oninput="filterFeedSearch(this.value)" autocomplete="off" spellcheck="false">
       </div>
-      <div id="watch-filter-banner" style="display:none;align-items:center;justify-content:space-between;padding:4px 10px;background:rgba(45,140,255,0.1);border-bottom:1px solid rgba(45,140,255,0.2);font-size:10px;font-weight:700;letter-spacing:0.8px;color:var(--accent);"></div>
+      <div id="watch-filter-banner" style="display:none;align-items:center;justify-content:space-between;padding:4px 10px;background:rgba(45,140,255,0.1);border-bottom:1px solid rgba(45,140,255,0.2);font-size:var(--text-2xs);font-weight:700;letter-spacing:0.8px;color:var(--accent);"></div>
       <div class="feed-meta">
         <span id="last-refresh">--</span>
         <span id="last-checked" title="When this page last polled the server (data may be unchanged)"></span>
@@ -2691,17 +2737,17 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div class="center-section-title">
           <span class="section-icon">&#x1F4E1;</span> Intelligence Digest
           <button class="briefing-mode-toggle ai-active" id="briefing-mode-toggle" data-click-action="toggleBriefingMode">AI</button>
-          <span id="briefing-mode-hint" style="font-size:9px;color:var(--text-muted);margin-left:8px;letter-spacing:0.3px">toggle for normal digest</span>
+          <span id="briefing-mode-hint" style="font-size:var(--text-2xs);color:var(--text-muted);margin-left:8px;letter-spacing:0.3px">toggle for normal digest</span>
           <button class="briefing-share-btn" data-click-action="copyBriefingShare" title="Copy headline + level + dashboard link to clipboard for sharing">&#x1F517; SHARE</button>
         </div>
         <div id="ai-briefing-content"></div>
       </div>
       <div class="center-section" id="section-top-stories">
-        <div class="center-section-title"><span class="section-icon">&#x1F4A1;</span> Headlines <span class="briefing-ai-notice" style="font-size:9px;vertical-align:middle">AI CURATED</span></div>
+        <div class="center-section-title"><span class="section-icon">&#x1F4A1;</span> Headlines <span class="briefing-ai-notice" style="font-size:var(--text-2xs);vertical-align:middle">AI CURATED</span></div>
         <div id="top-stories-content"></div>
       </div>
       <div class="center-section" id="section-clusters">
-        <div class="center-section-title"><span class="section-icon">&#x1F517;</span> Incident Clusters <span class="briefing-ai-notice" style="font-size:9px;vertical-align:middle">AUTO-GROUPED</span></div>
+        <div class="center-section-title"><span class="section-icon">&#x1F517;</span> Incident Clusters <span class="briefing-ai-notice" style="font-size:var(--text-2xs);vertical-align:middle">AUTO-GROUPED</span></div>
         <div id="clusters-content"></div>
       </div>
       <div class="center-section" id="section-trending-threats">
@@ -3656,7 +3702,7 @@ function renderAIBriefing(container) {
   if (!b) {
     container.innerHTML = `<div class="briefing-text" style="color:var(--text-muted)">
       AI intelligence briefing unavailable. Configure an LLM provider to enable analyst-grade threat assessments:<br><br>
-      <code style="font-size:11px;color:var(--accent)">
+      <code style="font-size:var(--text-xs);color:var(--accent)">
         LLM_API_KEY=your-key<br>
         LLM_BASE_URL=https://api.groq.com/openai/v1<br>
         LLM_MODEL=llama-3.3-70b-versatile
@@ -3678,10 +3724,10 @@ function renderAIBriefing(container) {
       const title = escapeHTML(src.title);
       const name = src.source_name ? escapeHTML(src.source_name) : '';
       const label = name || `Source ${idx}`;
-      return `<a href="${escapeHTML(safeHref(src.link))}" target="_blank" rel="noopener" title="${title}" style="color:var(--accent);text-decoration:none;font-size:10px">${label}</a>`;
+      return `<a href="${escapeHTML(safeHref(src.link))}" target="_blank" rel="noopener" title="${title}" style="color:var(--accent);text-decoration:none;font-size:var(--text-2xs)">${label}</a>`;
     }).filter(Boolean);
     if (!links.length) return '';
-    return `<div style="margin-top:4px;font-size:10px;color:var(--text-muted)">&#x1F4CE; ${links.join(' &middot; ')}</div>`;
+    return `<div style="margin-top:4px;font-size:var(--text-2xs);color:var(--text-muted)">&#x1F4CE; ${links.join(' &middot; ')}</div>`;
   }
 
   // Region/category filter notice
@@ -3694,11 +3740,11 @@ function renderAIBriefing(container) {
     const _digestNote = _isRegional
       ? `&#x1F4E1; ${_rName.toUpperCase()} REGIONAL DIGEST &mdash; ${_rCount} articles`
       : `&#x1F30D; VIEWING ${_rName.toUpperCase()} (${_rCount} articles) &mdash; showing global digest (regional digest generating...)`;
-    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:10px;color:var(--accent);letter-spacing:0.5px">${_digestNote}</div>`;
+    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:var(--text-2xs);color:var(--accent);letter-spacing:0.5px">${_digestNote}</div>`;
   } else if (_CATEGORY_TABS.has(_activeCatForAI)) {
     const _cm = _CATEGORY_TAB_META[_activeCatForAI];
     const _label = _cm ? _cm.name.toUpperCase() : _activeCatForAI.toUpperCase();
-    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:10px;color:var(--accent);letter-spacing:0.5px">&#x1F4CC; GLOBAL AI DIGEST &mdash; CATEGORY: ${_label} &mdash; Headlines, Actors &amp; Sectors below are scoped to this category</div>`;
+    html += `<div style="margin-bottom:10px;padding:5px 9px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:4px;font-size:var(--text-2xs);color:var(--accent);letter-spacing:0.5px">&#x1F4CC; GLOBAL AI DIGEST &mdash; CATEGORY: ${_label} &mdash; Headlines, Actors &amp; Sectors below are scoped to this category</div>`;
   }
 
   // Staleness check — warn if briefing is older than 2 hours
@@ -3708,7 +3754,7 @@ function renderAIBriefing(container) {
     const ageH = ageMs / 3600000;
     if (ageH < 2) return '';
     const label = ageH < 6 ? `${Math.round(ageH)}h old` : `${Math.round(ageH)}h old — may not reflect latest activity`;
-    return `<div style="margin-bottom:8px;padding:5px 9px;background:rgba(183,121,31,0.1);border:1px solid rgba(183,121,31,0.25);border-radius:4px;font-size:10px;color:var(--warning);letter-spacing:0.5px">&#9888; BRIEFING IS ${label.toUpperCase()}</div>`;
+    return `<div style="margin-bottom:8px;padding:5px 9px;background:rgba(183,121,31,0.1);border:1px solid rgba(183,121,31,0.25);border-radius:4px;font-size:var(--text-2xs);color:var(--warning);letter-spacing:0.5px">&#9888; BRIEFING IS ${label.toUpperCase()}</div>`;
   })();
   html += stalenessHtml;
 
@@ -3717,23 +3763,23 @@ function renderAIBriefing(container) {
   // briefing — say so instead of passing it off as current.
   if (b.served_stale) {
     const why = b.stale_reason ? escapeHTML(b.stale_reason) : 'newer generation failed validation';
-    html += `<div style="margin-bottom:8px;padding:5px 9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:4px;font-size:10px;color:var(--danger);letter-spacing:0.5px">&#9888; SERVING PREVIOUS BRIEFING &mdash; ${why}</div>`;
+    html += `<div style="margin-bottom:8px;padding:5px 9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:4px;font-size:var(--text-2xs);color:var(--danger);letter-spacing:0.5px">&#9888; SERVING PREVIOUS BRIEFING &mdash; ${why}</div>`;
   }
 
   // Threat level badge + assessment basis
   const tl = (b.threat_level || 'MODERATE').toUpperCase();
   html += `<div style="margin-bottom:12px"><span class="ai-threat-level ${tl}">${tl}</span>`;
   if (b.threat_level_source === 'fallback_invalid') {
-    html += `<span style="font-size:9px;color:var(--text-muted);margin-left:6px;letter-spacing:0.5px" title="The model did not return a recognised threat level; MODERATE is a default, not an assessment">DEFAULT &mdash; NOT ASSESSED</span>`;
+    html += `<span style="font-size:var(--text-2xs);color:var(--text-muted);margin-left:6px;letter-spacing:0.5px" title="The model did not return a recognised threat level; MODERATE is a default, not an assessment">DEFAULT &mdash; NOT ASSESSED</span>`;
   }
   html += `<span class="briefing-ai-notice">AI INTELLIGENCE</span>`;
   if (b.provider) {
     const tierLabel = escapeHTML(String(b.provider).split('/')[0].replace('_', ' ').toUpperCase());
-    html += `<span style="font-size:9px;color:var(--text-muted);margin-left:6px;letter-spacing:0.5px" title="${escapeHTML(String(b.provider))}">via ${tierLabel}</span>`;
+    html += `<span style="font-size:var(--text-2xs);color:var(--text-muted);margin-left:6px;letter-spacing:0.5px" title="${escapeHTML(String(b.provider))}">via ${tierLabel}</span>`;
   }
   html += `</div>`;
   if (b.assessment_basis) {
-    html += `<div style="margin-bottom:14px;font-size:11px;color:var(--text-muted);letter-spacing:0.3px;line-height:1.5;font-style:italic">${escapeHTML(b.assessment_basis)}</div>`;
+    html += `<div style="margin-bottom:14px;font-size:var(--text-xs);color:var(--text-muted);letter-spacing:0.3px;line-height:1.5;font-style:italic">${escapeHTML(b.assessment_basis)}</div>`;
   }
 
   // Threat-level shift banner: rendered only when the prior on-disk briefing
@@ -3779,7 +3825,7 @@ function renderAIBriefing(container) {
     const actionItems = actions.map(item => {
       const actionText = typeof item === 'string' ? item : (item.action || '');
       const threatRef = typeof item === 'object' && (item.threat || item.threat_context)
-        ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-style:italic">Re: ${escapeHTML(item.threat || item.threat_context)}</div>` : '';
+        ? `<div style="font-size:var(--text-2xs);color:var(--text-muted);margin-top:2px;font-style:italic">Re: ${escapeHTML(item.threat || item.threat_context)}</div>` : '';
       const srcLinks = typeof item === 'object' ? renderSources(item.sources) : '';
       const match = _AI_ACTION_DRILLDOWNS.find(r => r.re.test(actionText));
       if (match) {
@@ -3832,7 +3878,7 @@ function renderClusters() {
   const container = document.getElementById('clusters-content');
   const data = state.clusters;
   if (!data || !data.clusters || data.clusters.length === 0) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px">Incident correlation will appear after the next pipeline run.</div>';
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:var(--text-xs);padding:8px">Incident correlation will appear after the next pipeline run.</div>';
     return;
   }
 
@@ -3841,17 +3887,17 @@ function renderClusters() {
 
   data.clusters.slice(0, 8).forEach(cluster => {
     const icon = typeIcon(cluster.entity_type);
-    const badge = `<span class="b-hl" style="font-size:9px">${escapeHTML(cluster.entity_type.toUpperCase())}</span>`;
+    const badge = `<span class="b-hl" style="font-size:var(--text-2xs)">${escapeHTML(cluster.entity_type.toUpperCase())}</span>`;
     const count = cluster.article_count;
 
     html += `<div style="margin-bottom:10px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px">`;
-    html += `<div style="margin-bottom:4px;font-size:12px;font-weight:600">${icon} ${escapeHTML(cluster.entity_name)} ${badge} <span style="font-size:10px;color:var(--text-muted)">${count} articles</span></div>`;
+    html += `<div style="margin-bottom:4px;font-size:var(--text-sm);font-weight:600">${icon} ${escapeHTML(cluster.entity_name)} ${badge} <span style="font-size:var(--text-2xs);color:var(--text-muted)">${count} articles</span></div>`;
 
     if (cluster.synthesis) {
-      html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;line-height:1.5;font-style:italic">${escapeHTML(cluster.synthesis)}</div>`;
+      html += `<div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:6px;line-height:1.5;font-style:italic">${escapeHTML(cluster.synthesis)}</div>`;
     }
 
-    html += `<div style="font-size:10px;color:var(--text-muted)">`;
+    html += `<div style="font-size:var(--text-2xs);color:var(--text-muted)">`;
     // Articles are already sorted ascending by publish date (see
     // modules/incident_correlator._resolve_campaign) so the first entry is
     // the earliest outlet to cover the story. Promote it visually with a
@@ -3859,7 +3905,7 @@ function renderClusters() {
     cluster.articles.slice(0, 4).forEach((a, idx) => {
       const link = a.link ? ` href="${escapeHTML(safeHref(a.link))}" target="_blank" rel="noopener"` : '';
       const firstChip = idx === 0
-        ? '<span style="display:inline-block;margin-right:4px;padding:0 4px;font-size:8px;background:var(--success);color:white;border-radius:2px;letter-spacing:0.5px">FIRST</span>'
+        ? '<span style="display:inline-block;margin-right:4px;padding:0 4px;font-size:var(--text-2xs);background:var(--success);color:white;border-radius:2px;letter-spacing:0.5px">FIRST</span>'
         : '';
       html += `<div style="margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${firstChip}<a${link} style="color:var(--text-secondary);text-decoration:none">${escapeHTML(a.title)}</a></div>`;
     });
@@ -3874,7 +3920,7 @@ function renderTopStories() {
   const container = document.getElementById('top-stories-content');
   const data = state.topStories;
   if (!data || !data.stories || data.stories.length === 0) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px">Headlines will appear when the AI pipeline processes the next batch of articles.</div>';
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:var(--text-xs);padding:8px">Headlines will appear when the AI pipeline processes the next batch of articles.</div>';
     return;
   }
 
@@ -3892,25 +3938,25 @@ function renderTopStories() {
   let html = '';
   stories.forEach((story, i) => {
     const sig = (story.significance || 'MODERATE').toUpperCase();
-    const badge = `<span class="${sigClass(sig)}" style="font-size:9px;letter-spacing:0.5px">${sig}</span>`;
-    const catBadge = story.category ? `<span class="b-hl" style="font-size:9px">${escapeHTML(story.category)}</span>` : '';
+    const badge = `<span class="${sigClass(sig)}" style="font-size:var(--text-2xs);letter-spacing:0.5px">${sig}</span>`;
+    const catBadge = story.category ? `<span class="b-hl" style="font-size:var(--text-2xs)">${escapeHTML(story.category)}</span>` : '';
     const link = story.link ? ` href="${escapeHTML(safeHref(story.link))}" target="_blank" rel="noopener"` : '';
-    const source = story.source_name ? `<span style="font-size:10px;color:var(--text-muted)"> &mdash; ${escapeHTML(story.source_name)}</span>` : '';
+    const source = story.source_name ? `<span style="font-size:var(--text-2xs);color:var(--text-muted)"> &mdash; ${escapeHTML(story.source_name)}</span>` : '';
 
     // Check if this story matches a cluster — show related count
     const headline = (story.headline || '').toLowerCase();
     let relatedBadge = '';
     for (const [entity, cluster] of Object.entries(clusterMap)) {
       if (headline.includes(entity) && cluster.article_count >= 3) {
-        relatedBadge = `<span style="font-size:9px;color:var(--text-muted);margin-left:6px" title="${cluster.synthesis || ''}">${cluster.article_count} related articles</span>`;
+        relatedBadge = `<span style="font-size:var(--text-2xs);color:var(--text-muted);margin-left:6px" title="${cluster.synthesis || ''}">${cluster.article_count} related articles</span>`;
         break;
       }
     }
 
     html += `<div style="margin-bottom:10px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;border-left:3px solid ${sig === 'CRITICAL' ? 'var(--danger)' : sig === 'HIGH' ? 'var(--warning)' : 'var(--accent)'}">
       <div style="margin-bottom:4px">${badge} ${catBadge}${relatedBadge}</div>
-      <div style="font-size:12px;font-weight:600;line-height:1.4"><a${link} style="color:var(--text-primary);text-decoration:none">${escapeHTML(story.headline)}</a>${source}</div>
-      <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5">${escapeHTML(story.summary)}</div>
+      <div style="font-size:var(--text-sm);font-weight:600;line-height:1.4"><a${link} style="color:var(--text-primary);text-decoration:none">${escapeHTML(story.headline)}</a>${source}</div>
+      <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:4px;line-height:1.5">${escapeHTML(story.summary)}</div>
     </div>`;
   });
 
@@ -4030,7 +4076,7 @@ function renderActorSpotlight(items, allText) {
   found.sort((a, b) => b.count - a.count);
 
   if (found.length === 0) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px">No named threat actors or malware families detected in current intelligence.</div>';
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:var(--text-xs)">No named threat actors or malware families detected in current intelligence.</div>';
     return;
   }
 
@@ -4039,8 +4085,8 @@ function renderActorSpotlight(items, allText) {
   let html = '';
   if (activeName) {
     html += `<div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:var(--accent);font-family:var(--font-mono)">Filtered: ${escapeHTML(activeName)}</span>
-      <button data-click-action="clearActorFilter" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
+      <span style="font-size:var(--text-2xs);color:var(--accent);font-family:var(--font-mono)">Filtered: ${escapeHTML(activeName)}</span>
+      <button data-click-action="clearActorFilter" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:var(--text-2xs);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
     </div>`;
   }
 
@@ -4064,10 +4110,10 @@ function renderActorSpotlight(items, allText) {
     let profileLine = '';
     if (obsTechniques.length > 0) {
       const techStr = obsTechniques.map(t => `${t.id}×${t.count}`).join(' ');
-      profileLine = `<div class="actor-ttps" style="font-size:8px;color:var(--accent);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-mono)">${escapeHTML(techStr)}</div>`;
+      profileLine = `<div class="actor-ttps" style="font-size:var(--text-2xs);color:var(--accent);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-mono)">${escapeHTML(techStr)}</div>`;
     } else if (profile && profile.signature_ttps) {
       const ttps = profile.signature_ttps.slice(0, 2).join(', ');
-      profileLine = `<div style="font-size:8px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(ttps)}</div>`;
+      profileLine = `<div style="font-size:var(--text-2xs);color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(ttps)}</div>`;
     }
 
     // Build a richer tooltip: description + observed tactics so analysts can
@@ -4132,7 +4178,7 @@ function renderSectorImpact(items, allText) {
   found.sort((a, b) => b.count - a.count);
 
   if (found.length === 0) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px">Analyzing sector impact...</div>';
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:var(--text-xs)">Analyzing sector impact...</div>';
     return;
   }
 
@@ -4141,8 +4187,8 @@ function renderSectorImpact(items, allText) {
   let html = '';
   if (activeName) {
     html += `<div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:var(--warning);font-family:var(--font-mono)">Filtered: ${escapeHTML(activeName)}</span>
-      <button data-click-action="clearSectorFilter" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
+      <span style="font-size:var(--text-2xs);color:var(--warning);font-family:var(--font-mono)">Filtered: ${escapeHTML(activeName)}</span>
+      <button data-click-action="clearSectorFilter" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:var(--text-2xs);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
     </div>`;
   }
 
@@ -4404,14 +4450,14 @@ function buildCardHTML(item) {
     if (c >= 70) return `Moderate match — ${cat} indicators found in content`;
     return `Base score — general cybersecurity content detected, no specific category rule matched`;
   })();
-  const confBadge = item.confidence ? `<span class="badge conf-badge" data-tip="${escapeHTML(confTip)}" style="background:rgba(30,126,78,0.07);color:var(--success);border:1px solid rgba(30,126,78,0.15);font-size:8px">${item.confidence}%</span>` : '';
+  const confBadge = item.confidence ? `<span class="badge conf-badge" data-tip="${escapeHTML(confTip)}" style="background:rgba(30,126,78,0.07);color:var(--success);border:1px solid rgba(30,126,78,0.15);font-size:var(--text-2xs)">${item.confidence}%</span>` : '';
   const watchBadges = buildWatchBadges(item);
 
   return `<div class="feed-card ${sevClass}${activeClass}" data-id="${item._id}">
     ${newBadge}
     <div class="card-badges">
       <span class="badge badge-src ${item.sourceClass}">${escapeHTML(item.source)}</span>
-      ${item.isDarkweb && item.darkwebGroup ? `<span class="badge" style="background:rgba(192,57,43,0.07);color:var(--danger);border:1px solid rgba(192,57,43,0.18);font-size:8px">${escapeHTML(item.darkwebGroup)}</span>` : ''}
+      ${item.isDarkweb && item.darkwebGroup ? `<span class="badge" style="background:rgba(192,57,43,0.07);color:var(--danger);border:1px solid rgba(192,57,43,0.18);font-size:var(--text-2xs)">${escapeHTML(item.darkwebGroup)}</span>` : ''}
       <span class="type-badge ${item.cssType}">${icon} ${escapeHTML(item.type)}</span>
       ${confBadge}
       ${watchBadges}
@@ -4600,7 +4646,7 @@ function renderFeedCards(reset = true) {
   // Render next batch
   const batch = filtered.slice(state.displayedCount, state.displayedCount + CARDS_PER_PAGE);
   if (batch.length === 0 && state.displayedCount === 0) {
-    container.innerHTML = '<div style="color:#445;font-size:11px;padding:20px;text-align:center">No articles available. Run the pipeline to fetch data.</div>';
+    container.innerHTML = '<div style="color:#445;font-size:var(--text-xs);padding:20px;text-align:center">No articles available. Run the pipeline to fetch data.</div>';
     return;
   }
 
@@ -4791,7 +4837,7 @@ function renderServerIOCSection(item) {
     rows.push(`<div class="ioc-group"><div class="ioc-group-label">${label}</div><div class="ioc-list">${chips}${extra}</div></div>`);
   }
   if (!rows.length) return '';
-  return `<div class="ioc-section"><div class="ioc-section-title">INDICATORS OF COMPROMISE <span style="font-size:9px;color:var(--text-muted);font-weight:400">(server-extracted)</span></div>${rows.join('')}</div>`;
+  return `<div class="ioc-section"><div class="ioc-section-title">INDICATORS OF COMPROMISE <span style="font-size:var(--text-2xs);color:var(--text-muted);font-weight:400">(server-extracted)</span></div>${rows.join('')}</div>`;
 }
 
 function renderIOCSection(item) {
@@ -5061,8 +5107,8 @@ function updateOverviewStats() {
   let pipelineHTML = '';
   if (latest.feeds_loaded) {
     pipelineHTML = `
-      <div style="margin-bottom:10px;padding:8px;background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.08);border-radius:4px;font-size:10px;">
-        <div style="font-family:var(--font-title);font-size:11px;color:var(--accent);letter-spacing:1px;margin-bottom:6px">BACKEND PIPELINE</div>
+      <div style="margin-bottom:10px;padding:8px;background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.08);border-radius:4px;font-size:var(--text-2xs);">
+        <div style="font-family:var(--font-title);font-size:var(--text-xs);color:var(--accent);letter-spacing:1px;margin-bottom:6px">BACKEND PIPELINE</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
           <span style="color:#556">Feeds loaded:</span><span style="color:var(--accent);text-align:right">${latest.feeds_loaded}</span>
           <span style="color:#556">Articles fetched:</span><span style="color:var(--accent);text-align:right">${latest.articles_fetched || 'N/A'}</span>
@@ -5080,7 +5126,7 @@ function updateOverviewStats() {
       <span><span class="dot ${tdOnline ? 'online' : 'offline'}"></span>ThreatDigest Pipeline</span>
       <span style="color:${tdOnline ? 'var(--success)' : '#555'}">${tdOnline ? 'ONLINE' : 'OFFLINE'}</span>
     </div>
-    <div style="font-size:9px;color:var(--text-muted);padding:4px 0 0 16px">
+    <div style="font-size:var(--text-2xs);color:var(--text-muted);padding:4px 0 0 16px">
       ${feedsLoaded} RSS/news sources aggregated server-side
     </div>`;
 }
@@ -5088,12 +5134,15 @@ function updateOverviewStats() {
 /* ============================================================= */
 /* RIGHT PANEL — THREAT CATEGORIES CHART (Pure CSS)               */
 /* ============================================================= */
+// Category colors route through CSS custom properties so each theme can
+// override entries that are illegible on its background (yellows/greens on
+// the light themes were near-invisible as raw hex).
 const CAT_COLORS = {
-  'Ransomware': '#ff2b2b', 'Zero-Day': '#ff4444', 'Data Breach': '#ff6600',
-  'APT': '#cc44ff', 'DDoS': '#ff8800', 'Phishing': '#ffaa00',
-  'Malware': '#ff3366', 'Supply Chain': '#ff0055', 'Vulnerability': '#00aaff',
-  'BEC': '#ffcc00', 'ICS/OT': '#ff5500', 'Cloud': '#0099ff',
-  'Crypto': '#f7931a', 'Hacktivism': '#44cc44', 'Patch': '#00ccaa',
+  'Ransomware': 'var(--cat-ransomware)', 'Zero-Day': 'var(--cat-zeroday)', 'Data Breach': 'var(--cat-breach)',
+  'APT': 'var(--cat-apt)', 'DDoS': 'var(--cat-ddos)', 'Phishing': 'var(--cat-phishing)',
+  'Malware': 'var(--cat-malware)', 'Supply Chain': 'var(--cat-supplychain)', 'Vulnerability': 'var(--cat-vuln)',
+  'BEC': 'var(--cat-bec)', 'ICS/OT': 'var(--cat-ics)', 'Cloud': 'var(--cat-cloud)',
+  'Crypto': 'var(--cat-crypto)', 'Hacktivism': 'var(--cat-hacktivism)', 'Patch': 'var(--cat-patch)',
 };
 
 const CAT_KEYWORDS = {
@@ -5153,14 +5202,14 @@ function buildThreatCategoryChart(geoEvents, feedItems) {
   let chartHtml = '';
   if (activeCatName) {
     chartHtml += `<div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
-      <span style="font-size:10px;color:#00e5ff;font-family:var(--font-mono)">Filtered: ${escapeHTML(activeCatName)}</span>
-      <button data-click-action="clearCategoryFilter" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
+      <span style="font-size:var(--text-2xs);color:#00e5ff;font-family:var(--font-mono)">Filtered: ${escapeHTML(activeCatName)}</span>
+      <button data-click-action="clearCategoryFilter" style="background:none;border:1px solid var(--stat-border);color:var(--text-muted);font-size:var(--text-2xs);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono)">CLEAR</button>
     </div>`;
   }
 
   chartHtml += sorted.map(([label, count]) => {
     const pct = Math.round((count / maxCount) * 100);
-    const color = CAT_COLORS[label] || '#00aaff';
+    const color = CAT_COLORS[label] || 'var(--cat-vuln)';
     const isActive = activeCatName === label;
     return `<div class="cat-row${isActive ? ' active' : ''}" data-click-action="toggleCategoryFilter" data-click-args="[&quot;${escapeHTML(label)}&quot;]">
       <div class="cat-label">${escapeHTML(label)}</div>
@@ -5171,6 +5220,9 @@ function buildThreatCategoryChart(geoEvents, feedItems) {
     </div>`;
   }).join('');
 
+  // Honest-scaling note: bars are proportional to the TOP category, not an
+  // absolute axis — without saying so, near-equal counts read as big gaps.
+  chartHtml += `<div style="margin-top:6px;font-size:var(--text-2xs);color:var(--text-muted);font-family:var(--font-mono);letter-spacing:0.4px">bar length relative to top category &middot; counts are article matches</div>`;
   container.innerHTML = chartHtml;
 
   // Animate bars after DOM insertion
@@ -5718,7 +5770,7 @@ function renderRansomTracker() {
       <div class="ransom-group-stats">
         <div><div class="ransom-group-stat-val" style="color:var(--danger)">${data.victims.length}</div><div class="ransom-group-stat-label">VICTIMS</div></div>
         <div><div class="ransom-group-stat-val" style="color:var(--accent)">${data.news.length}</div><div class="ransom-group-stat-label">ARTICLES</div></div>
-        <div><div class="ransom-group-stat-val" style="font-size:11px;padding-top:3px">${lastSeen}</div><div class="ransom-group-stat-label">LAST SEEN</div></div>
+        <div><div class="ransom-group-stat-val" style="font-size:var(--text-xs);padding-top:3px">${lastSeen}</div><div class="ransom-group-stat-label">LAST SEEN</div></div>
       </div>
       <div class="ransom-activity-bar"><div class="ransom-activity-fill" style="width:${pct}%"></div></div>
     </div>`;
@@ -5833,7 +5885,7 @@ function renderAPTTracker() {
       <div class="apt-actor-origin">${actor.origin}</div>
       <div class="apt-actor-stats">
         <div><div class="apt-stat-val">${actor.count}</div><div class="apt-stat-label">ARTICLES</div></div>
-        <div><div class="apt-stat-val" style="font-size:12px;padding-top:2px">${lastSeen}</div><div class="apt-stat-label">LAST SEEN</div></div>
+        <div><div class="apt-stat-val" style="font-size:var(--text-sm);padding-top:2px">${lastSeen}</div><div class="apt-stat-label">LAST SEEN</div></div>
       </div>
       <div class="apt-activity-bar"><div class="apt-activity-fill" style="width:${pct}%"></div></div>
     </div>`;
@@ -6260,7 +6312,7 @@ function buildVendorGrid(filter) {
     }
     html += `</div></div>`;
   }
-  if (!html) html = `<div style="color:var(--text-muted);font-size:12px;padding:8px 0">No vendors match "${escapeHTML(q)}"</div>`;
+  if (!html) html = `<div style="color:var(--text-muted);font-size:var(--text-sm);padding:8px 0">No vendors match "${escapeHTML(q)}"</div>`;
   grid.innerHTML = html;
 }
 
@@ -6524,7 +6576,7 @@ function renderBrandsTab() {
       <div class="apt-actor-name">${escapeHTML(brand)}</div>
       <div class="apt-actor-stats">
         <div><div class="apt-stat-val">${matches.length}</div><div class="apt-stat-label">ARTICLES</div></div>
-        <div><div class="apt-stat-val" style="font-size:12px;padding-top:2px">${lastSeen}</div><div class="apt-stat-label">LAST SEEN</div></div>
+        <div><div class="apt-stat-val" style="font-size:var(--text-sm);padding-top:2px">${lastSeen}</div><div class="apt-stat-label">LAST SEEN</div></div>
       </div>
       <div class="apt-activity-bar"><div class="apt-activity-fill" style="width:${pct}%"></div></div>
     </div>`;
@@ -6584,7 +6636,7 @@ function renderAssetsTab() {
       <div class="apt-actor-name">${escapeHTML(vendor)}</div>
       <div class="apt-actor-stats">
         <div><div class="apt-stat-val">${matches.length}</div><div class="apt-stat-label">ARTICLES</div></div>
-        <div><div class="apt-stat-val" style="font-size:12px;padding-top:2px">${lastSeen}</div><div class="apt-stat-label">LAST SEEN</div></div>
+        <div><div class="apt-stat-val" style="font-size:var(--text-sm);padding-top:2px">${lastSeen}</div><div class="apt-stat-label">LAST SEEN</div></div>
       </div>
       <div class="apt-activity-bar"><div class="apt-activity-fill" style="width:${pct}%"></div></div>
     </div>`;
