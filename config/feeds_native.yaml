@@ -121,9 +121,13 @@
 # Tripwire — redirects to 403 (verified 2026-03-22)
 # - url: https://www.tripwire.com/state-of-security/feed
 
-- url: https://www.helpnetsecurity.com/feed/
-  category: Native
-  region: Global
+# Help Net Security removed 2026-06-12: returns 403 to every UA tested
+# (Chrome/Firefox/feedparser/curl) from two separate networks — the block is
+# at TLS-fingerprint level (anti-bot), not UA. Last successful fetch
+# 2026-05-26. Re-evaluate if they restore feed access.
+# - url: https://www.helpnetsecurity.com/feed/
+#   category: Native
+#   region: Global
 
 # Tier 5: APT & Threat Research
 - url: https://unit42.paloaltonetworks.com/feed/
@@ -269,9 +273,13 @@
   category: Native
   region: Japan
 
-- url: https://www.cert-in.org.in/Rss.jsp
-  category: Native
-  region: India
+# CERT-In removed 2026-06-12: connect timeout from both the VPS and a
+# residential network (verified) — endpoint appears geo-fenced or down.
+# Each pipeline run burned ~90s of retry time on it. Indian coverage
+# continues via the Google News regional queries.
+# - url: https://www.cert-in.org.in/Rss.jsp
+#   category: Native
+#   region: India
 
 # CSA Singapore — returns 404 (verified 2026-04-03)
 # - url: https://www.csa.gov.sg/api/alerts-and-advisories/rss
@@ -398,9 +406,12 @@
 # (verified 2026-05-10: feedparser/curl/ThreatWatch UA all return 200, but
 # the production Chrome UA gets 403). Re-enable once per-feed UA overrides
 # land in feed_fetcher.py. Removed 2026-05-10.
-# - url: https://blog.sekoia.io/feed/
-#   category: Native
-#   region: Europe
+# Re-enabled 2026-06-12 with a per-feed UA override (now supported by
+# feed_fetcher): Firefox UA returns 200 from the VPS, Chrome UA gets 403.
+- url: https://blog.sekoia.io/feed/
+  category: Native
+  region: Europe
+  user_agent: "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0"
 
 - url: https://flashpoint.io/blog/feed/
   category: Native

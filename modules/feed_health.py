@@ -35,6 +35,12 @@ _health_lock = threading.Lock()
 _SUSPECT_DAYS = 3
 _DEAD_DAYS    = 7
 _STALE_DAYS   = 30
+# A feed that responds OK but has NEVER produced a single in-window article
+# after this many fetches is flagged "silent" — typically a wrong URL that
+# returns an empty/valid-but-irrelevant document. Without this, a feed with
+# last_success=None could show "ok" forever (the stale check needs a prior
+# success to compare against).
+_SILENT_MIN_FETCHES = 10
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
@@ -95,7 +101,7 @@ def _signal_score(entry: dict) -> float:
     success_rate = ok / total
     productivity = min((entries / ok) / 20.0, 1.0) if ok else 0.0
     status = entry.get("status", "ok")
-    freshness = {"ok": 1.0, "error": 0.7, "suspect": 0.5, "stale": 0.3, "dead": 0.1}.get(status, 0.5)
+    freshness = {"ok": 1.0, "error": 0.7, "suspect": 0.5, "stale": 0.3, "silent": 0.2, "dead": 0.1}.get(status, 0.5)
     return round(success_rate * productivity * freshness * 100.0, 1)
 
 
@@ -177,6 +183,10 @@ def _record_fetch_locked(url: str, success: bool, entry_count: int) -> None:
         last_ok = entry.get("last_success")
         if last_ok and _days_since(last_ok) >= _STALE_DAYS:
             entry["status"] = "stale"
+        elif last_ok is None and entry["fetches_successful"] >= _SILENT_MIN_FETCHES:
+            # Responds but has NEVER yielded an article — wrong URL, empty
+            # endpoint, or a challenge page that still parses as a feed.
+            entry["status"] = "silent"
         # If it was already dead/suspect from errors, don't downgrade it here
 
     else:
@@ -208,13 +218,38 @@ def _record_fetch_locked(url: str, success: bool, entry_count: int) -> None:
     elif entry["status"] == "stale":
         last_ok = entry.get("last_success", "never")
         logger.warning(f"STALE FEED — no entries in 30d+ (last ok: {last_ok[:10] if last_ok else 'never'}): {url}")
+    elif entry["status"] == "silent":
+        logger.warning(
+            f"SILENT FEED — responded {entry['fetches_successful']} times, never one article: {url}"
+        )
+
+
+def prune_unconfigured(active_urls) -> int:
+    """Drop health entries for feeds no longer present in the YAML config.
+
+    Removed feeds otherwise linger in the state file forever and inflate the
+    dead/error counts that /api/health reports — production showed 11 "dead"
+    feeds of which several had been deliberately removed from the config.
+    Returns the number of entries pruned.
+    """
+    active = set(active_urls)
+    with _health_lock:
+        data = load_health()
+        stale_keys = [u for u in data if u not in active]
+        if not stale_keys:
+            return 0
+        for u in stale_keys:
+            del data[u]
+        save_health(data)
+    logger.info("Feed health: pruned %d unconfigured feed entries", len(stale_keys))
+    return len(stale_keys)
 
 
 # ── reporting ───────────────────────────────────────────────────────────────
 
 def get_report() -> dict[str, list]:
     data = load_health()
-    report: dict[str, list] = {"ok": [], "error": [], "suspect": [], "dead": [], "stale": []}
+    report: dict[str, list] = {"ok": [], "error": [], "suspect": [], "dead": [], "stale": [], "silent": []}
     for entry in data.values():
         status = entry.get("status", "ok")
         report.setdefault(status, []).append(entry)
@@ -229,9 +264,11 @@ def log_health_summary() -> None:
     stale   = len(report.get("stale", []))
     ok      = len(report.get("ok", []))
     error   = len(report.get("error", []))
-    if dead or suspect or stale:
+    silent  = len(report.get("silent", []))
+    if dead or suspect or stale or silent:
         logger.warning(
-            f"Feed health — ok:{ok} error:{error} stale:{stale} suspect:{suspect} dead:{dead}"
+            f"Feed health — ok:{ok} error:{error} stale:{stale} "
+            f"suspect:{suspect} dead:{dead} silent:{silent}"
         )
         for entry in report.get("dead", []):
             logger.warning(f"  DEAD: {entry.get('url', '?')[:70]}")
@@ -251,6 +288,7 @@ def get_health_json() -> dict:
         "suspect": len(report.get("suspect", [])),
         "dead": len(report.get("dead", [])),
         "stale": len(report.get("stale", [])),
+        "silent": len(report.get("silent", [])),
         "dead_feeds": [
             {"url": e.get("url", ""), "errors": e.get("consecutive_errors", 0),
              "last_success": str(e.get("last_success", "never"))[:10]}

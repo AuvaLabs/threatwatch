@@ -403,3 +403,48 @@ class TestPostUnconditional:
             low_briefing = {**_BRIEFING, "threat_level": "LOW"}
             assert tg.post_briefing_unconditional(low_briefing) is True
             assert state_path.read_text() == original_state  # state untouched
+
+
+# ---------------------------------------------------------------------------
+# dispatch_ops_alert
+# ---------------------------------------------------------------------------
+class TestDispatchOpsAlert:
+    def test_noop_without_token(self, tmp_path):
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", ""), \
+             patch.object(tg, "_OPS_STATE_PATH", tmp_path / "ops.json"):
+            assert tg.dispatch_ops_alert("k", "subj", "detail") is False
+
+    def test_sends_and_stamps_state(self, tmp_path):
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_OPS_STATE_PATH", tmp_path / "ops.json"), \
+             patch.object(tg, "_send", return_value=True) as send:
+            assert tg.dispatch_ops_alert("feeds", "5 feeds dead", "list") is True
+            assert "5 feeds dead" in send.call_args.args[0]
+            assert (tmp_path / "ops.json").exists()
+
+    def test_cooldown_suppresses_repeat(self, tmp_path):
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_OPS_STATE_PATH", tmp_path / "ops.json"), \
+             patch.object(tg, "_send", return_value=True) as send:
+            assert tg.dispatch_ops_alert("feeds", "s", "d") is True
+            assert tg.dispatch_ops_alert("feeds", "s", "d") is False
+            assert send.call_count == 1
+
+    def test_distinct_keys_alert_independently(self, tmp_path):
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_OPS_STATE_PATH", tmp_path / "ops.json"), \
+             patch.object(tg, "_send", return_value=True) as send:
+            assert tg.dispatch_ops_alert("feeds", "s", "d") is True
+            assert tg.dispatch_ops_alert("briefing_stale", "s2", "d2") is True
+            assert send.call_count == 2
+
+    def test_failed_send_does_not_stamp(self, tmp_path):
+        with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_OPS_STATE_PATH", tmp_path / "ops.json"), \
+             patch.object(tg, "_send", return_value=False):
+            assert tg.dispatch_ops_alert("feeds", "s", "d") is False
+            assert not (tmp_path / "ops.json").exists()

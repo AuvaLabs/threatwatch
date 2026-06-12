@@ -380,3 +380,41 @@ def post_briefing_unconditional(briefing: dict | None) -> bool:
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not briefing:
         return False
     return _send(format_briefing_html(briefing))
+
+
+# ── operator alerts (pipeline health, not threat content) ────────────────────
+_OPS_STATE_PATH = STATE_DIR / "telegram_ops_alerts.json"
+TELEGRAM_OPS_COOLDOWN_HOURS = float(os.environ.get("TELEGRAM_OPS_COOLDOWN_HOURS", "24"))
+
+
+def dispatch_ops_alert(key: str, subject: str, detail: str) -> bool:
+    """Send an operator alert about pipeline health, deduped per `key`.
+
+    Distinct from threat alerts: these tell the OPERATOR that the system
+    itself is degraded (feeds dying, briefing stale, pipeline stalled) —
+    failures that previously only appeared in container logs nobody reads.
+    One alert per key per TELEGRAM_OPS_COOLDOWN_HOURS. Returns True if sent.
+    """
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return False
+    state = _load_json_state(_OPS_STATE_PATH)
+    last = state.get(key)
+    if last:
+        try:
+            last_dt = datetime.fromisoformat(last)
+            if datetime.now(timezone.utc) - last_dt < timedelta(hours=TELEGRAM_OPS_COOLDOWN_HOURS):
+                return False
+        except ValueError:
+            pass  # corrupt stamp — alert and overwrite it
+    text = (
+        f"⚙️ <b>ThreatWatch operator alert</b>\n"
+        f"<b>{_html_escape(subject)}</b>\n\n"
+        f"{_html_escape(detail)}\n\n"
+        f"{_html_escape(TELEGRAM_DASHBOARD_URL)}/api/health"
+    )
+    if not _send(text):
+        return False
+    state[key] = datetime.now(timezone.utc).isoformat()
+    _save_json_state(_OPS_STATE_PATH, state)
+    logger.info("Telegram ops alert sent: %s", subject)
+    return True

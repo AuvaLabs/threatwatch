@@ -128,6 +128,12 @@ def fetch_newsapi_articles() -> list[dict]:
         logger.warning(f"NewsAPI: non-ok response: {data.get('message', data.get('status'))}")
         return []
 
+    # Stamp the cooldown on every successful API call, INCLUDING empty
+    # responses: each retry costs a request against the 100/day free tier, so
+    # an empty result must still wait the full interval (retrying every
+    # pipeline tick would triple quota burn for the same empty answer).
+    # Failed calls above deliberately do NOT stamp, so transient errors retry
+    # on the next tick.
     _save_last_call(now)
 
     raw_articles = data.get("articles") or []

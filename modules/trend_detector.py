@@ -201,7 +201,6 @@ def get_trends_report() -> dict:
     dates = sorted(daily_counts.keys())
 
     # Aggregate keyword totals over last 7 and 30 days
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
 
     week_keywords = Counter()

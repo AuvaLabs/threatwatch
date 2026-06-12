@@ -128,7 +128,7 @@ class TestGetReport:
 
     def test_empty_health_file_returns_empty_report(self):
         report = fh.get_report()
-        assert report == {"ok": [], "error": [], "suspect": [], "dead": [], "stale": []}
+        assert report == {"ok": [], "error": [], "suspect": [], "dead": [], "stale": [], "silent": []}
 
 
 class TestLogHealthSummary:
@@ -271,3 +271,47 @@ class TestPrintReport:
         with caplog.at_level(logging.WARNING, logger="root"):
             fh.log_health_summary()
         assert "SUSPECT" in caplog.text or "suspect" in caplog.text
+
+
+class TestSilentFeedDetection:
+    """A feed that responds but never yields one article must surface as
+    'silent', not sit at 'ok' forever (the stale check needs a prior success)."""
+
+    def test_never_succeeded_feed_goes_silent_after_threshold(self, tmp_path):
+        with patch.object(fh, "HEALTH_FILE", tmp_path / "h.json"):
+            url = "https://example.test/empty-feed"
+            for _ in range(fh._SILENT_MIN_FETCHES):
+                fh.record_fetch(url, success=True, entry_count=0)
+            data = fh.load_health()
+            assert data[url]["status"] == "silent"
+
+    def test_silent_feed_recovers_on_first_article(self, tmp_path):
+        with patch.object(fh, "HEALTH_FILE", tmp_path / "h.json"):
+            url = "https://example.test/slow-start"
+            for _ in range(fh._SILENT_MIN_FETCHES):
+                fh.record_fetch(url, success=True, entry_count=0)
+            fh.record_fetch(url, success=True, entry_count=3)
+            assert fh.load_health()[url]["status"] == "ok"
+
+    def test_young_quiet_feed_stays_ok(self, tmp_path):
+        with patch.object(fh, "HEALTH_FILE", tmp_path / "h.json"):
+            url = "https://example.test/new-feed"
+            fh.record_fetch(url, success=True, entry_count=0)
+            assert fh.load_health()[url]["status"] == "ok"
+
+
+class TestPruneUnconfigured:
+    def test_removes_entries_not_in_config(self, tmp_path):
+        with patch.object(fh, "HEALTH_FILE", tmp_path / "h.json"):
+            fh.record_fetch("https://keep.test/feed", success=True, entry_count=1)
+            fh.record_fetch("https://removed.test/feed", success=False)
+            pruned = fh.prune_unconfigured(["https://keep.test/feed"])
+            assert pruned == 1
+            data = fh.load_health()
+            assert "https://keep.test/feed" in data
+            assert "https://removed.test/feed" not in data
+
+    def test_noop_when_all_configured(self, tmp_path):
+        with patch.object(fh, "HEALTH_FILE", tmp_path / "h.json"):
+            fh.record_fetch("https://keep.test/feed", success=True, entry_count=1)
+            assert fh.prune_unconfigured(["https://keep.test/feed"]) == 0

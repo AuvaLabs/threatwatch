@@ -138,7 +138,35 @@ def main():
         return
 
     raw_articles = fetch_articles(all_feeds)
+    # Drop health entries for feeds removed from config — leftovers otherwise
+    # inflate the dead/error counts /api/health reports forever.
+    try:
+        from modules.feed_health import prune_unconfigured
+        prune_unconfigured([f["url"] for f in all_feeds])
+    except Exception as e:
+        logging.debug(f"Feed-health prune skipped: {e}")
     log_health_summary()
+
+    # Operator alert when sources are dying. Silent feed failure is the worst
+    # failure mode for a threat-intel product — coverage shrinks while the
+    # dashboard keeps looking normal. Cooldown-deduped inside dispatch.
+    try:
+        from modules.feed_health import get_health_json
+        from modules.telegram import dispatch_ops_alert
+        fh = get_health_json()
+        broken = fh.get("dead", 0) + fh.get("silent", 0)
+        threshold = int(os.getenv("FEED_ALERT_THRESHOLD", "5"))
+        if broken >= threshold:
+            dead_urls = ", ".join(
+                d.get("url", "?")[:60] for d in fh.get("dead_feeds", [])[:5]
+            )
+            dispatch_ops_alert(
+                key="feeds_degraded",
+                subject=f"{broken} feeds dead or silent (threshold {threshold})",
+                detail=f"Dead: {dead_urls}" if dead_urls else "See /api/health for the list.",
+            )
+    except Exception as e:
+        logging.debug(f"Feed ops alert skipped: {e}")
 
     # Dark web monitoring (zero cost — clearnet aggregators)
     try:
@@ -335,6 +363,17 @@ def main():
                 f"reason={freshness['reason']}"
             )
             write_stale_flag(freshness)
+            # Surface to the operator — a stale briefing previously only
+            # showed up in logs while the dashboard kept serving old analysis.
+            try:
+                from modules.telegram import dispatch_ops_alert
+                dispatch_ops_alert(
+                    key="briefing_stale",
+                    subject=f"Intelligence briefing stale ({freshness['age_hours']:.1f}h old)",
+                    detail=str(freshness.get("reason", "unknown reason")),
+                )
+            except Exception as alert_exc:
+                logging.debug(f"Briefing ops alert skipped: {alert_exc}")
         else:
             clear_stale_flag()
     except Exception as e:

@@ -1,6 +1,7 @@
 import feedparser
 import hashlib
 import logging
+import threading
 import requests
 from typing import Any
 
@@ -27,59 +28,98 @@ _FEED_HEADERS = {
     "Accept": "application/rss+xml, application/xml, text/xml, */*",
 }
 
-_FEED_TIMEOUT = 10  # seconds
+# (connect, read) — connect fails fast; the read budget is generous because
+# 16 parallel fetches contend for bandwidth and large feeds (1MB+) were
+# read-timing-out at a flat 10s, flapping healthy feeds into "error".
+_FEED_TIMEOUT = (5, 25)
 
 _session = None
+_session_lock = threading.Lock()
 
 
 def _get_session() -> requests.Session:
+    """Shared session with retry adapters; thread-safe initialisation.
+
+    The unguarded lazy init raced across the 16 fetch threads: a thread
+    could grab the session after construction but before mount(), getting a
+    session with NO retry adapter — its feeds silently lost their 429/5xx
+    retries for that run.
+    """
     global _session
-    if _session is None:
-        _session = requests.Session()
-        _session.headers.update(_FEED_HEADERS)
-        retry = Retry(
-            total=3,
-            backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["GET"],
-        )
-        adapter = HTTPAdapter(max_retries=retry)
-        _session.mount("https://", adapter)
-        _session.mount("http://", adapter)
+    with _session_lock:
+        if _session is None:
+            session = requests.Session()
+            session.headers.update(_FEED_HEADERS)
+            retry = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+                allowed_methods=["GET"],
+            )
+            adapter = HTTPAdapter(max_retries=retry)
+            session.mount("https://", adapter)
+            session.mount("http://", adapter)
+            _session = session
     return _session
 
 
-def _fetch_feed(url: str, region: str = "Global") -> list[dict[str, Any]]:
+def _fetch_feed(url: str, region: str = "Global",
+                user_agent: str | None = None) -> list[dict[str, Any]]:
     try:
         session = _get_session()
-        resp = session.get(url, timeout=_FEED_TIMEOUT)
+        # Per-feed UA override (config `user_agent:`) — some sites 403 the
+        # default Chrome UA but accept others (e.g. Sekoia needs Firefox).
+        headers = {"User-Agent": user_agent} if user_agent else None
+        resp = session.get(url, timeout=_FEED_TIMEOUT, headers=headers)
         resp.raise_for_status()
         parsed = feedparser.parse(resp.content)
-        results = []
 
+        # HTTP 200 with zero parseable entries and a parse error is NOT a
+        # quiet feed — it's a bot-challenge page, WAF block, or moved feed.
+        # Recording it as success made dead feeds look healthy ("ok, 0 new").
+        if parsed.bozo and not parsed.entries:
+            logger.error(
+                f"Feed {url} returned HTTP {resp.status_code} but no parseable "
+                f"entries (bozo: {getattr(parsed, 'bozo_exception', 'unknown')})"
+            )
+            record_fetch(url, success=False, entry_count=0)
+            return []
+
+        results = []
         for entry in parsed.entries:
-            raw_link = getattr(entry, "link", "") or ""
-            # Drop articles whose primary link is a Tor/I2P address
-            if not is_clearnet_url(raw_link):
-                logger.debug(f"Non-clearnet link skipped: {raw_link[:80]}")
+            # Isolate per-entry failures: one malformed entry (missing title,
+            # resolver blow-up) used to abort the whole feed and mark it as a
+            # fetch error.
+            try:
+                title = getattr(entry, "title", "") or ""
+                raw_link = getattr(entry, "link", "") or ""
+                if not title:
+                    logger.debug(f"Entry without title skipped in {url}")
+                    continue
+                # Drop articles whose primary link is a Tor/I2P address
+                if not is_clearnet_url(raw_link):
+                    logger.debug(f"Non-clearnet link skipped: {raw_link[:80]}")
+                    continue
+                raw_summary = entry.get("summary", "") or ""
+                clean_link = resolve_original_url(raw_link, summary=raw_summary)
+                # Resolved URL might have redirected to a .onion — guard again
+                if not is_clearnet_url(clean_link):
+                    clean_link = raw_link
+                article_hash = hashlib.sha256(
+                    (title + normalize_url(clean_link)).encode()
+                ).hexdigest()
+                results.append({
+                    "title": title,
+                    "link": clean_link,
+                    "published": entry.get("published", ""),
+                    "summary": entry.get("summary", ""),
+                    "hash": article_hash,
+                    "source": url,
+                    "feed_region": region,
+                })
+            except Exception as entry_exc:
+                logger.warning(f"Skipping malformed entry in {url}: {entry_exc}")
                 continue
-            raw_summary = entry.get("summary", "") or ""
-            clean_link = resolve_original_url(raw_link, summary=raw_summary)
-            # Resolved URL might have redirected to a .onion — guard again
-            if not is_clearnet_url(clean_link):
-                clean_link = raw_link
-            article_hash = hashlib.sha256(
-                (entry.title + normalize_url(clean_link)).encode()
-            ).hexdigest()
-            results.append({
-                "title": entry.title,
-                "link": clean_link,
-                "published": entry.get("published", ""),
-                "summary": entry.get("summary", ""),
-                "hash": article_hash,
-                "source": url,
-                "feed_region": region,
-            })
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=FEED_CUTOFF_DAYS)
         filtered = []
@@ -116,7 +156,12 @@ def fetch_articles(feeds_config: list[dict[str, Any]]) -> list[dict[str, Any]]:
     all_articles = []
     with ThreadPoolExecutor(max_workers=MAX_FEED_FETCH_THREADS) as executor:
         futures = {
-            executor.submit(_fetch_feed, feed["url"], feed.get("region", "Global")): feed["url"]
+            executor.submit(
+                _fetch_feed,
+                feed["url"],
+                feed.get("region", "Global"),
+                feed.get("user_agent"),
+            ): feed["url"]
             for feed in feeds_config
         }
         for future in as_completed(futures):
