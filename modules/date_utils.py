@@ -74,3 +74,19 @@ def earliest(dates: Iterable[datetime | None]) -> datetime | None:
     """Return the earliest non-None datetime, or None if all are None."""
     valid = [d for d in dates if d is not None]
     return min(valid) if valid else None
+
+
+def article_datetime(article: dict) -> datetime | None:
+    """Best event-time for an article, as a timezone-aware UTC datetime.
+
+    Prefers the article's own publication date; falls back to the pipeline
+    ingestion time (`ingested_at`, then the legacy `timestamp` alias) when
+    `published` is missing or unparseable. Returns None when no field
+    parses — callers decide how to handle undatable articles and must never
+    substitute "now".
+    """
+    for field in ("published", "ingested_at", "timestamp"):
+        dt = parse_datetime(article.get(field))
+        if dt is not None:
+            return dt
+    return None

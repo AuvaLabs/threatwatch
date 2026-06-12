@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from modules.ai_cache import get_cached_result, cache_result
+from modules.date_utils import article_datetime
 from modules.briefing_generator import (
     _detect_provider,
     _call_openai_compatible,
@@ -100,30 +101,37 @@ def _filter_for_briefing(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
         seen_titles.add(title_key)
         filtered.append(a)
 
-    # Sort: most recent first
+    # Sort: most recently PUBLISHED first. Sorting by the ingestion
+    # timestamp let re-enriched old articles masquerade as the freshest
+    # candidates for the AI's "most significant incidents" pick.
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
     filtered.sort(
-        key=lambda a: a.get("timestamp", "1970-01-01"),
+        key=lambda a: article_datetime(a) or epoch,
         reverse=True,
     )
     return filtered
 
 
 def _split_by_age(articles: list[dict[str, Any]]) -> tuple[list, list, list]:
-    """Split articles into (last_24h, days_2_3, days_4_7) buckets."""
+    """Split articles into (last_24h, days_2_3, days_4_7) buckets.
+
+    Age is measured from the article's publication date (ingestion time only
+    as a fallback) so the "last 24h" bucket reflects when events happened,
+    not when the pipeline got around to processing them.
+    """
     now = datetime.now(timezone.utc)
     day1, day3, older = [], [], []
     for a in articles:
-        ts = a.get("timestamp", "")
-        try:
-            dt = datetime.fromisoformat(ts)
-            age = (now - dt).total_seconds() / 86400
-            if age <= 1:
-                day1.append(a)
-            elif age <= 3:
-                day3.append(a)
-            else:
-                older.append(a)
-        except (ValueError, TypeError):
+        dt = article_datetime(a)
+        if dt is None:
+            older.append(a)
+            continue
+        age = (now - dt).total_seconds() / 86400
+        if age <= 1:
+            day1.append(a)
+        elif age <= 3:
+            day3.append(a)
+        else:
             older.append(a)
     return day1, day3, older
 

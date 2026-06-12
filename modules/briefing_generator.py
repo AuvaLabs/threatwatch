@@ -29,6 +29,7 @@ from modules.config import (
     FEATHERLESS_MODEL, CLAUDE_BRIDGE_MODEL,
 )
 from modules.ai_cache import get_cached_result, cache_result
+from modules.date_utils import article_datetime
 from modules.llm_client import (
     call_llm as _call_groq,
     call_featherless as _call_featherless,
@@ -321,11 +322,13 @@ def _hoist_kev_listed(
         if not a.get("kev_listed"):
             keep.append(a)
             continue
-        try:
-            age_h = (now - datetime.fromisoformat(a.get("timestamp", ""))).total_seconds() / 3600
-        except Exception:
+        # Age from the publication date (ingestion time only as fallback) —
+        # ingestion-time age made stale KEV coverage look hoist-fresh.
+        art_dt = article_datetime(a)
+        if art_dt is None:
             keep.append(a)
             continue
+        age_h = (now - art_dt).total_seconds() / 3600
         if age_h <= max_age_hours:
             hoisted.append(a)
         else:
@@ -1062,7 +1065,7 @@ def _filter_articles_by_region(articles: list[dict], region_key: str) -> list[di
     labels = _REGIONAL_CONFIGS[region_key]["labels"]
     return [
         a for a in articles
-        if any(l in a.get("feed_region", "").split(",") for l in labels)
+        if any(lbl in a.get("feed_region", "").split(",") for lbl in labels)
     ]
 
 
