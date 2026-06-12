@@ -219,11 +219,13 @@ class TestGenerateBriefing:
              patch.object(bg, "_save_briefing"), \
              patch.object(bg, "BRIEFING_PATH", tmp_path / "briefing.json"):
             result = bg.generate_briefing(self._articles())
-        # Cache hit re-stamps generated_at so the staleness alarm stays accurate
-        # across runs even when the digest is unchanged.
+        # Cache hit must NOT re-stamp generated_at (that lied about content
+        # age); it stamps last_validated_at instead, which the staleness
+        # check accepts.
         assert result["threat_level"] == "MODERATE"
         assert result["what_happened"] == "cached"
-        assert "generated_at" in result
+        assert "last_validated_at" in result
+        assert result.get("generated_at") == cached.get("generated_at")
 
     def test_rate_limited_serves_existing(self, tmp_path):
         existing = {"threat_level": "ELEVATED", "what_happened": "old"}
@@ -574,9 +576,16 @@ class TestCveGrounding:
              patch.object(bg, "_build_trend_context", return_value=""), \
              patch.object(bg, "_build_vuln_context", return_value=""):
             result = bg.generate_briefing(articles)
-        # Stale briefing served, fabricated brief never reached disk.
-        assert result == existing
-        save_mock.assert_not_called()
+        # Stale briefing served — and labelled as such so the UI can say so.
+        assert result["what_happened"] == existing["what_happened"]
+        assert result["served_stale"] is True
+        assert "rejected" in result["stale_reason"]
+        # Only the labelled PRIOR briefing reaches disk — the fabricated
+        # generation must never be saved.
+        save_mock.assert_called_once()
+        saved = save_mock.call_args.args[0]
+        assert saved["what_happened"] == existing["what_happened"]
+        assert saved["served_stale"] is True
 
 
 class TestProperNounExtraction:
@@ -673,3 +682,30 @@ class TestHeadlineGrounding:
             "headline_source": "1",
         }
         assert bg._validate_headline_grounding(briefing, self._articles()) is None
+
+
+class TestThreatLevelHonesty:
+    def test_valid_level_marked_model(self):
+        b = {"threat_level": "elevated"}
+        bg._normalise_threat_level(b)
+        assert b["threat_level"] == "ELEVATED"
+        assert b["threat_level_source"] == "model"
+
+    def test_high_aliases_to_elevated_not_moderate(self):
+        """'HIGH' used to be silently DOWNGRADED to MODERATE."""
+        b = {"threat_level": "HIGH"}
+        bg._normalise_threat_level(b)
+        assert b["threat_level"] == "ELEVATED"
+        assert b["threat_level_source"] == "model_alias"
+
+    def test_garbage_falls_back_with_provenance(self):
+        b = {"threat_level": "BANANAS"}
+        bg._normalise_threat_level(b)
+        assert b["threat_level"] == "MODERATE"
+        assert b["threat_level_source"] == "fallback_invalid"
+
+    def test_missing_level_falls_back_with_provenance(self):
+        b = {}
+        bg._normalise_threat_level(b)
+        assert b["threat_level"] == "MODERATE"
+        assert b["threat_level_source"] == "fallback_invalid"

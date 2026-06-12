@@ -41,6 +41,44 @@ from modules.llm_client import (
 BRIEFING_PATH = OUTPUT_DIR / "briefing.json"
 
 _VALID_THREAT_LEVELS = frozenset({"CRITICAL", "ELEVATED", "MODERATE", "GUARDED", "LOW"})
+
+# Models regularly emit reasonable synonyms outside the enum. Map the common
+# ones to their closest level instead of silently flattening everything to
+# MODERATE — "HIGH" downgraded to the median was an honesty bug, not safety.
+_THREAT_LEVEL_ALIASES = {
+    "HIGH": "ELEVATED",
+    "SEVERE": "ELEVATED",
+    "MEDIUM": "MODERATE",
+    "EXTREME": "CRITICAL",
+}
+
+
+def _normalise_threat_level(briefing: dict) -> None:
+    """Normalise threat_level in place and record its provenance.
+
+    Sets `threat_level_source` to one of:
+      model            — the model produced a valid enum value
+      model_alias      — a recognised synonym was mapped (e.g. HIGH→ELEVATED)
+      fallback_invalid — unrecognised value; defaulted to MODERATE
+
+    The source field is served to the UI so an analyst can tell an assessed
+    MODERATE from a we-couldn't-parse-the-model MODERATE.
+    """
+    raw = (briefing.get("threat_level") or "").upper().strip()
+    if raw in _VALID_THREAT_LEVELS:
+        briefing["threat_level"] = raw
+        briefing["threat_level_source"] = "model"
+    elif raw in _THREAT_LEVEL_ALIASES:
+        briefing["threat_level"] = _THREAT_LEVEL_ALIASES[raw]
+        briefing["threat_level_source"] = "model_alias"
+        logger.info("Threat level alias mapped: %r -> %s", raw, briefing["threat_level"])
+    else:
+        briefing["threat_level"] = "MODERATE"
+        briefing["threat_level_source"] = "fallback_invalid"
+        logger.warning(
+            "Threat level %r not recognised — defaulted to MODERATE "
+            "(threat_level_source=fallback_invalid)", raw,
+        )
 _LAST_API_CALL_PATH = OUTPUT_DIR / ".briefing_last_call"
 _BRIEFING_COOLDOWN_SECONDS = 3600  # 1 hour minimum between API calls
 
@@ -794,11 +832,14 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
     cached = get_cached_result(cache_key)
     if cached is not None:
         logger.info("Intelligence briefing loaded from cache.")
-        # Re-stamp generated_at: the digest is unchanged, so the analysis is
-        # still current. Without this, a run-to-run cache hit keeps the old
-        # timestamp and the staleness alarm fires even though the pipeline is
-        # healthy and the content is valid.
-        cached = {**cached, "generated_at": datetime.now(timezone.utc).isoformat()}
+        # generated_at stays the TRUE generation time — re-stamping it on
+        # every cache hit told users the analysis was newer than it was and
+        # permanently reset the staleness alarm while the cache stayed hot.
+        # last_validated_at records "we re-checked the inputs and they are
+        # unchanged as of now"; the staleness check accepts either stamp.
+        cached = {**cached, "last_validated_at": datetime.now(timezone.utc).isoformat()}
+        cached.pop("served_stale", None)
+        cached.pop("stale_reason", None)
         _save_briefing(cached)
         return cached
 
@@ -876,10 +917,8 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
             logger.warning(f"Intelligence briefing missing required fields: {missing}")
             return None
 
-        # Normalise threat_level
-        tl = (briefing.get("threat_level") or "").upper()
-        if tl not in _VALID_THREAT_LEVELS:
-            briefing["threat_level"] = "MODERATE"
+        # Normalise threat_level (records threat_level_source provenance)
+        _normalise_threat_level(briefing)
 
         # Ensure optional sections have defaults
         briefing.setdefault("what_to_do", [])
@@ -899,7 +938,18 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
                 sorted(ungrounded),
             )
             existing = load_briefing()
-            return existing if existing else None
+            if existing:
+                # Tell consumers (UI badge, /api/briefing) that this content
+                # is older than the pipeline run that produced it — the fresh
+                # generation was rejected, we're serving the previous one.
+                existing = {
+                    **existing,
+                    "served_stale": True,
+                    "stale_reason": "latest generation rejected: ungrounded CVE citations",
+                }
+                _save_briefing(existing)
+                return existing
+            return None
 
         # Guard against headline narrative-coupling (entities welded from
         # unrelated source articles). On failure, clear the headline so the
@@ -930,6 +980,9 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         # `now` made the briefing look hours old the moment it hit disk and
         # tripped the staleness alarm immediately on save.
         briefing["generated_at"] = datetime.now(timezone.utc).isoformat()
+        briefing["last_validated_at"] = briefing["generated_at"]
+        briefing.pop("served_stale", None)
+        briefing.pop("stale_reason", None)
         briefing["articles_analyzed"] = min(len(briefing_articles), _MAX_BRIEFING_ARTICLES)
         briefing["total_articles"] = len(articles)  # total including darkweb
         briefing["reporting_window"] = reporting_window
@@ -1171,9 +1224,7 @@ def generate_regional_briefings(articles: list[dict[str, Any]]) -> dict[str, Any
             if "what_happened" not in briefing:
                 continue
 
-            tl = (briefing.get("threat_level") or "").upper()
-            if tl not in _VALID_THREAT_LEVELS:
-                briefing["threat_level"] = "MODERATE"
+            _normalise_threat_level(briefing)
 
             briefing.setdefault("what_to_do", [])
             briefing.setdefault("outlook", "")

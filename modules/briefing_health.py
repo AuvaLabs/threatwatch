@@ -42,21 +42,37 @@ def check_briefing_freshness(max_age_hours: float = 3.0) -> dict:
     generated_at_str: str | None = None
     generated_at_epoch: float | None = None
 
+    def _parse_iso_epoch(ts: str) -> float:
+        if ts.endswith("Z"):
+            ts = ts[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(ts)
+        except ValueError:
+            dt = datetime.fromisoformat(ts.split(".")[0])
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.timestamp()
+
     try:
         raw = briefing_path.read_text(encoding="utf-8")
         data = json.loads(raw)
         generated_at_str = data.get("generated_at")
+        # Freshness = the LATER of generation time and last input-validation
+        # time. generated_at is honest (never re-stamped on cache hits);
+        # last_validated_at advances when a pipeline run confirms the digest
+        # inputs are unchanged — analysis that is old but still accurate must
+        # not trip the stale alarm.
+        candidates = []
         if generated_at_str:
-            ts = generated_at_str
-            if ts.endswith("Z"):
-                ts = ts[:-1] + "+00:00"
+            candidates.append(_parse_iso_epoch(generated_at_str))
+        validated_str = data.get("last_validated_at")
+        if isinstance(validated_str, str) and validated_str:
             try:
-                dt = datetime.fromisoformat(ts)
+                candidates.append(_parse_iso_epoch(validated_str))
             except ValueError:
-                dt = datetime.fromisoformat(ts.split(".")[0])
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            generated_at_epoch = dt.timestamp()
+                pass
+        if candidates:
+            generated_at_epoch = max(candidates)
     except json.JSONDecodeError as exc:
         logger.debug("briefing.json is not valid JSON: %s", exc)
         return {
