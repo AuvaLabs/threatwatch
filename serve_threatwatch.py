@@ -653,6 +653,12 @@ def build_health() -> bytes:
     except OSError:
         heartbeat_age = None
 
+    def _corpus_size() -> int:
+        try:
+            return len(load_articles())
+        except Exception:
+            return 0
+
     status, reasons = _compute_status(latest_run, feed_summary, last_run_age, heartbeat_age)
 
     payload = {
@@ -662,7 +668,13 @@ def build_health() -> bytes:
         "last_run_at": completed_at,
         "last_run_age_s": int(last_run_age) if last_run_age is not None else None,
         "heartbeat_age_s": int(heartbeat_age) if heartbeat_age is not None else None,
-        "articles_total": latest_run.get("articles_fetched", 0),
+        # articles_total is the SERVED CORPUS size — the same number
+        # /api/articles reports — so the two endpoints can be compared
+        # directly. It previously held the latest run's raw fetch count,
+        # which made health look like it disagreed with the API by
+        # thousands. Per-run counters keep their own explicit names.
+        "articles_total": _corpus_size(),
+        "last_run_fetched": latest_run.get("articles_fetched", 0),
         "articles_cyber": latest_run.get("cyber_articles", 0),
         "articles_enriched": latest_run.get("articles_enriched", 0),
         "analysis_failures": latest_run.get("analysis_failures", 0),

@@ -198,7 +198,10 @@ class TestHealthEndpoint:
         data = json.loads(body)
         assert data["status"] == "ok"
         assert "uptime_s" in data
-        assert data["articles_total"] == 42
+        # articles_total is the served corpus size (comparable with
+        # /api/articles total); the per-run fetch count has its own field.
+        assert data["last_run_fetched"] == 42
+        assert data["articles_total"] == 0  # no corpus in tmp BASE_DIR
         assert data["articles_cyber"] == 20
 
     def test_health_handles_missing_stats(self, tmp_path):
