@@ -64,7 +64,7 @@ AI-powered threat intelligence platform that aggregates 150+ RSS feeds, dark web
 
 ### Dashboard
 - Server-side rendered, **loads in under a second**
-- **Single HTML file** — no build step, no framework, no JavaScript bundle; Inter + JetBrains Mono typography on a rem-based type scale
+- **Single HTML file** — no build step, no framework, no JavaScript bundle; terminal-grade design system (Space Grotesk + IBM Plex Sans/Mono, rem type scale, amber-on-carbon default theme)
 - **9 focused tabs**: Intel Brief, Breach, Exploits, Malware, Dark Web, Ransomware, APT Tracker, Brands, Tech
 - Each tab filters the left-panel live feed — one click to see all matching articles
 - EXPLOITS merges zero-days + vulnerabilities + patches (one analyst workflow)
@@ -87,7 +87,7 @@ AI-powered threat intelligence platform that aggregates 150+ RSS feeds, dark web
 - **"X new since HH:MM UTC" pill** — returning-reader counter at the top of the feed; persistent NEW badge on each article published since your last visit, dismissible with one click
 - **Share buttons** — copy-link on each article (`?article=<hash>` permalinks) and a one-click share that copies the briefing's level + headline + dashboard URL ready to paste into Slack/Teams/Telegram
 - Client-side statistical digest as fallback (the AI/NORMAL toggle; zero cost, no API key needed)
-- **5 switchable themes** — Nightwatch (dark brass), Parchment (light cream), Solarized (default), Arctic (clean blue), Phosphor (retro CRT)
+- **5 switchable themes** — Terminal (amber-on-carbon, default), Light, Solarized, Arctic, Phosphor (retro CRT)
 - Both live URLs displayed in the page footer
 
 ### Region accuracy

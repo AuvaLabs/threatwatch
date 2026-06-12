@@ -9,7 +9,7 @@
 <!-- Google Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
 /* ============================================================= */
@@ -27,37 +27,39 @@
   outline-offset: -2px;
 }
 
-/* Dark default — Midnight Command */
+/* Dark default — TERMINAL: amber-on-carbon ops console. Sharp geometry,
+   hairline structure, mono data. Deliberately NOT the soft rounded
+   blue-on-slate dashboard look. */
 :root {
-  --bg: #0b1120;
-  --surface: #111827;
-  --scrollbar-thumb: rgba(99,130,190,0.2);
-  --accent: #3b82f6;
-  --accent-dim: rgba(59,130,246,0.08);
-  --accent-2: #64748b;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --success: #22c55e;
-  --purple: #a78bfa;
-  --panel-bg: #111827;
-  --panel-border: rgba(148,163,184,0.08);
-  --panel-solid: #111827;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted: #475569;
+  --bg: #0a0d12;
+  --surface: #0e1219;
+  --scrollbar-thumb: rgba(255,176,0,0.18);
+  --accent: #ffb000;
+  --accent-dim: rgba(255,176,0,0.07);
+  --accent-2: #6f8198;
+  --danger: #ff4a4a;
+  --warning: #ff7a2f;
+  --success: #2bd576;
+  --purple: #b88aff;
+  --panel-bg: #0e1219;
+  --panel-border: rgba(151,170,196,0.13);
+  --panel-solid: #0e1219;
+  --text-primary: #d9e1ec;
+  --text-secondary: #93a2b8;
+  --text-muted: #5d6b7d;
   --card-bg: transparent;
-  --card-hover: rgba(59,130,246,0.04);
-  --card-active: rgba(59,130,246,0.08);
-  --stat-bg: rgba(59,130,246,0.04);
-  --stat-border: rgba(59,130,246,0.1);
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
-  --font-title: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --scrollbar-track: rgba(59,130,246,0.03);
-  --grid-line: transparent;
-  --radius: 8px;
-  --radius-sm: 4px;
-  --radius-lg: 12px;
+  --card-hover: rgba(255,176,0,0.045);
+  --card-active: rgba(255,176,0,0.09);
+  --stat-bg: rgba(255,176,0,0.045);
+  --stat-border: rgba(255,176,0,0.14);
+  --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Fira Code', 'Menlo', monospace;
+  --font-title: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+  --scrollbar-track: rgba(255,176,0,0.03);
+  --grid-line: rgba(151,170,196,0.045);
+  --radius: 2px;
+  --radius-sm: 1px;
+  --radius-lg: 3px;
   /* Type scale (rem so browser font-size settings are honoured; 10px floor —
      the old 8-9px micro text failed readability for a tool watched all day) */
   --text-2xs: 0.625rem;   /* 10px — micro labels, badges */
@@ -511,14 +513,27 @@ html, body {
 /* ============================================================= */
 #app {
   display: grid;
-  grid-template-rows: 56px 1fr;
-  grid-template-columns: 400px 1fr;
+  grid-template-rows: 52px 38px 1fr;
+  grid-template-columns: 380px minmax(0, 1fr) 330px;
   grid-template-areas:
-    "top top"
-    "left main";
+    "top top top"
+    "strip strip strip"
+    "left main rail";
   height: 100vh;
   width: 100vw;
   position: relative;
+}
+/* Faint engineering grid behind everything — command-room texture */
+#app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 28px 28px;
+  z-index: 0;
 }
 
 /* ============================================================= */
@@ -2422,9 +2437,10 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 /* ============================================================= */
 @media (max-width: 1024px) {
   .hamburger-btn { display: block; }
-  #app { grid-template-columns: 1fr; grid-template-areas: "top" "main"; }
+  #app { grid-template-columns: 1fr; grid-template-rows: 52px 38px 1fr; grid-template-areas: "top" "strip" "main"; }
+  #intel-rail { display: none; }
   #left-panel {
-    position: fixed; top: 56px; left: 0; bottom: 0;
+    position: fixed; top: 90px; left: 0; bottom: 0;
     width: 340px; z-index: 50;
     transform: translateX(-100%); transition: transform 0.25s ease;
     background: var(--surface); border-right: 1px solid var(--panel-border); overflow: hidden;
@@ -2439,9 +2455,10 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 
 @media (max-width: 768px) {
   .hamburger-btn { display: block; }
-  #app { grid-template-columns: 1fr; grid-template-rows: 56px 1fr; grid-template-areas: "top" "main"; }
+  #app { grid-template-columns: 1fr; grid-template-rows: 52px 38px 1fr; grid-template-areas: "top" "strip" "main"; }
+  #intel-rail { display: none; }
   #left-panel {
-    position: fixed; top: 56px; left: 0; bottom: 0;
+    position: fixed; top: 90px; left: 0; bottom: 0;
     width: 85vw; max-width: 340px; z-index: 50;
     transform: translateX(-100%); transition: transform 0.25s ease;
     background: var(--surface); border-right: 1px solid var(--panel-border); overflow: hidden;
@@ -2541,6 +2558,143 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   font-size: var(--text-sm); color: var(--text-muted);
   letter-spacing: 0.5px; font-family: var(--font-body);
 }
+
+/* ============================================================= */
+/* 2026-06 REDESIGN — terminal ops-console component layer        */
+/* ============================================================= */
+
+/* Top bar: command-bar weight */
+#topbar { height: 52px; background: var(--surface); border-bottom: 1px solid var(--panel-border); }
+#topbar .logo { font-family: var(--font-title); font-weight: 700; letter-spacing: 3px; font-size: 1rem; }
+#topbar .logo::after { content: '▍'; color: var(--accent); animation: cursor-blink 1.2s step-end infinite; margin-left: 2px; }
+@keyframes cursor-blink { 50% { opacity: 0; } }
+#clock { border: 1px solid var(--panel-border); padding: 3px 10px; border-radius: var(--radius); background: var(--bg); opacity: 1; font-size: var(--text-xs); }
+
+/* Status strip */
+#status-strip {
+  grid-area: strip;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg);
+  border-bottom: 1px solid var(--panel-border);
+  z-index: 9;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#status-strip::-webkit-scrollbar { display: none; }
+#status-strip .stats-bar {
+  display: flex;
+  align-items: stretch;
+  border: none;
+  background: transparent;
+  padding: 0;
+  height: auto;
+  flex: 0 0 auto;
+}
+#status-strip .stat-box {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+  border-right: 1px solid var(--panel-border);
+  background: transparent;
+}
+#status-strip .stat-box .count { font-size: var(--text-base); font-weight: 600; font-family: var(--font-mono); }
+#status-strip .stat-box .label { font-size: var(--text-2xs); letter-spacing: 1.2px; color: var(--text-muted); font-family: var(--font-mono); }
+#filter-chips { display: flex; align-items: center; gap: 6px; padding: 0 14px; font-family: var(--font-mono); }
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--text-2xs); letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-dim);
+  border: 1px solid var(--stat-border); border-radius: var(--radius);
+  padding: 2px 8px; cursor: pointer; white-space: nowrap;
+}
+.filter-chip:hover { background: var(--card-active); }
+
+/* Intel rail */
+#intel-rail {
+  grid-area: rail;
+  overflow-y: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--panel-border);
+  z-index: 1;
+}
+#intel-rail .center-section, #intel-rail .overview-section {
+  padding: 16px 16px 18px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+/* Panels sit above the grid texture */
+#left-panel, #main-content { z-index: 1; background: var(--bg); }
+
+/* Section headers: mono micro-labels with an accent tick; emoji retired */
+.section-icon { display: none; }
+.center-section-title, .overview-section .section-title, .panel-title {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.center-section-title::before, .overview-section .section-title::before {
+  content: '▍';
+  color: var(--accent);
+  margin-right: 7px;
+}
+
+/* Workspace tabs: terminal nav */
+.main-tab {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  padding: 11px 13px;
+  border-bottom: 2px solid transparent;
+}
+.main-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-dim); }
+.main-tab:hover:not(.active) { color: var(--text-primary); }
+
+/* Feed cards: dense triage rows with a hard severity rail */
+.feed-card {
+  margin: 0;
+  padding: 10px 14px 10px 13px;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+.feed-card:hover { background: var(--card-hover); }
+.feed-card.active { background: var(--card-active); box-shadow: inset 0 0 0 1px var(--stat-border); }
+.card-title { font-family: var(--font-body); font-weight: 600; font-size: var(--text-md); line-height: 1.45; }
+.card-divider { display: none; }
+.card-footer { margin-top: 6px; }
+.card-time { font-family: var(--font-mono); }
+
+/* Buttons & inputs: sharp, mono */
+.region-btn, .ransom-type-btn, .filter-btn, .watch-btn, .briefing-mode-toggle,
+.briefing-share-btn, .theme-picker-btn, .nv-clear, .watch-save-btn {
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-radius: var(--radius);
+}
+.feed-search-input, .vendor-search, .tag-text-input { border-radius: var(--radius); font-family: var(--font-mono); }
+
+/* Page loader: boot sequence */
+#page-loader .loader-logo { font-family: var(--font-title); letter-spacing: 5px; }
+#page-loader .loader-status { font-family: var(--font-mono); letter-spacing: 1.5px; text-transform: uppercase; font-size: var(--text-2xs); }
+#page-loader .loader-status::after { content: '▍'; color: var(--accent); animation: cursor-blink 1s step-end infinite; }
+
+/* Rail-specific density tweaks */
+#intel-rail .sector-grid { grid-template-columns: 1fr; }
+#intel-rail .actor-grid { grid-template-columns: 1fr; }
+
+/* Wide-screen collapse: drop the rail before squeezing the workspace */
+@media (max-width: 1280px) {
+  #app { grid-template-columns: 360px minmax(0, 1fr); grid-template-areas: "top top" "strip strip" "left main"; }
+  #intel-rail { display: none; }
+}
 </style>
 <!-- __SSR_DATA__ -->
 </head>
@@ -2567,17 +2721,17 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       <div id="threat-level" class="unknown" role="status" aria-live="polite">THREAT: &mdash;</div>
       <div class="theme-picker" id="theme-picker">
         <button class="theme-picker-btn" data-click-action="toggleThemeDropdown">
-          <span class="theme-swatch" id="theme-swatch" style="background:#0b1120;border-color:#3b82f6"></span>
-          <span class="theme-label" id="theme-label">MIDNIGHT</span>
+          <span class="theme-swatch" id="theme-swatch" style="background:#0a0d12;border-color:#ffb000"></span>
+          <span class="theme-label" id="theme-label">TERMINAL</span>
         </button>
         <div class="theme-picker-dropdown" id="theme-dropdown">
-          <button class="theme-option" data-theme="dark" data-click-action="setTheme" data-click-args="[&quot;dark&quot;]">
-            <span class="theme-swatch" style="background:#0b1120;border-color:#3b82f6"></span> MIDNIGHT
+          <button class="theme-option active" data-theme="dark" data-click-action="setTheme" data-click-args="[&quot;dark&quot;]">
+            <span class="theme-swatch" style="background:#0a0d12;border-color:#ffb000"></span> TERMINAL
           </button>
           <button class="theme-option" data-theme="light" data-click-action="setTheme" data-click-args="[&quot;light&quot;]">
             <span class="theme-swatch" style="background:#f8fafc;border-color:#2563eb"></span> LIGHT
           </button>
-          <button class="theme-option active" data-theme="solarized" data-click-action="setTheme" data-click-args="[&quot;solarized&quot;]">
+          <button class="theme-option" data-theme="solarized" data-click-action="setTheme" data-click-args="[&quot;solarized&quot;]">
             <span class="theme-swatch" style="background:#002b36;border-color:#b58900"></span> SOLARIZED
           </button>
           <button class="theme-option" data-theme="arctic" data-click-action="setTheme" data-click-args="[&quot;arctic&quot;]">
@@ -2596,6 +2750,18 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
     </div>
   </header>
   <div class="mobile-overlay" id="mobile-overlay" data-click-action="toggleMobileMenu"></div>
+
+  <!-- GLOBAL STATUS STRIP — one-line operational readout -->
+  <div id="status-strip" role="status" aria-label="Operational readout">
+    <div class="stats-bar">
+      <div class="stat-box critical" data-click-action="toggleKevFilter" title="CISA Known Exploited Vulnerabilities referenced in the current window — click to filter the feed" style="cursor:pointer"><span class="count" id="stat-kev">0</span><span class="label">KEV ACTIVE</span></div>
+      <div class="stat-box critical"><span class="count" id="stat-critical">0</span><span class="label">CRITICAL</span></div>
+      <div class="stat-box high"><span class="count" id="stat-high">0</span><span class="label">HIGH</span></div>
+      <div class="stat-box"><span class="count" id="stat-total">0</span><span class="label">TOTAL</span></div>
+      <div class="stat-box"><span class="count" id="stat-sources">0</span><span class="label">SOURCES</span></div>
+    </div>
+    <div id="filter-chips" aria-live="polite"></div>
+  </div>
 
   <!-- BRAND & ASSET WATCH DRAWER -->
   <div class="watch-overlay" id="watch-overlay" data-click-action="closeWatchDrawer"></div>
@@ -2729,15 +2895,6 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       </div>
     </div>
 
-    <!-- Horizontal stats bar -->
-    <div class="stats-bar">
-      <div class="stat-box critical" data-click-action="toggleKevFilter" title="CISA Known Exploited Vulnerabilities referenced in the current window — click to filter the feed" style="cursor:pointer"><span class="count" id="stat-kev">0</span><span class="label">KEV ACTIVE</span></div>
-      <div class="stat-box critical"><span class="count" id="stat-critical">0</span><span class="label">CRITICAL</span></div>
-      <div class="stat-box high"><span class="count" id="stat-high">0</span><span class="label">HIGH</span></div>
-      <div class="stat-box"><span class="count" id="stat-total">0</span><span class="label">TOTAL</span></div>
-      <div class="stat-box"><span class="count" id="stat-sources">0</span><span class="label">SOURCES</span></div>
-    </div>
-
     <!-- Scrollable content area -->
     <div class="center-content">
       <!-- Category context banner (shown when a category tab is active) -->
@@ -2761,20 +2918,9 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div class="center-section-title"><span class="section-icon">&#x1F517;</span> Incident Clusters <span class="briefing-ai-notice" style="font-size:var(--text-2xs);vertical-align:middle">AUTO-GROUPED</span></div>
         <div id="clusters-content"></div>
       </div>
-      <div class="center-section" id="section-trending-threats">
-        <div class="center-section-title">
-          <span class="section-icon">&#x1F525;</span> Trending Threats
-          <span class="trending-subtitle" id="trending-subtitle"></span>
-        </div>
-        <div id="trending-threats-content"></div>
-      </div>
       <div class="center-section" id="section-actors">
         <div class="center-section-title"><span class="section-icon">&#x1F3AD;</span> Active Threat Actors &amp; Malware</div>
         <div id="actor-spotlight-content"></div>
-      </div>
-      <div class="center-section" id="section-sectors">
-        <div class="center-section-title"><span class="section-icon">&#x1F3E2;</span> Sector Impact</div>
-        <div id="sector-impact-content"></div>
       </div>
 
       <!-- Detail article view (shown on click, hides sections) -->
@@ -2783,15 +2929,6 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div class="detail-section" id="detail-content"></div>
       </div>
 
-      <!-- Overview sections (moved from right panel) -->
-      <div class="overview-section">
-        <div class="section-title">Threat Categories <span class="section-item-count" id="cat-item-count"></span></div>
-        <div id="chart-categories"></div>
-      </div>
-      <div class="overview-section">
-        <div class="section-title">Feed Status</div>
-        <div class="feed-sources-status" id="feed-sources-status"></div>
-      </div>
       <div class="overview-section" id="signature" style="display:none"></div>
     </div>
 
@@ -2836,6 +2973,30 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 
   </div>
 
+
+    <!-- INTEL RAIL — at-a-glance threat landscape modules -->
+  <aside id="intel-rail" role="complementary" aria-label="Threat landscape modules">
+      <div class="center-section" id="section-trending-threats">
+        <div class="center-section-title">
+          <span class="section-icon">&#x1F525;</span> Trending Threats
+          <span class="trending-subtitle" id="trending-subtitle"></span>
+        </div>
+        <div id="trending-threats-content"></div>
+      </div>
+      <div class="center-section" id="section-sectors">
+        <div class="center-section-title"><span class="section-icon">&#x1F3E2;</span> Sector Impact</div>
+        <div id="sector-impact-content"></div>
+      </div>
+      <!-- Overview sections (moved from right panel) -->
+      <div class="overview-section">
+        <div class="section-title">Threat Categories <span class="section-item-count" id="cat-item-count"></span></div>
+        <div id="chart-categories"></div>
+      </div>
+      <div class="overview-section">
+        <div class="section-title">Feed Status</div>
+        <div class="feed-sources-status" id="feed-sources-status"></div>
+      </div>
+  </aside>
 
     <!-- Right panel — hidden, kept for JS compatibility -->
   <div id="right-panel" class="panel">
@@ -3165,7 +3326,7 @@ const REGION_NAMES = {
 /* THEME PICKER                                                   */
 /* ============================================================= */
 const THEMES = {
-  dark:      { name: 'MIDNIGHT',    bg: '#0b1120', accent: '#3b82f6' },
+  dark:      { name: 'TERMINAL',    bg: '#0a0d12', accent: '#ffb000' },
   light:     { name: 'LIGHT',       bg: '#f8fafc', accent: '#2563eb' },
   solarized: { name: 'SOLARIZED',   bg: '#002b36', accent: '#b58900' },
   arctic:    { name: 'ARCTIC',      bg: '#f0f4f8', accent: '#1d4ed8' },
@@ -3201,16 +3362,16 @@ document.addEventListener('click', function(e) {
   if (!e.target.closest('.theme-picker')) closeThemeDropdown();
 });
 
-// Restore saved theme (solarized is default)
+// Restore saved theme (TERMINAL dark is the default)
 (function() {
   try {
     var saved = localStorage.getItem('tw-theme');
     if (saved && THEMES[saved]) {
       setTheme(saved);
     } else {
-      setTheme('solarized');
+      setTheme('dark');
     }
-  } catch(e) { setTheme('solarized'); }
+  } catch(e) { setTheme('dark'); }
 })();
 
 function updateClock() {
@@ -4619,6 +4780,7 @@ function buildStoryBadge(item) {
 }
 
 function renderFeedCards(reset = true) {
+  renderFilterChips();
   const container = document.getElementById('threat-feed');
   const filter = state.activeFilter;
   let filtered = state.newsItems.filter(item => filterMatchesItem(filter, item));
@@ -4925,6 +5087,36 @@ function escapeHTML(str) {
 function focusInput(id) {
   const el = document.getElementById(id);
   if (el) el.focus();
+}
+
+function renderFilterChips() {
+  const host = document.getElementById('filter-chips');
+  if (!host) return;
+  const chips = [];
+  if (state.activeKevFilter) chips.push(['KEV only', 'kev']);
+  if (state.activeCveFilter) chips.push([state.activeCveFilter, 'cve']);
+  if (state.activeSectorFilter) chips.push(['Sector: ' + state.activeSectorFilter, 'vsector']);
+  if (state.activeSector) chips.push(['Sector: ' + state.activeSector.name, 'sector']);
+  if (state.activeActor) chips.push(['Actor: ' + state.activeActor.name, 'actor']);
+  if (state.activeCategory) chips.push(['Cat: ' + state.activeCategory.name, 'category']);
+  if (state._actionDrilldown) chips.push(['Severity: ' + state._actionDrilldown.value, 'drill']);
+  if (!chips.length) { host.innerHTML = ''; return; }
+  host.innerHTML = chips.map(([label]) =>
+    `<span class="filter-chip" data-click-action="clearAllFilters" title="Click to clear all active filters">${escapeHTML(label)} ✕</span>`
+  ).join('');
+}
+
+function clearAllFilters() {
+  state.activeKevFilter = false;
+  state.activeCveFilter = null;
+  state.activeSectorFilter = null;
+  state.activeSector = null;
+  state.activeActor = null;
+  state.activeCategory = null;
+  state._actionDrilldown = null;
+  const box = document.querySelector('[data-click-action="toggleKevFilter"]');
+  if (box) box.classList.remove('stat-box-active');
+  renderFeedCards();
 }
 
 function toggleKevFilter() {
