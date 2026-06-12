@@ -2,6 +2,118 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-06-12 — Full-system overhaul: data accuracy, silent-failure elimination, UI truthfulness + redesign foundation
+
+A three-phase audit (discover → plan → execute) of the entire pipeline,
+storage, server, AI layer, and dashboard, executed as ~20 reviewable commits.
+Theme: accuracy is non-negotiable — no fabricated values, no silent failures,
+no UI element implying something fired when it didn't.
+
+### Critical correctness
+- **KEV batch enrichment had failed on every pipeline run** with
+  `UnboundLocalError` (a function-local re-import shadowed the module import),
+  silently caught and logged as "KEV enrichment failed" — 40 occurrences/24h
+  confirmed in production logs. Articles now actually receive CISA KEV flags
+  in the main enrichment path.
+- **SQLite and JSON corpora could diverge without bound** (live instances
+  disagreed 2,007 vs 1,741 articles; the JSON corpus actually held 4,303).
+  `db.sync_corpus()` mirrors the merged corpus exactly — upsert + delete-absent
+  in one transaction. `/api/articles` and `/api/health` can no longer disagree.
+- **Fabricated timestamps eliminated**: enrichment time was stored as
+  `timestamp` and used for corpus ordering (old re-enriched articles surfaced
+  as breaking news); dark-web items with no date were stamped `published=now()`
+  and bypassed the cutoff; RSS fell back to render-time now(). Articles now
+  carry `ingested_at`, ordering/cutoff/AI-recency all key on the real
+  publication date, and undated dark-web items are dropped.
+- **Non-atomic writes fixed everywhere** (tmp+rename): the server could read —
+  and cache for 30s — a torn half-written daily_latest.json/stats.json;
+  alert-dedup state could corrupt to {} and re-fire every alert.
+
+### Silent failures now surface
+- HTTP-200-but-unparseable feeds (WAF/challenge pages) were recorded as
+  healthy "ok, 0 new" — now recorded as failures. One malformed entry no
+  longer fails the whole feed. New `silent` health state for feeds that
+  respond but have never produced one article. Health entries for feeds
+  removed from config are pruned (they inflated dead counts forever).
+- Operator Telegram alerts (24h cooldown) when ≥5 feeds are dead/silent or
+  the briefing goes stale — these failures previously lived only in
+  container logs.
+- Briefing tier cascade: the served tier, stale-serves
+  (`served_stale`/`stale_reason` after a hallucination rejection), and
+  threat-level provenance (`threat_level_source`) are now recorded and
+  shown in the UI. `generated_at` is never re-stamped on cache hits.
+- LLM "HIGH" threat level is no longer silently DOWNGRADED to MODERATE —
+  synonyms map to the closest enum level with provenance.
+
+### AI honesty
+- Actor profiles labelled `llm_generated_unverified` (description/aliases/
+  attribution come from model training data, not the corpus), regenerate
+  after 30 days, and the prompt instructs Unknown-over-guessing.
+- Cluster syntheses are CVE-ground-checked like the main briefing and
+  rejected on hallucinated IDs; AI cache keys carry prompt/model salts so
+  stale verdicts don't outlive prompt fixes; daily cache expiry sweep.
+- Top-stories `significance` normalised to the documented enum.
+
+### Enrichment
+- EPSS scores get a 6h disk cache (was a live API call every 10-minute tick;
+  outages silently dropped all scores — stale scores now serve WITH a
+  warning). KEV stale-cache fallback escalates to ERROR past 48h.
+- Trend spikes no longer emit `Infinity` (invalid JSON) — count-weighted
+  ratio + `new_emergence` flag.
+- MD5/SHA1 hex only counts as an IOC when the text mentions hashes/samples
+  (git commits and UUIDs in prose no longer surface as indicators).
+
+### Integrations
+- STIX 2.1 export is now actually valid: UUID-form identity id (the old
+  literal id made OpenCTI/MISP/Sentinel reject the whole bundle),
+  `created_by_ref` provenance instead of semantically-invalid
+  `indicator indicates identity`, content-derived stable bundle id so TAXII
+  dedup and ETag caching work.
+- `/api/since` pages oldest-first with a lossless cursor (the old cursor
+  silently skipped every unreturned article for paging clients) and
+  tolerates unencoded `+` in timestamps.
+- `/api/articles` no longer leaks scraped `full_content`.
+- Removed the dormant legacy RSS writer that used conflicting GUIDs.
+
+### Dashboard (truthfulness + redesign foundation)
+- Threat level defaults to `THREAT: —` (unknown), never a false LOW.
+- Incident Clusters panel restored (its render targeted a missing div —
+  the feature was silently dead); dead code removed.
+- The 2-minute refresh actually updates the briefing again (it keyed on a
+  legacy field and ignored every modern briefing) and now also refreshes
+  Headlines/Clusters/actor profiles; a visible "Checked HH:MM:SS UTC"
+  stamp distinguishes quiet-and-fresh from stale-page.
+- Briefing panel surfaces stale-serves, threat-level provenance, and the
+  serving tier. Sector Impact counts articles, not regex occurrences.
+- New **KEV ACTIVE** stat with one-click feed filtering.
+- Design system: rem type scale (10px floor, 221 px sizes replaced),
+  spacing tokens, WCAG-AA contrast fixes for Solarized/Phosphor,
+  theme-aware chart palette, honest chart-scaling legends, score-formula
+  tooltips, UTC hover anchors on relative times.
+- Accessibility: keyboard activation for all interactive elements, feed
+  cards focusable with aria-labels, landmarks, modal dialog semantics +
+  focus management on the watch drawer, live regions, visible focus rings.
+- Self-links are root-relative (self-hosted installs no longer point at
+  the hosted demo).
+
+### Security / dependencies / performance
+- requirements.txt pinned to production-verified versions (feedparser had
+  no constraint at all); defusedxml for externally-fetched XML;
+  /api/quality + /api/groq-usage removed from wildcard CORS; watchlist
+  GET auth now has regression coverage.
+- Rendered-page gzip memoized (was recompressed per request); the
+  always-"now" Last-Modified header removed (it defeated
+  If-Modified-Since; ETag handles conditional GETs).
+- Retention cleanup can no longer age-delete live output files
+  (briefing.json/daily_latest.json had a 365-day time bomb); AI cache
+  swept daily.
+
+### Tests
+- 1,483 tests passing (was 1,438 with 6 date-rotted failures). New
+  regression coverage for every fix above; time-dependent fixtures made
+  rotation-proof.
+
+
 ## 2026-05-14 — Featherless primary model swap: DeepSeek-V3.2 → openai/gpt-oss-120b
 
 Context: with the tier-aware downgrade guard now in place, the next constraint was that Featherless itself was 429ing every single call for 24h+ ("concurrency_limit_exceeded"). Direct probe of the Featherless API showed `feather_pro_plus` has a 4-unit concurrency cap, DeepSeek-V3.2 costs 4 units per request, and 2 units were persistently in use by an unidentified workload — leaving only 2 units headroom. Net: zero possibility of DeepSeek-V3.2 ever serving until the plan is upgraded or the phantom 2-unit holder is identified and stopped.

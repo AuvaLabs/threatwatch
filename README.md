@@ -9,12 +9,12 @@
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![Zero Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)]()
 [![AI Powered](https://img.shields.io/badge/AI-intelligence--briefing-8B5CF6?logo=openai&logoColor=white)]()
-[![Feeds](https://img.shields.io/badge/feeds-155+-blue)]()
+[![Feeds](https://img.shields.io/badge/feeds-150+-blue)]()
 [![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/threatwatch?style=social)](https://github.com/AuvaLabs/threatwatch)
 
 **[Live Demo](https://threatwatch.auvalabs.com)**
 
-AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web sources, and NewsAPI — classifies, deduplicates, and generates analyst-grade intelligence digests with AI-curated top stories, incident clustering, threat actor profiles, and actionable priority recommendations with source citations. Runs entirely free using Groq's API free tier. Self-hosted, zero-cost infrastructure.
+AI-powered threat intelligence platform that aggregates 150+ RSS feeds, dark web sources, and NewsAPI — classifies, deduplicates, and generates analyst-grade intelligence digests with AI-curated top stories, incident clustering, threat actor profiles, and actionable priority recommendations with source citations. Runs entirely free using Groq's API free tier. Self-hosted, zero-cost infrastructure.
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Architecture](#architecture) · [API](#api-endpoints) · [Integrations](docs/INTEGRATIONS.md) · [Contributing](#contributing)
 
@@ -31,10 +31,10 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 ## Features
 
 ### Collection
-- **155+ RSS feeds** — security blogs, vendor advisories, CERTs worldwide, Google News, Bing News
+- **150+ RSS feeds** — security blogs, vendor advisories, CERTs worldwide, Google News, Bing News
 - **NewsAPI integration** — additional security news with rate-limited fetching (100 req/day free tier)
 - **Dark web monitoring** — ThreatFox IOCs, ransomware victim tracking (ransomware.live), active C2 server IPs
-- **10-minute pipeline** cycle with automatic GitHub Pages deployment every 15 minutes
+- **Continuous pipeline** — new fetch cycle starts every 10 minutes; a full cycle (fetch → dedup → scrape → enrich) typically completes in 20-30 minutes
 - **8-thread parallel fetching** — processes all feeds in seconds
 - Rolling **7-day window** with merge across pipeline runs
 
@@ -64,7 +64,7 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 
 ### Dashboard
 - Server-side rendered, **loads in under a second**
-- **Single HTML file** — no build step, no framework, no JavaScript bundle; IBM Plex Mono + Space Grotesk typography
+- **Single HTML file** — no build step, no framework, no JavaScript bundle; Inter + JetBrains Mono typography on a rem-based type scale
 - **9 focused tabs**: Intel Brief, Breach, Exploits, Malware, Dark Web, Ransomware, APT Tracker, Brands, Tech
 - Each tab filters the left-panel live feed — one click to see all matching articles
 - EXPLOITS merges zero-days + vulnerabilities + patches (one analyst workflow)
@@ -86,7 +86,7 @@ AI-powered threat intelligence platform that aggregates 155+ RSS feeds, dark web
 - **CISA KEV badges** — articles referencing CVEs in the CISA Known Exploited Vulnerabilities catalog get an unmistakable "act now" pill, with darker shading for ransomware-linked entries
 - **"X new since HH:MM UTC" pill** — returning-reader counter at the top of the feed; persistent NEW badge on each article published since your last visit, dismissible with one click
 - **Share buttons** — copy-link on each article (`?article=<hash>` permalinks) and a one-click share that copies the briefing's level + headline + dashboard URL ready to paste into Slack/Teams/Telegram
-- Auto-generated statistical briefing as fallback (zero cost, no API key needed)
+- Client-side statistical digest as fallback (the AI/NORMAL toggle; zero cost, no API key needed)
 - **5 switchable themes** — Nightwatch (dark brass), Parchment (light cream), Solarized (default), Arctic (clean blue), Phosphor (retro CRT)
 - Both live URLs displayed in the page footer
 
@@ -294,7 +294,7 @@ The server runs on port **8098** by default:
 | `GET` | `/` | Dashboard (server-side rendered HTML) |
 | `GET` | `/api/articles` | All articles as JSON array |
 | `GET` | `/api/articles?offset=0&limit=20` | Paginated articles |
-| `GET` | `/api/briefing` | AI intelligence digest with source citations |
+| `GET` | `/api/briefing` | AI intelligence digest with source citations, serving tier (`provider`), staleness (`served_stale`) and threat-level provenance (`threat_level_source`) |
 | `GET` | `/api/briefing/na` | North America regional digest |
 | `GET` | `/api/briefing/emea` | EMEA regional digest |
 | `GET` | `/api/briefing/apac` | Asia-Pacific regional digest |
@@ -322,6 +322,7 @@ All JSON endpoints support CORS, ETag conditional requests, and gzip compression
       "translated_title": "LockBit ransomware targets healthcare sector",
       "link": "https://example.com/article",
       "published": "2026-03-21T10:00:00+00:00",
+      "ingested_at": "2026-03-21T10:05:00+00:00",
       "category": "Ransomware",
       "confidence": 95,
       "is_cyber_attack": true,
