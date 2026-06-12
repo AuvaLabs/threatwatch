@@ -2504,11 +2504,11 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   <header id="topbar">
     <button class="hamburger-btn" id="hamburger-btn" data-click-action="toggleMobileMenu" aria-label="Toggle menu">&#9776;</button>
     <div class="topbar-left">
-      <a href="https://threatwatch.auvalabs.com" style="text-decoration:none;color:inherit"><div class="logo">THREATWATCH <span>AI-Powered Cyber Threat Intelligence</span></div></a>
+      <a href="/" style="text-decoration:none;color:inherit"><div class="logo">THREATWATCH <span>AI-Powered Cyber Threat Intelligence</span></div></a>
       <div id="clock">--:--:-- UTC</div>
     </div>
     <div class="topbar-right">
-      <div id="threat-level" class="low">THREAT: LOW</div>
+      <div id="threat-level" class="unknown" role="status" aria-live="polite">THREAT: &mdash;</div>
       <div class="theme-picker" id="theme-picker">
         <button class="theme-picker-btn" data-click-action="toggleThemeDropdown">
           <span class="theme-swatch" id="theme-swatch" style="background:#0b1120;border-color:#3b82f6"></span>
@@ -2613,6 +2613,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       <div id="watch-filter-banner" style="display:none;align-items:center;justify-content:space-between;padding:4px 10px;background:rgba(45,140,255,0.1);border-bottom:1px solid rgba(45,140,255,0.2);font-size:10px;font-weight:700;letter-spacing:0.8px;color:var(--accent);"></div>
       <div class="feed-meta">
         <span id="last-refresh">--</span>
+        <span id="last-checked" title="When this page last polled the server (data may be unchanged)"></span>
       </div>
       <div id="new-visit-pill" class="new-visit-pill" style="display:none">
         <span><span class="nv-text"></span><span class="nv-since"></span></span>
@@ -2635,12 +2636,12 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div class="lf-stat" title="Average daily Groq tokens consumed (prompt + completion) across completed days. Hover for today + window."><span class="lf-label">AI TOKENS / DAY</span><span class="lf-value" id="lf-tokens">--</span></div>
       </div>
       <div class="left-footer-links">
-        <a href="https://threatwatch.auvalabs.com/api/rss" target="_blank" rel="noopener" title="RSS Feed">RSS</a>
+        <a href="/api/rss" target="_blank" rel="noopener" title="RSS Feed">RSS</a>
         <a href="https://github.com/AuvaLabs/threatwatch" target="_blank" rel="noopener" title="GitHub">GitHub</a>
         <span class="lf-version">v1.0</span>
       </div>
       <div class="left-footer-urls">
-        <a href="https://threatwatch.auvalabs.com/" target="_blank" rel="noopener">threatwatch.auvalabs.com</a>
+        <a href="/" id="lf-host-link"><span id="lf-host"></span></a>
       </div>
     </div>
   </div>
@@ -2698,6 +2699,10 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       <div class="center-section" id="section-top-stories">
         <div class="center-section-title"><span class="section-icon">&#x1F4A1;</span> Headlines <span class="briefing-ai-notice" style="font-size:9px;vertical-align:middle">AI CURATED</span></div>
         <div id="top-stories-content"></div>
+      </div>
+      <div class="center-section" id="section-clusters">
+        <div class="center-section-title"><span class="section-icon">&#x1F517;</span> Incident Clusters <span class="briefing-ai-notice" style="font-size:9px;vertical-align:middle">AUTO-GROUPED</span></div>
+        <div id="clusters-content"></div>
       </div>
       <div class="center-section" id="section-trending-threats">
         <div class="center-section-title">
@@ -3323,6 +3328,9 @@ function analyzeIntelligence() {
   // --- Section 2: Headlines (AI-curated) ---
   renderTopStories();
 
+  // --- Section 2a: Incident clusters (entity-grouped coverage) ---
+  renderClusters();
+
   // --- Section 2b: Trending Threats (spike + 7d leaderboard) ---
   renderTrending();
 
@@ -3704,10 +3712,26 @@ function renderAIBriefing(container) {
   })();
   html += stalenessHtml;
 
+  // Served-stale banner: the pipeline rejected its latest generation
+  // (hallucinated citations) and is intentionally serving the previous
+  // briefing — say so instead of passing it off as current.
+  if (b.served_stale) {
+    const why = b.stale_reason ? escapeHTML(b.stale_reason) : 'newer generation failed validation';
+    html += `<div style="margin-bottom:8px;padding:5px 9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:4px;font-size:10px;color:var(--danger);letter-spacing:0.5px">&#9888; SERVING PREVIOUS BRIEFING &mdash; ${why}</div>`;
+  }
+
   // Threat level badge + assessment basis
   const tl = (b.threat_level || 'MODERATE').toUpperCase();
   html += `<div style="margin-bottom:12px"><span class="ai-threat-level ${tl}">${tl}</span>`;
-  html += `<span class="briefing-ai-notice">AI INTELLIGENCE</span></div>`;
+  if (b.threat_level_source === 'fallback_invalid') {
+    html += `<span style="font-size:9px;color:var(--text-muted);margin-left:6px;letter-spacing:0.5px" title="The model did not return a recognised threat level; MODERATE is a default, not an assessment">DEFAULT &mdash; NOT ASSESSED</span>`;
+  }
+  html += `<span class="briefing-ai-notice">AI INTELLIGENCE</span>`;
+  if (b.provider) {
+    const tierLabel = escapeHTML(String(b.provider).split('/')[0].replace('_', ' ').toUpperCase());
+    html += `<span style="font-size:9px;color:var(--text-muted);margin-left:6px;letter-spacing:0.5px" title="${escapeHTML(String(b.provider))}">via ${tierLabel}</span>`;
+  }
+  html += `</div>`;
   if (b.assessment_basis) {
     html += `<div style="margin-bottom:14px;font-size:11px;color:var(--text-muted);letter-spacing:0.3px;line-height:1.5;font-style:italic">${escapeHTML(b.assessment_basis)}</div>`;
   }
@@ -3802,17 +3826,6 @@ function renderAIBriefing(container) {
   html += `<div class="briefing-timestamp">INTELLIGENCE DIGEST ${genAt} UTC | ${b.articles_analyzed || '?'}${totalNote} ARTICLES ANALYZED${windowLabel}${modelLabel}</div>`;
 
   container.innerHTML = html;
-}
-
-function _incidentWordSet(title) {
-  const stop = new Set(['a','an','the','and','or','in','on','at','to','for','of','with','by','is','are','was','has','that','this','it','not','new','says','say']);
-  return new Set(title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 1 && !stop.has(w)));
-}
-function _incidentSimilar(a, b) {
-  const sa = _incidentWordSet(a), sb = _incidentWordSet(b);
-  const inter = [...sa].filter(w => sb.has(w)).length;
-  const smaller = Math.min(sa.size, sb.size);
-  return smaller >= 3 ? inter / smaller : 0;
 }
 
 function renderClusters() {
@@ -4000,44 +4013,6 @@ function renderTrending() {
   container.innerHTML = html;
 }
 
-function renderKeyIncidents(items) {
-  const container = document.getElementById('key-incidents-content');
-  const candidates = items.filter(i => i.severity === 'CRITICAL' || i.severity === 'HIGH');
-
-  // Deduplicate by title similarity — keep the first (highest-scored) of near-duplicate stories
-  const key = [];
-  for (const item of candidates) {
-    if (key.length >= 5) break;
-    const isDup = key.some(k => _incidentSimilar(item.title, k.title) >= 0.55);
-    if (!isDup) key.push(item);
-  }
-
-  if (key.length === 0) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px">No critical or high-severity incidents at this time.</div>';
-    return;
-  }
-
-  container.innerHTML = key.map(item => {
-    const isCrit = item.severity === 'CRITICAL';
-    const sevClass = isCrit ? 'crit' : 'high';
-    const cardClass = isCrit ? '' : ' sev-high';
-
-    // Generate analyst context from the description
-    let context = item.description || '';
-    if (context.length > 150) context = context.slice(0, 147) + '...';
-
-    return `<div class="incident-card${cardClass}" data-click-action="selectItemById" data-click-args="${escapeHTML(JSON.stringify([item._id]))}">
-      <div class="incident-header">
-        <span class="incident-sev ${sevClass}">${item.severity}</span>
-        <span class="incident-type">${item.icon || ''} ${item.type}</span>
-        <span style="margin-left:auto;font-size:9px;color:var(--text-muted);font-family:var(--font-mono)">${timeAgo(item.pubDate)}</span>
-      </div>
-      <div class="incident-title">${escapeHTML(item.title)}</div>
-      <div class="incident-context">${escapeHTML(context)}</div>
-    </div>`;
-  }).join('');
-}
-
 function renderActorSpotlight(items, allText) {
   const container = document.getElementById('actor-spotlight-content');
   const combined = allText.join(' ');
@@ -4140,13 +4115,17 @@ function clearActorFilter() {
 
 function renderSectorImpact(items, allText) {
   const container = document.getElementById('sector-impact-content');
-  const combined = allText.join(' ');
 
+  // Count ARTICLES mentioning each sector, not raw regex occurrences across
+  // the concatenated text — one wordy article used to inflate a sector by
+  // every repeated mention, so the panel implied incident volume that
+  // didn't exist.
   const found = [];
   SECTOR_PATTERNS.forEach((sector, idx) => {
-    const matches = combined.match(new RegExp(sector.re, 'gi'));
-    if (matches) {
-      found.push({ ...sector, count: matches.length, idx });
+    const re = new RegExp(sector.re, 'i');
+    const count = allText.reduce((n, text) => n + (re.test(text) ? 1 : 0), 0);
+    if (count > 0) {
+      found.push({ ...sector, count, idx });
     }
   });
 
@@ -5280,13 +5259,12 @@ function scrollToFeed() {
 }
 
 function highlightActiveAction(value) {
+  // Match on data-click-args (event delegation replaced onclick attributes;
+  // the old onclick lookup never matched, so the active state never showed).
   document.querySelectorAll('.action-drilldown').forEach(li => {
     li.classList.remove('active-action');
-  });
-  // Find the matching action by onclick content
-  document.querySelectorAll('.action-drilldown').forEach(li => {
-    const onclick = li.getAttribute('onclick') || '';
-    if (onclick.includes(`'${value.replace(/'/g, "\\'")}'`)) {
+    const args = li.dataset.clickArgs || '';
+    if (value && args.includes(JSON.stringify(value))) {
       li.classList.add('active-action');
     }
   });
@@ -5427,6 +5405,8 @@ function applyData(items) {
     'Updated ' + new Date().toUTCString().slice(17, 25) + ' UTC';
   document.getElementById('badge-feeds').classList.toggle('visible', items.length === 0);
   updateLeftFooter(items);
+  const hostEl = document.getElementById('lf-host');
+  if (hostEl && !hostEl.textContent) hostEl.textContent = location.host;
   hideLoader();
 }
 
@@ -5486,14 +5466,50 @@ async function refreshData() {
     const items = transformArticles(data);
     if (items.length > 0) applyData(items);
   } catch { state.feedStatus.threatdigest = false; }
-  // Refresh AI briefing
+  // Refresh AI briefing. Keyed on what_happened (the current schema) —
+  // keying on the legacy executive_summary field meant modern briefings
+  // were silently ignored and the panel only updated on full page reload.
   try {
     const b = await fetchJSON('/api/briefing');
-    if (b && b.executive_summary) {
+    if (b && (b.what_happened || b.executive_summary || b.situation_overview)) {
+      const changed = !state.aiBriefing ||
+        state.aiBriefing.generated_at !== b.generated_at ||
+        state.aiBriefing.last_validated_at !== b.last_validated_at;
       state.aiBriefing = b;
       updateThreatLevel();
+      if (changed && state.briefingMode === 'ai') {
+        const el = document.getElementById('ai-briefing-content');
+        if (el) renderAIBriefing(el);
+      }
     }
   } catch {}
+  // Refresh AI-curated headlines + incident clusters + actor profiles —
+  // these were loaded once from SSR and went silently stale on long-open
+  // dashboards.
+  try {
+    const ts = await fetchJSON('/api/top-stories');
+    if (ts && ts.stories) {
+      const prev = state.topStories && state.topStories.generated_at;
+      state.topStories = ts;
+      if (ts.generated_at !== prev) renderTopStories();
+    }
+  } catch {}
+  try {
+    const cl = await fetchJSON('/api/clusters');
+    if (cl && cl.clusters) {
+      const prev = state.clusters && state.clusters.generated_at;
+      state.clusters = cl;
+      if (cl.generated_at !== prev) renderClusters();
+    }
+  } catch {}
+  try {
+    const ap = await fetchJSON('/api/actor-profiles');
+    if (ap && typeof ap === 'object') state.actorProfiles = ap;
+  } catch {}
+  // Always show when we last CHECKED, even when nothing changed (304s) —
+  // an analyst must be able to tell "fresh and quiet" from "stale page".
+  const lc = document.getElementById('last-checked');
+  if (lc) lc.textContent = 'Checked ' + new Date().toUTCString().slice(17, 25) + ' UTC';
   // Refresh trending threats — cheap JSON, no LLM cost. Re-render only if
   // the report has actually changed (compare generated_at) to avoid flicker.
   try {
