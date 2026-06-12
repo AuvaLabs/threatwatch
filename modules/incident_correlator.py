@@ -216,6 +216,41 @@ def cluster_articles(articles: list[dict[str, Any]]) -> dict[str, Any]:
     return cluster_data
 
 
+_SYNTH_PROMPT = (
+    "You are a CTI analyst. In 2 sentences, synthesize these related "
+    "incidents into a single intelligence finding. What pattern, campaign, "
+    "or story do they collectively represent? Be specific and factual. "
+    "Only reference CVE IDs, threat actors, and organisations that appear "
+    "in the provided article titles."
+)
+
+_SYNTH_MAX_CHARS = 500
+_SYNTH_CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}", re.IGNORECASE)
+
+
+def _validate_synthesis(reply: str, source_digest: str) -> str | None:
+    """Ground-check an LLM cluster synthesis before it reaches the UI.
+
+    Rejects (returns None) when the synthesis cites a CVE ID that does not
+    appear in the source article titles — the same hallucination guard the
+    main briefing applies. Truncates runaway replies to _SYNTH_MAX_CHARS.
+    """
+    text = (reply or "").strip()
+    if not text:
+        return None
+    cited = {m.upper() for m in _SYNTH_CVE_RE.findall(text)}
+    grounded = {m.upper() for m in _SYNTH_CVE_RE.findall(source_digest)}
+    if cited - grounded:
+        logger.warning(
+            "Cluster synthesis rejected — ungrounded CVE IDs %s",
+            sorted(cited - grounded),
+        )
+        return None
+    if len(text) > _SYNTH_MAX_CHARS:
+        text = text[:_SYNTH_MAX_CHARS].rsplit(" ", 1)[0] + "…"
+    return text
+
+
 def _synthesize_clusters(clusters: list[dict]) -> None:
     """Generate AI synthesis for large clusters."""
     try:
@@ -231,7 +266,12 @@ def _synthesize_clusters(clusters: list[dict]) -> None:
 
             titles = [a["title"] for a in cluster["articles"][:8]]
             digest = "\n".join(f"- {t}" for t in titles)
-            cache_key = "cluster_" + hashlib.sha256(digest.encode()).hexdigest()
+            # Prompt-versioned key: changing _SYNTH_PROMPT invalidates old
+            # (possibly hallucinated) syntheses instead of serving them forever.
+            prompt_salt = hashlib.sha256(_SYNTH_PROMPT.encode()).hexdigest()[:12]
+            cache_key = "cluster_" + hashlib.sha256(
+                (prompt_salt + ":" + digest).encode()
+            ).hexdigest()
 
             cached = get_cached_result(cache_key)
             if cached is not None:
@@ -241,16 +281,17 @@ def _synthesize_clusters(clusters: list[dict]) -> None:
             try:
                 reply = call_llm(
                     user_content=f"Entity: {cluster['entity_name']} ({cluster['entity_type']})\n\nRelated articles:\n{digest}",
-                    system_prompt=(
-                        "You are a CTI analyst. In 2 sentences, synthesize these related "
-                        "incidents into a single intelligence finding. What pattern, campaign, "
-                        "or story do they collectively represent? Be specific and factual."
-                    ),
+                    system_prompt=_SYNTH_PROMPT,
                     max_tokens=150,
                     caller="cluster_synth",
                 )
-                cluster["synthesis"] = reply.strip()
-                cache_result(cache_key, reply.strip())
+                synthesis = _validate_synthesis(reply, digest)
+                if synthesis is None:
+                    # Reject rather than serve ungrounded analysis; the UI
+                    # falls back to listing the member articles.
+                    continue
+                cluster["synthesis"] = synthesis
+                cache_result(cache_key, synthesis)
             except Exception as e:
                 logger.debug(f"Cluster synthesis failed: {e}")
 
@@ -259,9 +300,8 @@ def _synthesize_clusters(clusters: list[dict]) -> None:
 
 
 def _save_clusters(data: dict) -> None:
-    CLUSTERS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(CLUSTERS_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
+    from modules.utils import write_json_atomic
+    write_json_atomic(CLUSTERS_PATH, data, ensure_ascii=False)
 
 
 def load_clusters() -> dict | None:

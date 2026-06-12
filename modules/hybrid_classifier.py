@@ -72,9 +72,14 @@ def _classify_via_groq(title, content=None):
     if content:
         user_content += "\n\n" + content[:MAX_CONTENT_CHARS]
 
-    # Check cache first
+    # Check cache first. The key is salted with the prompt + model so a
+    # prompt rewrite or model swap invalidates old verdicts — previously a
+    # cached is_cyber_attack=False from an older prompt/model kept silently
+    # dropping the same article forever.
+    from modules.llm_client import LLM_MODEL as _model
+    version_salt = hashlib.sha256((SYSTEM_PROMPT + "|" + _model).encode()).hexdigest()[:12]
     cache_key = hashlib.sha256(
-        ("classify:" + user_content).encode()
+        (f"classify:{version_salt}:" + user_content).encode()
     ).hexdigest()
     cached = get_cached_result(cache_key)
     if cached is not None:

@@ -271,6 +271,17 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
 
         # Enrich with source article data (from filtered list, not raw)
         for story in stories:
+            # Normalise significance to the documented enum — the frontend
+            # color-codes on these exact values and an off-enum string
+            # ("SEVERE", "CRITICAL THREAT") silently fell through styling.
+            sig = (str(story.get("significance") or "")).upper().strip()
+            if sig not in ("CRITICAL", "HIGH", "MODERATE"):
+                mapped = "CRITICAL" if "CRITICAL" in sig else (
+                    "HIGH" if any(w in sig for w in ("HIGH", "SEVERE", "ELEVATED")) else "MODERATE"
+                )
+                logger.info("Top-stories significance %r normalised to %s", sig, mapped)
+                sig = mapped
+            story["significance"] = sig
             idx = story.get("article_index", 0) - 1  # 1-indexed in prompt
             if 0 <= idx < len(briefing_articles):
                 src = briefing_articles[idx]

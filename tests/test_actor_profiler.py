@@ -107,7 +107,9 @@ class TestGenerateProfiles:
     def test_updates_existing_profile_count(self, tmp_path):
         profiles_path = tmp_path / "state" / "profiles.json"
         output_path = tmp_path / "output"
-        existing = {"LockBit": {"name": "LockBit", "current_article_count": 1}}
+        from datetime import datetime, timezone
+        existing = {"LockBit": {"name": "LockBit", "current_article_count": 1,
+                                "generated_at": datetime.now(timezone.utc).isoformat()}}
         profiles_path.parent.mkdir(parents=True, exist_ok=True)
         profiles_path.write_text(json.dumps(existing))
         articles = [
@@ -308,9 +310,11 @@ class TestObservedTTPs:
         profiles_path = tmp_path / "state" / "profiles.json"
         output_path = tmp_path / "output"
         # Seed with a profile that has stale observed data.
+        from datetime import datetime, timezone
         existing = {
             "LockBit": {
                 "name": "LockBit",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "observed_techniques": [{"id": "T9999", "count": 99}],
                 "observed_tactics": [{"name": "Old", "count": 99}],
             }
@@ -334,3 +338,34 @@ class TestObservedTTPs:
             result = generate_profiles(articles)
         assert result["LockBit"]["observed_techniques"] == [{"id": "T1566", "count": 2}]
         assert result["LockBit"]["observed_tactics"] == [{"name": "Initial Access", "count": 2}]
+
+
+class TestProfileProvenanceAndExpiry:
+    def test_new_profiles_carry_unverified_provenance(self, tmp_path):
+        """LLM-trained-knowledge profiles must be labelled as unverified."""
+        profiles_path = tmp_path / "state" / "profiles.json"
+        output_path = tmp_path / "output"
+        articles = [
+            {"title": "LockBit hits A", "summary": ""},
+            {"title": "LockBit hits B", "summary": ""},
+        ]
+        fake_profile = {"name": "LockBit", "description": "RaaS group."}
+        with patch.object(ap, "PROFILES_PATH", profiles_path), \
+             patch.object(ap, "OUTPUT_DIR", output_path), \
+             patch.object(ap, "_generate_single_profile", return_value=dict(fake_profile)):
+            result = generate_profiles(articles)
+        assert result["LockBit"]["provenance"] == "llm_generated_unverified"
+
+    def test_fresh_profile_not_regenerated(self):
+        from datetime import datetime, timezone
+        assert ap._profile_expired(
+            {"generated_at": datetime.now(timezone.utc).isoformat()}
+        ) is False
+
+    def test_old_profile_expires(self):
+        from datetime import datetime, timezone, timedelta
+        old = datetime.now(timezone.utc) - timedelta(days=ap._PROFILE_REFRESH_DAYS + 1)
+        assert ap._profile_expired({"generated_at": old.isoformat()}) is True
+
+    def test_missing_stamp_counts_as_expired(self):
+        assert ap._profile_expired({}) is True

@@ -117,6 +117,14 @@ def main():
     cleanup_seen_hashes()
     cleanup_seen_titles()
     cleanup_old_outputs()
+    # Expire AI cache entries (classifications, syntheses, briefings).
+    # Without this sweep nothing ever called clear_old_cache and stale LLM
+    # verdicts lived forever.
+    try:
+        from modules.ai_cache import clear_old_cache
+        clear_old_cache(max_age_days=int(os.environ.get("AI_CACHE_MAX_AGE_DAYS", "14")))
+    except Exception as e:
+        logging.warning(f"AI cache sweep failed: {e}")
     logging.info("=== Cleanup completed ===")
 
 

@@ -29,6 +29,9 @@ PROFILES_PATH = STATE_DIR / "actor_profiles.json"
 _MIN_ARTICLES_FOR_PROFILE = 2
 # Max new profiles per pipeline run (controls token budget)
 _MAX_NEW_PROFILES_PER_RUN = 5
+# Regenerate the LLM description when older than this — actor tradecraft
+# evolves; a profile frozen at first generation silently rots.
+_PROFILE_REFRESH_DAYS = 30
 # How many top techniques/tactics to surface on each profile
 _TOP_TECHNIQUES_PER_ACTOR = 8
 _TOP_TACTICS_PER_ACTOR = 6
@@ -46,7 +49,11 @@ Return ONLY valid JSON (no markdown, no explanation):
   "target_regions": ["<top 3 targeted regions>"],
   "signature_ttps": ["<3-4 key TTPs or techniques>"],
   "description": "<3-4 sentence profile: who they are, what they do, notable campaigns>"
-}"""
+}
+
+Only state facts that are widely documented in public CTI reporting. If a
+field is not reliably known, use "Unknown" (or [] for lists) instead of
+guessing. Never invent aliases, dates, or attribution."""
 
 
 def _load_profiles() -> dict[str, Any]:
@@ -61,10 +68,9 @@ def _load_profiles() -> dict[str, Any]:
 
 
 def _save_profiles(profiles: dict[str, Any]) -> None:
-    """Save profiles to disk."""
-    PROFILES_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(PROFILES_PATH, "w", encoding="utf-8") as f:
-        json.dump(profiles, f, ensure_ascii=False, indent=2)
+    """Save profiles to disk (atomic)."""
+    from modules.utils import write_json_atomic
+    write_json_atomic(PROFILES_PATH, profiles, ensure_ascii=False, indent=2)
 
 
 def extract_actors_from_articles(articles: list[dict]) -> dict[str, dict]:
@@ -135,10 +141,10 @@ def generate_profiles(articles: list[dict[str, Any]]) -> dict[str, Any]:
 
         observed = _top_observed_ttps(meta)
 
-        if actor_name in profiles:
+        if actor_name in profiles and not _profile_expired(profiles[actor_name]):
             # Update the article count and observed TTPs for existing
-            # profiles on every run — the LLM-generated description doesn't
-            # change but the evidence base keeps current.
+            # profiles on every run; the LLM description is refreshed only
+            # when older than _PROFILE_REFRESH_DAYS (below).
             profiles[actor_name]["current_article_count"] = meta["count"]
             profiles[actor_name].update(observed)
             continue
@@ -149,6 +155,11 @@ def generate_profiles(articles: list[dict[str, Any]]) -> dict[str, Any]:
         if profile:
             profile["generated_at"] = datetime.now(timezone.utc).isoformat()
             profile["current_article_count"] = meta["count"]
+            # Honest provenance: description/aliases/active_since come from
+            # the model's training data, NOT from the article corpus, and are
+            # not independently verified. The UI must say so. The
+            # observed_techniques/observed_tactics fields ARE corpus-derived.
+            profile["provenance"] = "llm_generated_unverified"
             profile.update(observed)
             profiles[actor_name] = profile
             new_count += 1
@@ -161,13 +172,26 @@ def generate_profiles(articles: list[dict[str, Any]]) -> dict[str, Any]:
             f"{len(profiles)} total profiles."
         )
 
-    # Also save to output dir for API serving
-    output_path = OUTPUT_DIR / "actor_profiles.json"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(profiles, f, ensure_ascii=False)
+    # Also save to output dir for API serving (atomic — server reads it)
+    from modules.utils import write_json_atomic
+    write_json_atomic(OUTPUT_DIR / "actor_profiles.json", profiles, ensure_ascii=False)
 
     return profiles
+
+
+def _profile_expired(profile: dict) -> bool:
+    """True when the LLM description is old enough to regenerate."""
+    stamp = profile.get("generated_at")
+    if not isinstance(stamp, str) or not stamp:
+        return True
+    try:
+        generated = datetime.fromisoformat(stamp)
+    except ValueError:
+        return True
+    if generated.tzinfo is None:
+        generated = generated.replace(tzinfo=timezone.utc)
+    age = datetime.now(timezone.utc) - generated
+    return age.days >= _PROFILE_REFRESH_DAYS
 
 
 def _top_observed_ttps(meta: dict) -> dict[str, list[dict] | list[str]]:

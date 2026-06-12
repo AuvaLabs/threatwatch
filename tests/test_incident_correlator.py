@@ -245,3 +245,30 @@ class TestCampaignTrackingFailure:
         # Logged the non-fatal warning.
         assert any("Campaign tracking failed" in r.message for r in caplog.records) or \
                any("campaign" in r.message.lower() for r in caplog.records)
+
+
+class TestSynthesisGrounding:
+    def test_rejects_ungrounded_cve(self):
+        from modules.incident_correlator import _validate_synthesis
+        out = _validate_synthesis(
+            "Campaign exploits CVE-2026-99999 across the sector.",
+            "- Actor hits hospitals\n- More hospital attacks",
+        )
+        assert out is None
+
+    def test_accepts_grounded_cve(self):
+        from modules.incident_correlator import _validate_synthesis
+        out = _validate_synthesis(
+            "Coordinated exploitation of CVE-2026-1234 against healthcare.",
+            "- CVE-2026-1234 exploited at hospital A\n- CVE-2026-1234 again",
+        )
+        assert out is not None and "CVE-2026-1234" in out
+
+    def test_truncates_runaway_reply(self):
+        from modules.incident_correlator import _validate_synthesis, _SYNTH_MAX_CHARS
+        out = _validate_synthesis("word " * 400, "- title")
+        assert out is not None and len(out) <= _SYNTH_MAX_CHARS + 1
+
+    def test_empty_reply_rejected(self):
+        from modules.incident_correlator import _validate_synthesis
+        assert _validate_synthesis("", "- title") is None

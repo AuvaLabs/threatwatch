@@ -273,3 +273,21 @@ class TestHybridClassifier:
         result = classify_article("Cybersecurity jobs available right now")
         assert result["is_cyber_attack"] is False
         assert "_ai_enhanced" not in result
+
+
+class TestCacheKeyVersioning:
+    def test_prompt_change_busts_cache(self, tmp_path):
+        """A cached LLM verdict must not survive a prompt rewrite."""
+        import modules.hybrid_classifier as hc
+        from unittest.mock import patch
+        import modules.ai_cache as ac
+        captured = []
+        with patch.object(ac, "CACHE_DIR", tmp_path), \
+             patch.object(hc, "get_cached_result", side_effect=lambda k: captured.append(k) or None), \
+             patch("modules.llm_client.call_llm", return_value='{"is_cyber_attack": true, "category": "Ransomware", "confidence": 90}'), \
+             patch.object(hc, "cache_result"):
+            hc._classify_via_groq("LockBit hits hospital")
+            with patch.object(hc, "SYSTEM_PROMPT", "completely different prompt"):
+                hc._classify_via_groq("LockBit hits hospital")
+        assert len(captured) == 2
+        assert captured[0] != captured[1], "cache key must change when the prompt changes"
