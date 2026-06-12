@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 from modules.darkweb_monitor import (
     _parse_ransomware_live,
     _parse_threatfox,
-    _parse_c2_tracker,
     _country_to_region,
     _get_session,
     _get_tor_session,
@@ -376,76 +375,6 @@ class TestParseThreatFox:
         assert all(a["feed_region"] == "Global" for a in articles)
 
 
-# ── _parse_c2_tracker ─────────────────────────────────────────────────────────
-
-class TestParseC2Tracker:
-    def _source(self):
-        return {
-            "name": "github-iocs",
-            "url": "https://raw.githubusercontent.com/montysecurity/C2-Tracker/main/data/all.txt",
-        }
-
-    def test_parses_ip_list(self):
-        resp = MagicMock()
-        resp.text = "1.2.3.4\n5.6.7.8\n9.10.11.12\n"
-        articles = _parse_c2_tracker(resp, self._source(), _make_cutoff())
-        assert len(articles) > 0
-
-    def test_article_marked_as_darkweb(self):
-        resp = MagicMock()
-        resp.text = "1.1.1.1\n2.2.2.2\n"
-        articles = _parse_c2_tracker(resp, self._source(), _make_cutoff())
-        assert all(a.get("darkweb") is True for a in articles)
-
-    def test_skips_comment_lines(self):
-        resp = MagicMock()
-        resp.text = "# This is a comment\n1.2.3.4\n5.6.7.8\n"
-        articles = _parse_c2_tracker(resp, self._source(), _make_cutoff())
-        assert len(articles) == 1
-        assert "2 active" in articles[0]["title"]
-
-    def test_empty_text_returns_empty(self):
-        resp = MagicMock()
-        resp.text = ""
-        articles = _parse_c2_tracker(resp, self._source(), _make_cutoff())
-        assert articles == []
-
-    def test_only_comments_returns_empty(self):
-        resp = MagicMock()
-        resp.text = "# just comments\n# another comment\n"
-        articles = _parse_c2_tracker(resp, self._source(), _make_cutoff())
-        assert articles == []
-
-    def test_title_contains_ip_count(self):
-        resp = MagicMock()
-        resp.text = "\n".join(f"10.0.0.{i}" for i in range(1, 6))
-        articles = _parse_c2_tracker(resp, self._source(), _make_cutoff())
-        assert "5" in articles[0]["title"]
-
-    def test_sample_ips_in_summary(self):
-        resp = MagicMock()
-        resp.text = "1.1.1.1\n2.2.2.2\n3.3.3.3\n"
-        articles = _parse_c2_tracker(resp, self._source(), _make_cutoff())
-        assert "1.1.1.1" in articles[0]["summary"]
-
-    def test_exception_returns_empty(self):
-        resp = MagicMock()
-        resp.text = MagicMock(side_effect=Exception("error"))
-        # strip() on a mock will raise — but the real code does resp.text.strip()
-        # so we need text to raise on strip
-        type(resp).text = property(lambda self: (_ for _ in ()).throw(Exception("read error")))
-        articles = _parse_c2_tracker(resp, self._source(), _make_cutoff())
-        assert articles == []
-
-    def test_feed_region_is_global(self):
-        resp = MagicMock()
-        resp.text = "1.1.1.1\n"
-        articles = _parse_c2_tracker(resp, self._source(), _make_cutoff())
-        assert articles[0]["feed_region"] == "Global"
-
-
-# ── _country_to_region ────────────────────────────────────────────────────────
-
 class TestCountryToRegion:
     # ISO-2 codes
     def test_us_iso2(self):
@@ -552,3 +481,53 @@ class TestCountryToRegion:
     def test_case_insensitive(self):
         assert _country_to_region("germany") == "Europe"
         assert _country_to_region("GERMANY") == "Europe"
+
+
+# ── date honesty: undated items must be dropped, never stamped "now" ─────────
+class TestUndatedItemsDropped:
+    def test_ransomware_victim_without_date_is_dropped(self):
+        data = [{
+            "victim": "NoDateCorp",
+            "group_name": "LockBit",
+            "discovered": "",
+            "post_url": "https://ransomware.live/victim/9",
+            "country": "US",
+        }]
+        src = {"name": "ransomware.live", "url": "https://api.ransomware.live/recentvictims"}
+        assert _parse_ransomware_live(_mock_resp(data), src, _make_cutoff()) == []
+
+    def test_ransomware_victim_with_garbage_date_is_dropped(self):
+        data = [{
+            "victim": "BadDateCorp",
+            "group_name": "Akira",
+            "discovered": "not-a-date",
+            "post_url": "",
+            "country": "",
+        }]
+        src = {"name": "ransomware.live", "url": "https://api.ransomware.live/recentvictims"}
+        assert _parse_ransomware_live(_mock_resp(data), src, _make_cutoff()) == []
+
+    def test_threatfox_entry_without_first_seen_is_dropped(self):
+        data = {"1": [{
+            "malware_printable": "CobaltStrike",
+            "first_seen_utc": "",
+            "threat_type": "botnet_cc",
+            "ioc_value": "203.0.113.7:443",
+            "ioc_type": "ip:port",
+        }]}
+        src = {"name": "threatfox", "url": "https://threatfox.abuse.ch/export/json/recent/"}
+        assert _parse_threatfox(_mock_resp(data), src, _make_cutoff()) == []
+
+    def test_no_article_ever_carries_fabricated_published(self):
+        """Every emitted article's published must equal the upstream date string."""
+        upstream = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        data = [{
+            "victim": "DatedCorp",
+            "group_name": "Qilin",
+            "discovered": upstream,
+            "post_url": "",
+            "country": "DE",
+        }]
+        src = {"name": "ransomware.live", "url": "https://api.ransomware.live/recentvictims"}
+        articles = _parse_ransomware_live(_mock_resp(data), src, _make_cutoff())
+        assert articles[0]["published"] == upstream

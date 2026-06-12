@@ -153,9 +153,18 @@ def _parse_ransomware_live(resp: requests.Response, source: dict[str, Any], cuto
             url = victim.get("post_url", victim.get("website", ""))
             country = victim.get("country", "")
 
-            # Parse date
+            # Parse date. Items with a missing/unparseable discovery date are
+            # dropped outright: the old fallback stamped them published=now(),
+            # which both bypassed the cutoff filter and presented undated
+            # backfill as a fresh incident.
             pub_dt = _parse_date(discovered)
-            if pub_dt and pub_dt < cutoff:
+            if pub_dt is None:
+                logger.debug(
+                    "ransomware.live victim %r has no parseable date (%r) — skipped",
+                    name, discovered,
+                )
+                continue
+            if pub_dt < cutoff:
                 continue
 
             title = f"{group} ransomware: new victim '{name}'"
@@ -169,7 +178,7 @@ def _parse_ransomware_live(resp: requests.Response, source: dict[str, Any], cuto
             articles.append({
                 "title": title,
                 "link": url if is_clearnet_url(url) else "https://ransomware.live/#/victims",
-                "published": discovered or datetime.now(timezone.utc).isoformat(),
+                "published": discovered,
                 "summary": (
                     f"Ransomware group {group} posted new victim '{name}' "
                     f"on their dark web leak site. "
@@ -205,8 +214,10 @@ def _parse_threatfox(resp: requests.Response, source: dict[str, Any], cutoff: da
             for entry in entries:
                 malware = entry.get("malware_printable", "Unknown")
                 first_seen = entry.get("first_seen_utc", "")
+                # Undated IOC entries are dropped — the old published=now()
+                # fallback fabricated freshness for them downstream.
                 pub_dt = _parse_date(first_seen)
-                if pub_dt and pub_dt < cutoff:
+                if pub_dt is None or pub_dt < cutoff:
                     continue
                 if malware not in malware_groups:
                     malware_groups[malware] = {
@@ -240,7 +251,7 @@ def _parse_threatfox(resp: requests.Response, source: dict[str, Any], cutoff: da
             articles.append({
                 "title": title,
                 "link": f"https://threatfox.abuse.ch/browse/malware/{malware.lower().replace(' ', '-')}/",
-                "published": info["first_seen"] or datetime.now(timezone.utc).isoformat(),
+                "published": info["first_seen"],
                 "summary": (
                     f"abuse.ch ThreatFox reports new indicators of compromise "
                     f"for {malware} ({info['threat_type']}). "
@@ -256,43 +267,6 @@ def _parse_threatfox(resp: requests.Response, source: dict[str, Any], cutoff: da
             })
     except (json.JSONDecodeError, KeyError) as e:
         logger.warning(f"ThreatFox parse error: {e}")
-
-    return articles
-
-
-def _parse_c2_tracker(resp: requests.Response, source: dict[str, Any], cutoff: datetime) -> list[dict[str, Any]]:
-    """Parse C2-Tracker active C2 server list."""
-    articles = []
-    try:
-        lines = resp.text.strip().split("\n")
-        # Only report if there's a significant list
-        ip_count = len([ln for ln in lines if ln.strip() and not ln.startswith("#")])
-
-        if ip_count > 0:
-            article_hash = hashlib.sha256(
-                f"c2-tracker-{datetime.now(timezone.utc).strftime('%Y-%m-%d')}".encode()
-            ).hexdigest()
-
-            # Extract sample IPs for the summary
-            sample_ips = [ln.strip() for ln in lines if ln.strip() and not ln.startswith("#")][:10]
-
-            articles.append({
-                "title": f"C2 Tracker: {ip_count} active command & control servers detected",
-                "link": "https://github.com/montysecurity/C2-Tracker",
-                "published": datetime.now(timezone.utc).isoformat(),
-                "summary": (
-                    f"Open-source C2 server tracking identifies {ip_count} active "
-                    f"command and control servers. Sample IPs: {', '.join(sample_ips)}. "
-                    f"These indicators can be used for network-level blocking and detection."
-                ),
-                "hash": article_hash,
-                "source": "darkweb:c2-tracker",
-                "feed_region": "Global",
-                "darkweb": True,
-                "darkweb_source": "c2-tracker",
-            })
-    except Exception as e:
-        logger.warning(f"C2-Tracker parse error: {e}")
 
     return articles
 
