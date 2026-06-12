@@ -643,3 +643,36 @@ class TestSinceCursorLossless:
         finally:
             server.shutdown()
         assert status == 200
+
+
+class TestWatchlistGetAuth:
+    """When WATCHLIST_TOKEN is configured, unauthenticated GETs must be
+    rejected — this guard previously had zero regression coverage (only the
+    token-unset open behaviour was tested)."""
+
+    def test_get_requires_token_when_configured(self):
+        server, base = _start_server()
+        try:
+            with patch.object(sw, "WATCHLIST_TOKEN", "sekrit-token"):
+                status, _, _ = _get(f"{base}/api/watchlist")
+                assert status == 401
+                status2, _, body = _get(
+                    f"{base}/api/watchlist",
+                    headers={"Authorization": "Bearer sekrit-token"},
+                )
+                assert status2 == 200
+                assert b"suggest_list" in body
+        finally:
+            server.shutdown()
+
+    def test_wrong_token_rejected(self):
+        server, base = _start_server()
+        try:
+            with patch.object(sw, "WATCHLIST_TOKEN", "sekrit-token"):
+                status, _, _ = _get(
+                    f"{base}/api/watchlist",
+                    headers={"Authorization": "Bearer wrong"},
+                )
+        finally:
+            server.shutdown()
+        assert status == 401

@@ -15,7 +15,10 @@ import json
 import logging
 import re
 import time
-import xml.etree.ElementTree as ET
+# defusedxml refuses DTDs/external entities — the parsed bytes come from an
+# external HTTP response, and while CPython's expat is safe by default,
+# explicit-by-construction beats trust-in-defaults for a security tool.
+import defusedxml.ElementTree as ET
 from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime
 from typing import Any

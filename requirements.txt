@@ -1,14 +1,24 @@
-feedparser
-feedgen
-anthropic>=0.40.0
-httpx>=0.25.0
-trafilatura>=1.6
-requests>=2.28
-beautifulsoup4>=4.12
-readability-lxml>=0.8
-python-dotenv>=1.0
-pyyaml>=6.0
-lingua-language-detector>=2.0
+# Pinned production dependencies — generated from the verified production
+# container (2026-06-12). requirements.in holds the human-edited floors;
+# regenerate with: pip-compile requirements.in  (or pip freeze after a
+# validated upgrade). Unpinned installs let a new upstream release land
+# silently in a security tool's supply chain.
+anthropic==0.96.0
+beautifulsoup4==4.14.3
+feedgen==1.0.0
+feedparser==6.0.12
+httpx==0.28.1
+lingua-language-detector==2.1.1
+lxml==6.1.0
+python-dotenv==1.2.2
+pyyaml==6.0.3
+readability-lxml==0.8.4.1
+requests==2.33.1
+trafilatura==2.0.0
+defusedxml==0.7.1
+
+# Dev / CI
 pytest>=7.0
 pytest-cov>=4.0
 ruff>=0.4
+pip-audit>=2.7

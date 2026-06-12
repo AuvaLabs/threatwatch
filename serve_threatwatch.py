@@ -856,7 +856,12 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             self.send_header(name, value)
 
     # Endpoints that expose internal metrics — restrict CORS to same-origin only
-    _RESTRICTED_CORS_PATHS = frozenset({"/api/health", "/api/watchlist"})
+    # Operational/metrics endpoints don't need cross-origin browser access;
+    # leaving them on the wildcard CORS list handed any web page a detailed
+    # map of pipeline internals (token spend, classifier accuracy, DB size).
+    _RESTRICTED_CORS_PATHS = frozenset({
+        "/api/health", "/api/watchlist", "/api/quality", "/api/groq-usage",
+    })
 
     def _send_cors_headers(self):
         """CORS only on /api/* routes — restricted on sensitive endpoints."""

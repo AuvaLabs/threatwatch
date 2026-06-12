@@ -12,6 +12,7 @@ readability-lxml>=0.8
 python-dotenv>=1.0
 pyyaml>=6.0
 lingua-language-detector>=2.0
+defusedxml>=0.7
 
 # Dev / CI
 pytest>=7.0
