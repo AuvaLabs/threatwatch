@@ -34,6 +34,12 @@ _READ_FROM_SQLITE = os.environ.get("READ_FROM_SQLITE", "").lower() in ("1", "tru
 
 _cache: dict = {}
 _cache_lock = threading.Lock()  # guards all _cache writes; reads use GIL
+# Single-entry gzip memo: (etag, compressed_bytes). The rendered page is
+# identical for every request inside the 30s cache window, but each request
+# used to re-run gzip on ~400KB. One slot is enough — the page dominates
+# traffic and API bodies are cheap to compress.
+_gzip_memo: tuple = ("", b"")
+_gzip_memo_lock = threading.Lock()
 _ssr_lock = threading.Lock()
 
 # Peers from which we trust forwarded-IP headers. Behind nginx every request
@@ -908,7 +914,14 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
 
         accept_enc = self.headers.get("Accept-Encoding", "")
         if "gzip" in accept_enc and len(body) > 1024:
-            body = gzip.compress(body, compresslevel=6)
+            global _gzip_memo
+            memo_etag, memo_body = _gzip_memo
+            if memo_etag == etag:
+                body = memo_body
+            else:
+                body = gzip.compress(body, compresslevel=6)
+                with _gzip_memo_lock:
+                    _gzip_memo = (etag, body)
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Encoding", "gzip")
         else:
@@ -918,7 +931,10 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "public, max-age=30")
         self.send_header("ETag", etag)
-        self.send_header("Last-Modified", formatdate(timeval=time.time(), usegmt=True))
+        # NOTE: no Last-Modified header. The old one was stamped with the
+        # response time on every request — always "now" — which is worse
+        # than absent: it actively defeated If-Modified-Since validation.
+        # ETag/If-None-Match carries conditional GETs correctly.
         self._send_security_headers()
         self._send_cors_headers()
         self.end_headers()
