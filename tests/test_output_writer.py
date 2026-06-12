@@ -594,3 +594,82 @@ class TestWriteRssOutput:
         ]
         rss_path = self._run_rss(tmp_path, articles)
         assert rss_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# Time-integrity policy (Phase 3 overhaul): publication date is authoritative
+# ---------------------------------------------------------------------------
+
+class TestMergeTimeIntegrity:
+    def test_sorted_by_published_not_ingestion_time(self):
+        """An old article re-enriched today (fresh timestamp) must NOT outrank
+        genuinely newer news."""
+        now = datetime.now(timezone.utc)
+        old_news_reenriched = {
+            "hash": "old-news",
+            "title": "Old incident",
+            "published": (now - timedelta(days=5)).isoformat(),
+            "ingested_at": now.isoformat(),
+            "timestamp": now.isoformat(),
+        }
+        fresh_news = {
+            "hash": "fresh-news",
+            "title": "Fresh incident",
+            "published": (now - timedelta(hours=1)).isoformat(),
+            "ingested_at": (now - timedelta(hours=1)).isoformat(),
+            "timestamp": (now - timedelta(hours=1)).isoformat(),
+        }
+        merged = _merge_articles([old_news_reenriched], [fresh_news])
+        assert [a["hash"] for a in merged] == ["fresh-news", "old-news"]
+
+    def test_cutoff_judges_by_published_when_available(self):
+        """Stale published date drops the article even if it was ingested
+        five minutes ago."""
+        now = datetime.now(timezone.utc)
+        stale = {
+            "hash": "stale",
+            "title": "Stale event",
+            "published": (now - timedelta(days=FEED_CUTOFF_DAYS + 3)).isoformat(),
+            "ingested_at": now.isoformat(),
+            "timestamp": now.isoformat(),
+        }
+        assert _merge_articles([], [stale]) == []
+
+    def test_corrupt_published_falls_back_to_ingestion_not_dropped(self):
+        """A fresh article whose feed shipped garbage in `published` must be
+        kept (judged by ingestion time), not silently discarded."""
+        now = datetime.now(timezone.utc)
+        corrupt = {
+            "hash": "corrupt-date",
+            "title": "Fresh event, bad date",
+            "published": "not-a-date",
+            "ingested_at": now.isoformat(),
+            "timestamp": now.isoformat(),
+        }
+        merged = _merge_articles([], [corrupt])
+        assert [a["hash"] for a in merged] == ["corrupt-date"]
+
+    def test_no_parseable_dates_at_all_is_kept(self):
+        merged = _merge_articles([], [{"hash": "undated", "title": "Undated"}])
+        assert [a["hash"] for a in merged] == ["undated"]
+
+
+class TestRssPubDateHonesty:
+    def test_unparseable_published_uses_ingestion_time_not_now(self, tmp_path):
+        """RSS pubDate for a corrupt-date article must be the (stable)
+        ingestion time, not the moment the feed file was regenerated."""
+        from modules import output_writer as ow
+        ingested = datetime.now(timezone.utc) - timedelta(days=2)
+        articles = [{
+            "hash": "x",
+            "title": "Corrupt date article",
+            "link": "https://example.test/a",
+            "published": "garbage",
+            "ingested_at": ingested.isoformat(),
+        }]
+        with patch.object(ow, "RSS_PATH", tmp_path / "rss.xml"):
+            ow.write_rss_output(articles)
+            tree = ElementTree.parse(tmp_path / "rss.xml")
+        pub = tree.find(".//item/pubDate").text
+        from email.utils import parsedate_to_datetime
+        assert abs((parsedate_to_datetime(pub) - ingested).total_seconds()) < 2

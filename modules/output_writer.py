@@ -84,22 +84,23 @@ def _merge_articles(existing, new_articles):
     for article in existing:
         _add(article)
 
-    # Drop articles older than cutoff window (check both timestamp and published).
-    # Policy: if EITHER parseable date is before cutoff, drop. If BOTH dates are
-    # missing or unparseable, KEEP the article — we previously fell back to
-    # datetime.now() on parse failure, which silently kept corrupt-date articles
-    # forever, but the opposite (drop everything we can't date) would bleed
-    # legit data.
+    # Drop articles older than cutoff window. Policy: judge each article by
+    # its OWN publication date when parseable; fall back to ingestion time
+    # (ingested_at / legacy timestamp) when `published` is corrupt or absent.
+    # The old "drop if EITHER date is old" policy silently discarded fresh
+    # articles whose upstream feed shipped a corrupt `published`; judging by
+    # the best available single date keeps them for a full window from
+    # ingestion instead. Articles with NO parseable date at all are kept —
+    # dropping undatable data would silently bleed legit articles.
     cutoff = datetime.now(timezone.utc) - timedelta(days=FEED_CUTOFF_DAYS)
     filtered = []
     for article in merged:
-        too_old = False
-        for date_field in ("timestamp", "published"):
-            article_dt = parse_datetime(article.get(date_field, ""))
-            if article_dt is not None and article_dt < cutoff:
-                too_old = True
-                break
-        if too_old:
+        article_dt = (
+            parse_datetime(article.get("published", ""))
+            or parse_datetime(article.get("ingested_at", ""))
+            or parse_datetime(article.get("timestamp", ""))
+        )
+        if article_dt is not None and article_dt < cutoff:
             continue
         filtered.append(article)
 
@@ -110,9 +111,19 @@ def _merge_articles(existing, new_articles):
             parts = set(region.split(","))
             article["feed_region"] = _collapse_regions(parts)
 
-    # Sort by timestamp descending (newest first)
+    # Sort by publication date descending (newest first). Sorting by the
+    # ingestion timestamp made every old article re-enriched today float to
+    # the top of the corpus as if it were breaking news; consumers of this
+    # file (API, integrations) must see real event order. Ingestion time is
+    # only a tie-break fallback for articles with no parseable published.
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
     filtered.sort(
-        key=lambda a: a.get("timestamp", "1970-01-01"),
+        key=lambda a: (
+            parse_datetime(a.get("published", ""))
+            or parse_datetime(a.get("ingested_at", ""))
+            or parse_datetime(a.get("timestamp", ""))
+            or epoch
+        ),
         reverse=True,
     )
 
@@ -188,10 +199,16 @@ def write_rss_output(articles):
         fe.description(summary_text)
 
         # RSS items REQUIRE a pubDate (feedgen validates). If we can't parse
-        # the upstream date, fall back to "now" — acceptable here because RSS
-        # consumers only need *some* valid RFC 822 date, unlike the cutoff
-        # check above which must never hallucinate a date.
-        pub_date = parse_datetime(article.get("published", "")) or datetime.now(timezone.utc)
+        # the upstream date, fall back to the article's INGESTION time — a
+        # real, stable moment we observed — never render-time now(), which
+        # re-stamped stale corrupt-date items as breaking news on every
+        # regeneration of the feed.
+        pub_date = (
+            parse_datetime(article.get("published", ""))
+            or parse_datetime(article.get("ingested_at", ""))
+            or parse_datetime(article.get("timestamp", ""))
+            or datetime.now(timezone.utc)
+        )
         fe.pubDate(pub_date)
 
     _ensure_dir(RSS_PATH.parent)

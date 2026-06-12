@@ -46,6 +46,7 @@ def enrich_articles(articles, summarize=False, stats=None):
         stats.scrape_failures = sum(1 for v in url_to_content.values() if not v)
 
     enriched = []
+    ingested_at = datetime.now(timezone.utc).isoformat()
     for article in articles:
         original_url = article["link"]
         full_content = url_to_content.get(original_url)
@@ -86,7 +87,12 @@ def enrich_articles(articles, summarize=False, stats=None):
             "confidence": result.get("confidence", 0),
             "full_content": full_content,
             "summary": result.get("summary", ""),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            # ingested_at is when THIS pipeline first processed the article —
+            # never a substitute for `published` (the event's own date).
+            # `timestamp` is a deprecated alias kept for API back-compat;
+            # nothing may sort or compute freshness from it.
+            "ingested_at": ingested_at,
+            "timestamp": ingested_at,
         }
 
         if enriched_article["is_cyber_attack"]:
@@ -291,8 +297,11 @@ def main():
     # CVE to KEV after the article was first enriched). Re-applying the KEV
     # enricher catches both. Per-CVE permanent dedup so the same KEV entry
     # never re-alerts; per-batch cap of 5 prevents flooding on backfill.
+    # NOTE: enrich_articles_with_kev is imported at module top. Re-importing
+    # it here made it function-local and broke the batch KEV enrichment above
+    # with UnboundLocalError on every run (silently caught as "KEV enrichment
+    # failed").
     try:
-        from modules.kev_enricher import enrich_articles_with_kev
         from modules.telegram import dispatch_telegram_kev_alerts
         dispatch_telegram_kev_alerts(enrich_articles_with_kev(all_articles))
     except Exception as e:
