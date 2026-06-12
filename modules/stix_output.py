@@ -52,7 +52,7 @@ def _article_to_report(article: dict[str, Any]) -> dict[str, Any]:
         published_ts = _now_iso()
 
     stix_id = _deterministic_id("report", url or title)
-    identity_id = "identity--threatwatch-system"
+    identity_id = _IDENTITY_ID
 
     # Map article confidence to STIX confidence (0-100)
     confidence = article.get("confidence")
@@ -143,9 +143,17 @@ def _make_relationship(source_id: str, target_id: str, rel_type: str, ts: str) -
     }
 
 
+# STIX 2.1 ids MUST be `<type>--<UUID>`. The old literal
+# "identity--threatwatch-system" was not UUID-form, so validating consumers
+# (OpenCTI, MISP, Sentinel TAXII import) rejected every object that
+# referenced it — i.e. the entire bundle. Deterministic so it is stable
+# across runs and installs.
+_IDENTITY_ID = _deterministic_id("identity", "threatwatch-system")
+
+
 def build_stix_bundle(articles: list[dict], ioc_items: list[dict] | None = None) -> dict:
     """Build a STIX 2.1 Bundle from ThreatWatch articles and IOC items."""
-    identity_id = "identity--threatwatch-system"
+    identity_id = _IDENTITY_ID
     objects: list[dict] = [
         {
             "type": "identity",
@@ -178,17 +186,22 @@ def build_stix_bundle(articles: list[dict], ioc_items: list[dict] | None = None)
         except Exception as e:
             logger.debug("STIX: skipping IOC: %s", e)
 
-    # Link all indicators to the identity via "indicates" relationships
-    now = _now_iso()
-    for ind_id in indicator_ids:
-        objects.append(_make_relationship(ind_id, identity_id, "indicates", now))
-
-    # Update report object_refs to include indicator IDs
+    # Provenance: stamp created_by_ref on every report/indicator instead of
+    # the old `indicator indicates identity` relationships — "indicates" is
+    # defined for indicator→(malware|campaign|threat-actor|...) and pointing
+    # it at a system identity was semantically invalid; validating TAXII
+    # importers discarded those objects.
     for obj in objects:
+        if obj.get("type") in ("report", "indicator"):
+            obj["created_by_ref"] = identity_id
         if obj.get("type") == "report" and indicator_ids:
             obj["object_refs"] = [identity_id] + indicator_ids
 
-    bundle_id = _deterministic_id("bundle", now)
+    # Bundle id derived from the CONTENT (sorted member ids), not the wall
+    # clock: TAXII clients dedup on bundle id, and a fresh id per request
+    # forced full re-ingestion on every poll (and defeated ETag caching).
+    member_ids = ",".join(sorted(o["id"] for o in objects))
+    bundle_id = _deterministic_id("bundle", member_ids)
     return {
         "type": "bundle",
         "id": bundle_id,

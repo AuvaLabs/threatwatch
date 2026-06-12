@@ -598,3 +598,48 @@ class TestErrorSanitization:
             data = json.loads(body)
             assert "Expecting" not in data["error"]  # No json.JSONDecodeError details
             assert data["error"] == "Invalid JSON payload"
+
+
+class TestSinceCursorLossless:
+    """Paging /api/since with a small limit must deliver EVERY article exactly
+    once when the client feeds next_cursor back — the old cursor jumped past
+    unreturned items and lost them."""
+
+    def test_full_walk_returns_every_article_once(self):
+        articles = [
+            {"title": f"a{i}", "hash": f"h{i}",
+             "timestamp": f"2026-06-10T0{i}:00:00+00:00"}
+            for i in range(7)
+        ]
+        server, base = _start_server()
+        try:
+            with patch.object(sw, "load_articles", return_value=articles):
+                seen, cursor, hops = [], "2026-01-01T00:00:00+00:00", 0
+                while hops < 20:
+                    hops += 1
+                    from urllib.parse import quote
+                    status, _, body = _get(f"{base}/api/since?ts={quote(cursor)}&limit=2")
+                    assert status == 200
+                    data = json.loads(body)
+                    if not data["articles"]:
+                        break
+                    seen.extend(a["title"] for a in data["articles"])
+                    cursor = data["next_cursor"]
+        finally:
+            server.shutdown()
+        assert sorted(seen) == sorted(a["title"] for a in articles)
+        assert len(seen) == len(set(seen)), "no duplicates expected"
+
+    def test_unencoded_plus_in_ts_tolerated(self):
+        """next_cursor passed back without URL-encoding must still parse."""
+        server, base = _start_server()
+        try:
+            with patch.object(sw, "load_articles", return_value=[]):
+                # A literal "+" in the query (unencoded, as the documented
+                # Logic App recipe sends it) is decoded to a space server-side.
+                status, _, body = _get(
+                    f"{base}/api/since?ts=2026-06-10T00:00:00+00:00&limit=5"
+                )
+        finally:
+            server.shutdown()
+        assert status == 200

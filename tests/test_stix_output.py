@@ -137,23 +137,28 @@ class TestArticleConfidence:
         assert "confidence" not in report
 
 
-class TestRelationships:
-    def test_bundle_contains_relationships_when_iocs_present(self):
-        bundle = build_stix_bundle([SAMPLE_ARTICLE], [SAMPLE_IOC])
-        types = [o["type"] for o in bundle["objects"]]
-        assert "relationship" in types
+class TestProvenance:
+    """`indicator indicates identity` was semantically invalid STIX (the spec
+    defines indicates for indicator→malware/campaign/actor); provenance is
+    now carried by created_by_ref, which every validator accepts."""
 
-    def test_no_relationships_without_iocs(self):
-        bundle = build_stix_bundle([SAMPLE_ARTICLE], [])
+    def test_no_invalid_indicates_relationships(self):
+        bundle = build_stix_bundle([SAMPLE_ARTICLE], [SAMPLE_IOC])
         types = [o["type"] for o in bundle["objects"]]
         assert "relationship" not in types
 
-    def test_relationship_links_indicator_to_identity(self):
+    def test_indicator_carries_created_by_ref(self):
         bundle = build_stix_bundle([], [SAMPLE_IOC])
-        rels = [o for o in bundle["objects"] if o["type"] == "relationship"]
-        assert len(rels) == 1
-        assert rels[0]["relationship_type"] == "indicates"
-        assert rels[0]["target_ref"] == "identity--threatwatch-system"
+        identity = next(o for o in bundle["objects"] if o["type"] == "identity")
+        indicators = [o for o in bundle["objects"] if o["type"] == "indicator"]
+        assert len(indicators) == 1
+        assert indicators[0]["created_by_ref"] == identity["id"]
+
+    def test_report_carries_created_by_ref(self):
+        bundle = build_stix_bundle([SAMPLE_ARTICLE], [])
+        identity = next(o for o in bundle["objects"] if o["type"] == "identity")
+        report = next(o for o in bundle["objects"] if o["type"] == "report")
+        assert report["created_by_ref"] == identity["id"]
 
     def test_report_object_refs_include_indicators(self):
         bundle = build_stix_bundle([SAMPLE_ARTICLE], [SAMPLE_IOC])
@@ -173,3 +178,32 @@ class TestBuildStixBytes:
     def test_utf8_encoded(self):
         raw = build_stix_bytes([SAMPLE_ARTICLE])
         assert isinstance(raw, bytes)
+
+
+_STIX_ID_RE_TEXT = r"^[a-z0-9-]+--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+
+class TestStixSpecCompliance:
+    def test_every_object_id_is_uuid_form(self):
+        """Validators reject the whole bundle on a single malformed id —
+        the old identity id 'identity--threatwatch-system' did exactly that."""
+        import re
+        id_re = re.compile(_STIX_ID_RE_TEXT)
+        bundle = build_stix_bundle([SAMPLE_ARTICLE], [SAMPLE_IOC])
+        bad = [o["id"] for o in bundle["objects"] if not id_re.match(o["id"])]
+        assert bad == []
+        import re as _re
+        assert _re.match(r"^bundle--[0-9a-f-]{36}$", bundle["id"])
+
+    def test_bundle_id_stable_for_same_content(self):
+        """TAXII clients dedup on bundle id; same articles => same id."""
+        b1 = build_stix_bundle([SAMPLE_ARTICLE], [SAMPLE_IOC])
+        b2 = build_stix_bundle([SAMPLE_ARTICLE], [SAMPLE_IOC])
+        assert b1["id"] == b2["id"]
+
+    def test_bundle_id_changes_when_content_changes(self):
+        b1 = build_stix_bundle([SAMPLE_ARTICLE], [])
+        other = {**SAMPLE_ARTICLE, "title": "Different incident",
+                 "link": "https://example.test/other"}
+        b2 = build_stix_bundle([other], [])
+        assert b1["id"] != b2["id"]

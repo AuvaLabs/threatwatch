@@ -1065,6 +1065,12 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 from modules.date_utils import parse_datetime
                 qs = parse_qs(parsed.query)
                 ts_raw = (qs.get("ts", [""])[0] or "").strip()
+                # Clients routinely pass next_cursor back without URL-encoding
+                # the timezone "+" (the documented Logic App recipe does);
+                # query decoding turns it into a space. An ISO timestamp never
+                # legitimately contains a space before the offset, so undo it.
+                if " " in ts_raw and "+" not in ts_raw:
+                    ts_raw = ts_raw.replace(" ", "+")
                 limit_raw = (qs.get("limit", ["200"])[0] or "200").strip()
                 try:
                     limit = max(1, min(int(limit_raw), 1000))
@@ -1089,13 +1095,24 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                         newest_ts = art_dt
                     matched.append((art_dt, a))
 
-                matched.sort(key=lambda pair: pair[0], reverse=True)
+                # Oldest-first chronological pagination. The old behavior
+                # sliced newest-first but advanced next_cursor to the newest
+                # matched timestamp, so every unreturned (older) article fell
+                # behind the cursor and was silently lost to paging clients —
+                # exactly the alert-pipeline integration this endpoint serves.
+                # Oldest-first + cursor = last RETURNED item walks the stream
+                # forward losslessly: anything unreturned is newer than the
+                # cursor and arrives on the next poll.
+                matched.sort(key=lambda pair: pair[0])
                 sliced = matched[:limit]
                 payload_articles = [
                     {k: v for k, v in a.items() if k != "full_content"}
                     for _, a in sliced
                 ]
-                next_cursor = (newest_ts.isoformat() if newest_ts else (ts_raw or None))
+                if sliced:
+                    next_cursor = sliced[-1][0].isoformat()
+                else:
+                    next_cursor = ts_raw or None
                 payload = {
                     "count": len(payload_articles),
                     "total_new": len(matched),
@@ -1298,6 +1315,14 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 page = articles[offset:offset + limit]
             else:
                 page = articles[offset:]
+
+            # Strip scraped full text — every other article endpoint does;
+            # this one leaked it, inflating responses ~10x and exposing
+            # full scraped bodies to any caller.
+            page = [
+                {k: v for k, v in a.items() if k != "full_content"}
+                for a in page
+            ]
 
             result = {
                 "articles": page,
