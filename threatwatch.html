@@ -22,6 +22,11 @@
   outline-offset: 1px;
 }
 
+.stat-box-active {
+  outline: 2px solid var(--danger);
+  outline-offset: -2px;
+}
+
 /* Dark default — Midnight Command */
 :root {
   --bg: #0b1120;
@@ -2726,6 +2731,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 
     <!-- Horizontal stats bar -->
     <div class="stats-bar">
+      <div class="stat-box critical" data-click-action="toggleKevFilter" title="CISA Known Exploited Vulnerabilities referenced in the current window — click to filter the feed" style="cursor:pointer"><span class="count" id="stat-kev">0</span><span class="label">KEV ACTIVE</span></div>
       <div class="stat-box critical"><span class="count" id="stat-critical">0</span><span class="label">CRITICAL</span></div>
       <div class="stat-box high"><span class="count" id="stat-high">0</span><span class="label">HIGH</span></div>
       <div class="stat-box"><span class="count" id="stat-total">0</span><span class="label">TOTAL</span></div>
@@ -4381,6 +4387,8 @@ function filterMatchesItem(filter, item) {
   if (state.activeRegion && state.activeRegion !== 'all') {
     if (!_itemMatchesRegion(item, state.activeRegion)) return false;
   }
+  // KEV drilldown — the KEV ACTIVE stat box toggles this.
+  if (state.activeKevFilter && !item.kevListed) return false;
   // CVE drilldown — active when an analyst clicks a CVE pill on a card.
   if (state.activeCveFilter) {
     if (!(item.cveIds || []).includes(state.activeCveFilter)) return false;
@@ -4472,7 +4480,7 @@ function buildCardHTML(item) {
     <div class="card-desc">${escapeHTML(item.description)}</div>
     <hr class="card-divider">
     <div class="card-footer">
-      <span class="card-time">\uD83D\uDD50 ${timeAgo(item.pubDate)}</span>
+      <span class="card-time" title="${item.pubDate ? new Date(item.pubDate).toUTCString() : 'publication time unknown'}">\uD83D\uDD50 ${timeAgo(item.pubDate)}</span>
       ${buildStoryBadge(item)}
       ${buildKevPill(item)}
       ${buildCvePill(item)}
@@ -4919,6 +4927,14 @@ function focusInput(id) {
   if (el) el.focus();
 }
 
+function toggleKevFilter() {
+  state.activeKevFilter = !state.activeKevFilter;
+  const box = document.querySelector('[data-click-action="toggleKevFilter"]');
+  if (box) box.classList.toggle('stat-box-active', state.activeKevFilter);
+  renderFeedCards();
+  updateWatchFilterBanner && updateWatchFilterBanner();
+}
+
 function _dispatchClick(e) {
   const el = e.target.closest('[data-click-action]');
   if (!el) return;
@@ -5114,6 +5130,9 @@ function updateOverviewStats() {
   const critical = items.filter(i => i.severity === 'CRITICAL').length;
   const high = items.filter(i => i.severity === 'HIGH').length;
 
+  const kevCount = items.filter(i => i.kevListed).length;
+  const kevEl = document.getElementById('stat-kev');
+  if (kevEl) animateCounter(kevEl, kevCount);
   animateCounter(document.getElementById('stat-critical'), critical);
   animateCounter(document.getElementById('stat-high'), high);
   animateCounter(document.getElementById('stat-total'), items.length);
@@ -5795,7 +5814,7 @@ function renderRansomTracker() {
         <div><div class="ransom-group-stat-val" style="color:var(--accent)">${data.news.length}</div><div class="ransom-group-stat-label">ARTICLES</div></div>
         <div><div class="ransom-group-stat-val" style="font-size:var(--text-xs);padding-top:3px">${lastSeen}</div><div class="ransom-group-stat-label">LAST SEEN</div></div>
       </div>
-      <div class="ransom-activity-bar"><div class="ransom-activity-fill" style="width:${pct}%"></div></div>
+      <div class="ransom-activity-bar" title="Activity score ${score} = ${data.victims.length} victims ×3 + ${data.news.length} articles; bar relative to most active group"><div class="ransom-activity-fill" style="width:${pct}%"></div></div>
     </div>`;
   });
   html += '</div>';
