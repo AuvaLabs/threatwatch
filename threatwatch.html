@@ -17,6 +17,11 @@
 /* ============================================================= */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* Dark default — Midnight Command */
 :root {
   --bg: #0b1120;
@@ -2535,7 +2540,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 <!-- __SSR_DATA__ -->
 </head>
 <body>
-<div id="conf-tooltip"></div>
+<div id="conf-tooltip" role="tooltip"></div>
 
 <div id="page-loader">
   <div class="loader-logo">THREATWATCH</div>
@@ -2589,9 +2594,9 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 
   <!-- BRAND & ASSET WATCH DRAWER -->
   <div class="watch-overlay" id="watch-overlay" data-click-action="closeWatchDrawer"></div>
-  <div class="watch-drawer" id="watch-drawer">
+  <div class="watch-drawer" id="watch-drawer" role="dialog" aria-modal="true" aria-labelledby="watch-drawer-title">
     <div class="watch-drawer-header">
-      <div class="watch-drawer-title">
+      <div class="watch-drawer-title" id="watch-drawer-title">
         &#128269; Brand &amp; Asset Watch
         <span class="watch-mode-badge hosted" id="watch-mode-badge">HOSTED</span>
       </div>
@@ -2643,7 +2648,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   <!-- =========================================================== -->
   <!-- LEFT PANEL — LIVE THREAT NEWS FEED                           -->
   <!-- =========================================================== -->
-  <div id="left-panel" class="panel">
+  <div id="left-panel" class="panel" role="complementary" aria-label="Live threat intelligence feed">
     <div class="panel-header">
       <div class="panel-header-top">
         <div class="panel-title">
@@ -2661,7 +2666,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <span id="last-refresh">--</span>
         <span id="last-checked" title="When this page last polled the server (data may be unchanged)"></span>
       </div>
-      <div id="new-visit-pill" class="new-visit-pill" style="display:none">
+      <div id="new-visit-pill" class="new-visit-pill" style="display:none" aria-live="polite">
         <span><span class="nv-text"></span><span class="nv-since"></span></span>
         <button class="nv-clear" data-click-action="clearNewSinceVisit">Mark as read</button>
       </div>
@@ -2695,10 +2700,10 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   <!-- =========================================================== -->
   <!-- MAIN CONTENT — Stats + Briefing + Overview (merged)          -->
   <!-- =========================================================== -->
-  <div id="main-content">
+  <div id="main-content" role="main">
     <!-- Header with tab nav + region filters -->
     <div class="center-header" id="center-panel">
-      <div class="main-tabs">
+      <nav class="main-tabs" role="navigation" aria-label="Intelligence views">
         <button class="main-tab active" data-tab="briefing" data-click-action="switchMainTab" data-click-args="[&quot;briefing&quot;]">INTEL BRIEF</button>
         <button class="main-tab" data-tab="breach" data-click-action="switchMainTab" data-click-args="[&quot;breach&quot;]">BREACH</button>
         <button class="main-tab" data-tab="exploits" data-click-action="switchMainTab" data-click-args="[&quot;exploits&quot;]">EXPLOITS</button>
@@ -2708,7 +2713,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <button class="main-tab" data-tab="apt" data-click-action="switchMainTab" data-click-args="[&quot;apt&quot;]">APT TRACKER</button>
         <button class="main-tab" data-tab="brands" data-click-action="switchMainTab" data-click-args="[&quot;brands&quot;]">BRANDS</button>
         <button class="main-tab" data-tab="assets" data-click-action="switchMainTab" data-click-args="[&quot;assets&quot;]">TECH</button>
-      </div>
+      </nav>
       <div class="region-filters" id="region-filters">
         <button class="region-btn active" data-region="all">GLOBAL <span class="region-count" id="rc-all"></span></button>
         <button class="region-btn" data-region="na">NA <span class="region-count" id="rc-na"></span></button>
@@ -4453,7 +4458,7 @@ function buildCardHTML(item) {
   const confBadge = item.confidence ? `<span class="badge conf-badge" data-tip="${escapeHTML(confTip)}" style="background:rgba(30,126,78,0.07);color:var(--success);border:1px solid rgba(30,126,78,0.15);font-size:var(--text-2xs)">${item.confidence}%</span>` : '';
   const watchBadges = buildWatchBadges(item);
 
-  return `<div class="feed-card ${sevClass}${activeClass}" data-id="${item._id}">
+  return `<div class="feed-card ${sevClass}${activeClass}" data-id="${item._id}" tabindex="0" role="article" aria-label="${escapeHTML(item.severity)} severity: ${escapeHTML(item.title)}">
     ${newBadge}
     <div class="card-badges">
       <span class="badge badge-src ${item.sourceClass}">${escapeHTML(item.source)}</span>
@@ -4935,6 +4940,24 @@ function _dispatchClick(e) {
   }
 }
 document.addEventListener('click', _dispatchClick, true);
+// Keyboard activation: Enter/Space on any focusable data-click-action
+// element behaves like a click — feed cards and panel rows were entirely
+// unreachable for keyboard users.
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target.closest && e.target.closest('[data-click-action]');
+  if (!el || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ||
+      el.tagName === 'BUTTON' || el.tagName === 'A') return;
+  e.preventDefault();
+  _dispatchClick({ target: el });
+}, true);
+// Escape closes the watch drawer (focus-visible dialog behaviour)
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const drawer = document.getElementById('watch-drawer');
+    if (drawer && drawer.classList.contains('open')) closeWatchDrawer();
+  }
+});
 
 /* Feed-supplied URLs are untrusted. escapeHTML neutralises angle-brackets
    but does not block javascript:/data:/vbscript: schemes, so an RSS feed can
@@ -6274,9 +6297,13 @@ function _updateWatchBtn() {
   btn.classList.toggle('has-watches', hasAny);
 }
 
+let _watchDrawerReturnFocus = null;
 function openWatchDrawer() {
+  _watchDrawerReturnFocus = document.activeElement;
   document.getElementById('watch-overlay').classList.add('open');
   document.getElementById('watch-drawer').classList.add('open');
+  const closeBtn = document.querySelector('.watch-close-btn');
+  if (closeBtn) closeBtn.focus();
   const body = document.querySelector('.watch-drawer-body');
   if (body) body.scrollTop = 0;
   _initVendorGridDelegate();
@@ -6288,6 +6315,10 @@ function openWatchDrawer() {
 function closeWatchDrawer() {
   document.getElementById('watch-overlay').classList.remove('open');
   document.getElementById('watch-drawer').classList.remove('open');
+  if (_watchDrawerReturnFocus && _watchDrawerReturnFocus.focus) {
+    _watchDrawerReturnFocus.focus();
+    _watchDrawerReturnFocus = null;
+  }
 }
 
 function buildVendorGrid(filter) {
