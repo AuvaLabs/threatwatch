@@ -188,7 +188,7 @@ class TestDispatchBriefingAlert:
         monkeypatch.setattr(wh, "WEBHOOK_BRIEFING_MIN_LEVEL", "ELEVATED")
         captured = {}
 
-        def fake_post(url, json=None, **kw):
+        def fake_post(url, json=None, **kw):  # noqa: F811 — mirrors requests.post signature
             captured["url"] = url
             captured["body"] = json
             resp = MagicMock()
@@ -211,7 +211,7 @@ class TestDispatchBriefingAlert:
         monkeypatch.setattr(wh, "WEBHOOK_BRIEFING_MIN_LEVEL", "ELEVATED")
         captured = {}
 
-        def fake_post(url, json=None, **kw):
+        def fake_post(url, json=None, **kw):  # noqa: F811 — mirrors requests.post signature
             captured["body"] = json
             resp = MagicMock()
             resp.raise_for_status = MagicMock()

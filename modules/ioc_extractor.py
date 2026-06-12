@@ -195,10 +195,27 @@ def _extract_domains(text: str) -> set[str]:
     return out
 
 
+# 32/40-hex strings are ambiguous: git commit IDs, compact UUIDs, tracking
+# tokens. Only treat them as malware hashes when the surrounding text talks
+# about hashes/samples/IOCs — a SHA256 (64 hex) is specific enough on its own.
+_HASH_CONTEXT_RE = re.compile(
+    r"(?:\bmd5\b|\bsha-?1\b|\bsha-?256\b|\bhash(?:es)?\b|\bchecksum\b|"
+    r"\bsample\b|\bioc\b|\bindicator)",
+    re.IGNORECASE,
+)
+
+
 def _extract_hashes(text: str) -> tuple[set[str], set[str], set[str]]:
     sha256 = {m.group(0).lower() for m in _SHA256_RE.finditer(text)}
-    sha1 = {m.group(0).lower() for m in _SHA1_RE.finditer(text)}
-    md5 = {m.group(0).lower() for m in _MD5_RE.finditer(text)}
+    has_hash_context = bool(_HASH_CONTEXT_RE.search(text))
+    sha1 = (
+        {m.group(0).lower() for m in _SHA1_RE.finditer(text)}
+        if has_hash_context else set()
+    )
+    md5 = (
+        {m.group(0).lower() for m in _MD5_RE.finditer(text)}
+        if has_hash_context else set()
+    )
     # SHA256 hex strings also match the SHA1/MD5 regexes (40/32 hex is a prefix
     # of 64 hex); subtract so each hash is counted once under its correct type.
     sha1 -= {h[:40] for h in sha256}

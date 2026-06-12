@@ -178,13 +178,19 @@ def _detect_spikes(daily_counts: dict, today: str) -> list[dict]:
                 "spike_ratio": round(today_count / avg, 1),
             })
         elif avg == 0 and today_count >= _MIN_COUNT_FOR_SPIKE:
-            # New keyword appearing for the first time with significant count
+            # New keyword appearing for the first time with significant count.
+            # spike_ratio must stay JSON-safe: float("inf") serialises as the
+            # bare token `Infinity`, which is invalid JSON — strict parsers
+            # (browsers, jq) choke on the whole trends payload. A new
+            # emergence has no meaningful ratio, so use the count itself as
+            # the sort weight and flag it explicitly.
             spikes.append({
                 "keyword": keyword,
                 "type": "new_emergence",
+                "new_emergence": True,
                 "today_count": today_count,
                 "avg_count": 0,
-                "spike_ratio": float("inf"),
+                "spike_ratio": float(today_count),
             })
 
     return sorted(spikes, key=lambda s: -s.get("spike_ratio", 0))

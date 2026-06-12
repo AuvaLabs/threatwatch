@@ -126,3 +126,24 @@ class TestAnnotateArticlesWithIocs:
 
     def test_empty_list(self):
         assert annotate_articles_with_iocs([]) == 0
+
+
+class TestHashContextGating:
+    def test_git_commit_in_plain_prose_not_an_ioc(self):
+        from modules.ioc_extractor import extract_iocs
+        text = "The fix landed in commit d3b07384d113edec49eaa6238ad5ff00aabbccdd of the repo."
+        out = extract_iocs(text)
+        assert out["sha1"] == []
+        assert out["md5"] == []
+
+    def test_md5_with_hash_context_extracted(self):
+        from modules.ioc_extractor import extract_iocs
+        text = "Sample MD5 hash: 9e107d9d372bb6826bd81d3542a419d6 distributed via phishing."
+        out = extract_iocs(text)
+        assert "9e107d9d372bb6826bd81d3542a419d6" in out["md5"]
+
+    def test_sha256_extracted_without_context(self):
+        from modules.ioc_extractor import extract_iocs
+        h = "a" * 64
+        out = extract_iocs(f"payload {h} observed")
+        assert h in out["sha256"]

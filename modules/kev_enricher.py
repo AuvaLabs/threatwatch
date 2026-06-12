@@ -90,7 +90,24 @@ def fetch_kev_catalog(force_refresh: bool = False) -> dict[str, dict]:
         resp.raise_for_status()
         raw = resp.json()
     except Exception as e:
-        logger.warning(f"KEV: live fetch failed ({e}); falling back to stale cache")
+        # Stale fallback keeps enrichment alive through a CISA outage, but
+        # "actively exploited" data degrades with age — escalate the log the
+        # older the cache gets so a prolonged outage can't hide.
+        try:
+            import time as _time
+            age_h = (_time.time() - KEV_CACHE_PATH.stat().st_mtime) / 3600
+        except OSError:
+            age_h = float("nan")
+        if age_h > 48:
+            logger.error(
+                "KEV: live fetch failed (%s); serving cache %.0fh old — "
+                "KEV flags may be materially out of date", e, age_h,
+            )
+        else:
+            logger.warning(
+                "KEV: live fetch failed (%s); falling back to cache (%.1fh old)",
+                e, age_h,
+            )
         return _load_cached_catalog() or {}
 
     indexed: dict[str, dict] = {}

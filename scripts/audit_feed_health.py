@@ -64,7 +64,7 @@ def audit_feeds(configured_feeds, articles, health_data):
 
     # Count articles per source
     source_counts = Counter(a.get("source", "") for a in articles)
-    total = len(articles)
+
 
     # Which configured feeds produced articles?
     active_feeds = set()
@@ -218,7 +218,7 @@ def print_report(stats, findings):
     print(f"\n  Health data: {stats.get('health_summary', 'N/A')}")
 
     if "darkweb_sources" in stats:
-        print(f"\n  Dark web sources:")
+        print("\n  Dark web sources:")
         for src, n in stats["darkweb_sources"].items():
             print(f"    {src}: {n}")
 

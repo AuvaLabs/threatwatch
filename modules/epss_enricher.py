@@ -10,8 +10,10 @@ EPSS answers: "How likely is this CVE to be exploited in the next 30 days?"
 Zero cost — EPSS API is free and unauthenticated.
 """
 
+import json
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -22,6 +24,14 @@ EPSS_API_URL = "https://api.first.org/data/v1/epss"
 
 # Extract CVE IDs from article text
 _CVE_RE = re.compile(r"(CVE-\d{4}-\d{4,})", re.IGNORECASE)
+
+# Disk cache: EPSS data updates ONCE per day upstream, but the enricher ran a
+# live API call every 10-minute pipeline tick. Worse, a FIRST.org outage
+# returned {} silently and the run's articles lost exploit-probability
+# context with no signal. 6h TTL matches the KEV enricher.
+from modules.config import STATE_DIR as _STATE_DIR
+_EPSS_CACHE_PATH = _STATE_DIR / "epss_cache.json"
+_EPSS_CACHE_TTL_H = 6
 
 _SESSION = None
 
@@ -37,21 +47,66 @@ def _get_session() -> requests.Session:
     return _SESSION
 
 
-def _fetch_epss_batch(cve_ids: list[str]) -> dict[str, dict]:
-    """Fetch EPSS scores for a batch of CVE IDs.
+def _load_epss_cache() -> dict:
+    try:
+        if _EPSS_CACHE_PATH.exists():
+            return json.loads(_EPSS_CACHE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {"cached_at": None, "scores": {}}
 
-    Returns {cve_id: {"epss": float, "percentile": float}} or empty on error.
+
+def _save_epss_cache(cache: dict) -> None:
+    try:
+        from modules.utils import write_json_atomic
+        write_json_atomic(_EPSS_CACHE_PATH, cache, ensure_ascii=False)
+    except OSError as e:
+        logger.debug("EPSS cache write failed: %s", e)
+
+
+def _cache_fresh(cache: dict) -> bool:
+    stamp = cache.get("cached_at")
+    if not isinstance(stamp, str):
+        return False
+    try:
+        cached_at = datetime.fromisoformat(stamp)
+    except ValueError:
+        return False
+    age_h = (datetime.now(timezone.utc) - cached_at).total_seconds() / 3600
+    return age_h < _EPSS_CACHE_TTL_H
+
+
+def _fetch_epss_batch(cve_ids: list[str]) -> dict[str, dict]:
+    """Fetch EPSS scores for a batch of CVE IDs, with a 6h disk cache.
+
+    Cache-first for CVEs already scored within the TTL; only cache misses
+    hit the API. On API failure, stale cached scores are served (with a
+    warning) rather than silently dropping enrichment for the run.
+    Returns {cve_id: {"epss_score": float, "epss_percentile": float}}.
     """
     if not cve_ids:
         return {}
 
+    cache = _load_epss_cache()
+    fresh = _cache_fresh(cache)
+    cached_scores = cache.get("scores", {})
+    results = {}
+    to_fetch = []
+    for cve in cve_ids:
+        if fresh and cve in cached_scores:
+            results[cve] = cached_scores[cve]
+        else:
+            to_fetch.append(cve)
+    if not to_fetch:
+        return results
+
     # API accepts comma-separated CVE IDs (max ~100 per request)
     session = _get_session()
-    results = {}
+    fetched_any = False
 
     # Batch in chunks of 100
-    for i in range(0, len(cve_ids), 100):
-        chunk = cve_ids[i:i + 100]
+    for i in range(0, len(to_fetch), 100):
+        chunk = to_fetch[i:i + 100]
         try:
             resp = session.get(
                 EPSS_API_URL,
@@ -68,8 +123,26 @@ def _fetch_epss_batch(cve_ids: list[str]) -> dict[str, dict]:
                         "epss_score": float(entry.get("epss", 0)),
                         "epss_percentile": float(entry.get("percentile", 0)),
                     }
+                    fetched_any = True
         except Exception as e:
             logger.warning(f"EPSS: batch fetch failed for {len(chunk)} CVEs: {e}")
+            # Serve stale cached scores for this chunk rather than silently
+            # losing enrichment — and say so.
+            stale_hits = [c for c in chunk if c in cached_scores]
+            if stale_hits:
+                logger.warning(
+                    "EPSS: serving %d stale cached score(s) after API failure",
+                    len(stale_hits),
+                )
+                for c in stale_hits:
+                    results[c] = cached_scores[c]
+
+    if fetched_any:
+        merged = {**cached_scores, **{k: v for k, v in results.items()}}
+        _save_epss_cache({
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+            "scores": merged,
+        })
 
     return results
 

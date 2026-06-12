@@ -2,6 +2,13 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 import modules.epss_enricher as epss
+
+
+@pytest.fixture(autouse=True)
+def _isolated_epss_cache(tmp_path, monkeypatch):
+    """Point the disk cache at a temp file so tests never read each other's
+    (or the repo's) cached scores."""
+    monkeypatch.setattr(epss, "_EPSS_CACHE_PATH", tmp_path / "epss_cache.json")
 from modules.epss_enricher import (
     enrich_articles_with_epss,
     _extract_cve_ids,
@@ -172,3 +179,41 @@ class TestEnrichArticlesEdgeCases:
         result = enrich_articles_with_epss(articles)
         assert "epss_scores" in result[0]
         assert "epss_scores" not in result[1]
+
+
+class TestEpssDiskCache:
+    def _mock_ok_session(self, scores):
+        m = MagicMock()
+        m.get.return_value.json.return_value = {
+            "data": [{"cve": c, "epss": s, "percentile": p} for c, (s, p) in scores.items()]
+        }
+        m.get.return_value.raise_for_status.return_value = None
+        return m
+
+    def test_fresh_cache_skips_api(self):
+        epss._SESSION = self._mock_ok_session({"CVE-2026-1111": (0.5, 0.9)})
+        try:
+            first = _fetch_epss_batch(["CVE-2026-1111"])
+            assert first["CVE-2026-1111"]["epss_score"] == 0.5
+            # Second call within TTL: API must not be hit again
+            epss._SESSION = MagicMock()
+            epss._SESSION.get.side_effect = AssertionError("API must not be called on cache hit")
+            second = _fetch_epss_batch(["CVE-2026-1111"])
+            assert second["CVE-2026-1111"]["epss_score"] == 0.5
+        finally:
+            epss._SESSION = None
+
+    def test_api_failure_serves_stale_cache_with_warning(self):
+        epss._SESSION = self._mock_ok_session({"CVE-2026-2222": (0.7, 0.95)})
+        try:
+            _fetch_epss_batch(["CVE-2026-2222"])
+            # Expire the cache stamp, then fail the API
+            cache = epss._load_epss_cache()
+            cache["cached_at"] = "2020-01-01T00:00:00+00:00"
+            epss._save_epss_cache(cache)
+            epss._SESSION = MagicMock()
+            epss._SESSION.get.side_effect = Exception("FIRST.org down")
+            result = _fetch_epss_batch(["CVE-2026-2222"])
+            assert result["CVE-2026-2222"]["epss_score"] == 0.7
+        finally:
+            epss._SESSION = None

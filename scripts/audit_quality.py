@@ -164,7 +164,7 @@ def audit_timeliness(articles):
     stats = {}
 
     now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(days=FEED_CUTOFF_DAYS)
+
 
     old_articles = []
     unparseable_dates = []
@@ -526,7 +526,7 @@ def generate_report(articles, output_json=False):
     # Human-readable output
     sep = "=" * 72
     print(f"\n{sep}")
-    print(f"  THREATWATCH QUALITY AUDIT REPORT")
+    print("  THREATWATCH QUALITY AUDIT REPORT")
     print(f"  Generated: {report['generated_at'][:19]}Z")
     print(f"  Articles analyzed: {report['total_articles']}")
     print(f"  Quality Score: {report['quality_score']}/100")
@@ -554,7 +554,7 @@ def generate_report(articles, output_json=False):
         print(f"\n  [{f['severity']}] #{i}: {f['issue']}")
         print(f"  {f['detail']}")
         if "samples" in f:
-            print(f"  Samples:")
+            print("  Samples:")
             for s in f["samples"][:5]:
                 print(f"    - {s}")
             if len(f["samples"]) > 5:
