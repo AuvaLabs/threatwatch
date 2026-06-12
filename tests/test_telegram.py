@@ -173,10 +173,20 @@ class TestDispatchTelegramBriefing:
 # ---------------------------------------------------------------------------
 # dispatch_telegram_kev_alerts
 # ---------------------------------------------------------------------------
-def _kev_article(cve_id: str, date_added: str = "2026-04-25",
+def _kev_article(cve_id: str, date_added: str | None = None,
                  ransomware: str = "Unknown", title: str = "Article title",
                  vendor: str = "Cisco", product: str = "ASA"):
-    """Build an article dict already enriched as if kev_enricher had run."""
+    """Build an article dict already enriched as if kev_enricher had run.
+
+    date_added defaults to 3 days ago so fixtures stay inside the
+    TELEGRAM_KEV_MAX_AGE_DAYS suppression window regardless of when the
+    suite runs (a fixed literal date silently aged out of the window and
+    made every dispatch test fail).
+    """
+    if date_added is None:
+        date_added = (
+            datetime.now(timezone.utc).date() - timedelta(days=3)
+        ).isoformat()
     return {
         "title": title,
         "kev_listed": True,
@@ -283,7 +293,8 @@ class TestDispatchKEVAlerts:
             assert not state_path.exists()
 
     def test_message_format_includes_cve_date_ransomware_link(self, tmp_path):
-        article = _kev_article("CVE-2026-1077", date_added="2026-04-25",
+        listed = (datetime.now(timezone.utc).date() - timedelta(days=3)).isoformat()
+        article = _kev_article("CVE-2026-1077", date_added=listed,
                                ransomware="Known", vendor="Acme",
                                product="VPN", title="Acme VPN actively exploited")
         with patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
@@ -296,7 +307,7 @@ class TestDispatchKEVAlerts:
             payload = mock_sess.return_value.post.call_args.kwargs["json"]
             text = payload["text"]
             assert "CVE-2026-1077" in text
-            assert "2026-04-25" in text
+            assert listed in text
             assert "ransomware" in text.lower()
             assert "Acme" in text
             # NVD link is the canonical CVE reference (not the JSON API endpoint)
