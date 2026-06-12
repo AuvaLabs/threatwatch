@@ -278,7 +278,14 @@ class TestGenerateBriefing:
         # Simulate a slow LLM call by advancing time during the call.
         call_start = datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
         call_end = call_start + timedelta(minutes=107)
-        clock = iter([call_start, call_end])
+        # First now() call (function entry) sees call_start; every later call
+        # sees call_end. A finite two-tick iterator broke whenever production
+        # code added a now() call — the StopIteration was swallowed and the
+        # briefing silently returned None.
+        ticks = iter([call_start])
+
+        def clock():
+            return next(ticks, call_end)
 
         def _slow_call(*_a, **_k):
             # Patch datetime.now inside briefing_generator to advance on call.
@@ -296,7 +303,7 @@ class TestGenerateBriefing:
              patch.object(bg, "_build_trend_context", return_value=""), \
              patch.object(bg, "_build_vuln_context", return_value=""), \
              patch("modules.briefing_generator.datetime") as mock_dt:
-            mock_dt.now.side_effect = lambda tz=None: next(clock)
+            mock_dt.now.side_effect = lambda tz=None: clock()
             mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
             result = bg.generate_briefing(self._articles())
         # generated_at must reflect the post-call time, not the pre-call time.
