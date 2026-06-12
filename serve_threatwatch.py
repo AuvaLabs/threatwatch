@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 from datetime import datetime, timedelta, timezone
-from email.utils import formatdate
+
 from http import HTTPStatus
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
