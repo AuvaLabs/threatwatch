@@ -190,6 +190,80 @@ def _validate_cve_grounding(briefing: dict[str, Any], source_text: str) -> set[s
     return _extract_cited_cve_ids(briefing) - allowed
 
 
+def _strip_ungrounded_cves(
+    briefing: dict[str, Any], ungrounded: set[str]
+) -> dict[str, Any]:
+    """Return a copy of ``briefing`` with every ungrounded CVE ID removed from
+    its text fields, tidying the punctuation/parentheses left behind.
+
+    Stripping the offending identifiers is deterministically grounding (the
+    cited set becomes a subset of the allowed set), so the salvaged briefing is
+    safe to publish — far better than wedging on stale content for days because
+    the model hallucinated one CVE. See the 2026-06 stale-briefing incident.
+    """
+    if not ungrounded:
+        return briefing
+    patterns = [
+        re.compile(r"\s*[\(\[]?\b" + re.escape(cve) + r"\b[\)\]]?", re.IGNORECASE)
+        for cve in ungrounded
+    ]
+
+    def _clean(text: Any) -> Any:
+        if not isinstance(text, str) or not text:
+            return text
+        out = text
+        for pat in patterns:
+            out = pat.sub("", out)
+        # Tidy artifacts the removal can leave: empty brackets, dangling
+        # "tracked as" connectors, space-before-punctuation, doubled spaces.
+        out = re.sub(r"[\(\[]\s*[\)\]]", "", out)
+        out = re.sub(
+            r"\b(?:tracked|identified|designated)\s+as\s*(?=[,.;:]|$)",
+            "", out, flags=re.IGNORECASE,
+        )
+        out = re.sub(r"\s+([,.;:])", r"\1", out)
+        out = re.sub(r"\s{2,}", " ", out).strip()
+        return out
+
+    new = dict(briefing)
+    for field in ("headline", "assessment_basis", "what_happened",
+                  "week_in_review", "outlook"):
+        if field in new:
+            new[field] = _clean(new[field])
+    wtd = new.get("what_to_do")
+    if isinstance(wtd, list):
+        new["what_to_do"] = [
+            {**a, **{k: _clean(a[k]) for k in ("action", "threat")
+                     if isinstance(a.get(k), str)}}
+            if isinstance(a, dict) else a
+            for a in wtd
+        ]
+    return new
+
+
+def _briefing_has_body(briefing: dict[str, Any] | None) -> bool:
+    """True if the briefing carries enough narrative to be worth publishing.
+
+    Guards against salvage stripping a load-bearing CVE down to an empty stub.
+    """
+    if not briefing:
+        return False
+    return len((briefing.get("what_happened") or "").strip()) >= 80
+
+
+def _serve_stale(reason: str) -> dict[str, Any] | None:
+    """Re-serve the last good briefing, flagged so consumers (UI badge,
+    /api/briefing) know it is older than the run that produced it. Returns None
+    when no prior briefing exists.
+    """
+    existing = load_briefing()
+    if existing:
+        existing = {**existing, "served_stale": True, "stale_reason": reason}
+        _save_briefing(existing)
+        return existing
+    return None
+
+
 # Capitalized common-words and analyst jargon that aren't named entities. The
 # headline-coupling guard treats anything else (≥3 char, capitalized) as a
 # proper noun that must be traceable to the source article. Tuned to be lax —
@@ -872,12 +946,22 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         context_sections.append(trailing_context)
     user_content = "\n".join(context_sections)
 
-    try:
+    def _attempt(extra_instruction: str = "") -> dict[str, Any] | None:
+        """Call the provider once and return a schema-normalised briefing dict
+        (pre-grounding), or None on provider/parse/schema failure.
+
+        ``extra_instruction`` is appended to the user content so a corrective
+        retry can forbid CVE IDs an earlier draft hallucinated.
+        """
+        content = user_content
+        if extra_instruction:
+            content = f"{user_content}\n\n{extra_instruction}"
+
         if provider == "anthropic":
-            reply = _call_anthropic(user_content)
+            reply = _call_anthropic(content)
         else:
             reply = _call_openai_compatible(
-                user_content, caller="briefing",
+                content, caller="briefing",
                 model=BRIEFING_MODEL,
                 max_tokens=1200,           # Groq fallback — fits 6K TPM
                 feather_max_tokens=4000,   # Featherless 32K — richer narrative
@@ -927,29 +1011,58 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         # Surface as TL;DR hero on the dashboard; blank string lets the
         # frontend's regex distillation of what_happened take over.
         briefing["headline"] = _normalise_headline(briefing.get("headline"))
+        return briefing
+
+    try:
+        briefing = _attempt()
+        if briefing is None:
+            return None
 
         # Guard against ungrounded CVE IDs (prompt-example leakage / hallucination).
-        # A false CRITICAL alert citing a fabricated CVE is worse than a stale brief.
+        # A false CRITICAL alert citing a fabricated CVE is worse than a stale
+        # brief — but one hallucinated identifier must not wedge the whole
+        # briefing for days (the 2026-06 stale-briefing incident: featherless
+        # repeatedly cited an ungrounded CVE, so every regeneration was rejected
+        # and the brief sat 26h+ stale). Recovery ladder: (1) strip the
+        # ungrounded IDs and publish the salvaged-but-grounded brief; (2) if that
+        # guts the narrative, retry once with an explicit prohibition; (3) only
+        # then fall back to re-serving the last good brief flagged stale.
         ungrounded = _validate_cve_grounding(briefing, user_content)
         if ungrounded:
-            logger.warning(
-                "Briefing rejected — cited ungrounded CVE IDs %s. "
-                "Likely prompt-example leak or hallucination; serving stale.",
-                sorted(ungrounded),
-            )
-            existing = load_briefing()
-            if existing:
-                # Tell consumers (UI badge, /api/briefing) that this content
-                # is older than the pipeline run that produced it — the fresh
-                # generation was rejected, we're serving the previous one.
-                existing = {
-                    **existing,
-                    "served_stale": True,
-                    "stale_reason": "latest generation rejected: ungrounded CVE citations",
-                }
-                _save_briefing(existing)
-                return existing
-            return None
+            salvaged = _strip_ungrounded_cves(briefing, ungrounded)
+            if _briefing_has_body(salvaged):
+                logger.warning(
+                    "Briefing cited ungrounded CVE IDs %s — stripped them and "
+                    "published the salvaged (grounded) briefing.",
+                    sorted(ungrounded),
+                )
+                briefing = salvaged
+            else:
+                logger.warning(
+                    "Briefing cited ungrounded CVE IDs %s; salvage gutted the "
+                    "narrative — retrying once with an explicit prohibition.",
+                    sorted(ungrounded),
+                )
+                forbid = (
+                    "CORRECTION: A previous draft cited CVE IDs that do NOT "
+                    "appear in the incident data: "
+                    + ", ".join(sorted(ungrounded))
+                    + ". Do NOT mention these identifiers. Cite only CVE IDs "
+                    "present verbatim in the data above; if none apply, omit "
+                    "CVE references entirely."
+                )
+                retry = _attempt(forbid)
+                briefing = None
+                if retry is not None:
+                    ug2 = _validate_cve_grounding(retry, user_content)
+                    if ug2:
+                        retry = _strip_ungrounded_cves(retry, ug2)
+                    if _briefing_has_body(retry):
+                        briefing = retry
+                if briefing is None:
+                    return _serve_stale(
+                        "latest generation rejected: ungrounded CVE citations"
+                    )
 
         # Guard against headline narrative-coupling (entities welded from
         # unrelated source articles). On failure, clear the headline so the

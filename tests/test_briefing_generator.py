@@ -13,6 +13,9 @@ from modules.briefing_generator import (
     _normalise_headline,
     _read_prior_level,
     _stamp_previous_level,
+    _validate_cve_grounding,
+    _strip_ungrounded_cves,
+    _briefing_has_body,
     generate_briefing,
     load_briefing,
     _MAX_DIGEST_ARTICLES,
@@ -911,3 +914,57 @@ class TestHoistKevListed:
         new_day1, new_day3 = _hoist_kev_listed([], day3, max_age_hours=72, now=now)
         assert new_day1 == []
         assert new_day3 == day3
+
+
+class TestUngroundedCveSalvage:
+    """The 2026-06 stale-briefing fix: strip hallucinated CVEs and publish a
+    grounded briefing instead of wedging on stale content for days."""
+
+    SOURCE = "Article [1]: CISA adds CVE-2026-10520 to the KEV catalog."
+
+    def test_validate_flags_only_ungrounded(self):
+        briefing = {
+            "what_happened": "Active exploitation of CVE-2026-10520 and "
+                             "CVE-2026-49975 reported.",
+        }
+        # CVE-2026-10520 is in SOURCE; CVE-2026-49975 is not.
+        assert _validate_cve_grounding(briefing, self.SOURCE) == {"CVE-2026-49975"}
+
+    def test_strip_removes_ungrounded_keeps_grounded(self):
+        briefing = {
+            "headline": "ShinyHunters exploits CVE-2026-49975 in PeopleSoft",
+            "what_happened": "Attackers leverage CVE-2026-49975; CISA also "
+                             "flagged CVE-2026-10520 in the KEV catalog.",
+            "what_to_do": [{"action": "Patch CVE-2026-49975 immediately"}],
+        }
+        cleaned = _strip_ungrounded_cves(briefing, {"CVE-2026-49975"})
+        # Ungrounded ID gone everywhere; grounded ID retained.
+        assert "CVE-2026-49975" not in json.dumps(cleaned)
+        assert "CVE-2026-10520" in cleaned["what_happened"]
+        # Re-validation is now clean — deterministically grounded.
+        assert _validate_cve_grounding(cleaned, self.SOURCE) == set()
+
+    def test_strip_tidies_orphaned_punctuation(self):
+        briefing = {"what_happened": "A flaw (CVE-2026-49975) was found."}
+        cleaned = _strip_ungrounded_cves(briefing, {"CVE-2026-49975"})
+        # No empty parens or doubled spaces left behind.
+        assert "()" not in cleaned["what_happened"]
+        assert "  " not in cleaned["what_happened"]
+        assert "CVE-2026-49975" not in cleaned["what_happened"]
+
+    def test_strip_is_case_insensitive(self):
+        briefing = {"what_happened": "lower cve-2026-49975 cited."}
+        cleaned = _strip_ungrounded_cves(briefing, {"CVE-2026-49975"})
+        assert "2026-49975" not in cleaned["what_happened"]
+
+    def test_strip_noop_when_nothing_ungrounded(self):
+        briefing = {"what_happened": "All grounded here."}
+        assert _strip_ungrounded_cves(briefing, set()) is briefing
+
+    def test_has_body_true_for_real_narrative(self):
+        assert _briefing_has_body({"what_happened": "x" * 80}) is True
+
+    def test_has_body_false_for_stub(self):
+        assert _briefing_has_body({"what_happened": "too short"}) is False
+        assert _briefing_has_body({"what_happened": ""}) is False
+        assert _briefing_has_body(None) is False
