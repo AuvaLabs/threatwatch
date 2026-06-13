@@ -2690,8 +2690,13 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 #intel-rail .sector-grid { grid-template-columns: 1fr; }
 #intel-rail .actor-grid { grid-template-columns: 1fr; }
 
-/* Wide-screen collapse: drop the rail before squeezing the workspace */
-@media (max-width: 1280px) {
+/* Wide-screen collapse: drop the rail before squeezing the workspace.
+   Lower bound 1025px is REQUIRED — this rule lives after the 1024/768px
+   mobile blocks in source order, so without the min-width it would re-win
+   the cascade on phones and reinstate the 2-column grid (leaving an empty
+   360px column where the off-canvas #left-panel used to dock, squeezing the
+   workspace to a sliver). Keep it scoped to the tablet/desktop range. */
+@media (min-width: 1025px) and (max-width: 1280px) {
   #app { grid-template-columns: 360px minmax(0, 1fr); grid-template-areas: "top top" "strip strip" "left main"; }
   #intel-rail { display: none; }
 }
