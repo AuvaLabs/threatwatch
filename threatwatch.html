@@ -1492,7 +1492,6 @@ html, body {
 /* ============================================================= */
 /* DETAIL VIEW                                                    */
 /* ============================================================= */
-#detail-overview { display: none; }
 #detail-article { display: none; }
 
 .detail-back {
@@ -1818,7 +1817,6 @@ html, body {
 
 /* Intentionally hidden — kept for JS compatibility */
 #bottombar { display: none; }
-#right-panel { display: none !important; }
 
 /* ============================================================= */
 /* MAIN PANEL TABS                                                */
@@ -3004,10 +3002,6 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   </aside>
 
     <!-- Right panel — hidden, kept for JS compatibility -->
-  <div id="right-panel" class="panel">
-    <div id="detail-overview"></div>
-  </div>
-
   <!-- Bottom bar — hidden, kept for JS compatibility -->
   <footer id="bottombar">
     <div id="marquee-track"></div>
@@ -6383,29 +6377,13 @@ function toggleMobileMenu() {
   }
 }
 
-function showMobileDetail() {
-  const rightPanel = document.getElementById('right-panel');
-  if (window.innerWidth <= 768 && rightPanel) {
-    rightPanel.classList.add('mobile-visible');
-  }
-}
-
-function hideMobileDetail() {
-  const rightPanel = document.getElementById('right-panel');
-  if (rightPanel) {
-    rightPanel.classList.remove('mobile-visible');
-  }
-}
-
 /* Close mobile menu on resize to desktop */
 window.addEventListener('resize', function() {
   if (window.innerWidth > 1024) {
     const leftPanel = document.getElementById('left-panel');
     const overlay = document.getElementById('mobile-overlay');
-    const rightPanel = document.getElementById('right-panel');
     if (leftPanel) leftPanel.classList.remove('open');
     if (overlay) overlay.classList.remove('visible');
-    if (rightPanel) rightPanel.classList.remove('mobile-visible');
   }
 });
 
