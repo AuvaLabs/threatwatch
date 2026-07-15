@@ -40,7 +40,8 @@ three "tiers" at once. Keep each tier on a genuinely independent provider.
 
 ## Current state (live — 2026-07-15)
 
-Two independent providers, so the flagship briefing does not depend on Groq:
+Briefing ladder = **three independent providers**; base everything else = Groq:
+**Gemini → Cerebras → Groq-8B**.
 
 ```env
 # Base — high-volume classify / summaries / regional digests / top stories +
@@ -54,29 +55,34 @@ TOP_STORIES_MODEL=llama-3.1-8b-instant
 
 # Briefing primary — Gemini free tier, INDEPENDENT of Groq. `gemini-flash-lite-latest`
 # is the model this free account can call (gemini-2.5-* are gated for new accts);
-# validated 0.9s/valid-JSON. Rides the FEATHERLESS_* slot (auth-capable path).
+# validated 0.9s/valid-JSON. Rides the FEATHERLESS_* slot.
 FEATHERLESS_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
 FEATHERLESS_API_KEY=<gemini_key>
 FEATHERLESS_MODEL=gemini-flash-lite-latest
 
-# Claude Bridge — DISABLED (operator directive 2026-07-15). Empty => skipped.
-CLAUDE_BRIDGE_URL=
+# Briefing 2nd tier — Cerebras (independent of both Gemini and Groq). Engages
+# only if Gemini fails; validated 0.5s/valid-JSON. New generic authenticated
+# slot (replaces the retired Claude Bridge; sends the key as a bearer).
+BRIEFING_FALLBACK_BASE_URL=https://api.cerebras.ai/v1
+BRIEFING_FALLBACK_API_KEY=<cerebras_csk_key>
+BRIEFING_FALLBACK_MODEL=gpt-oss-120b
 ```
 
-Briefing ladder: **Gemini → Groq-8B** (base fallback). Base everything else: Groq.
-featherless.ai is **dead** (subscription lapsed — "active plan required"). Snapshots:
-`.env.bak-outage-2026-07` (DeepInfra), `.env.bak-llm7-emergency` (LLM7), `.env.bak-pre-gemini`.
+featherless.ai is **dead** (subscription lapsed) and the **Claude Bridge is
+retired** (operator directive). The three briefing tiers are on three different
+infra stacks (Google / Cerebras / Groq) — no single account's exhaustion can
+blackout the flagship briefing. Snapshots: `.env.bak-outage-2026-07` (DeepInfra),
+`.env.bak-llm7-emergency`, `.env.bak-pre-gemini`, `.env.bak-pre-cerebras`.
 
-### Tested spares (swap-in ready, not live)
+### Tested spare (swap-in ready, not live)
 
-Both validated with `scripts/test_free_llms.py`; stored as `# SPARE_*` comments in `.env`.
-- **Cerebras** — `https://api.cerebras.ai/v1`, `gpt-oss-120b`, 14,400 RPD (8K ctx). `csk-` key.
-- **LLM7.io** — `https://api.llm7.io/v1`, `codestral-latest`, keyless (any/no bearer).
+- **LLM7.io** — `https://api.llm7.io/v1`, `codestral-latest`, **keyless** (any/no
+  bearer). Break-glass: drop into any slot (base `LLM_*`, briefing `FEATHERLESS_*`,
+  or 2nd-tier `BRIEFING_FALLBACK_*`) if a live provider lapses. Validated via
+  `scripts/test_free_llms.py`.
 
-To promote a spare: drop its base_url/model/key into `FEATHERLESS_*` (briefing) or
-`LLM_*` (base). Note: the auth-capable slots are `LLM_*` and `FEATHERLESS_*`; the
-2nd-tier `CLAUDE_BRIDGE_*` slot sends no Authorization header (keyless targets
-only) and is currently disabled. Adding a 3rd authenticated briefing tier would
-need a small llm_client change (optional bearer on that slot).
+All three briefing slots (`LLM_*`, `FEATHERLESS_*`, `BRIEFING_FALLBACK_*`) are now
+authenticated (Bearer) OR keyless-tolerant, so any OpenAI-compatible provider fits
+any slot.
 
 Validate any change with: `GROQ_API_KEY=... GEMINI_API_KEY=... python3 scripts/test_free_llms.py`
