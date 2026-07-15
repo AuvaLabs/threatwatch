@@ -26,7 +26,7 @@ from pathlib import Path
 from modules.config import (
     LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER, BRIEFING_MODEL,
     LLM_API_KEYS, ANTHROPIC_API_KEY, MAX_CONTENT_CHARS, OUTPUT_DIR,
-    FEATHERLESS_MODEL, CLAUDE_BRIDGE_MODEL,
+    FEATHERLESS_MODEL, BRIEFING_FALLBACK_MODEL,
 )
 from modules.ai_cache import get_cached_result, cache_result
 from modules.date_utils import article_datetime
@@ -34,8 +34,8 @@ from modules.llm_client import (
     call_llm as _call_groq,
     call_featherless as _call_featherless,
     featherless_available as _featherless_available,
-    call_claude_bridge as _call_claude_bridge,
-    claude_bridge_available as _claude_bridge_available,
+    call_briefing_fallback as _call_briefing_fallback,
+    briefing_fallback_available as _briefing_fallback_available,
 )
 
 BRIEFING_PATH = OUTPUT_DIR / "briefing.json"
@@ -614,13 +614,13 @@ _LAST_SERVED_TIER: str | None = None
 
 
 # Lower rank = higher quality. Featherless is the primary tier; Anthropic and
-# Claude Bridge are second-tier (Claude-class models); Groq + 8b is the
+# the secondary briefing provider ("fallback") are second-tier; Groq + 8b is the
 # last-resort fallback. Keep this in sync with the tier branches inside
 # `_call_openai_compatible`.
 _TIER_RANKS = {
     "featherless":   1,
     "anthropic":     2,
-    "claude_bridge": 2,
+    "fallback":      2,
     "openai":        3,
     "groq":          3,
     "ollama":        4,
@@ -665,8 +665,8 @@ def _should_skip_downgrade(prior: dict[str, Any] | None, new_tier: str) -> bool:
 
     The user-stated invariant is "primary will always be featherless" — this
     function enforces it by refusing to drop a Featherless briefing for a Groq
-    one within the guard window. Same logic protects Claude Bridge briefings
-    from being clobbered by Groq.
+    one within the guard window. Same logic protects secondary-provider
+    (fallback-tier) briefings from being clobbered by Groq.
     """
     if _BRIEFING_DOWNGRADE_GUARD_H <= 0:
         return False
@@ -713,7 +713,7 @@ def _call_openai_compatible(user_content: str, system_prompt: str = None,
 
     Side effect: writes the served tier identifier to
     ``_LAST_SERVED_TIER`` (one of ``'featherless/<model>'``,
-    ``'claude_bridge/<model>'``, ``'groq/<model>'``) so the caller can log
+    ``'fallback/<model>'``, ``'groq/<model>'``) so the caller can log
     and stamp the actual tier that served instead of guessing from the
     configured ``BRIEFING_MODEL`` env. Single-threaded only.
     """
@@ -733,29 +733,28 @@ def _call_openai_compatible(user_content: str, system_prompt: str = None,
             return reply
         except Exception as e:
             logger.warning(
-                "Featherless briefing call failed (%s); trying Claude Bridge.", e,
+                "Featherless briefing call failed (%s); trying briefing fallback.", e,
             )
-    # 2nd tier: Claude Bridge (host-local, subscription-covered Claude Max).
-    # Bridge ignores max_tokens and response_format — pass feather_max_tokens
-    # so the prompt stays consistent with the Featherless path; the bridge
-    # silently drops the cap and the CLI emits whatever Sonnet wants. JSON
-    # is encouraged by the prompt itself, so non-strict-JSON output here is
-    # the same risk we already handle in _parse_json downstream.
-    if prefer_featherless and _claude_bridge_available():
+    # 2nd tier: secondary briefing provider (any authenticated OpenAI-compatible
+    # API, e.g. Cerebras). Independent of the base Groq tier, so it gives the
+    # flagship briefing a third distinct path before the final Groq+8B fallback.
+    # feather_max_tokens is passed so the prompt cap stays consistent with the
+    # Featherless path.
+    if prefer_featherless and _briefing_fallback_available():
         try:
-            reply = _call_claude_bridge(
+            reply = _call_briefing_fallback(
                 user_content,
                 system_prompt=sys_prompt,
                 max_tokens=feather_max_tokens or max_tokens,
                 response_format={"type": "json_object"},
                 caller=caller,
-                model=CLAUDE_BRIDGE_MODEL,
+                model=BRIEFING_FALLBACK_MODEL,
             )
-            _LAST_SERVED_TIER = f"claude_bridge/{CLAUDE_BRIDGE_MODEL}"
+            _LAST_SERVED_TIER = f"fallback/{BRIEFING_FALLBACK_MODEL}"
             return reply
         except Exception as e:
             logger.warning(
-                "Claude Bridge briefing call failed (%s); falling back to Groq+%s.",
+                "Briefing fallback call failed (%s); falling back to Groq+%s.",
                 e, model or LLM_MODEL,
             )
     reply = _call_groq(

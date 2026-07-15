@@ -11,7 +11,7 @@ import pytest
 import requests
 
 from modules import llm_client
-from modules.llm_client import call_claude_bridge, claude_bridge_available
+from modules.llm_client import call_briefing_fallback, briefing_fallback_available
 
 
 def _mock_response(status_code=200, json_body=None, text=""):
@@ -44,9 +44,10 @@ def mock_session():
 @pytest.fixture(autouse=True)
 def bridge_configured(monkeypatch):
     """Default: bridge IS configured. Individual tests can blank the URL."""
-    monkeypatch.setattr(llm_client, "CLAUDE_BRIDGE_URL", "http://localhost:8400/v1")
-    monkeypatch.setattr(llm_client, "CLAUDE_BRIDGE_MODEL", "sonnet")
-    monkeypatch.setattr(llm_client, "CLAUDE_BRIDGE_TIMEOUT", 300.0)
+    monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_BASE_URL", "http://localhost:8400/v1")
+    monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_MODEL", "sonnet")
+    monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_TIMEOUT", 300.0)
+    monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_API_KEY", "")  # keyless by default
 
 
 @pytest.fixture(autouse=True)
@@ -57,11 +58,11 @@ def silence_usage_writes():
 
 class TestClaudeBridgeAvailable:
     def test_true_when_url_set(self):
-        assert claude_bridge_available() is True
+        assert briefing_fallback_available() is True
 
     def test_false_when_url_blank(self, monkeypatch):
-        monkeypatch.setattr(llm_client, "CLAUDE_BRIDGE_URL", "")
-        assert claude_bridge_available() is False
+        monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_BASE_URL", "")
+        assert briefing_fallback_available() is False
 
 
 class TestCallBridgeSuccessPath:
@@ -69,25 +70,34 @@ class TestCallBridgeSuccessPath:
         mock_session.post.return_value = _mock_response(
             json_body={"choices": [{"message": {"content": "  bridge says hi  "}}]}
         )
-        result = call_claude_bridge("user", system_prompt="sys")
+        result = call_briefing_fallback("user", system_prompt="sys")
         assert result == "bridge says hi"
 
     def test_uses_bridge_url(self, mock_session):
         mock_session.post.return_value = _mock_response()
-        call_claude_bridge("u", system_prompt="s")
+        call_briefing_fallback("u", system_prompt="s")
         url = mock_session.post.call_args.args[0]
         assert url == "http://localhost:8400/v1/chat/completions"
 
-    def test_no_authorization_header(self, mock_session):
-        """Bridge auth is via ~/.claude on host; no Bearer token needed."""
+    def test_no_authorization_header_when_keyless(self, mock_session):
+        """Blank BRIEFING_FALLBACK_API_KEY => no Bearer header (keyless target)."""
         mock_session.post.return_value = _mock_response()
-        call_claude_bridge("u", system_prompt="s")
+        call_briefing_fallback("u", system_prompt="s")
         headers = mock_session.post.call_args.kwargs["headers"]
         assert "Authorization" not in headers
 
+    def test_bearer_header_when_key_set(self, mock_session, monkeypatch):
+        """A configured key is sent as a Bearer token — enables authenticated
+        providers (e.g. Cerebras) in the 2nd-tier briefing slot."""
+        monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_API_KEY", "csk-secret123")
+        mock_session.post.return_value = _mock_response()
+        call_briefing_fallback("u", system_prompt="s")
+        headers = mock_session.post.call_args.kwargs["headers"]
+        assert headers.get("Authorization") == "Bearer csk-secret123"
+
     def test_payload_uses_bridge_model_by_default(self, mock_session):
         mock_session.post.return_value = _mock_response()
-        call_claude_bridge("u", system_prompt="s")
+        call_briefing_fallback("u", system_prompt="s")
         payload = mock_session.post.call_args.kwargs["json"]
         assert payload["model"] == "sonnet"
         assert payload["messages"][0] == {"role": "system", "content": "s"}
@@ -95,14 +105,14 @@ class TestCallBridgeSuccessPath:
 
     def test_explicit_model_override_wins(self, mock_session):
         mock_session.post.return_value = _mock_response()
-        call_claude_bridge("u", system_prompt="s", model="opus")
+        call_briefing_fallback("u", system_prompt="s", model="opus")
         payload = mock_session.post.call_args.kwargs["json"]
         assert payload["model"] == "opus"
 
     def test_response_format_passed_through(self, mock_session):
         """Bridge ignores response_format but we pass it for symmetry."""
         mock_session.post.return_value = _mock_response()
-        call_claude_bridge(
+        call_briefing_fallback(
             "u", system_prompt="s",
             response_format={"type": "json_object"},
         )
@@ -112,9 +122,9 @@ class TestCallBridgeSuccessPath:
 
 class TestCallBridgeNotConfigured:
     def test_raises_when_url_missing(self, monkeypatch):
-        monkeypatch.setattr(llm_client, "CLAUDE_BRIDGE_URL", "")
+        monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_BASE_URL", "")
         with pytest.raises(RuntimeError, match="not configured"):
-            call_claude_bridge("u", system_prompt="s")
+            call_briefing_fallback("u", system_prompt="s")
 
 
 class TestCallBridge504:
@@ -123,7 +133,7 @@ class TestCallBridge504:
     def test_504_raises_runtime_error_without_retry(self, mock_session):
         mock_session.post.return_value = _mock_response(status_code=504, text="claude -p timed out")
         with pytest.raises(RuntimeError, match="504"):
-            call_claude_bridge("u", system_prompt="s")
+            call_briefing_fallback("u", system_prompt="s")
         assert mock_session.post.call_count == 1
 
 
@@ -132,7 +142,7 @@ class TestCallBridge5xx:
     def test_5xx_raises_runtime_error_without_retry(self, mock_session, status):
         mock_session.post.return_value = _mock_response(status_code=status, text="oops")
         with pytest.raises(RuntimeError, match=str(status)):
-            call_claude_bridge("u", system_prompt="s")
+            call_briefing_fallback("u", system_prompt="s")
         assert mock_session.post.call_count == 1
 
 
@@ -140,22 +150,22 @@ class TestCallBridgeTransportErrors:
     def test_timeout_raises_runtime_error(self, mock_session):
         mock_session.post.side_effect = requests.exceptions.Timeout("read timed out")
         with pytest.raises(RuntimeError, match="timeout"):
-            call_claude_bridge("u", system_prompt="s")
+            call_briefing_fallback("u", system_prompt="s")
 
     def test_connection_error_raises_runtime_error(self, mock_session):
         mock_session.post.side_effect = requests.exceptions.ConnectionError("bridge down")
         with pytest.raises(RuntimeError, match="connection error"):
-            call_claude_bridge("u", system_prompt="s")
+            call_briefing_fallback("u", system_prompt="s")
 
 
 class TestCallBridgeUsageRecording:
-    """Usage tagged with claude_bridge: prefix so it's distinguishable from
+    """Usage tagged with briefing_fallback: prefix so it's distinguishable from
     Groq and Featherless usage in shared groq_usage.json."""
 
     def test_caller_tagged_with_provider_prefix(self, mock_session):
         mock_session.post.return_value = _mock_response()
         with patch("modules.groq_usage.record_usage") as rec:
-            call_claude_bridge("u", system_prompt="s", caller="briefing")
+            call_briefing_fallback("u", system_prompt="s", caller="briefing")
         rec.assert_called_once()
         kwargs = rec.call_args.kwargs
-        assert kwargs.get("caller") == "claude_bridge:briefing"
+        assert kwargs.get("caller") == "briefing_fallback:briefing"

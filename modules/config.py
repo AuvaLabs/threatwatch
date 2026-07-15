@@ -42,16 +42,16 @@ FEATHERLESS_BASE_URL = os.getenv(
 ).rstrip("/")
 FEATHERLESS_MODEL = os.getenv("FEATHERLESS_MODEL", "deepseek-ai/DeepSeek-V3.2")
 
-# Claude Bridge — host-local OpenAI-compatible shim that routes requests
-# through the `claude` CLI using the user's Claude Max subscription. Used
-# as the 2nd-tier fallback for the daily briefing (Featherless → Bridge
-# → Groq+8B). No per-token cost, but rate-limited by the shared Max
-# session and ignores `max_tokens` / `response_format` (CLI doesn't
-# expose them). Operated by RedBlue's claude-bridge service on this host;
-# leave URL blank to disable.
-CLAUDE_BRIDGE_URL = os.getenv("CLAUDE_BRIDGE_URL", "").strip().rstrip("/")
-CLAUDE_BRIDGE_MODEL = os.getenv("CLAUDE_BRIDGE_MODEL", "sonnet")
-CLAUDE_BRIDGE_TIMEOUT = float(os.getenv("CLAUDE_BRIDGE_TIMEOUT", "300"))
+# Secondary briefing provider — any authenticated OpenAI-compatible API used as
+# the 2nd-tier fallback for the daily briefing (primary FEATHERLESS → this →
+# base Groq+8B). Replaces the retired Claude Bridge slot. Unlike the base/
+# FEATHERLESS tiers this is briefing-only, so a distinct provider here (e.g.
+# Cerebras) gives the flagship briefing a third independent path. Send the key
+# as a bearer; leave BASE_URL blank to disable the tier.
+BRIEFING_FALLBACK_BASE_URL = os.getenv("BRIEFING_FALLBACK_BASE_URL", "").strip().rstrip("/")
+BRIEFING_FALLBACK_API_KEY = os.getenv("BRIEFING_FALLBACK_API_KEY", "").strip()
+BRIEFING_FALLBACK_MODEL = os.getenv("BRIEFING_FALLBACK_MODEL", "")
+BRIEFING_FALLBACK_TIMEOUT = float(os.getenv("BRIEFING_FALLBACK_TIMEOUT", "60"))
 
 SITE_DOMAIN = os.getenv("SITE_DOMAIN", "threatwatch.auvalabs.com")
 SITE_URL = f"https://{SITE_DOMAIN}"
@@ -142,8 +142,8 @@ def validate_config():
             f"Featherless configured — global briefing will prefer "
             f"{FEATHERLESS_MODEL} (32K ctx); Groq+{BRIEFING_MODEL} fallback."
         )
-    if CLAUDE_BRIDGE_URL:
+    if BRIEFING_FALLBACK_BASE_URL:
         logger.info(
-            f"Claude Bridge configured at {CLAUDE_BRIDGE_URL} "
-            f"({CLAUDE_BRIDGE_MODEL}); 2nd-tier briefing fallback."
+            f"Briefing fallback configured — {BRIEFING_FALLBACK_MODEL} via "
+            f"{BRIEFING_FALLBACK_BASE_URL}; 2nd-tier briefing fallback."
         )

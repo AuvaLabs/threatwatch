@@ -512,8 +512,8 @@ class TestServedTierLogging:
     @patch("modules.briefing_generator._save_briefing")
     @patch("modules.briefing_generator.cache_result")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
-    @patch("modules.briefing_generator._call_claude_bridge")
-    @patch("modules.briefing_generator._claude_bridge_available", return_value=True)
+    @patch("modules.briefing_generator._call_briefing_fallback")
+    @patch("modules.briefing_generator._briefing_fallback_available", return_value=True)
     @patch("modules.briefing_generator._call_featherless", side_effect=Exception("featherless 429"))
     @patch("modules.briefing_generator._featherless_available", return_value=True)
     @patch("modules.briefing_generator._detect_provider", return_value="openai")
@@ -521,11 +521,11 @@ class TestServedTierLogging:
         self, _, _ff_avail, _ff_call, _cb_avail, mock_bridge,
         _cache_get, _cache_set, _save, _rl, _rec,
     ):
-        from modules.briefing_generator import CLAUDE_BRIDGE_MODEL
+        from modules.briefing_generator import BRIEFING_FALLBACK_MODEL
         mock_bridge.return_value = json.dumps(_valid_briefing())
         result = generate_briefing([_article() for _ in range(5)])
         assert result is not None
-        assert result["provider"] == f"claude_bridge/{CLAUDE_BRIDGE_MODEL}"
+        assert result["provider"] == f"fallback/{BRIEFING_FALLBACK_MODEL}"
         mock_bridge.assert_called_once()
 
     @patch("modules.briefing_generator._record_api_call")
@@ -534,8 +534,8 @@ class TestServedTierLogging:
     @patch("modules.briefing_generator.cache_result")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_groq")
-    @patch("modules.briefing_generator._call_claude_bridge", side_effect=Exception("bridge down"))
-    @patch("modules.briefing_generator._claude_bridge_available", return_value=True)
+    @patch("modules.briefing_generator._call_briefing_fallback", side_effect=Exception("bridge down"))
+    @patch("modules.briefing_generator._briefing_fallback_available", return_value=True)
     @patch("modules.briefing_generator._call_featherless", side_effect=Exception("featherless 429"))
     @patch("modules.briefing_generator._featherless_available", return_value=True)
     @patch("modules.briefing_generator._detect_provider", return_value="openai")
@@ -558,7 +558,7 @@ class TestServedTierLogging:
     @patch("modules.briefing_generator.cache_result")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_groq")
-    @patch("modules.briefing_generator._claude_bridge_available", return_value=False)
+    @patch("modules.briefing_generator._briefing_fallback_available", return_value=False)
     @patch("modules.briefing_generator._featherless_available", return_value=False)
     @patch("modules.briefing_generator._detect_provider", return_value="openai")
     def test_provider_reflects_groq_when_no_premium_tier_configured(
@@ -614,7 +614,7 @@ class TestTierRank:
 
     def test_claude_bridge_is_rank_2(self):
         from modules.briefing_generator import _tier_rank
-        assert _tier_rank("claude_bridge/sonnet") == 2
+        assert _tier_rank("fallback/sonnet") == 2
 
     def test_groq_is_rank_3(self):
         from modules.briefing_generator import _tier_rank
@@ -712,7 +712,7 @@ class TestShouldSkipDowngrade:
     def test_claude_bridge_protected_from_groq(self):
         """Tier 2 (Bridge) is still better than tier 3 (Groq) — guard fires."""
         import modules.briefing_generator as bg
-        prior = self._prior("claude_bridge/sonnet", 1)
+        prior = self._prior("fallback/sonnet", 1)
         with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
             assert bg._should_skip_downgrade(prior, "groq/llama-3.1-8b-instant") is True
 
@@ -723,7 +723,7 @@ class TestShouldSkipDowngrade:
         import modules.briefing_generator as bg
         prior = self._prior("featherless/deepseek-ai/DeepSeek-V3.2", 1)
         with patch.object(bg, "_BRIEFING_DOWNGRADE_GUARD_H", 4.0):
-            assert bg._should_skip_downgrade(prior, "claude_bridge/sonnet") is True
+            assert bg._should_skip_downgrade(prior, "fallback/sonnet") is True
 
 
 class TestDowngradeGuardEndToEnd:
@@ -742,8 +742,8 @@ class TestDowngradeGuardEndToEnd:
     @patch("modules.briefing_generator.cache_result")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_groq")
-    @patch("modules.briefing_generator._call_claude_bridge", side_effect=Exception("bridge 502"))
-    @patch("modules.briefing_generator._claude_bridge_available", return_value=True)
+    @patch("modules.briefing_generator._call_briefing_fallback", side_effect=Exception("bridge 502"))
+    @patch("modules.briefing_generator._briefing_fallback_available", return_value=True)
     @patch("modules.briefing_generator._call_featherless", side_effect=Exception("featherless 429"))
     @patch("modules.briefing_generator._featherless_available", return_value=True)
     @patch("modules.briefing_generator.load_briefing")
@@ -780,8 +780,8 @@ class TestDowngradeGuardEndToEnd:
     @patch("modules.briefing_generator.cache_result")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_groq")
-    @patch("modules.briefing_generator._call_claude_bridge", side_effect=Exception("bridge 502"))
-    @patch("modules.briefing_generator._claude_bridge_available", return_value=True)
+    @patch("modules.briefing_generator._call_briefing_fallback", side_effect=Exception("bridge 502"))
+    @patch("modules.briefing_generator._briefing_fallback_available", return_value=True)
     @patch("modules.briefing_generator._call_featherless", side_effect=Exception("featherless 429"))
     @patch("modules.briefing_generator._featherless_available", return_value=True)
     @patch("modules.briefing_generator.load_briefing")
@@ -815,7 +815,7 @@ class TestDowngradeGuardEndToEnd:
     @patch("modules.briefing_generator.cache_result")
     @patch("modules.briefing_generator.get_cached_result", return_value=None)
     @patch("modules.briefing_generator._call_groq")
-    @patch("modules.briefing_generator._claude_bridge_available", return_value=False)
+    @patch("modules.briefing_generator._briefing_fallback_available", return_value=False)
     @patch("modules.briefing_generator._featherless_available", return_value=False)
     @patch("modules.briefing_generator.load_briefing", return_value=None)
     @patch("modules.briefing_generator._detect_provider", return_value="openai")

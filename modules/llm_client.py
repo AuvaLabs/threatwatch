@@ -12,7 +12,8 @@ from pathlib import Path
 from modules.config import (
     LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_API_KEYS, OUTPUT_DIR,
     FEATHERLESS_API_KEY, FEATHERLESS_BASE_URL, FEATHERLESS_MODEL,
-    CLAUDE_BRIDGE_URL, CLAUDE_BRIDGE_MODEL, CLAUDE_BRIDGE_TIMEOUT,
+    BRIEFING_FALLBACK_BASE_URL, BRIEFING_FALLBACK_API_KEY,
+    BRIEFING_FALLBACK_MODEL, BRIEFING_FALLBACK_TIMEOUT,
 )
 
 logger = logging.getLogger(__name__)
@@ -335,49 +336,44 @@ def call_featherless(user_content: str, system_prompt: str,
 
 
 # ---------------------------------------------------------------------------
-# Claude Bridge — host-local OpenAI-compatible shim that proxies to the
-# `claude` CLI using the user's Claude Max subscription. Operated by
-# RedBlue's claude-bridge service on this host (default :8400).
-#
-# Used as the 2nd-tier briefing fallback (Featherless → Bridge → Groq).
-# Single-shot, no retries — the bridge already calls a 300s subprocess
-# internally, so retrying here would just stack timeouts. The bridge
-# silently ignores `max_tokens` and `response_format` (CLI doesn't expose
-# them); we still send response_format so JSON-shaped output is encouraged
-# in the prompt itself, but callers must be prepared for non-strict JSON.
-# Quota is the user's shared Max subscription session; coordinate with
-# RedBlue/ARBI before widening usage.
+# Secondary briefing provider — any authenticated OpenAI-compatible API used
+# as the 2nd-tier briefing fallback (Featherless → this → Groq). Configured via
+# BRIEFING_FALLBACK_* (base URL + optional bearer key + model). Replaces the
+# retired Claude Bridge slot. Single-shot, no retries — a failure here defers
+# to the caller's next tier (base Groq) rather than hammering a struggling
+# provider. Sends response_format so JSON output is encouraged; callers still
+# tolerate non-strict JSON via _parse_json downstream.
 # ---------------------------------------------------------------------------
 
 
-def claude_bridge_available() -> bool:
-    """Check if the Claude Bridge URL is configured."""
-    return bool(CLAUDE_BRIDGE_URL)
+def briefing_fallback_available() -> bool:
+    """Check if the secondary briefing provider is configured."""
+    return bool(BRIEFING_FALLBACK_BASE_URL)
 
 
-def call_claude_bridge(user_content: str, system_prompt: str,
-                       max_tokens: int = 2000,
-                       response_format: dict | None = None,
-                       caller: str | None = None,
-                       model: str | None = None) -> str:
-    """Single-shot call to the local Claude Bridge.
+def call_briefing_fallback(user_content: str, system_prompt: str,
+                           max_tokens: int = 2000,
+                           response_format: dict | None = None,
+                           caller: str | None = None,
+                           model: str | None = None) -> str:
+    """Single-shot call to the secondary briefing provider (any authenticated
+    OpenAI-compatible API, e.g. Cerebras).
 
-    Returns the model reply on success; raises RuntimeError on any failure.
-    No retries — the bridge subprocess is already long-running (up to 300s)
-    and contention against RedBlue/ARBI traffic is best handled by the
-    caller's next fallback tier (Groq), not by piling on more requests.
+    Returns the model reply on success; raises RuntimeError on any failure. No
+    retries — a failure here is best handled by the caller's next fallback tier
+    (base Groq), not by piling on more requests to a struggling provider.
 
-    `max_tokens` and `response_format` are accepted for API compatibility
-    but the bridge ignores them (the `claude` CLI doesn't expose either).
-    Pass them anyway so the code reads symmetrically with the other
-    OpenAI-compatible callers.
+    Sends `BRIEFING_FALLBACK_API_KEY` as a bearer when set (blank => no auth
+    header, for a keyless target).
     """
-    if not CLAUDE_BRIDGE_URL:
-        raise RuntimeError("Claude Bridge not configured (CLAUDE_BRIDGE_URL unset)")
+    if not BRIEFING_FALLBACK_BASE_URL:
+        raise RuntimeError(
+            "Briefing fallback not configured (BRIEFING_FALLBACK_BASE_URL unset)"
+        )
 
-    url = f"{CLAUDE_BRIDGE_URL.rstrip('/')}/chat/completions"
+    url = f"{BRIEFING_FALLBACK_BASE_URL.rstrip('/')}/chat/completions"
     payload: dict = {
-        "model": model or CLAUDE_BRIDGE_MODEL,
+        "model": model or BRIEFING_FALLBACK_MODEL,
         "max_tokens": max_tokens,
         "temperature": 0.3,
         "messages": [
@@ -389,29 +385,31 @@ def call_claude_bridge(user_content: str, system_prompt: str,
         payload["response_format"] = response_format
 
     headers = {"Content-Type": "application/json"}
-    timeout = CLAUDE_BRIDGE_TIMEOUT
+    if BRIEFING_FALLBACK_API_KEY:
+        headers["Authorization"] = f"Bearer {BRIEFING_FALLBACK_API_KEY}"
+    timeout = BRIEFING_FALLBACK_TIMEOUT
 
     try:
         session = _get_http_session()
         resp = session.post(url, json=payload, headers=headers, timeout=timeout)
         if resp.status_code == 504:
-            raise RuntimeError("Claude Bridge 504 (subprocess timeout)")
+            raise RuntimeError("Briefing fallback 504 (upstream timeout)")
         if resp.status_code in (500, 502, 503):
-            raise RuntimeError(f"Claude Bridge {resp.status_code} (upstream unavailable)")
+            raise RuntimeError(
+                f"Briefing fallback {resp.status_code} (upstream unavailable)"
+            )
         resp.raise_for_status()
         data = resp.json()
         try:
             from modules.groq_usage import record_usage
-            tagged_caller = f"claude_bridge:{caller}" if caller else "claude_bridge"
-            # Bridge has no API key (auth via ~/.claude). Use a synthetic
-            # identifier so usage masking still produces a stable bucket.
-            record_usage("claude-bridge-session", data, caller=tagged_caller)
+            tagged_caller = f"briefing_fallback:{caller}" if caller else "briefing_fallback"
+            record_usage("briefing-fallback-session", data, caller=tagged_caller)
         except Exception as _e:
-            logger.debug("claude_bridge usage record failed: %s", _e)
+            logger.debug("briefing_fallback usage record failed: %s", _e)
         return data["choices"][0]["message"]["content"].strip()
     except requests.exceptions.Timeout as e:
-        raise RuntimeError(f"Claude Bridge timeout after {timeout}s: {e}") from e
+        raise RuntimeError(f"Briefing fallback timeout after {timeout}s: {e}") from e
     except requests.exceptions.ConnectionError as e:
-        raise RuntimeError(f"Claude Bridge connection error: {e}") from e
+        raise RuntimeError(f"Briefing fallback connection error: {e}") from e
     except requests.exceptions.HTTPError as e:
-        raise RuntimeError(f"Claude Bridge HTTP error: {e}") from e
+        raise RuntimeError(f"Briefing fallback HTTP error: {e}") from e

@@ -17,19 +17,19 @@ from modules import briefing_generator
 def feather_on(monkeypatch):
     monkeypatch.setattr(briefing_generator, "_featherless_available", lambda: True)
     # Default: bridge OFF so existing tests stay focused on Featherless<->Groq.
-    monkeypatch.setattr(briefing_generator, "_claude_bridge_available", lambda: False)
+    monkeypatch.setattr(briefing_generator, "_briefing_fallback_available", lambda: False)
 
 
 @pytest.fixture
 def feather_off(monkeypatch):
     monkeypatch.setattr(briefing_generator, "_featherless_available", lambda: False)
-    monkeypatch.setattr(briefing_generator, "_claude_bridge_available", lambda: False)
+    monkeypatch.setattr(briefing_generator, "_briefing_fallback_available", lambda: False)
 
 
 @pytest.fixture
 def bridge_on(monkeypatch):
     """Bridge configured + Featherless not (or down). Use with feather_on/off."""
-    monkeypatch.setattr(briefing_generator, "_claude_bridge_available", lambda: True)
+    monkeypatch.setattr(briefing_generator, "_briefing_fallback_available", lambda: True)
 
 
 class TestPreferFeatherlessTrue:
@@ -183,7 +183,7 @@ class TestThreeTierCascade:
 
     def test_bridge_used_when_featherless_unavailable(self, feather_off, bridge_on):
         with patch.object(briefing_generator, "_call_featherless") as ff, \
-             patch.object(briefing_generator, "_call_claude_bridge", return_value="bridge-ok") as br, \
+             patch.object(briefing_generator, "_call_briefing_fallback", return_value="bridge-ok") as br, \
              patch.object(briefing_generator, "_call_groq") as groq:
             result = briefing_generator._call_openai_compatible(
                 "u", caller="briefing",
@@ -200,7 +200,7 @@ class TestThreeTierCascade:
             briefing_generator, "_call_featherless",
             side_effect=RuntimeError("Featherless 429"),
         ) as ff, patch.object(
-            briefing_generator, "_call_claude_bridge", return_value="bridge-ok",
+            briefing_generator, "_call_briefing_fallback", return_value="bridge-ok",
         ) as br, patch.object(
             briefing_generator, "_call_groq",
         ) as groq:
@@ -219,7 +219,7 @@ class TestThreeTierCascade:
             briefing_generator, "_call_featherless",
             side_effect=RuntimeError("Featherless 429"),
         ) as ff, patch.object(
-            briefing_generator, "_call_claude_bridge",
+            briefing_generator, "_call_briefing_fallback",
             side_effect=RuntimeError("Bridge 504"),
         ) as br, patch.object(
             briefing_generator, "_call_groq", return_value="groq-final",
@@ -242,7 +242,7 @@ class TestThreeTierCascade:
         """Bridge is part of the briefing cascade only — regional/top-stories
         callers must never accidentally route through it."""
         with patch.object(briefing_generator, "_call_featherless") as ff, \
-             patch.object(briefing_generator, "_call_claude_bridge") as br, \
+             patch.object(briefing_generator, "_call_briefing_fallback") as br, \
              patch.object(briefing_generator, "_call_groq", return_value="ok") as groq:
             briefing_generator._call_openai_compatible(
                 "u", caller="regional",
@@ -256,7 +256,7 @@ class TestThreeTierCascade:
         """The bridge ignores max_tokens internally but we still pass the
         Featherless-tier value (not the smaller Groq value) so the
         downstream prompt expects a richer reply."""
-        with patch.object(briefing_generator, "_call_claude_bridge", return_value="ok") as br, \
+        with patch.object(briefing_generator, "_call_briefing_fallback", return_value="ok") as br, \
              patch.object(briefing_generator, "_call_groq"):
             briefing_generator._call_openai_compatible(
                 "u", caller="briefing",
@@ -267,10 +267,10 @@ class TestThreeTierCascade:
 
     def test_bridge_uses_claude_bridge_model_not_groq_model(self, feather_off, bridge_on, monkeypatch):
         """When routing to Bridge we override the Groq-tuned `model`
-        kwarg with CLAUDE_BRIDGE_MODEL — passing llama-3.1-8b-instant
+        kwarg with BRIEFING_FALLBACK_MODEL — passing llama-3.1-8b-instant
         to Sonnet would 404."""
-        monkeypatch.setattr(briefing_generator, "CLAUDE_BRIDGE_MODEL", "sonnet")
-        with patch.object(briefing_generator, "_call_claude_bridge", return_value="ok") as br, \
+        monkeypatch.setattr(briefing_generator, "BRIEFING_FALLBACK_MODEL", "sonnet")
+        with patch.object(briefing_generator, "_call_briefing_fallback", return_value="ok") as br, \
              patch.object(briefing_generator, "_call_groq"):
             briefing_generator._call_openai_compatible(
                 "u", caller="briefing",
