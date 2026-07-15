@@ -8,6 +8,7 @@ import hmac
 import html
 import json
 import logging
+import math
 import os
 import secrets
 import sys
@@ -561,18 +562,27 @@ _PIPELINE_INTERVAL_S = int(os.environ.get("PIPELINE_INTERVAL", "600"))
 _HEARTBEAT_STALE_S = max(_PIPELINE_INTERVAL_S * 3, 300)
 _RUN_STALE_S = int(os.environ.get("RUN_STALE_S", "21600"))  # 6h default
 _DEGRADED_FAILURE_RATE = 0.30
+_BRIEFING_STALE_HOURS = float(os.environ.get("BRIEFING_STALE_HOURS", "3"))
 _HEARTBEAT_PATH = "data/state/scheduler_heartbeat.txt"
 
 
 def _compute_status(latest_run: dict, feed_summary: dict,
-                    last_run_age: float | None, heartbeat_age: float | None) -> tuple[str, list[str]]:
+                    last_run_age: float | None, heartbeat_age: float | None,
+                    briefing_stale: bool | None = None,
+                    briefing_age_hours: float | None = None) -> tuple[str, list[str]]:
     """Decide ok / degraded / stale / unknown.
 
     Priority order:
     1. Heartbeat missing or older than HEARTBEAT_STALE_S => scheduler is dead.
     2. Last completed run older than RUN_STALE_S => pipeline may be stuck.
     3. Budget exceeded / analysis failures / dead feed count => degraded.
-    4. Otherwise ok.
+    4. Briefing stale => degraded; and if the pipeline is demonstrably live
+       (heartbeat + last run fresh) while the briefing stays frozen, the AI
+       generation layer itself is failing (e.g. provider 402/401 outage) even
+       though the pipeline keeps completing runs — surface that distinctly so
+       an uptime monitor watching /api/health catches it instead of the outage
+       hiding behind a green status for days (the 2026-07 AI-provider outage).
+    5. Otherwise ok.
     """
     reasons: list[str] = []
     if heartbeat_age is None:
@@ -594,6 +604,30 @@ def _compute_status(latest_run: dict, feed_summary: dict,
     dead_feeds = feed_summary.get("dead", 0) + feed_summary.get("failing", 0)
     if dead_feeds > 20:
         reasons.append(f"dead_feeds_{dead_feeds}")
+
+    # Briefing freshness — Signal 1 (stale) and Signal 2 (AI generation frozen
+    # while the pipeline is live). Guarded so a briefing_health import/read
+    # failure (briefing_stale is None) never fabricates a health reason.
+    if briefing_stale:
+        if briefing_age_hours is not None and math.isfinite(briefing_age_hours):
+            age_h = int(briefing_age_hours)
+        else:
+            age_h = "?"  # inf => briefing.json missing/unreadable
+        reasons.append(f"briefing_stale_{age_h}h")
+        pipeline_live = (
+            heartbeat_age is not None and heartbeat_age <= _HEARTBEAT_STALE_S
+            and last_run_age is not None and last_run_age <= _RUN_STALE_S
+        )
+        # Severe = beyond 2x the staleness threshold, i.e. multiple pipeline
+        # ticks have completed without producing a fresh brief. A live pipeline
+        # that cannot refresh the brief means AI generation is failing, not that
+        # the brief is merely a tick behind.
+        severe = (
+            briefing_age_hours is not None
+            and briefing_age_hours >= 2 * _BRIEFING_STALE_HOURS
+        )
+        if pipeline_live and severe:
+            reasons.append("ai_generation_failing")
     return ("degraded" if reasons else "ok", reasons)
 
 
@@ -659,7 +693,24 @@ def build_health() -> bytes:
         except Exception:
             return 0
 
-    status, reasons = _compute_status(latest_run, feed_summary, last_run_age, heartbeat_age)
+    # Briefing freshness is computed before status so a stale/frozen briefing
+    # can degrade `status` (not just appear as an informational field). Never
+    # raises — on any error the values stay None and status logic skips them.
+    briefing_stale: bool | None = None
+    briefing_age_hours: float | None = None
+    try:
+        from modules.briefing_health import check_briefing_freshness
+        freshness = check_briefing_freshness(max_age_hours=_BRIEFING_STALE_HOURS)
+        briefing_stale = freshness["stale"]
+        briefing_age_hours = round(freshness["age_hours"], 2)
+    except Exception:
+        briefing_stale = None
+        briefing_age_hours = None
+
+    status, reasons = _compute_status(
+        latest_run, feed_summary, last_run_age, heartbeat_age,
+        briefing_stale=briefing_stale, briefing_age_hours=briefing_age_hours,
+    )
 
     payload = {
         "status": status,
@@ -683,16 +734,8 @@ def build_health() -> bytes:
         "feed_health": feed_summary,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
-    try:
-        from modules.briefing_health import check_briefing_freshness
-        freshness = check_briefing_freshness(
-            max_age_hours=float(os.getenv("BRIEFING_STALE_HOURS", "3"))
-        )
-        payload["briefing_stale"] = freshness["stale"]
-        payload["briefing_age_hours"] = round(freshness["age_hours"], 2)
-    except Exception:
-        payload["briefing_stale"] = None
-        payload["briefing_age_hours"] = None
+    payload["briefing_stale"] = briefing_stale
+    payload["briefing_age_hours"] = briefing_age_hours
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 

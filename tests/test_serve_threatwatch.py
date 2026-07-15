@@ -184,16 +184,78 @@ class TestLoadHelpers:
 
 # ── Health endpoint ──────────────────────────────────────────────────────────
 
+class TestComputeStatus:
+    """Direct unit tests for _compute_status briefing-freshness signals
+    (the 2026-07 AI-provider outage hid behind a green status for 3 days
+    because staleness never reached _compute_status)."""
+
+    def _live(self):
+        # heartbeat and last run both fresh => pipeline demonstrably live.
+        return dict(latest_run={"articles_enriched": 20, "analysis_failures": 0},
+                    feed_summary={}, last_run_age=60.0, heartbeat_age=30.0)
+
+    def test_fresh_briefing_is_ok(self):
+        status, reasons = sw._compute_status(
+            **self._live(), briefing_stale=False, briefing_age_hours=1.0)
+        assert status == "ok"
+        assert reasons == []
+
+    def test_stale_briefing_degrades_status(self):
+        # Signal 1: stale (but not severe) => degraded with a briefing_stale reason.
+        status, reasons = sw._compute_status(
+            **self._live(), briefing_stale=True, briefing_age_hours=4.0)
+        assert status == "degraded"
+        assert any(r.startswith("briefing_stale_") for r in reasons)
+        # Not severe (4h < 2*3h=6h) => no AI-outage discriminator.
+        assert "ai_generation_failing" not in reasons
+
+    def test_frozen_briefing_while_pipeline_live_flags_ai_outage(self):
+        # Signal 2: pipeline live + briefing severely stale => AI generation failing.
+        status, reasons = sw._compute_status(
+            **self._live(), briefing_stale=True, briefing_age_hours=77.0)
+        assert status == "degraded"
+        assert "ai_generation_failing" in reasons
+        assert any("briefing_stale_77h" == r for r in reasons)
+
+    def test_severe_stale_but_pipeline_dead_is_not_ai_outage(self):
+        # If the pipeline itself is stale, a frozen briefing is expected — don't
+        # misattribute it to the AI layer. (last_run beyond RUN_STALE_S.)
+        status, reasons = sw._compute_status(
+            latest_run={}, feed_summary={}, last_run_age=sw._RUN_STALE_S + 10,
+            heartbeat_age=30.0, briefing_stale=True, briefing_age_hours=77.0)
+        assert "ai_generation_failing" not in reasons
+
+    def test_none_freshness_never_fabricates_reason(self):
+        # briefing_health import/read failure => briefing_stale None => skip.
+        status, reasons = sw._compute_status(
+            **self._live(), briefing_stale=None, briefing_age_hours=None)
+        assert status == "ok"
+        assert reasons == []
+
+    def test_missing_briefing_infinite_age_does_not_crash(self):
+        # briefing.json missing => age_hours inf; int(inf) must not raise.
+        status, reasons = sw._compute_status(
+            **self._live(), briefing_stale=True, briefing_age_hours=float("inf"))
+        assert status == "degraded"
+        assert "briefing_stale_?h" in reasons
+        assert "ai_generation_failing" in reasons
+
+
 class TestHealthEndpoint:
     def setup_method(self):
         sw._cache.clear()
 
     def test_health_returns_valid_json(self, tmp_path):
         # Use a fresh completed_at so the freshness check passes and status=ok.
+        # Patch briefing freshness fresh too — otherwise status depends on the
+        # real briefing.json on disk (a stale checkout would degrade status).
         from datetime import datetime, timezone
         fresh = datetime.now(timezone.utc).isoformat()
         with patch("serve_threatwatch.load_stats", return_value={"latest": {"completed_at": fresh, "articles_fetched": 42, "cyber_articles": 20, "api_cost_today": 0.05}}), \
-             patch("serve_threatwatch.BASE_DIR", tmp_path):
+             patch("serve_threatwatch.BASE_DIR", tmp_path), \
+             patch("modules.briefing_health.check_briefing_freshness",
+                   return_value={"stale": False, "age_hours": 0.5,
+                                 "generated_at": fresh, "reason": "fresh"}):
             body = sw.build_health()
         data = json.loads(body)
         assert data["status"] == "ok"
