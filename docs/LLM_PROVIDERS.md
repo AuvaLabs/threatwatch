@@ -38,32 +38,39 @@ three "tiers" at once. Keep each tier on a genuinely independent provider.
 | OpenRouter | `https://openrouter.ai/api/v1` | 20 RPM / 200 RPD | aggregator fallback | free, no CC |
 | **LLM7.io** | `https://api.llm7.io/v1` | 30 RPM keyless / 120 w/token | **keyless backstop** | none |
 
-## Current state (emergency — 2026-07-15)
+## Current state (restored — 2026-07-15)
 
-All tiers point at **LLM7.io / `codestral-latest`** (keyless) to recover from the
-DeepInfra 402. This restored briefing + regional digests + top stories.
-Summaries partially rate-limit at 30 RPM (degrade to keyword — safe). Original
-DeepInfra values are preserved as `# [outage-2026-07 was]` comments in `.env`
-and `.env.bak-outage-2026-07`.
-
-### Target tier mix (once free keys land)
+After an LLM7-only emergency stopgap, the **diversified ladder is restored using
+assets already on the box**: 3 working Groq keys (recovered from
+`.env.bak.predeepinfra.2026-06-13`) + keyless LLM7 as the one non-Groq tier.
+featherless.ai is **dead** (subscription lapsed — "active plan required"), so it
+is out of the ladder entirely. Prior values preserved as `# [restore-2026-07 was]`
+comments; snapshots at `.env.bak-outage-2026-07` (DeepInfra) and
+`.env.bak-llm7-emergency` (LLM7-only).
 
 ```env
-# Tier 1 — base: high-volume classify/summaries (add multiple keys to stack RPD)
+# Tier 1 — base: high-volume classify/summaries + briefing fallback.
+# 3 Groq keys rotated => ~3x free-tier RPM/RPD; summaries no longer 429.
 LLM_BASE_URL=https://api.groq.com/openai/v1
 LLM_MODEL=llama-3.3-70b-versatile
-LLM_API_KEYS=<groq_key_1>,<groq_key_2>        # rotation multiplies RPD
-BRIEFING_MODEL=llama-3.1-8b-instant
+LLM_API_KEYS=<groq_key_1>,<groq_key_2>,<groq_key_3>
+BRIEFING_MODEL=llama-3.1-8b-instant       # base briefing fallback (fits 70B TPM)
 TOP_STORIES_MODEL=llama-3.1-8b-instant
 
-# Tier 2 — briefing primary: context + quality, independent provider
-FEATHERLESS_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-FEATHERLESS_API_KEY=<gemini_key>
-FEATHERLESS_MODEL=gemini-2.5-flash
+# Tier 2 — briefing primary: Groq gpt-oss-120b (bigger ctx + quality; ~1.7s).
+FEATHERLESS_BASE_URL=https://api.groq.com/openai/v1
+FEATHERLESS_API_KEY=<groq_key_1>
+FEATHERLESS_MODEL=openai/gpt-oss-120b
 
-# Tier 3 — keyless backstop (never fully offline)
-# briefing falls through to LLM7 if a real key is also placed there, or keep
-# CLAUDE_BRIDGE pointed at a working shim.
+# Tier 3 — independent keyless backstop: LLM7.io (the ONLY non-Groq tier, so a
+# Groq-wide outage can't take briefing fully down). Rides the Claude Bridge slot.
+CLAUDE_BRIDGE_URL=https://api.llm7.io/v1
+CLAUDE_BRIDGE_MODEL=codestral-latest
 ```
+
+**Optional upgrade** — for a briefing tier fully independent of Groq, drop a free
+Gemini 2.5 Flash key into the FEATHERLESS slot
+(`https://generativelanguage.googleapis.com/v1beta/openai`, US-eligible), pushing
+Groq down to base-only. Validate first with `scripts/test_free_llms.py`.
 
 Validate any change with: `GROQ_API_KEY=... GEMINI_API_KEY=... python3 scripts/test_free_llms.py`
