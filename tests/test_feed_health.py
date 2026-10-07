@@ -244,6 +244,36 @@ class TestGetHealthJson:
         assert payload["dead_feeds"][0]["last_success"] == "2026-01-15"
         assert payload["dead_feeds"][0]["errors"] == 10
 
+    def test_stale_and_silent_feeds_are_exposed(self):
+        stale_url = "https://stale.example.com/feed"
+        silent_url = "https://silent.example.com/feed"
+        fh.save_health({
+            stale_url: {
+                "url": stale_url,
+                "status": "stale",
+                "last_success": "2026-01-15T12:34:56+00:00",
+                "consecutive_errors": 0,
+            },
+            silent_url: {
+                "url": silent_url,
+                "status": "silent",
+                "last_success": None,
+                "consecutive_errors": 0,
+                "fetches_successful": 20,
+            },
+        })
+
+        payload = fh.get_health_json()
+
+        assert payload["stale_feeds"] == [{
+            "url": stale_url,
+            "last_success": "2026-01-15",
+        }]
+        assert payload["silent_feeds"] == [{
+            "url": silent_url,
+            "successful_fetches": 20,
+        }]
+
 
 class TestPrintReport:
     def test_prints_all_sections(self, capsys):

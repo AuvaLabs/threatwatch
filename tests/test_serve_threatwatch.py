@@ -525,6 +525,14 @@ class TestHTTPRoutes:
         assert status == 200
         assert data["openapi"].startswith("3.")
         assert "/api/v1/articles" in data["paths"]
+        assert "/api/v1/health/feeds" in data["paths"]
+
+    def test_v1_feed_health_is_available(self, test_server):
+        expected = {"total_tracked": 2, "ok": 1, "dead": 1}
+        with patch("modules.feed_health.get_health_json", return_value=expected):
+            status, _, body = _get(test_server + "/api/v1/health/feeds")
+        assert status == 200
+        assert json.loads(body) == expected
 
     def test_articles_bad_offset(self, test_server):
         with patch("serve_threatwatch.load_articles", return_value=[]):

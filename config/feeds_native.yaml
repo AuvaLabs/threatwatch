@@ -17,6 +17,7 @@
 - url: https://www.bleepingcomputer.com/feed/
   category: Native
   region: Global
+  user_agent: "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0"
 
 - url: https://krebsonsecurity.com/feed/
   category: Native
@@ -34,7 +35,7 @@
 #   category: Native
 #   region: US
 
-- url: https://www.ncsc.gov.uk/api/1/services/v1/report-rss-feed.xml
+- url: https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml
   category: Native
   region: UK
 
@@ -44,9 +45,10 @@
 #   region: US
 
 # Tier 3: Research and analysis
-- url: https://www.schneier.com/feed/
+- url: https://www.schneier.com/feed/atom/
   category: Native
   region: Global
+  user_agent: "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0"
 
 - url: https://blog.talosintelligence.com/rss/
   category: Native
@@ -60,10 +62,6 @@
   category: Native
   region: Global
 
-- url: https://www.sentinelone.com/feed/
-  category: Native
-  region: Global
-
 # SentinelLabs research — focused APT attribution, malware reversals, nation-state campaigns
 - url: https://www.sentinelone.com/labs/feed/
   category: Native
@@ -74,20 +72,11 @@
   category: Native
   region: Global
 
-# Google Online Security Blog — Chrome/Android/Gmail threat research, supply chain findings
-- url: http://feeds.feedburner.com/GoogleOnlineSecurityBlog
-  category: Native
-  region: Global
-
 - url: https://blog.qualys.com/feed
   category: Native
   region: Global
 
 - url: https://research.checkpoint.com/feed/
-  category: Native
-  region: Global
-
-- url: https://www.mandiant.com/resources/blog/rss.xml
   category: Native
   region: Global
 
@@ -334,7 +323,7 @@
   category: Native
   region: Global
 
-- url: https://www.volexity.com/blog/feed/
+- url: https://www.volexity.com/feed/
   category: Native
   region: Global
 
@@ -357,10 +346,6 @@
   region: Global
 
 # Tier 13: Dark Web & Breach News Aggregators
-- url: https://dailydarkweb.net/feed/
-  category: Native
-  region: Global
-
 # Hackread — returns 403 from VPS IP (verified 2026-04-01)
 # - url: https://hackread.com/feed/
 #   category: Native
@@ -421,7 +406,7 @@
   category: Native
   region: Global
 
-- url: https://intezer.com/feed/
+- url: https://research.intezer.com/index.xml
   category: Native
   region: Global
 
@@ -430,7 +415,7 @@
   category: Native
   region: Global
 
-- url: https://www.netskope.com/blog/category/netskope-threat-labs/feed
+- url: https://www.netskope.com/feed
   category: Native
   region: Global
 
@@ -452,10 +437,6 @@
   category: Native
   region: Global
 
-- url: https://www.cybereason.com/blog/rss.xml
-  category: Native
-  region: Global
-
 # Tier 19: Major Vendor Blogs (round 2, verified 2026-04-21)
 - url: https://www.reversinglabs.com/blog/rss.xml
   category: Native
@@ -465,18 +446,6 @@
   category: Native
   region: Global
 
-- url: https://www.deepinstinct.com/blog/feed
-  category: Native
-  region: Global
-
 - url: https://orca.security/resources/blog/feed/
-  category: Native
-  region: Global
-
-- url: https://blogs.vmware.com/security/feed
-  category: Native
-  region: Global
-
-- url: https://threatconnect.com/blog/feed/
   category: Native
   region: Global

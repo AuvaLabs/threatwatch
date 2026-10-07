@@ -8,7 +8,7 @@
 [![License: Non-Commercial](https://img.shields.io/badge/license-Non--Commercial-orange.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![AI Powered](https://img.shields.io/badge/AI-intelligence--briefing-8B5CF6?logo=openai&logoColor=white)]()
-[![Feeds](https://img.shields.io/badge/feeds-150+-blue)]()
+[![Feeds](https://img.shields.io/badge/feeds-141-blue)]()
 [![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/threatwatch?style=social)](https://github.com/AuvaLabs/threatwatch)
 
 **[Live Demo](https://threatwatch.auvalabs.com)**
@@ -30,18 +30,18 @@ Threat intelligence platform that aggregates RSS feeds, public dark web sources,
 ## Features
 
 ### Collection
-- **150+ RSS feeds** — security blogs, vendor advisories, CERTs worldwide, Google News, Bing News
+- **141 RSS feeds** covering security blogs, vendor advisories, CERTs, Google News, and Bing News
 - **NewsAPI integration** — additional security news with rate-limited fetching (100 req/day free tier)
 - **Dark web monitoring** — ThreatFox IOCs, ransomware victim tracking (ransomware.live), active C2 server IPs
-- **Continuous pipeline** — new fetch cycle starts every 10 minutes; a full cycle (fetch → dedup → scrape → enrich) typically completes in 20-30 minutes
-- **8-thread parallel fetching** — processes all feeds in seconds
+- **Continuous pipeline** with a new cycle every 10 minutes and typical completion in 2 to 4 minutes
+- **16-thread parallel fetching** with date rejection before network-heavy URL resolution
 - Rolling **7-day window** with merge across pipeline runs
 
 ### AI intelligence with provider fallback
 - **Intelligence Digest** — hourly AI-generated threat landscape summary with trending threats, vulnerability spotlight, sector impact, and priority actions — every finding links back to source articles
 - **Top Stories** — AI picks the 5-8 most significant incidents from all articles, with significance ratings (CRITICAL/HIGH/MODERATE)
 - **Article Summaries** — structured AI summaries (what/who/impact) for articles missing descriptions
-- **Incident Clustering** — auto-groups related articles by CVE, threat actor, or organization with AI-synthesized cluster narratives
+- **Incident Clustering** groups related coverage only on shared CVEs or named threat actors, with optional grounded synthesis
 - **Threat Actor Profiles** — cached AI-generated profiles for detected actors (origin, TTPs, target sectors)
 - **AI Classification Escalation**: low-confidence articles can be reclassified by the configured LLM route
 - **Provider resilience**: primary key rotation plus two independent OpenAI-compatible fallback endpoints
@@ -301,6 +301,7 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/incidents` | Stable incident-cluster collection |
 | `GET` | `/api/v1/sources` | Source coverage and article counts |
 | `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |
+| `GET` | `/api/v1/health/feeds` | Per-source health, including stale and silent feeds |
 | `GET` | `/api/v1/openapi.json` | OpenAPI 3.1 discovery document |
 | `GET` | `/api/briefing` | AI intelligence digest with source citations, serving tier (`provider`), staleness (`served_stale`) and threat-level provenance (`threat_level_source`) |
 | `GET` | `/api/briefing/na` | North America regional digest |
@@ -317,7 +318,7 @@ The server runs on port **8098** by default:
 | `POST` | `/api/watchlist` | Update watchlist (self-hosted) |
 | `GET` | `/api/rss` | RSS feed (XML) |
 
-All JSON endpoints support CORS, ETag conditional requests, and gzip compression.
+Public JSON endpoints support CORS. Operational health endpoints are same-origin unless `CORS_ORIGIN` explicitly permits an origin. All responses support ETag validation and gzip compression.
 
 <details>
 <summary>Example: paginated articles response</summary>

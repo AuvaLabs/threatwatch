@@ -32,7 +32,7 @@ sources:
 manual_candidates:
   - url: "https://www.cisa.gov/cybersecurity-advisories/all.xml"
     label: "CISA All Advisories"
-  - url: "https://www.ncsc.gov.uk/api/1/services/v1/report-rss-feed.xml"
+  - url: "https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml"
     label: "NCSC UK Reports"
   - url: "https://feeds.feedburner.com/TheHackersNews"
     label: "The Hacker News (feedburner)"
@@ -60,7 +60,7 @@ manual_candidates:
     label: "Talos Intelligence Blog"
   - url: "https://www.proofpoint.com/us/blog/threat-insight/rss.xml"
     label: "Proofpoint Threat Insight"
-  - url: "https://www.mandiant.com/resources/blog/rss.xml"
+  - url: "https://cloudblog.withgoogle.com/topics/threat-intelligence/rss/"
     label: "Mandiant Blog"
   - url: "https://securelist.com/feed/"
     label: "Kaspersky Securelist"

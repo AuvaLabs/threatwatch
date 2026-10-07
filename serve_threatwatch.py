@@ -883,6 +883,7 @@ def build_openapi() -> bytes:
         "/api/v1/sources": {"get": {"summary": "List source coverage"}},
         "/api/v1/health": {"get": {"summary": "Get service health"}},
         "/api/v1/health/ai": {"get": {"summary": "Get AI artifact health"}},
+        "/api/v1/health/feeds": {"get": {"summary": "Get feed health"}},
     }
     payload = {
         "openapi": "3.1.0",
@@ -981,6 +982,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
     # map of pipeline internals (token spend, classifier accuracy, DB size).
     _RESTRICTED_CORS_PATHS = frozenset({
         "/api/health", "/api/v1/health", "/api/v1/health/ai",
+        "/api/v1/health/feeds",
         "/api/watchlist", "/api/quality", "/api/groq-usage",
     })
 
@@ -1218,6 +1220,14 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             body = json.dumps(
                 check_artifact_health(BASE_DIR / "data" / "output"),
                 ensure_ascii=False, separators=(",", ":"),
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/health/feeds":
+            from modules.feed_health import get_health_json
+            body = json.dumps(
+                get_health_json(), ensure_ascii=False, separators=(",", ":"),
             ).encode("utf-8")
             self._send_body("application/json; charset=utf-8", body, head_only)
             return

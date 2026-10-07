@@ -32,20 +32,11 @@
   category: Bing
   region: Global
 
-- url: https://www.bing.com/news/search?q=APT+nation+state+hacking&format=rss
-  category: Bing
-  region: Global
-
 - url: https://www.bing.com/news/search?q=critical+CVE+vulnerability&format=rss
   category: Bing
   region: Global
 
 - url: https://www.bing.com/news/search?q=cybersecurity+incident+response&format=rss
-  category: Bing
-  region: Global
-
-# Reddit & Twitter cyber content (validated via Bing)
-- url: https://www.bing.com/news/search?q=site%3Areddit.com+cybersecurity+hack&format=rss
   category: Bing
   region: Global
 
@@ -71,10 +62,6 @@
   category: Bing
   region: EMEA
 
-- url: https://www.bing.com/news/search?q=data+breach+Africa+South+Africa+Nigeria&format=rss
-  category: Bing
-  region: Africa
-
 # MENA
 - url: https://www.bing.com/news/search?q=cyber+attack+Middle+East+Saudi+Arabia+UAE+Qatar&format=rss
   category: Bing
@@ -89,15 +76,7 @@
   category: Bing
   region: APAC
 
-- url: https://www.bing.com/news/search?q=cyber+attack+Australia+Singapore+Philippines&format=rss
-  category: Bing
-  region: APAC
-
 # LATAM
 - url: https://www.bing.com/news/search?q=cyber+attack+Latin+America+Brazil+Mexico+Argentina&format=rss
-  category: Bing
-  region: LATAM
-
-- url: https://www.bing.com/news/search?q=ciberataque+ransomware+Am%C3%A9rica+Latina&format=rss
   category: Bing
   region: LATAM

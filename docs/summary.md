@@ -58,7 +58,7 @@ Browser → serve_threatwatch.py (SSR injection)
         SQLite DB (data/output/threatwatch.db) + JSON fallback
                 ↓
         threatdigest_main.py (pipeline)
-        ├── feed_fetcher.py        (164 RSS feeds, 8-thread parallel)
+        ├── feed_fetcher.py        (141 RSS feeds, 16-thread parallel)
         ├── newsapi_fetcher.py     (NewsAPI security news)
         ├── darkweb_monitor.py     (ThreatFox, ransomware.live)
         ├── deduplicator.py        (fuzzy word-shingle dedup)

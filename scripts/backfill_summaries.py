@@ -25,6 +25,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 from modules.config import OUTPUT_DIR
 from modules.llm_client import reset_circuit
+from modules.output_writer import persist_corpus
 # Import via briefing_generator so its load order resolves the re-export
 # cycle that otherwise bites when article_summariser is loaded first.
 from modules.briefing_generator import summarize_articles
@@ -62,12 +63,13 @@ def _save_with_merge(summaries_by_hash: dict[str, dict]) -> int:
         if (a.get("summary") or "").strip():
             continue
         a["summary"] = s["summary"]
+        a["summary_method"] = s.get("summary_method") or "ai"
+        a["summary_generated"] = s.get("summary_generated", True)
         for k in ("intel_what", "intel_who", "intel_impact"):
             if s.get(k):
                 a[k] = s[k]
         touched += 1
-    with open(DAILY_PATH, "w", encoding="utf-8") as f:
-        json.dump(fresh, f, ensure_ascii=False)
+    persist_corpus(fresh)
     return touched
 
 
@@ -122,6 +124,8 @@ def main() -> int:
                     "intel_what": a.get("intel_what"),
                     "intel_who": a.get("intel_who"),
                     "intel_impact": a.get("intel_impact"),
+                    "summary_method": a.get("summary_method"),
+                    "summary_generated": a.get("summary_generated"),
                 }
         touched = _save_with_merge(summaries_by_hash)
         # Reload so subsequent passes see the latest pipeline additions too.

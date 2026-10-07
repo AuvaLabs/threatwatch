@@ -298,6 +298,20 @@ def get_health_json() -> dict:
             {"url": e.get("url", ""), "errors": e.get("consecutive_errors", 0)}
             for e in report.get("suspect", [])
         ],
+        "stale_feeds": [
+            {
+                "url": e.get("url", ""),
+                "last_success": str(e.get("last_success", "never"))[:10],
+            }
+            for e in report.get("stale", [])
+        ],
+        "silent_feeds": [
+            {
+                "url": e.get("url", ""),
+                "successful_fetches": e.get("fetches_successful", 0),
+            }
+            for e in report.get("silent", [])
+        ],
     }
 
 

@@ -94,11 +94,6 @@
   category: Google
   region: US
 
-# Reddit & Twitter cyber content (validated via search)
-- url: https://news.google.com/rss/search?q=site%3Areddit.com+cybersecurity+breach&hl=en-US&gl=US&ceid=US:en
-  category: Google
-  region: US
-
 - url: https://news.google.com/rss/search?q=site%3Areddit.com+ransomware+attack&hl=en-US&gl=US&ceid=US:en
   category: Google
   region: US
@@ -116,15 +111,7 @@
   category: Google
   region: US
 
-- url: https://news.google.com/rss/search?q=Salt+Typhoon+Volt+Typhoon+Silk+Typhoon+China+cyber&hl=en-US&gl=US&ceid=US:en
-  category: Google
-  region: US
-
 - url: https://news.google.com/rss/search?q=Hunters+International+Qilin+INC+Ransom+ransomware&hl=en-US&gl=US&ceid=US:en
-  category: Google
-  region: US
-
-- url: https://news.google.com/rss/search?q=RansomHub+Akira+Play+ransomware+attack&hl=en-US&gl=US&ceid=US:en
   category: Google
   region: US
 
@@ -252,10 +239,6 @@
 - url: https://news.google.com/rss/search?q=ataque+cibern%C3%A9tico+Brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419
   category: Google
   region: Brazil
-
-- url: https://news.google.com/rss/search?q=ransomware+Latin+America+Brazil+Mexico&hl=en&gl=US&ceid=US:en
-  category: Google
-  region: LATAM
 
 - url: https://news.google.com/rss/search?q=data+breach+Latin+America&hl=en&gl=US&ceid=US:en
   category: Google

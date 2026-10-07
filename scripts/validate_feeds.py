@@ -65,7 +65,10 @@ def live_validate(feeds: list, timeout: int = 12) -> None:
         if not url:
             continue
         try:
-            resp = session.get(url, timeout=timeout)
+            headers = None
+            if feed.get("user_agent"):
+                headers = {"User-Agent": feed["user_agent"]}
+            resp = session.get(url, timeout=timeout, headers=headers)
             resp.raise_for_status()
             parsed = feedparser.parse(resp.content)
             count  = len(parsed.entries)
