@@ -117,6 +117,10 @@ def _fetch_feed(url: str, region: str = "Global",
             return []
 
         results = []
+        skipped = 0
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(days=FEED_CUTOFF_DAYS)
+        future_limit = now + timedelta(minutes=MAX_FUTURE_MINUTES)
         for entry in parsed.entries:
             # Isolate per-entry failures: one malformed entry (missing title,
             # resolver blow-up) used to abort the whole feed and mark it as a
@@ -126,10 +130,21 @@ def _fetch_feed(url: str, region: str = "Global",
                 raw_link = getattr(entry, "link", "") or ""
                 if not title:
                     logger.debug(f"Entry without title skipped in {url}")
+                    skipped += 1
+                    continue
+                published = entry.get("published", "")
+                published_at = _parse_article_date(published) if published else None
+                if published_at is None:
+                    logger.debug(f"Missing or unparseable date, skipping: {title[:60]}")
+                    skipped += 1
+                    continue
+                if published_at < cutoff or published_at > future_limit:
+                    skipped += 1
                     continue
                 # Drop articles whose primary link is a Tor/I2P address
                 if not is_clearnet_url(raw_link):
                     logger.debug(f"Non-clearnet link skipped: {raw_link[:80]}")
+                    skipped += 1
                     continue
                 raw_summary = entry.get("summary", "") or ""
                 clean_link = resolve_original_url(raw_link, summary=raw_summary)
@@ -142,7 +157,7 @@ def _fetch_feed(url: str, region: str = "Global",
                 results.append({
                     "title": title,
                     "link": clean_link,
-                    "published": entry.get("published", ""),
+                    "published": published,
                     "summary": entry.get("summary", ""),
                     "hash": article_hash,
                     "source": url,
@@ -151,32 +166,15 @@ def _fetch_feed(url: str, region: str = "Global",
                 })
             except Exception as entry_exc:
                 logger.warning(f"Skipping malformed entry in {url}: {entry_exc}")
+                skipped += 1
                 continue
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=FEED_CUTOFF_DAYS)
-        future_limit = datetime.now(timezone.utc) + timedelta(minutes=MAX_FUTURE_MINUTES)
-        filtered = []
-        for r in results:
-            pub = r.get("published", "")
-            if pub:
-                pub_dt = _parse_article_date(pub)
-                if pub_dt is not None:
-                    if pub_dt < cutoff or pub_dt > future_limit:
-                        continue
-                else:
-                    # No parseable date — skip article (prevents historic content leaking in)
-                    logger.debug(f"Unparseable date, skipping: {r.get('title', '')[:60]}")
-                    continue
-            else:
-                # No date at all — skip to prevent undated historic articles
-                logger.debug(f"No date, skipping: {r.get('title', '')[:60]}")
-                continue
-            filtered.append(r)
-
-        skipped = len(results) - len(filtered)
-        logger.info(f"Fetched {len(filtered)} articles from {url} ({skipped} older than {FEED_CUTOFF_DAYS} days filtered)")
-        record_fetch(url, success=True, entry_count=len(filtered))
-        return filtered
+        logger.info(
+            f"Fetched {len(results)} articles from {url} "
+            f"({skipped} invalid, old, or future entries filtered)"
+        )
+        record_fetch(url, success=True, entry_count=len(results))
+        return results
 
     except Exception as e:
         logger.error(f"Error fetching {url}: {e}")

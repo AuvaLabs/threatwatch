@@ -55,6 +55,33 @@ class TestFetchArticles:
         result = fetch_articles([{"url": "https://feed.example.com/rss"}])
 
         assert result == []
+        mock_resolve.assert_not_called()
+
+    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
+    @patch("modules.feed_fetcher.feedparser.parse")
+    @patch("modules.feed_fetcher._get_session")
+    def test_filters_stale_entries_before_url_resolution(
+        self, mock_get_session, mock_parse, mock_resolve,
+    ):
+        from datetime import datetime, timedelta, timezone
+
+        mock_http_resp = MagicMock()
+        mock_http_resp.content = b""
+        mock_get_session.return_value.get.return_value = mock_http_resp
+        stale_date = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        mock_entry = MagicMock()
+        mock_entry.title = "Old article"
+        mock_entry.link = "https://slow.example.com/old"
+        mock_entry.get = lambda key, default="": {
+            "published": stale_date,
+            "summary": "Old item",
+        }.get(key, default)
+        mock_parse.return_value = MagicMock(entries=[mock_entry], bozo=False)
+
+        result = fetch_articles([{"url": "https://feed.example.com/rss"}])
+
+        assert result == []
+        mock_resolve.assert_not_called()
 
     @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
     @patch("modules.feed_fetcher.feedparser.parse")
