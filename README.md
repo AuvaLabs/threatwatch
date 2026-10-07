@@ -36,6 +36,7 @@ Threat intelligence platform that aggregates RSS feeds, public dark web sources,
 - **Continuous pipeline** with a new cycle every 10 minutes and typical completion in 2 to 4 minutes
 - **16-thread parallel fetching** with date rejection before network-heavy URL resolution
 - Rolling **7-day window** with merge across pipeline runs
+- **Briefing-first default feed** keeps bulk NVD and Vulners telemetry in the Exploits tab while retaining KEV-listed vulnerabilities in the main news stream
 
 ### AI intelligence with provider fallback
 - **Intelligence Digest** — hourly AI-generated threat landscape summary with trending threats, vulnerability spotlight, sector impact, and priority actions — every finding links back to source articles
