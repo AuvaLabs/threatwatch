@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import time
 from typing import Any
 
 from modules.ai_cache import get_cached_result, cache_result
@@ -25,6 +26,13 @@ _SUMMARY_BATCH_SIZE = 10  # articles per LLM call
 # >50% of the corpus without summaries. Groq's free tier accommodates higher
 # throughput; batches of 10 keep token usage per call predictable.
 _MAX_SUMMARIES_PER_RUN = int(os.environ.get("MAX_SUMMARIES_PER_RUN", "150"))
+try:
+    _SUMMARY_BATCH_DELAY_SECONDS = max(
+        0.0, float(os.environ.get("SUMMARY_BATCH_DELAY_SECONDS", "5"))
+    )
+except ValueError:
+    logger.warning("Invalid SUMMARY_BATCH_DELAY_SECONDS; using 5 seconds")
+    _SUMMARY_BATCH_DELAY_SECONDS = 5.0
 
 _SUMMARY_PROMPT = """You are a cyber threat intelligence analyst. For each article, extract key intelligence details in a structured format.
 
@@ -68,6 +76,7 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
     # Cap to prevent budget overrun
     needs_summary = needs_summary[:_MAX_SUMMARIES_PER_RUN]
     total_generated = 0
+    network_batches = 0
 
     # Process in batches
     for batch_start in range(0, len(needs_summary), _SUMMARY_BATCH_SIZE):
@@ -90,6 +99,9 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
             summaries = cached
         else:
             try:
+                if network_batches > 0 and _SUMMARY_BATCH_DELAY_SECONDS > 0:
+                    time.sleep(_SUMMARY_BATCH_DELAY_SECONDS)
+                network_batches += 1
                 reply = call_llm(
                     user_content,
                     system_prompt=_SUMMARY_PROMPT,

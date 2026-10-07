@@ -172,7 +172,13 @@ def _payload(provider: Provider, user_content: str, system_prompt: str,
 
 
 def _response_format_unsupported(response: requests.Response) -> bool:
-    return response.status_code == 400 and "response_format" in response.text.lower()
+    """Return whether an optional structured-output retry is safe.
+
+    OpenAI-compatible providers do not consistently name the rejected field
+    in their 400 response body. The caller limits this retry to requests that
+    actually included ``response_format`` and retries only once.
+    """
+    return response.status_code == 400
 
 
 def _provider_keys(provider: Provider) -> list[str]:

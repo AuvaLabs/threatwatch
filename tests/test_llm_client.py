@@ -135,6 +135,20 @@ class TestCallLLMResponseFormat:
         assert "response_format" in mock_session.post.call_args_list[0].kwargs["json"]
         assert "response_format" not in mock_session.post.call_args_list[1].kwargs["json"]
 
+    def test_generic_400_retries_without_optional_response_format(self, mock_session):
+        unsupported = _mock_response(status_code=400, text="invalid request")
+        ok = _mock_response(json_body={"choices": [{"message": {"content": "json"}}]})
+        mock_session.post.side_effect = [unsupported, ok]
+
+        result = call_llm(
+            "x", system_prompt="y", response_format={"type": "json_object"}
+        )
+
+        assert result == "json"
+        assert mock_session.post.call_count == 2
+        assert "response_format" in mock_session.post.call_args_list[0].kwargs["json"]
+        assert "response_format" not in mock_session.post.call_args_list[1].kwargs["json"]
+
 
 class TestProviderFailover:
     def test_primary_404_falls_back_to_secondary(self, mock_session, monkeypatch):

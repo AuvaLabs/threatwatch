@@ -33,9 +33,8 @@ from modules.briefing_generator import summarize_articles
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [backfill] %(message)s")
 
 DAILY_PATH = OUTPUT_DIR / "daily_latest.json"
-# Seconds between passes so per-key TPM windows can clear. Each pass is
-# a single LLM call when MAX_SUMMARIES_PER_RUN <= _SUMMARY_BATCH_SIZE (10),
-# so a short pause is enough.
+# Seconds between passes so provider request and token windows can clear.
+# Individual uncached batches are paced by SUMMARY_BATCH_DELAY_SECONDS.
 SLEEP_BETWEEN_PASSES = float(os.environ.get("BACKFILL_SUMMARY_SLEEP", "10"))
 
 

@@ -73,6 +73,43 @@ class TestSummarizeArticles:
         assert count == 1
         assert articles[0]["summary"] == "From dict"
 
+    def test_uncached_batches_are_rate_limited(self, monkeypatch):
+        articles = [_article(title=f"Article {index}") for index in range(20)]
+        response = json.dumps([
+            {"index": index, "summary": f"Summary {index}"}
+            for index in range(1, 11)
+        ])
+        monkeypatch.setattr("modules.article_summariser._MAX_SUMMARIES_PER_RUN", 20)
+        monkeypatch.setattr("modules.article_summariser._SUMMARY_BATCH_DELAY_SECONDS", 5.0)
+
+        with patch("modules.article_summariser.is_available", return_value=True), \
+             patch("modules.article_summariser.get_cached_result", return_value=None), \
+             patch("modules.article_summariser.call_llm", return_value=response), \
+             patch("modules.article_summariser._parse_json", return_value=json.loads(response)), \
+             patch("modules.article_summariser.cache_result"), \
+             patch("modules.article_summariser.time.sleep") as sleep:
+            count = summarize_articles(articles)
+
+        assert count == 20
+        sleep.assert_called_once_with(5.0)
+
+    def test_cached_batches_do_not_wait(self, monkeypatch):
+        articles = [_article(title=f"Article {index}") for index in range(20)]
+        cached = [
+            {"index": index, "summary": f"Summary {index}"}
+            for index in range(1, 11)
+        ]
+        monkeypatch.setattr("modules.article_summariser._MAX_SUMMARIES_PER_RUN", 20)
+        monkeypatch.setattr("modules.article_summariser._SUMMARY_BATCH_DELAY_SECONDS", 5.0)
+
+        with patch("modules.article_summariser.is_available", return_value=True), \
+             patch("modules.article_summariser.get_cached_result", return_value=cached), \
+             patch("modules.article_summariser.time.sleep") as sleep:
+            count = summarize_articles(articles)
+
+        assert count == 20
+        sleep.assert_not_called()
+
     def test_empty_articles(self):
         with patch("modules.article_summariser.is_available", return_value=True):
             assert summarize_articles([]) == 0
