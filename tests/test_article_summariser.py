@@ -44,6 +44,18 @@ class TestSummarizeArticles:
         assert articles[0]["intel_what"] == "ransomware"
         assert articles[0]["summary_method"] == "ai"
 
+    def test_summary_request_has_room_for_complete_batch(self, monkeypatch):
+        articles = [_article(summary="")]
+        response = json.dumps([{"index": 1, "summary": "Complete"}])
+        monkeypatch.setattr("modules.article_summariser._SUMMARY_MAX_TOKENS", 1600)
+        with patch("modules.article_summariser.is_available", return_value=True), \
+             patch("modules.article_summariser.get_cached_result", return_value=None), \
+             patch("modules.article_summariser.call_llm", return_value=response) as call, \
+             patch("modules.article_summariser.cache_result"):
+            summarize_articles(articles)
+
+        assert call.call_args.kwargs["max_tokens"] == 1600
+
     def test_cached_summaries_applied(self):
         articles = [_article(title="Test", summary="")]
         cached = [{"index": 1, "summary": "Cached summary", "what": "test"}]

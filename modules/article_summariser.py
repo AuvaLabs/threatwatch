@@ -19,13 +19,25 @@ from modules.utils import extract_json as _parse_json
 logger = logging.getLogger(__name__)
 
 
+def _positive_int_env(name: str, default: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError:
+        value = 0
+    if value > 0:
+        return value
+    logger.warning("Invalid %s; using %d", name, default)
+    return default
+
+
 # --- AI Article Summaries: batch-summarize articles missing summaries ---
 
 _SUMMARY_BATCH_SIZE = 10  # articles per LLM call
 # Was 30/run which only covered ~2% of the ~1600 articles/run backlog, leaving
 # >50% of the corpus without summaries. Groq's free tier accommodates higher
 # throughput; batches of 10 keep token usage per call predictable.
-_MAX_SUMMARIES_PER_RUN = int(os.environ.get("MAX_SUMMARIES_PER_RUN", "150"))
+_MAX_SUMMARIES_PER_RUN = _positive_int_env("MAX_SUMMARIES_PER_RUN", 150)
+_SUMMARY_MAX_TOKENS = _positive_int_env("SUMMARY_MAX_TOKENS", 1600)
 try:
     _SUMMARY_BATCH_DELAY_SECONDS = max(
         0.0, float(os.environ.get("SUMMARY_BATCH_DELAY_SECONDS", "5"))
@@ -107,7 +119,7 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
                     reply = call_llm(
                         user_content,
                         system_prompt=_SUMMARY_PROMPT,
-                        max_tokens=800,
+                        max_tokens=_SUMMARY_MAX_TOKENS,
                         response_format={"type": "json_object"},
                         caller="summaries",
                     )
