@@ -72,7 +72,6 @@ class TestLoadSaveProfiles:
 class TestGenerateProfiles:
     def test_no_actors_returns_existing(self, tmp_path):
         profiles_path = tmp_path / "state" / "profiles.json"
-        output_path = tmp_path / "output" / "actor_profiles.json"
         with patch.object(ap, "PROFILES_PATH", profiles_path), \
              patch.object(ap, "OUTPUT_DIR", tmp_path / "output"):
             result = generate_profiles([{"title": "Weather report", "summary": ""}])
@@ -80,7 +79,6 @@ class TestGenerateProfiles:
 
     def test_skips_below_min_articles(self, tmp_path):
         profiles_path = tmp_path / "state" / "profiles.json"
-        output_path = tmp_path / "output" / "actor_profiles.json"
         # Only 1 article mentioning LockBit — below _MIN_ARTICLES_FOR_PROFILE (2)
         articles = [{"title": "LockBit hits target", "summary": ""}]
         with patch.object(ap, "PROFILES_PATH", profiles_path), \

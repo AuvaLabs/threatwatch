@@ -1,9 +1,7 @@
-"""Tests for modules/llm_client.py — Groq/OpenAI-compatible client.
+"""Tests for modules/llm_client.py: OpenAI-compatible client.
 
-Covers the response_format opt-in and the graceful 400-fallback, plus the
-regression lock that non-briefing callers (hybrid_classifier, actor_profiler,
-incident_correlator) continue getting exactly the original payload when they
-don't pass the new kwarg.
+Covers key rotation, failover, circuit breaker, and Kimi-specific payload
+handling.
 """
 import json
 from unittest.mock import MagicMock, patch
@@ -13,7 +11,7 @@ import requests
 
 from modules import llm_client
 from modules.llm_client import (
-    call_llm, _response_format_unsupported,
+    call_llm,
     _next_api_key, _advance_key, _get_http_session, is_available,
     reset_circuit,
 )
@@ -61,6 +59,10 @@ def single_key(monkeypatch):
     monkeypatch.setattr(llm_client, "LLM_API_KEY", "test-key")
     monkeypatch.setattr(llm_client, "LLM_BASE_URL", "https://api.example.com/v1")
     monkeypatch.setattr(llm_client, "LLM_MODEL", "test-model")
+    monkeypatch.setattr(llm_client, "FEATHERLESS_API_KEY", "")
+    monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "")
+    monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_API_KEY", "")
+    monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_BASE_URL", "")
 
 
 class TestCallLLMDefaultBehavior:
@@ -109,7 +111,7 @@ class TestCallLLMResponseFormat:
         payload = mock_session.post.call_args.kwargs["json"]
         assert payload["response_format"] == {"type": "json_object"}
 
-    def test_response_format_reaches_groq_on_first_attempt(self, mock_session):
+    def test_response_format_reaches_provider_on_first_attempt(self, mock_session):
         mock_session.post.return_value = _mock_response()
         call_llm("x", system_prompt="y", response_format={"type": "json_object"})
         # Exactly one POST, with the field present
@@ -117,92 +119,119 @@ class TestCallLLMResponseFormat:
         payload = mock_session.post.call_args.kwargs["json"]
         assert "response_format" in payload
 
-
-class TestResponseFormatFallback:
-    """When Groq rejects response_format with 400, auto-retry once without it."""
-
-    def test_400_with_response_format_in_body_triggers_retry(self, mock_session):
-        # First call: 400 with body mentioning response_format.
-        # Second call: 200 with content.
-        reject = _mock_response(
+    def test_unsupported_response_format_retries_without_field(self, mock_session):
+        unsupported = _mock_response(
             status_code=400,
-            text="Error: response_format is not supported for this model",
+            text="response_format is not supported by this model",
         )
-        success = _mock_response(
-            json_body={"choices": [{"message": {"content": "fallback-ok"}}]}
-        )
-        mock_session.post.side_effect = [reject, success]
+        ok = _mock_response(json_body={"choices": [{"message": {"content": "json"}}]})
+        mock_session.post.side_effect = [unsupported, ok]
 
         result = call_llm(
             "x", system_prompt="y", response_format={"type": "json_object"}
         )
-        assert result == "fallback-ok"
-        assert mock_session.post.call_count == 2
 
-        # Second call must omit response_format
-        second_payload = mock_session.post.call_args_list[1].kwargs["json"]
-        assert "response_format" not in second_payload
-        # Messages and model preserved
-        assert second_payload["model"] == "test-model"
-        assert second_payload["messages"][1]["content"] == "x"
+        assert result == "json"
+        assert "response_format" in mock_session.post.call_args_list[0].kwargs["json"]
+        assert "response_format" not in mock_session.post.call_args_list[1].kwargs["json"]
 
-    def test_400_unrelated_message_does_not_retry(self, mock_session):
-        # Unrelated 400 (e.g. prompt too long) must bubble up, not silently retry.
-        bad = _mock_response(
-            status_code=400,
-            text="Error: context length exceeded",
+
+class TestProviderFailover:
+    def test_primary_404_falls_back_to_secondary(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "FEATHERLESS_API_KEY", "fallback-key")
+        monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "https://fallback.example/v1")
+        monkeypatch.setattr(llm_client, "FEATHERLESS_MODEL", "fallback-model")
+        primary_404 = _mock_response(status_code=404, text="model retired")
+        fallback_ok = _mock_response(
+            json_body={"choices": [{"message": {"content": "fallback result"}}]}
         )
-        mock_session.post.return_value = bad
+        mock_session.post.side_effect = [primary_404, fallback_ok]
 
-        with pytest.raises(requests.exceptions.HTTPError):
-            call_llm(
-                "x", system_prompt="y", response_format={"type": "json_object"}
-            )
-        # Only one POST — no spurious retry
-        assert mock_session.post.call_count == 1
+        result = call_llm("x", system_prompt="y", model="primary-task-model")
 
-    def test_fallback_only_fires_once(self, mock_session):
-        # If the fallback call itself also 400s, we don't loop forever.
-        reject1 = _mock_response(
-            status_code=400,
-            text="response_format not supported",
-        )
-        reject2 = _mock_response(status_code=400, text="response_format again")
-        mock_session.post.side_effect = [reject1, reject2]
+        assert result == "fallback result"
+        calls = mock_session.post.call_args_list
+        assert calls[0].args[0] == "https://api.example.com/v1/chat/completions"
+        assert calls[0].kwargs["json"]["model"] == "primary-task-model"
+        assert calls[1].args[0] == "https://fallback.example/v1/chat/completions"
+        assert calls[1].kwargs["json"]["model"] == "fallback-model"
+        assert llm_client.last_provider_label() == "featherless/fallback-model"
 
-        with pytest.raises(requests.exceptions.HTTPError):
-            call_llm(
-                "x", system_prompt="y", response_format={"type": "json_object"}
-            )
-        assert mock_session.post.call_count == 2
+    def test_duplicate_provider_configuration_is_not_retried(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "FEATHERLESS_API_KEY", "test-key")
+        monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "https://api.example.com/v1")
+        monkeypatch.setattr(llm_client, "FEATHERLESS_MODEL", "test-model")
+        mock_session.post.return_value = _mock_response(status_code=404, text="missing")
 
-    def test_no_fallback_without_response_format(self, mock_session):
-        # A caller that didn't opt in shouldn't get any fallback behavior —
-        # a 400 must propagate normally.
-        bad = _mock_response(status_code=400, text="response_format not supported")
-        mock_session.post.return_value = bad
-
-        with pytest.raises(requests.exceptions.HTTPError):
+        with pytest.raises(RuntimeError):
             call_llm("x", system_prompt="y")
+
         assert mock_session.post.call_count == 1
 
 
-class TestResponseFormatUnsupportedDetector:
-    def test_detects_when_body_mentions_field(self):
-        resp = _mock_response(status_code=400, text="invalid response_format value")
-        assert _response_format_unsupported(resp) is True
+class TestKimiEndpoint:
+    """Kimi coding endpoint rejects temperature values other than 1 and
+    emits reasoning tokens that count against max_tokens."""
 
-    def test_detects_case_insensitive(self):
-        resp = _mock_response(status_code=400, text="Response_Format is bad")
-        assert _response_format_unsupported(resp) is True
+    def test_temperature_omitted_for_kimi(self, mock_session, monkeypatch):
+        monkeypatch.setattr(
+            llm_client, "LLM_BASE_URL", "https://api.kimi.com/coding/v1"
+        )
+        mock_session.post.return_value = _mock_response()
+        call_llm("x", system_prompt="y")
+        payload = mock_session.post.call_args.kwargs["json"]
+        assert "temperature" not in payload
 
-    def test_ignores_non_400(self):
-        resp = _mock_response(status_code=500, text="response_format error")
-        assert _response_format_unsupported(resp) is False
+    def test_temperature_kept_for_other_providers(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_BASE_URL", "https://api.groq.com/openai/v1")
+        mock_session.post.return_value = _mock_response()
+        call_llm("x", system_prompt="y")
+        payload = mock_session.post.call_args.kwargs["json"]
+        assert payload["temperature"] == 0.3
 
-    def test_ignores_400_without_keyword(self):
-        resp = _mock_response(status_code=400, text="context too long")
-        assert _response_format_unsupported(resp) is False
+    def test_small_max_tokens_floored_for_kimi(self, mock_session, monkeypatch):
+        monkeypatch.setattr(
+            llm_client, "LLM_BASE_URL", "https://api.kimi.com/coding/v1"
+        )
+        mock_session.post.return_value = _mock_response()
+        call_llm("x", system_prompt="y", max_tokens=100)
+        payload = mock_session.post.call_args.kwargs["json"]
+        assert payload["max_tokens"] == llm_client._KIMI_MIN_MAX_TOKENS
+
+    def test_large_max_tokens_unchanged_for_kimi(self, mock_session, monkeypatch):
+        monkeypatch.setattr(
+            llm_client, "LLM_BASE_URL", "https://api.kimi.com/coding/v1"
+        )
+        mock_session.post.return_value = _mock_response()
+        call_llm("x", system_prompt="y", max_tokens=4000)
+        payload = mock_session.post.call_args.kwargs["json"]
+        assert payload["max_tokens"] == 4000
+
+    def test_small_max_tokens_unchanged_for_other_providers(self, mock_session):
+        mock_session.post.return_value = _mock_response()
+        call_llm("x", system_prompt="y", max_tokens=100)
+        payload = mock_session.post.call_args.kwargs["json"]
+        assert payload["max_tokens"] == 100
+
+    def test_default_timeout_longer_for_kimi(self, mock_session, monkeypatch):
+        monkeypatch.setattr(
+            llm_client, "LLM_BASE_URL", "https://api.kimi.com/coding/v1"
+        )
+        monkeypatch.delenv("LLM_TIMEOUT", raising=False)
+        mock_session.post.return_value = _mock_response()
+        call_llm("x", system_prompt="y")
+        assert mock_session.post.call_args.kwargs["timeout"] == 120
+
+    def test_default_timeout_30_for_other_providers(self, mock_session):
+        mock_session.post.return_value = _mock_response()
+        call_llm("x", system_prompt="y")
+        assert mock_session.post.call_args.kwargs["timeout"] == 30
+
+    def test_llm_timeout_env_overrides_default(self, mock_session, monkeypatch):
+        monkeypatch.setenv("LLM_TIMEOUT", "45")
+        mock_session.post.return_value = _mock_response()
+        call_llm("x", system_prompt="y")
+        assert mock_session.post.call_args.kwargs["timeout"] == 45
 
 
 class TestRateLimitFallthrough:
@@ -221,7 +250,7 @@ class TestRateLimitFallthrough:
         )
         assert result == "done"
         assert mock_session.post.call_count == 3
-        # Every attempt included response_format (429 doesn't trigger fallback)
+        # Every attempt included response_format
         for call in mock_session.post.call_args_list:
             assert call.kwargs["json"]["response_format"] == {"type": "json_object"}
 
@@ -254,7 +283,7 @@ class TestAdvanceKey:
 class TestGetHttpSession:
     def test_returns_plain_session(self):
         """urllib3 Retry was removed: it used to sleep for the full Retry-After
-        header duration on 429/503, which turned a single Groq load-shed into
+        header duration on 429/503, which turned a single load-shed into
         hours of blocked pipeline time. Retry is now handled by key rotation
         in the outer loop."""
         session = _get_http_session()
@@ -270,6 +299,7 @@ class TestIsAvailable:
 
     def test_false_without_key(self, monkeypatch):
         monkeypatch.setattr(llm_client, "LLM_API_KEY", "")
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", [])
         assert is_available() is False
 
 
@@ -286,7 +316,7 @@ class TestUpstream5xxFailover:
     """500/502/503/504 must rotate to next key without retry.
 
     Previously urllib3.Retry retried in-adapter and respected Retry-After on
-    503s, which blocked the pipeline for hours during Groq load-shed events.
+    503s, which blocked the pipeline for hours during load-shed events.
     """
 
     def test_503_rotates_to_next_key(self, mock_session, monkeypatch):
@@ -384,17 +414,6 @@ class TestKeyRotationPersistence:
         monkeypatch.setattr(llm_client, "_key_index_path", idx)
         # Should not raise.
         llm_client._advance_key()
-
-
-class TestResponseFormatUnsupportedEdge:
-    def test_text_access_exception_returns_false(self):
-        """Defensive: resp.text raising an exception shouldn't crash
-        _response_format_unsupported — just return False and let the
-        caller surface the underlying error."""
-        resp = MagicMock(spec=requests.Response)
-        resp.status_code = 400
-        type(resp).text = property(lambda self: (_ for _ in ()).throw(RuntimeError("oops")))
-        assert llm_client._response_format_unsupported(resp) is False
 
 
 class TestCircuitBreaker:

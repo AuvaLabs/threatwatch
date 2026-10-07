@@ -129,3 +129,55 @@ class TestRunAiEnrichment:
              patch("modules.llm_client.reset_circuit"):
             # Should not raise.
             ai_enrichment.run_ai_enrichment(self._articles())
+
+    def test_returns_structured_tier_status(self):
+        with patch("modules.briefing_generator.generate_briefing", return_value={"headline": "ok"}), \
+             patch("modules.briefing_generator.generate_regional_briefings",
+                   return_value={"na": {}, "emea": {}, "apac": {}}), \
+             patch("modules.briefing_generator.generate_top_stories", return_value=[{"headline": "one"}]), \
+             patch("modules.briefing_generator.summarize_articles", return_value=2), \
+             patch("modules.llm_client.reset_circuit"):
+            result = ai_enrichment.run_ai_enrichment(self._articles())
+
+        assert result["global_briefing"]["ok"] is True
+        assert result["regional_briefings"]["ok"] is True
+        assert result["top_stories"]["ok"] is True
+        assert result["article_summaries"]["ok"] is True
+        assert result["article_summaries"]["count"] == 2
+
+    def test_failure_is_reported_without_sensitive_error_detail(self):
+        with patch("modules.briefing_generator.generate_briefing",
+                   side_effect=RuntimeError("secret-key-123")), \
+             patch("modules.briefing_generator.generate_regional_briefings"), \
+             patch("modules.briefing_generator.generate_top_stories"), \
+             patch("modules.briefing_generator.summarize_articles"), \
+             patch("modules.llm_client.reset_circuit"):
+            result = ai_enrichment.run_ai_enrichment(self._articles())
+
+        assert result["global_briefing"] == {"ok": False, "error": "generation_failed"}
+
+    def test_partial_regional_result_is_reported_failed(self):
+        with patch("modules.briefing_generator.generate_briefing", return_value={"headline": "ok"}), \
+             patch("modules.briefing_generator.generate_regional_briefings", return_value={"na": {}}), \
+             patch("modules.briefing_generator.generate_top_stories", return_value=[{"headline": "one"}]), \
+             patch("modules.briefing_generator.summarize_articles", return_value=0), \
+             patch("modules.llm_client.reset_circuit"):
+            result = ai_enrichment.run_ai_enrichment([
+                {"title": "Already summarized", "summary": "done", "is_cyber_attack": True}
+            ])
+
+        assert result["regional_briefings"]["ok"] is False
+        assert result["regional_briefings"]["missing"] == ["apac", "emea"]
+
+    def test_zero_summaries_is_failure_when_work_was_pending(self):
+        articles = [{"title": "Needs summary", "summary": "", "is_cyber_attack": True}]
+        with patch("modules.briefing_generator.generate_briefing", return_value={"headline": "ok"}), \
+             patch("modules.briefing_generator.generate_regional_briefings",
+                   return_value={"na": {}, "emea": {}, "apac": {}}), \
+             patch("modules.briefing_generator.generate_top_stories", return_value=[{"headline": "one"}]), \
+             patch("modules.briefing_generator.summarize_articles", return_value=0), \
+             patch("modules.llm_client.reset_circuit"):
+            result = ai_enrichment.run_ai_enrichment(articles)
+
+        assert result["article_summaries"]["ok"] is False
+        assert result["article_summaries"]["pending"] == 1

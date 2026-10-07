@@ -24,31 +24,12 @@ def _article(title="Test", category="Ransomware", confidence=90, region="US",
 
 
 class TestDetectProvider:
-    def test_explicit_provider(self):
-        with patch.object(bg, "LLM_PROVIDER", "anthropic"):
-            assert bg._detect_provider() == "anthropic"
-
     def test_no_api_key_returns_none(self):
-        with patch.object(bg, "LLM_PROVIDER", "auto"), \
-             patch.object(bg, "LLM_API_KEY", ""):
+        with patch.object(bg, "LLM_API_KEY", ""):
             assert bg._detect_provider() is None
 
-    def test_anthropic_url_detected(self):
-        with patch.object(bg, "LLM_PROVIDER", "auto"), \
-             patch.object(bg, "LLM_API_KEY", "key"), \
-             patch.object(bg, "LLM_BASE_URL", "https://api.anthropic.com/v1"):
-            assert bg._detect_provider() == "anthropic"
-
-    def test_ollama_localhost_detected(self):
-        with patch.object(bg, "LLM_PROVIDER", "auto"), \
-             patch.object(bg, "LLM_API_KEY", "key"), \
-             patch.object(bg, "LLM_BASE_URL", "http://localhost:11434/v1"):
-            assert bg._detect_provider() == "ollama"
-
-    def test_defaults_to_openai(self):
-        with patch.object(bg, "LLM_PROVIDER", "auto"), \
-             patch.object(bg, "LLM_API_KEY", "key"), \
-             patch.object(bg, "LLM_BASE_URL", "https://api.groq.com/openai/v1"):
+    def test_key_configured_returns_openai(self):
+        with patch.object(bg, "LLM_API_KEY", "key"):
             assert bg._detect_provider() == "openai"
 
 
@@ -243,10 +224,6 @@ class TestGenerateBriefing:
             "what_to_do": ["Patch systems"],
             "outlook": "More attacks expected.",
         })
-        # Reset the served-tier sentinel — _call_openai_compatible is mocked
-        # here so the production-path setter never fires; without this reset,
-        # state from sibling test files (e.g. test_briefing_featherless_routing)
-        # bleeds in and the provider field reflects the prior test's tier.
         with patch.object(bg, "_detect_provider", return_value="openai"), \
              patch.object(bg, "get_cached_result", return_value=None), \
              patch.object(bg, "_is_rate_limited", return_value=False), \
@@ -256,7 +233,7 @@ class TestGenerateBriefing:
              patch.object(bg, "cache_result"), \
              patch.object(bg, "_save_briefing"), \
              patch.object(bg, "BRIEFING_MODEL", "test-model"), \
-             patch.object(bg, "_LAST_SERVED_TIER", None), \
+             patch.object(bg, "LLM_BASE_URL", "https://api.groq.com/openai/v1"), \
              patch.object(bg, "_build_trend_context", return_value=""), \
              patch.object(bg, "_build_vuln_context", return_value=""):
             result = bg.generate_briefing(self._articles())
@@ -459,10 +436,12 @@ class TestSaveLoadBriefing:
 
 class TestCallOpenaiCompatible:
     def test_delegates_to_llm_client(self):
-        with patch.object(bg, "_call_groq", return_value="response") as mock:
+        with patch("modules.briefing_generator.call_llm", return_value="response") as mock:
             result = bg._call_openai_compatible("test prompt")
         assert result == "response"
         mock.assert_called_once()
+        payload = mock.call_args.kwargs
+        assert payload["response_format"] == {"type": "json_object"}
 
 
 class TestRegionalBriefingPersistence:

@@ -2,22 +2,16 @@ import json
 import re
 import logging
 import hashlib
-import time
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-import httpx
-import anthropic
-
 from modules.config import (
-    ANTHROPIC_API_KEY,
-    ANTHROPIC_MODEL,
     SYSTEM_PROMPT,
     MAX_CONTENT_CHARS,
 )
 from modules.ai_cache import get_cached_result, cache_result
-from modules.cost_tracker import track_usage, check_daily_budget
+from modules.cost_tracker import check_daily_budget
 
 _client = None
 _failure_count = 0
@@ -32,21 +26,12 @@ SAFE_DEFAULT = {
 }
 
 
-def _get_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(
-            api_key=ANTHROPIC_API_KEY,
-            timeout=httpx.Timeout(60.0, connect=15.0),
-            max_retries=2,
-        )
-    return _client
-
-
 from modules.utils import extract_json as _extract_json
 
 
 def analyze_article(title: str, content: str | None = None, source_language: str = "en") -> dict[str, Any]:
+    from modules.llm_client import call_llm
+
     try:
         cache_key = None
         if content:
@@ -70,38 +55,17 @@ def analyze_article(title: str, content: str | None = None, source_language: str
             logger.warning(f"Budget limit reached, skipping: {title}")
             return {**SAFE_DEFAULT, "translated_title": title, "_budget_skipped": True}
 
-        client = _get_client()
-        response = None
-        for attempt in range(3):
-            try:
-                response = client.messages.create(
-                    model=ANTHROPIC_MODEL,
-                    max_tokens=500,
-                    system=[
-                        {
-                            "type": "text",
-                            "text": SYSTEM_PROMPT,
-                            "cache_control": {"type": "ephemeral"},
-                        }
-                    ],
-                    messages=[{"role": "user", "content": user_content}],
-                    temperature=0.2,
-                )
-                break
-            except (anthropic.APIConnectionError, anthropic.APITimeoutError, anthropic.InternalServerError) as e:
-                logger.warning(f"API attempt {attempt + 1}/3 failed for '{title[:50]}': {e}")
-                if attempt < 2:
-                    time.sleep(2 ** (attempt + 1))
-                    continue
-                raise
-
-        track_usage(response)
-        reply_text = response.content[0].text.strip()
-        result = _extract_json(reply_text)
+        reply = call_llm(
+            user_content,
+            system_prompt=SYSTEM_PROMPT,
+            max_tokens=500,
+            caller="ai_engine",
+        )
+        result = _extract_json(reply)
 
         if result is None:
             logger.warning(f"Failed to parse AI response for: {title}")
-            return {**SAFE_DEFAULT, "translated_title": title}
+            return {**SAFE_DEFAULT, "translated_title": title, "ai_analysis_failed": True}
 
         for key in SAFE_DEFAULT:
             if key not in result:
@@ -113,12 +77,8 @@ def analyze_article(title: str, content: str | None = None, source_language: str
         cache_result(cache_key, result)
         return result
 
-    except anthropic.APIError as e:
-        global _failure_count
-        _failure_count += 1
-        logger.error(f"Anthropic API error for '{title}': {e}")
-        return {**SAFE_DEFAULT, "translated_title": title, "ai_analysis_failed": True}
     except Exception as e:
+        global _failure_count
         _failure_count += 1
         logger.error(f"Unexpected error analyzing '{title}': {e}")
         return {**SAFE_DEFAULT, "translated_title": title, "ai_analysis_failed": True}

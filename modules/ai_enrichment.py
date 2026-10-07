@@ -13,7 +13,11 @@ entry points a single shared implementation.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
+
+from modules.config import STATE_DIR
+from modules.utils import write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +25,7 @@ logger = logging.getLogger(__name__)
 def run_ai_enrichment(
     all_articles: list[dict[str, Any]],
     new_batch: list[dict[str, Any]] | None = None,
-) -> None:
+) -> dict[str, dict[str, Any]]:
     """Run the four AI tiers in order, short-circuiting on circuit-breaker trip.
 
     Args:
@@ -35,6 +39,10 @@ def run_ai_enrichment(
     """
     if new_batch is None:
         new_batch = all_articles
+    pending_summaries = sum(
+        1 for article in new_batch
+        if article.get("is_cyber_attack") and not article.get("summary")
+    )
 
     # Reset breaker at the start of each enrichment invocation — the process
     # may be long-lived (inline pipeline) or short-lived (out-of-band cron).
@@ -50,11 +58,14 @@ def run_ai_enrichment(
     )
 
     # Tier 1: Global intelligence digest (rate-limited to ~1x/hour by module)
+    results: dict[str, dict[str, Any]] = {}
     briefing = None
     try:
         briefing = generate_briefing(all_articles)
+        results["global_briefing"] = {"ok": bool(briefing)}
     except Exception as e:
         logger.warning(f"Global briefing failed: {e}")
+        results["global_briefing"] = {"ok": False, "error": "generation_failed"}
 
     # Fire a webhook alert if the briefing's threat_level clears the configured
     # minimum. Deduplicated by modules/webhook._should_alert_briefing so the
@@ -79,18 +90,44 @@ def run_ai_enrichment(
 
     # Tier 1b: Regional digests — NA, EMEA, APAC
     try:
-        generate_regional_briefings(all_articles)
+        regional = generate_regional_briefings(all_articles) or {}
+        missing_regions = sorted({"na", "emea", "apac"} - set(regional))
+        results["regional_briefings"] = {
+            "ok": not missing_regions,
+            "missing": missing_regions,
+        }
     except Exception as e:
         logger.warning(f"Regional digests failed: {e}")
+        results["regional_briefings"] = {"ok": False, "error": "generation_failed"}
 
     # Tier 2: Top stories
     try:
-        generate_top_stories(all_articles)
+        top_stories = generate_top_stories(all_articles)
+        results["top_stories"] = {"ok": bool(top_stories)}
     except Exception as e:
         logger.warning(f"Top stories failed: {e}")
+        results["top_stories"] = {"ok": False, "error": "generation_failed"}
 
     # Tier 3: Per-article summaries on new batch only
     try:
-        summarize_articles(new_batch)
+        raw_summary_count = summarize_articles(new_batch)
+        summary_count = raw_summary_count if isinstance(raw_summary_count, int) else 0
+        summary_ok = pending_summaries == 0 or summary_count > 0
+        results["article_summaries"] = {
+            "ok": summary_ok,
+            "count": summary_count,
+            "pending": pending_summaries,
+        }
     except Exception as e:
         logger.warning(f"Article summaries failed: {e}")
+        results["article_summaries"] = {"ok": False, "error": "generation_failed", "count": 0}
+
+    status = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "capabilities": results,
+    }
+    try:
+        write_json_atomic(STATE_DIR / "ai_health.json", status, ensure_ascii=False)
+    except OSError as exc:
+        logger.warning("AI health status write failed: %s", exc)
+    return results

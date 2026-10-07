@@ -80,7 +80,6 @@ class TestBriefingHealth:
         from modules.briefing_health import write_stale_flag
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        state_dir = tmp_path / "state"
         with patch("modules.briefing_health.OUTPUT_DIR", output_dir):
             # OUTPUT_DIR.parent / "state" = tmp_path / "state"
             write_stale_flag({"stale": True, "age_hours": 5.0, "generated_at": None, "reason": "test"})

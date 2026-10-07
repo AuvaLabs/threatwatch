@@ -25,12 +25,59 @@ class TestFetchArticles:
 
         mock_parse.return_value = MagicMock(entries=[mock_entry])
 
-        feeds = [{"url": "https://feed.example.com/rss"}]
+        feeds = [{"url": "https://feed.example.com/rss", "name": "Example Security"}]
         result = fetch_articles(feeds)
 
         assert len(result) == 1
         assert result[0]["title"] == "Test Article"
         assert "hash" in result[0]
+        assert result[0]["source_name"] == "Example Security"
+
+    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
+    @patch("modules.feed_fetcher.feedparser.parse")
+    @patch("modules.feed_fetcher._get_session")
+    def test_rejects_implausible_future_article(self, mock_get_session, mock_parse, mock_resolve):
+        from datetime import datetime, timedelta, timezone
+
+        mock_http_resp = MagicMock()
+        mock_http_resp.content = b""
+        mock_get_session.return_value.get.return_value = mock_http_resp
+        future_date = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        mock_entry = MagicMock()
+        mock_entry.title = "Article from the future"
+        mock_entry.link = "https://example.com/future"
+        mock_entry.get = lambda key, default="": {
+            "published": future_date,
+            "summary": "Future item",
+        }.get(key, default)
+        mock_parse.return_value = MagicMock(entries=[mock_entry], bozo=False)
+
+        result = fetch_articles([{"url": "https://feed.example.com/rss"}])
+
+        assert result == []
+
+    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
+    @patch("modules.feed_fetcher.feedparser.parse")
+    @patch("modules.feed_fetcher._get_session")
+    def test_uses_entry_source_title_when_available(self, mock_get_session, mock_parse, mock_resolve):
+        from datetime import datetime, timezone
+
+        mock_http_resp = MagicMock()
+        mock_http_resp.content = b""
+        mock_get_session.return_value.get.return_value = mock_http_resp
+        mock_entry = MagicMock()
+        mock_entry.title = "Syndicated report"
+        mock_entry.link = "https://news.google.com/articles/example"
+        mock_entry.get = lambda key, default="": {
+            "published": datetime.now(timezone.utc).isoformat(),
+            "summary": "Report",
+            "source": {"title": "Security Week"},
+        }.get(key, default)
+        mock_parse.return_value = MagicMock(entries=[mock_entry], bozo=False)
+
+        result = fetch_articles([{"url": "https://news.google.com/rss/search?q=security"}])
+
+        assert result[0]["source_name"] == "Security Week"
 
     @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
     @patch("modules.feed_fetcher.feedparser.parse")

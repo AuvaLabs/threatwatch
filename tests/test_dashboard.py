@@ -413,8 +413,6 @@ class TestEdgeCasesAndMissingFields:
 class TestBuildDashboard:
     def test_writes_dashboard_html_to_output_dir(self, tmp_path):
         output_dir = tmp_path / "data" / "output"
-        docs_dir = tmp_path / "docs"
-
         with (
             patch("app.dashboard.generate_dashboard_html", return_value="<html>test</html>"),
             patch("app.dashboard.OUTPUT_DIR", output_dir),
@@ -428,8 +426,6 @@ class TestBuildDashboard:
 
     def test_writes_docs_index_html(self, tmp_path):
         output_dir = tmp_path / "data" / "output"
-        docs_dir = tmp_path / "docs"
-
         with (
             patch("app.dashboard.generate_dashboard_html", return_value="<html>docs</html>"),
             patch("app.dashboard.OUTPUT_DIR", output_dir),

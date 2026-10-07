@@ -4,6 +4,7 @@ import logging
 import threading
 import requests
 from typing import Any
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta, timezone
@@ -12,7 +13,7 @@ from email.utils import parsedate_to_datetime
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from modules.config import FEED_CUTOFF_DAYS
+from modules.config import FEED_CUTOFF_DAYS, MAX_FUTURE_MINUTES, MAX_FEED_FETCH_THREADS
 from modules.url_resolver import resolve_original_url, is_clearnet_url
 from modules.feed_health import record_fetch
 from modules.deduplicator import normalize_url
@@ -56,15 +57,45 @@ def _get_session() -> requests.Session:
                 status_forcelist=[429, 500, 502, 503, 504],
                 allowed_methods=["GET"],
             )
-            adapter = HTTPAdapter(max_retries=retry)
+            adapter = HTTPAdapter(
+                max_retries=retry,
+                pool_connections=MAX_FEED_FETCH_THREADS,
+                pool_maxsize=MAX_FEED_FETCH_THREADS,
+            )
             session.mount("https://", adapter)
             session.mount("http://", adapter)
             _session = session
     return _session
 
 
+def _fallback_source_name(url: str) -> str:
+    """Return a readable, non-empty label for a feed URL."""
+    host = (urlparse(url).hostname or "").lower()
+    host = host.removeprefix("www.").removeprefix("feeds.")
+    if host == "news.google.com":
+        return "Google News"
+    if host == "feeds.feedburner.com":
+        path = urlparse(url).path.strip("/")
+        return path or "Feedburner"
+    label = host.split(".")[0] if host else "Unknown source"
+    return label.replace("-", " ").replace("_", " ").title()
+
+
+def _source_name(entry: Any, url: str, configured_name: str | None) -> str:
+    """Prefer configured or syndicated publisher identity over feed hostname."""
+    if configured_name and configured_name.strip():
+        return configured_name.strip()
+    source = entry.get("source", {}) or {}
+    if isinstance(source, dict):
+        title = source.get("title") or source.get("name")
+        if isinstance(title, str) and title.strip():
+            return title.strip()
+    return _fallback_source_name(url)
+
+
 def _fetch_feed(url: str, region: str = "Global",
-                user_agent: str | None = None) -> list[dict[str, Any]]:
+                user_agent: str | None = None,
+                source_name: str | None = None) -> list[dict[str, Any]]:
     try:
         session = _get_session()
         # Per-feed UA override (config `user_agent:`) — some sites 403 the
@@ -115,6 +146,7 @@ def _fetch_feed(url: str, region: str = "Global",
                     "summary": entry.get("summary", ""),
                     "hash": article_hash,
                     "source": url,
+                    "source_name": _source_name(entry, url, source_name),
                     "feed_region": region,
                 })
             except Exception as entry_exc:
@@ -122,13 +154,14 @@ def _fetch_feed(url: str, region: str = "Global",
                 continue
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=FEED_CUTOFF_DAYS)
+        future_limit = datetime.now(timezone.utc) + timedelta(minutes=MAX_FUTURE_MINUTES)
         filtered = []
         for r in results:
             pub = r.get("published", "")
             if pub:
                 pub_dt = _parse_article_date(pub)
                 if pub_dt is not None:
-                    if pub_dt < cutoff:
+                    if pub_dt < cutoff or pub_dt > future_limit:
                         continue
                 else:
                     # No parseable date — skip article (prevents historic content leaking in)
@@ -161,6 +194,7 @@ def fetch_articles(feeds_config: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 feed["url"],
                 feed.get("region", "Global"),
                 feed.get("user_agent"),
+                feed.get("name"),
             ): feed["url"]
             for feed in feeds_config
         }

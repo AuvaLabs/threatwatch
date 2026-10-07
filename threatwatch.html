@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2698,6 +2698,180 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
   #app { grid-template-columns: 360px minmax(0, 1fr); grid-template-areas: "top top" "strip strip" "left main"; }
   #intel-rail { display: none; }
 }
+
+/* 2026-10 calm analyst reading layer */
+:root {
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
+}
+[data-theme="light"] {
+  --bg: #f4f5f2;
+  --surface: #fffefb;
+  --panel-bg: #fffefb;
+  --panel-solid: #fffefb;
+  --panel-border: rgba(31, 41, 36, 0.12);
+  --text-primary: #1f2924;
+  --text-secondary: #536059;
+  --text-muted: #758079;
+  --accent: #176b4d;
+  --accent-dim: rgba(23, 107, 77, 0.08);
+  --stat-border: rgba(23, 107, 77, 0.18);
+  --card-hover: rgba(23, 107, 77, 0.05);
+  --card-active: rgba(23, 107, 77, 0.09);
+}
+
+html, body { overflow: hidden; font-size: 16px; }
+#app {
+  width: min(100vw, 1520px);
+  margin: 0 auto;
+  grid-template-rows: 64px 48px 1fr;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  grid-template-areas: "top top" "strip strip" "main left";
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--panel-border);
+}
+#app::before { display: none; }
+#topbar { height: 64px; padding: 0 28px; }
+#topbar .logo { letter-spacing: -0.4px; text-transform: none; font-size: 1.2rem; }
+#topbar .logo::after { content: none; }
+#topbar .logo span { font-size: 0.8rem; }
+#clock { border: 0; background: transparent; font-family: var(--font-body); }
+#system-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+#system-health::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+#system-health.ok::before { background: var(--success); }
+#system-health.degraded::before { background: var(--warning); }
+#system-health.stale::before, #system-health.unknown::before { background: var(--danger); }
+
+#status-strip { background: var(--surface); min-height: 48px; }
+#status-strip .stat-box { padding: 0 20px; }
+#status-strip .stat-box .label { font-family: var(--font-body); letter-spacing: 0.2px; }
+#status-strip .stat-box .count { font-family: var(--font-title); }
+
+#main-content { background: var(--surface); border-right: 1px solid var(--panel-border); }
+#left-panel { border-right: 0; background: var(--bg); }
+#intel-rail { display: none; }
+.main-tabs { padding: 8px 28px 0; gap: 8px; background: var(--surface); }
+.main-tab {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 9px 11px;
+  border-radius: 7px 7px 0 0;
+}
+.region-filters { padding: 10px 28px 12px; gap: 7px; }
+.region-btn {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: 999px;
+}
+.center-content { max-width: 860px; width: 100%; margin: 0 auto; }
+.center-section { padding: 36px 42px; }
+.center-section-title, .overview-section .section-title, .panel-title {
+  font-family: var(--font-title);
+  font-size: 1rem;
+  letter-spacing: -0.1px;
+  text-transform: none;
+  color: var(--text-primary);
+}
+.center-section-title { border-left: 0; padding-left: 0; margin-bottom: 24px; }
+.center-section-title::before, .overview-section .section-title::before { content: none; }
+.briefing-text, .ai-briefing-section .ai-section-body {
+  max-width: 720px;
+  font-size: 1rem;
+  line-height: 1.72;
+}
+.ai-briefing-section { margin-bottom: 34px; }
+.ai-briefing-section .ai-section-label {
+  font-family: var(--font-title);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.briefing-lead { padding: 18px 20px; border-radius: var(--radius); }
+.briefing-lead-body { font-size: 1rem; line-height: 1.65; }
+.briefing-stale-banner {
+  margin: 0 0 18px;
+  padding: 11px 14px;
+  border: 1px solid rgba(217, 119, 6, 0.28);
+  border-radius: var(--radius);
+  background: rgba(217, 119, 6, 0.08);
+  color: var(--warning);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+#left-panel .panel-header { padding: 24px 22px 16px; }
+#threat-feed { padding: 6px 14px 28px; }
+.feed-card {
+  margin: 0 0 10px;
+  padding: 16px 16px 15px 18px;
+  border: 1px solid var(--panel-border);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  contain: content;
+}
+.card-title { font-size: 0.94rem; line-height: 1.5; }
+.card-description { font-size: 0.84rem; line-height: 1.55; color: var(--text-secondary); }
+.card-badges { margin-bottom: 8px; }
+.badge, .type-badge { font-family: var(--font-body); letter-spacing: 0; text-transform: none; }
+.feed-search-input { font-family: var(--font-body); font-size: 0.9rem; }
+#left-footer { background: var(--surface); }
+
+@media (max-width: 1180px) {
+  #app { grid-template-columns: minmax(0, 1fr) 380px; }
+  .topbar-right .author-name, .topbar-right .coffee-btn { display: none; }
+}
+@media (max-width: 1024px) {
+  #app { width: 100vw; grid-template-rows: 64px 48px 1fr; grid-template-columns: 1fr; grid-template-areas: "top" "strip" "main"; }
+  #left-panel { top: 112px; width: min(92vw, 420px); }
+  .hamburger-btn { font-size: 0; min-width: 68px; }
+  .hamburger-btn::after { content: 'NEWS'; font-size: 0.75rem; font-weight: 600; }
+}
+@media (max-width: 768px) {
+  #app { grid-template-rows: 60px auto 1fr; }
+  #topbar { height: 60px; padding: 0 12px; }
+  #topbar .logo { font-size: 1rem; }
+  #topbar .logo span, #clock, .theme-picker { display: none; }
+  #system-health { font-size: 0; }
+  #system-health::before { width: 9px; height: 9px; }
+  #status-strip { overflow: visible; }
+  #status-strip .stats-bar { width: 100%; display: grid; grid-template-columns: repeat(5, 1fr); }
+  #status-strip .stat-box { padding: 8px 4px; justify-content: center; flex-direction: column; gap: 2px; }
+  #status-strip .stat-box .label { font-size: 0.56rem; }
+  #filter-chips { display: none; }
+  .main-tabs { display: grid; grid-template-columns: repeat(3, 1fr); padding: 8px 12px; overflow: visible; }
+  .main-tab { white-space: normal; padding: 8px 4px; border-radius: 6px; border: 1px solid transparent; }
+  .main-tab.active { border-color: var(--stat-border); }
+  .region-filters { display: grid; grid-template-columns: repeat(3, 1fr); padding: 8px 12px 12px; overflow: visible; }
+  .region-btn { width: 100%; padding: 7px 5px; }
+  .center-section { padding: 28px 20px; }
+  .center-section-title { align-items: flex-start; flex-wrap: wrap; }
+  .briefing-mode-toggle, .briefing-share-btn { min-height: 36px; }
+  #left-panel { top: 108px; }
+}
+@media (max-width: 480px) {
+  #topbar .watch-btn { display: none; }
+  .topbar-left { gap: 8px; }
+  .topbar-right { gap: 4px; }
+}
 </style>
 <!-- __SSR_DATA__ -->
 </head>
@@ -2721,6 +2895,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
       <div id="clock">--:--:-- UTC</div>
     </div>
     <div class="topbar-right">
+      <div id="system-health" class="unknown" role="status" aria-live="polite">Checking systems</div>
       <div id="threat-level" class="unknown" role="status" aria-live="polite">THREAT: &mdash;</div>
       <div class="theme-picker" id="theme-picker">
         <button class="theme-picker-btn" data-click-action="toggleThemeDropdown">
@@ -2918,7 +3093,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
         <div id="top-stories-content"></div>
       </div>
       <div class="center-section" id="section-clusters">
-        <div class="center-section-title"><span class="section-icon">&#x1F517;</span> Incident Clusters <span class="briefing-ai-notice" style="font-size:var(--text-2xs);vertical-align:middle">AUTO-GROUPED</span></div>
+        <div class="center-section-title"><span class="section-icon">&#x1F517;</span> Related Coverage <span class="briefing-ai-notice" style="font-size:var(--text-2xs);vertical-align:middle">CORRELATED</span></div>
         <div id="clusters-content"></div>
       </div>
       <div class="center-section" id="section-actors">
@@ -3014,7 +3189,7 @@ body.self-hosted-mode .watch-section-desc .sh-only { display: inline; }
 /* ============================================================= */
 const REFRESH_INTERVAL = 120000; // 2 min (local API only, fast)
 const CARDS_PER_PAGE = 8;
-const THREATDIGEST_API = '/api/articles';
+const THREATDIGEST_API = '/api/articles?limit=50';
 const THREATDIGEST_STATS_API = '/api/stats';
 
 const _flagCache = new Map();
@@ -3361,16 +3536,16 @@ document.addEventListener('click', function(e) {
   if (!e.target.closest('.theme-picker')) closeThemeDropdown();
 });
 
-// Restore saved theme (TERMINAL dark is the default)
+// Restore saved theme. The calm light canvas is the default.
 (function() {
   try {
     var saved = localStorage.getItem('tw-theme');
     if (saved && THEMES[saved]) {
       setTheme(saved);
     } else {
-      setTheme('dark');
+      setTheme('light');
     }
-  } catch(e) { setTheme('dark'); }
+  } catch(e) { setTheme('light'); }
 })();
 
 function updateClock() {
@@ -3872,13 +4047,8 @@ function renderAIBriefing(container) {
   const b = regionalBriefing || state.aiBriefing;
   if (!b) {
     container.innerHTML = `<div class="briefing-text" style="color:var(--text-muted)">
-      AI intelligence briefing unavailable. Configure an LLM provider to enable analyst-grade threat assessments:<br><br>
-      <code style="font-size:var(--text-xs);color:var(--accent)">
-        LLM_API_KEY=your-key<br>
-        LLM_BASE_URL=https://api.groq.com/openai/v1<br>
-        LLM_MODEL=llama-3.3-70b-versatile
-      </code>
-      <br><br>Toggle <strong>NORMAL</strong> for the automated briefing.
+      The intelligence briefing is temporarily unavailable. The verified news feed remains available while provider health recovers.<br><br>
+      Toggle <strong>NORMAL</strong> for the deterministic digest.
     </div>`;
     return;
   }
@@ -4107,6 +4277,13 @@ function renderTopStories() {
   const stories = data.stories;
 
   let html = '';
+  if (data.generated_at) {
+    const generatedAt = new Date(data.generated_at).getTime();
+    const ageHours = (Date.now() - generatedAt) / 3600000;
+    if (Number.isFinite(ageHours) && ageHours > 3) {
+      html += `<div class="briefing-stale-banner" role="status">Headlines are ${Math.floor(ageHours)} hours old. The last verified edition is shown while generation recovers.</div>`;
+    }
+  }
   stories.forEach((story, i) => {
     const sig = (story.significance || 'MODERATE').toUpperCase();
     const badge = `<span class="${sigClass(sig)}" style="font-size:var(--text-2xs);letter-spacing:0.5px">${sig}</span>`;
@@ -4462,7 +4639,7 @@ function transformArticles(articles) {
       description: (article.summary || '').slice(0, 400),
       link: article.link,
       pubDate: article.published || article.timestamp || new Date().toISOString(),
-      source: isDarkweb ? 'DARK WEB' : 'THREATDIGEST',
+      source: isDarkweb ? 'Dark web' : (article.source_name || 'Unknown source'),
       sourceClass: isDarkweb ? 'darkweb' : 'threatdigest',
       type: mapped.type || 'THREAT INTEL',
       icon: isDarkweb ? '' : (mapped.icon || '\uD83D\uDEE1'),
@@ -4530,9 +4707,10 @@ const TD_CATEGORY_MAP = {
 async function fetchArticlesFromAPI() {
   try {
     const data = await fetchJSON(THREATDIGEST_API);
-    if (!Array.isArray(data)) return [];
+    const articles = Array.isArray(data) ? data : data?.articles;
+    if (!Array.isArray(articles)) return [];
     state.feedStatus.threatdigest = true;
-    return transformArticles(data);
+    return transformArticles(articles);
   } catch {
     state.feedStatus.threatdigest = false;
     return [];
@@ -5746,9 +5924,10 @@ async function refreshData() {
     const etag = res.headers.get('ETag');
     if (etag) state._etag = etag;
     const data = await res.json();
-    if (!Array.isArray(data)) return;
+    const articles = Array.isArray(data) ? data : data?.articles;
+    if (!Array.isArray(articles)) return;
     state.feedStatus.threatdigest = true;
-    const items = transformArticles(data);
+    const items = transformArticles(articles);
     if (items.length > 0) applyData(items);
   } catch { state.feedStatus.threatdigest = false; }
   // Refresh AI briefing. Keyed on what_happened (the current schema) —
@@ -6312,6 +6491,28 @@ function _consumeArticlePermalinkParam() {
   } catch {}
 }
 
+async function refreshSystemHealth() {
+  const el = document.getElementById('system-health');
+  if (!el) return;
+  try {
+    const health = await fetchJSON('/api/health');
+    const status = ['ok', 'degraded', 'stale'].includes(health?.status)
+      ? health.status : 'unknown';
+    el.className = status;
+    const staleCount = health?.ai_artifacts?.stale_capabilities?.length || 0;
+    el.textContent = status === 'ok'
+      ? 'Systems current'
+      : status === 'degraded' && staleCount
+        ? `${staleCount} intelligence products stale`
+        : `Systems ${status}`;
+    el.title = Array.isArray(health?.reasons) ? health.reasons.join(', ') : '';
+  } catch {
+    el.className = 'unknown';
+    el.textContent = 'Health unavailable';
+    el.title = 'The health endpoint could not be reached.';
+  }
+}
+
 /* ============================================================= */
 /* INITIALIZATION                                                 */
 /* ============================================================= */
@@ -6349,6 +6550,8 @@ function init() {
 
   // Phase 3: Schedule periodic refresh (local API only — fast)
   setInterval(refreshData, REFRESH_INTERVAL);
+  refreshSystemHealth();
+  setInterval(refreshSystemHealth, REFRESH_INTERVAL);
 
   // Safety: dismiss loader after 5s even if pipeline has no data yet
   setTimeout(() => {

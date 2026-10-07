@@ -25,6 +25,7 @@ from urllib.parse import parse_qs, urlparse
 BASE_DIR = Path(__file__).resolve().parent
 PORT = int(os.environ.get("PORT", 8098))
 CACHE_TTL = 30  # seconds
+SSR_ARTICLE_LIMIT = int(os.environ.get("SSR_ARTICLE_LIMIT", "50"))
 SSR_PLACEHOLDER = "<!-- __SSR_DATA__ -->"
 WATCHLIST_WRITE_ENABLED = os.environ.get("WATCHLIST_WRITE_ENABLED", "").lower() in ("1", "true", "yes")
 WATCHLIST_TOKEN = os.environ.get("WATCHLIST_TOKEN", "")
@@ -712,6 +713,26 @@ def build_health() -> bytes:
         briefing_stale=briefing_stale, briefing_age_hours=briefing_age_hours,
     )
 
+    artifact_health = None
+    try:
+        from modules.artifact_health import check_artifact_health
+        artifact_health = check_artifact_health(BASE_DIR / "data" / "output")
+        if artifact_health["configured"] and not artifact_health["ok"]:
+            reasons.extend(
+                f"artifact_stale_{name}"
+                for name in artifact_health["stale_capabilities"]
+                if f"artifact_stale_{name}" not in reasons
+            )
+            reasons.extend(
+                f"ai_capability_failing_{name}"
+                for name in artifact_health["failing_capabilities"]
+                if f"ai_capability_failing_{name}" not in reasons
+            )
+            if status == "ok":
+                status = "degraded"
+    except Exception as exc:
+        logger.warning("Artifact health check failed: %s", exc)
+
     payload = {
         "status": status,
         "reasons": reasons,
@@ -732,6 +753,7 @@ def build_health() -> bytes:
         "budget_exceeded": bool(latest_run.get("budget_exceeded", False)),
         "api_cost_today_usd": latest_run.get("api_cost_today", 0),
         "feed_health": feed_summary,
+        "ai_artifacts": artifact_health,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     payload["briefing_stale"] = briefing_stale
@@ -784,7 +806,7 @@ def build_ssr_data():
         # (full_content is only needed for article detail view via API)
         ssr_articles = [
             {k: v for k, v in a.items() if k != "full_content"}
-            for a in articles
+            for a in articles[:SSR_ARTICLE_LIMIT]
         ]
         _annotate_with_clusters(ssr_articles, clusters)
         # After article annotation, the hash list inside each cluster is dead
@@ -848,6 +870,43 @@ def load_ioc_items() -> list:
     """Load IOC (ThreatFox) items from the full article list."""
     articles = load_articles()
     return [a for a in articles if a.get("isDarkweb") and a.get("darkwebSource") == "threatfox"]
+
+
+def build_openapi() -> bytes:
+    """Return the stable public v1 API description."""
+    paths = {
+        "/api/v1/articles": {"get": {"summary": "List recent articles"}},
+        "/api/v1/articles/{id}": {"get": {"summary": "Get one article"}},
+        "/api/v1/briefings/latest": {"get": {"summary": "Get latest briefing"}},
+        "/api/v1/briefings/{region}": {"get": {"summary": "Get regional briefing"}},
+        "/api/v1/incidents": {"get": {"summary": "List incident clusters"}},
+        "/api/v1/sources": {"get": {"summary": "List source coverage"}},
+        "/api/v1/health": {"get": {"summary": "Get service health"}},
+        "/api/v1/health/ai": {"get": {"summary": "Get AI artifact health"}},
+    }
+    payload = {
+        "openapi": "3.1.0",
+        "info": {"title": "ThreatWatch API", "version": "1.0.0"},
+        "paths": paths,
+    }
+    return json.dumps(payload, separators=(",", ":")).encode("utf-8")
+
+
+def build_sources() -> bytes:
+    """Aggregate publisher coverage without exposing scraped content."""
+    counts: dict[tuple[str, str], int] = collections.Counter()
+    for article in load_articles():
+        name = str(article.get("source_name") or "Unknown source")
+        feed_url = str(article.get("source") or "")
+        counts[(name, feed_url)] += 1
+    sources = [
+        {"name": name, "feed_url": feed_url, "article_count": count}
+        for (name, feed_url), count in counts.most_common()
+    ]
+    return json.dumps(
+        {"total": len(sources), "sources": sources},
+        ensure_ascii=False, separators=(",", ":"),
+    ).encode("utf-8")
 
 
 STATIC_ROUTES = {
@@ -921,7 +980,8 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
     # leaving them on the wildcard CORS list handed any web page a detailed
     # map of pipeline internals (token spend, classifier accuracy, DB size).
     _RESTRICTED_CORS_PATHS = frozenset({
-        "/api/health", "/api/watchlist", "/api/quality", "/api/groq-usage",
+        "/api/health", "/api/v1/health", "/api/v1/health/ai",
+        "/api/watchlist", "/api/quality", "/api/groq-usage",
     })
 
     def _send_cors_headers(self):
@@ -950,7 +1010,10 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         self._send_security_headers()
         self._send_cors_headers()
         self.end_headers()
-        self.wfile.write(payload)
+        try:
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError):
+            logger.debug("Client disconnected before error response completed")
 
     def _send_body(self, content_type, body, head_only=False):
         """Send response with ETag, Last-Modified, and optional gzip compression."""
@@ -994,7 +1057,10 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         self._send_cors_headers()
         self.end_headers()
         if not head_only:
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                logger.debug("Client disconnected before response completed")
 
     def do_OPTIONS(self):
         self.send_response(HTTPStatus.NO_CONTENT)
@@ -1116,6 +1182,59 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         params = parse_qs(parsed.query)
+
+        v1_aliases = {
+            "/api/v1/articles": "/api/articles",
+            "/api/v1/briefings/latest": "/api/briefing",
+            "/api/v1/briefings/na": "/api/briefing/na",
+            "/api/v1/briefings/emea": "/api/briefing/emea",
+            "/api/v1/briefings/apac": "/api/briefing/apac",
+            "/api/v1/incidents": "/api/clusters",
+            "/api/v1/health": "/api/health",
+        }
+
+        if path.startswith("/api/v1/articles/"):
+            article_id = path.removeprefix("/api/v1/articles/")
+            valid_id = article_id.replace("-", "").replace("_", "").isalnum()
+            if not article_id or len(article_id) > 128 or not valid_id:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid article id")
+                return
+            article = next(
+                (item for item in load_articles() if str(item.get("hash")) == article_id),
+                None,
+            )
+            if article is None:
+                self._send_error_json(HTTPStatus.NOT_FOUND, "Article not found")
+                return
+            safe_article = {k: v for k, v in article.items() if k != "full_content"}
+            body = json.dumps(
+                safe_article, ensure_ascii=False, separators=(",", ":"),
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/health/ai":
+            from modules.artifact_health import check_artifact_health
+            body = json.dumps(
+                check_artifact_health(BASE_DIR / "data" / "output"),
+                ensure_ascii=False, separators=(",", ":"),
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/sources":
+            self._send_body(
+                "application/json; charset=utf-8", build_sources(), head_only,
+            )
+            return
+
+        if path == "/api/v1/openapi.json":
+            self._send_body(
+                "application/json; charset=utf-8", build_openapi(), head_only,
+            )
+            return
+
+        path = v1_aliases.get(path, path)
 
         # Route: / — server-side rendered HTML
         if path == "/":
@@ -1378,19 +1497,15 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 self._send_error_json(HTTPStatus.BAD_REQUEST, "offset must be an integer")
                 return
             try:
-                limit = int(params.get("limit", [0])[0])  # 0 = return all
+                limit = int(params.get("limit", [50])[0])
             except (ValueError, TypeError):
                 self._send_error_json(HTTPStatus.BAD_REQUEST, "limit must be an integer")
                 return
 
             total = len(articles)
             offset = max(0, min(offset, total))
-            limit = max(0, min(limit, 100))
-
-            if limit > 0:
-                page = articles[offset:offset + limit]
-            else:
-                page = articles[offset:]
+            limit = max(1, min(limit, 100))
+            page = articles[offset:offset + limit]
 
             # Strip scraped full text — every other article endpoint does;
             # this one leaked it, inflating responses ~10x and exposing

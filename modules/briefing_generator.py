@@ -1,14 +1,14 @@
 """AI-powered cyber threat intelligence briefing generator.
 
-Generates analyst-grade intelligence briefings using any LLM provider.
-Supports OpenAI-compatible APIs (OpenAI, Groq, Together, Ollama, Mistral, DeepSeek)
-and Anthropic SDK as a fallback.
+Generates analyst-grade intelligence briefings using an OpenAI-compatible LLM.
+Kimi is the default/recommended provider; any OpenAI-compatible endpoint works
+via LLM_* environment variables.
 
 Configure via environment variables:
-  LLM_API_KEY    — API key (falls back to OPENAI_API_KEY, then ANTHROPIC_API_KEY)
-  LLM_BASE_URL   — API base URL (default: https://api.openai.com/v1)
-  LLM_MODEL      — Model name (default: gpt-4o-mini)
-  LLM_PROVIDER   — auto|openai|anthropic|ollama (default: auto)
+  LLM_API_KEY: API key (falls back to KIMI_API_KEY, then OPENAI_API_KEY)
+  LLM_BASE_URL: API base URL (default: https://api.kimi.com/coding/v1)
+  LLM_MODEL: Model name (default: kimi-for-coding)
+  LLM_PROVIDER: openai (default; only OpenAI-compatible endpoints are used)
 """
 
 import json
@@ -24,19 +24,12 @@ from pathlib import Path
 
 
 from modules.config import (
-    LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER, BRIEFING_MODEL,
-    LLM_API_KEYS, ANTHROPIC_API_KEY, MAX_CONTENT_CHARS, OUTPUT_DIR,
-    FEATHERLESS_MODEL, BRIEFING_FALLBACK_MODEL,
+    LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, BRIEFING_MODEL,
+    MAX_CONTENT_CHARS, OUTPUT_DIR,
 )
 from modules.ai_cache import get_cached_result, cache_result
 from modules.date_utils import article_datetime
-from modules.llm_client import (
-    call_llm as _call_groq,
-    call_featherless as _call_featherless,
-    featherless_available as _featherless_available,
-    call_briefing_fallback as _call_briefing_fallback,
-    briefing_fallback_available as _briefing_fallback_available,
-)
+from modules.llm_client import call_llm, clear_last_provider, last_provider_label
 
 BRIEFING_PATH = OUTPUT_DIR / "briefing.json"
 
@@ -126,17 +119,9 @@ Every array field (`what_happened_sources`, `what_to_do[].sources`, `week_in_rev
 
 
 def _detect_provider() -> str | None:
-    """Auto-detect the LLM provider from config."""
-    if LLM_PROVIDER != "auto":
-        return LLM_PROVIDER
+    """Return the provider handle if an LLM API key is configured."""
     if not LLM_API_KEY:
         return None
-    base = LLM_BASE_URL.lower()
-    if "anthropic" in base:
-        return "anthropic"
-    if "localhost" in base or "127.0.0.1" in base:
-        return "ollama"
-    # Default to openai-compatible (works with OpenAI, Groq, Together, Mistral, etc.)
     return "openai"
 
 
@@ -147,12 +132,6 @@ _MAX_DIGEST_ARTICLES = 80  # articles sent to the LLM (regional briefings)
 # fills the cap. Lift if the briefing moves to a paid tier or larger context.
 _MAX_BRIEFING_ARTICLES = 40
 _HIGH_PRIORITY_TENURE_H = int(os.getenv("HIGH_PRIORITY_TENURE_HOURS", "72"))
-# Tier-aware downgrade guard: when the new briefing was served by a lower-
-# quality tier than the one currently on disk AND the prior is younger than
-# this window, keep the prior. Prevents 8b fallback briefings from wiping out
-# Featherless/Claude-Bridge briefings during transient outages on tier 1/2.
-# Set to 0 to disable the guard and always overwrite (legacy behavior).
-_BRIEFING_DOWNGRADE_GUARD_H = float(os.getenv("BRIEFING_DOWNGRADE_GUARD_HOURS", "4"))
 _HEADLINE_SOFT_CAP = 160   # belt-and-braces trim if model overshoots the prompt cap
 # Per-article summary char budget in the briefing prompt. Sized so the full
 # digest stays under Groq free-tier 6K TPM ceiling. Lift if the briefing moves
@@ -279,7 +258,7 @@ _HEADLINE_ENTITY_STOPWORDS = frozenset({
     "Recently", "Currently", "Soon",
     # Severity / threat-level vocabulary
     "Critical", "Elevated", "Moderate", "Guarded", "High", "Medium", "Low",
-    "Severe", "Severity", "Urgent",
+    "Severe", "Severity", "Urgent", "Threat", "Threats",
     # Counters / quantifiers
     "Multiple", "Several", "Various", "Numerous", "Few", "Many", "All", "Both",
     "Million", "Thousand", "Hundred", "Billion",
@@ -288,8 +267,13 @@ _HEADLINE_ENTITY_STOPWORDS = frozenset({
     "Reported", "Detects", "Detected", "Reveals", "Revealed", "Warns",
     "Warned", "Targets", "Targeted", "Targeting", "Suspects", "Suspected",
     "Linked", "Tied", "Allegedly", "Likely", "Probable", "Possible",
+    "Exposes", "Exposed", "Exposure",
+    "Disrupts", "Disrupted", "Disrupting", "Disruption", "Disruptions",
+    "Forces", "Forced", "Forcing", "Shutdown", "Shuts", "Shutting",
+    "Fake", "Fakes", "Successful", "Removing", "Removes", "Removed",
     "Exploits", "Exploited", "Exploiting", "Exploitation", "Exploit",
     "Attacks", "Attacked", "Attacking", "Attack", "Attackers", "Attacker",
+    "Cyberattack", "Cyberattacks",
     "Hackers", "Hacker", "Hacked", "Hacks", "Hacking",
     "Researchers", "Researcher", "Defenders", "Defender", "Investigators",
     "Vulnerability", "Vulnerabilities", "Vulnerable", "Flaw", "Flaws",
@@ -299,9 +283,11 @@ _HEADLINE_ENTITY_STOPWORDS = frozenset({
     "Campaign", "Campaigns", "Operation", "Operations",
     "Ransomware", "Malware", "Spyware", "Phishing", "Smishing", "Vishing",
     "Botnet", "Trojan", "Wiper", "Backdoor", "Loader",
+    "Crypto", "Laundering",
     # Generic objects of attacks
     "User", "Users", "Customer", "Customers", "Client", "Clients",
     "Account", "Accounts", "Credential", "Credentials", "Password", "Passwords",
+    "Government", "Governments",
     "Data", "Records", "Record", "Email", "Emails", "Files", "File",
     "Service", "Services", "Server", "Servers", "System", "Systems",
     "Network", "Networks", "Cloud", "Endpoint", "Endpoints",
@@ -601,205 +587,24 @@ def _compute_reporting_window(articles: list[dict[str, Any]]) -> str:
 
 
 
-# Module-level sentinel for tier-aware logging. Set as a side effect of
-# `_call_openai_compatible` so callers can stamp the actual served tier on
-# the briefing's `provider` field and the success log instead of always
-# echoing the configured `BRIEFING_MODEL` (issue #3).
-#
-# Single-threaded pipeline assumption — `generate_briefing` and
-# `generate_regional_briefings` run sequentially in a single Python process
-# (see threatdigest_main.py). If concurrent briefing generation is ever
-# added, switch this to a tuple return on `_call_openai_compatible`.
-_LAST_SERVED_TIER: str | None = None
-
-
-# Lower rank = higher quality. Featherless is the primary tier; Anthropic and
-# the secondary briefing provider ("fallback") are second-tier; Groq + 8b is the
-# last-resort fallback. Keep this in sync with the tier branches inside
-# `_call_openai_compatible`.
-_TIER_RANKS = {
-    "featherless":   1,
-    "anthropic":     2,
-    "fallback":      2,
-    "openai":        3,
-    "groq":          3,
-    "ollama":        4,
-}
-
-
-def _tier_rank(provider: str | None) -> int:
-    """Return the tier rank for a provider string (lower = higher quality).
-
-    Provider format is ``'<tier>/<model>'`` (e.g. ``'featherless/deepseek-ai/DeepSeek-V3.2'``,
-    ``'groq/llama-3.1-8b-instant'``). Unknown tiers rank 99.
-    """
-    if not provider:
-        return 99
-    head = provider.split("/", 1)[0]
-    return _TIER_RANKS.get(head, 99)
-
-
-def _briefing_age_hours(briefing: dict[str, Any] | None) -> float:
-    """Hours since the briefing's ``generated_at``, or ``inf`` if missing/unparseable."""
-    if not briefing or not briefing.get("generated_at"):
-        return float("inf")
-    try:
-        gen_at = briefing["generated_at"].replace("Z", "+00:00")
-        gen = datetime.fromisoformat(gen_at)
-        if gen.tzinfo is None:
-            gen = gen.replace(tzinfo=timezone.utc)
-        return (datetime.now(timezone.utc) - gen).total_seconds() / 3600.0
-    except (ValueError, TypeError, AttributeError):
-        return float("inf")
-
-
-def _should_skip_downgrade(prior: dict[str, Any] | None, new_tier: str) -> bool:
-    """Return True if the prior briefing should be kept instead of overwritten
-    by a new lower-tier briefing.
-
-    Triggers when ALL of the following are true:
-      - ``BRIEFING_DOWNGRADE_GUARD_HOURS`` > 0 (guard enabled)
-      - A prior briefing exists with a parseable ``provider`` field
-      - The new tier rank is strictly worse than the prior tier rank
-      - The prior briefing is younger than the guard window
-
-    The user-stated invariant is "primary will always be featherless" — this
-    function enforces it by refusing to drop a Featherless briefing for a Groq
-    one within the guard window. Same logic protects secondary-provider
-    (fallback-tier) briefings from being clobbered by Groq.
-    """
-    if _BRIEFING_DOWNGRADE_GUARD_H <= 0:
-        return False
-    if not prior or not prior.get("provider"):
-        return False
-    prior_rank = _tier_rank(prior.get("provider"))
-    new_rank = _tier_rank(new_tier)
-    if new_rank <= prior_rank:
-        return False  # same-or-better tier — always overwrite
-    return _briefing_age_hours(prior) < _BRIEFING_DOWNGRADE_GUARD_H
-
-
 def _call_openai_compatible(user_content: str, system_prompt: str = None,
                             max_tokens: int = 2000,
                             caller: str | None = None,
-                            model: str | None = None,
-                            prefer_featherless: bool = False,
-                            feather_max_tokens: int | None = None) -> str:
-    """Call Groq/OpenAI-compatible API via shared llm_client.
+                            model: str | None = None) -> str:
+    """Thin wrapper around the shared LLM client for JSON-mode callers.
 
-    All briefing callers expect strict JSON back, so we opt into Groq's
-    structured output mode (``response_format={"type": "json_object"}``) here
-    — the single choke point for global/regional/top-stories/summary LLM calls.
-    The shared client auto-falls back to a plain call if the provider rejects
-    the field, so this is safe to ship even if Groq ever drops support.
-
-    The ``model`` kwarg lets a caller opt into a lighter Groq model (e.g.
-    ``llama-3.1-8b-instant``) for tasks where the default 70B is too
-    token-heavy for free-tier TPM. Defaults to the global ``LLM_MODEL``.
-
-    When ``prefer_featherless=True`` and Featherless is configured, the
-    call is routed there first (32K context — required for the global
-    briefing prompt that exceeds Groq's 6K TPM ceiling). Any failure
-    transparently falls back to Groq with the ``model`` kwarg, so the
-    caller never sees a Featherless-specific error. This is the only
-    Featherless usage in the codebase by design — keep the shared token
-    spend minimal so other projects sharing it aren't crowded out.
-
-    ``feather_max_tokens`` (optional) decouples the Featherless output cap
-    from the Groq cap. Featherless's 32K context lets the briefing produce
-    a richer narrative than Groq's 6K TPM allows. If None, Featherless uses
-    the same ``max_tokens`` as the Groq fallback — preserves prior behavior
-    for callers that don't opt in.
-
-    Side effect: writes the served tier identifier to
-    ``_LAST_SERVED_TIER`` (one of ``'featherless/<model>'``,
-    ``'fallback/<model>'``, ``'groq/<model>'``) so the caller can log
-    and stamp the actual tier that served instead of guessing from the
-    configured ``BRIEFING_MODEL`` env. Single-threaded only.
+    All briefing-related callers expect strict JSON back, so we always pass
+    ``response_format={"type": "json_object"}`` through this single choke
+    point.
     """
-    global _LAST_SERVED_TIER
-    sys_prompt = system_prompt or _BRIEFING_PROMPT
-    if prefer_featherless and _featherless_available():
-        try:
-            reply = _call_featherless(
-                user_content,
-                system_prompt=sys_prompt,
-                max_tokens=feather_max_tokens or max_tokens,
-                response_format={"type": "json_object"},
-                caller=caller,
-                model=FEATHERLESS_MODEL,
-            )
-            _LAST_SERVED_TIER = f"featherless/{FEATHERLESS_MODEL}"
-            return reply
-        except Exception as e:
-            logger.warning(
-                "Featherless briefing call failed (%s); trying briefing fallback.", e,
-            )
-    # 2nd tier: secondary briefing provider (any authenticated OpenAI-compatible
-    # API, e.g. Cerebras). Independent of the base Groq tier, so it gives the
-    # flagship briefing a third distinct path before the final Groq+8B fallback.
-    # feather_max_tokens is passed so the prompt cap stays consistent with the
-    # Featherless path.
-    if prefer_featherless and _briefing_fallback_available():
-        try:
-            reply = _call_briefing_fallback(
-                user_content,
-                system_prompt=sys_prompt,
-                max_tokens=feather_max_tokens or max_tokens,
-                response_format={"type": "json_object"},
-                caller=caller,
-                model=BRIEFING_FALLBACK_MODEL,
-            )
-            _LAST_SERVED_TIER = f"fallback/{BRIEFING_FALLBACK_MODEL}"
-            return reply
-        except Exception as e:
-            logger.warning(
-                "Briefing fallback call failed (%s); falling back to Groq+%s.",
-                e, model or LLM_MODEL,
-            )
-    reply = _call_groq(
+    return call_llm(
         user_content,
-        system_prompt=sys_prompt,
+        system_prompt=system_prompt or _BRIEFING_PROMPT,
         max_tokens=max_tokens,
         response_format={"type": "json_object"},
         caller=caller,
         model=model,
     )
-    _LAST_SERVED_TIER = f"groq/{model or LLM_MODEL}"
-    return reply
-
-
-def _call_anthropic(user_content: str) -> str:
-    """Call Anthropic API using the SDK."""
-    import anthropic
-    import httpx
-
-    client = anthropic.Anthropic(
-        api_key=ANTHROPIC_API_KEY,
-        timeout=httpx.Timeout(90.0, connect=15.0),
-        max_retries=2,
-    )
-
-    response = client.messages.create(
-        model=LLM_MODEL,
-        max_tokens=1500,
-        system=[{
-            "type": "text",
-            "text": _BRIEFING_PROMPT,
-            "cache_control": {"type": "ephemeral"},
-        }],
-        messages=[{"role": "user", "content": user_content}],
-        temperature=0.3,
-    )
-
-    # Track cost if available
-    try:
-        from modules.cost_tracker import track_usage
-        track_usage(response)
-    except Exception:
-        pass
-
-    return response.content[0].text.strip()
 
 
 def _is_rate_limited() -> bool:
@@ -953,19 +758,15 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         retry can forbid CVE IDs an earlier draft hallucinated.
         """
         content = user_content
+        clear_last_provider()
         if extra_instruction:
             content = f"{user_content}\n\n{extra_instruction}"
 
-        if provider == "anthropic":
-            reply = _call_anthropic(content)
-        else:
-            reply = _call_openai_compatible(
-                content, caller="briefing",
-                model=BRIEFING_MODEL,
-                max_tokens=1200,           # Groq fallback — fits 6K TPM
-                feather_max_tokens=4000,   # Featherless 32K — richer narrative
-                prefer_featherless=True,
-            )
+        reply = _call_openai_compatible(
+            content, caller="briefing",
+            model=BRIEFING_MODEL,
+            max_tokens=8000,
+        )
 
         briefing = _parse_json(reply)
         if briefing is None:
@@ -1098,33 +899,13 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
         briefing["articles_analyzed"] = min(len(briefing_articles), _MAX_BRIEFING_ARTICLES)
         briefing["total_articles"] = len(articles)  # total including darkweb
         briefing["reporting_window"] = reporting_window
-        # Resolve the actual served tier (issue #3 fix). Anthropic branch is
-        # explicit; openai-compatible branch reads the sentinel set by
-        # `_call_openai_compatible`. Falls back to the configured BRIEFING_MODEL
-        # only if the sentinel is unset (defensive — should never happen in
-        # the openai-compatible path post-fix).
-        if provider == "anthropic":
-            served_tier = f"anthropic/{LLM_MODEL}"
-        else:
-            served_tier = _LAST_SERVED_TIER or f"openai/{BRIEFING_MODEL}"
+        # Stamp the provider that served the briefing.
+        served_tier = last_provider_label() or (
+            f"kimi/{BRIEFING_MODEL}"
+            if "api.kimi.com/coding/v1" in LLM_BASE_URL
+            else f"openai/{BRIEFING_MODEL}"
+        )
         briefing["provider"] = served_tier
-
-        # Tier-aware downgrade guard. When tier 1 (Featherless) is the primary
-        # and falls through to tier 3 (Groq 8b), the resulting briefing is
-        # noticeably shallower. Don't overwrite a fresher higher-tier briefing
-        # within `BRIEFING_DOWNGRADE_GUARD_HOURS`. Skip cache_result +
-        # _save_briefing + _record_api_call so the next pipeline tick can retry
-        # the premium tier without the hourly cooldown blocking it.
-        prior = load_briefing()
-        if _should_skip_downgrade(prior, served_tier):
-            prior_age = _briefing_age_hours(prior)
-            logger.info(
-                "Briefing downgrade skipped — kept prior %s (age %.1fh) instead "
-                "of overwriting with %s (BRIEFING_DOWNGRADE_GUARD_HOURS=%.1f).",
-                prior.get("provider"), prior_age, served_tier,
-                _BRIEFING_DOWNGRADE_GUARD_H,
-            )
-            return prior
 
         _record_api_call()
         cache_result(cache_key, briefing)
@@ -1316,10 +1097,10 @@ def generate_regional_briefings(articles: list[dict[str, Any]]) -> dict[str, Any
         )
 
         try:
-            if provider == "anthropic":
-                reply = _call_anthropic(user_content)
-            else:
-                reply = _call_openai_compatible(user_content, caller="regional")
+            clear_last_provider()
+            reply = _call_openai_compatible(
+                user_content, caller="regional", max_tokens=4000
+            )
 
             briefing = _parse_json(reply)
             if not briefing:
@@ -1375,15 +1156,12 @@ def generate_regional_briefings(articles: list[dict[str, Any]]) -> dict[str, Any
             briefing["articles_analyzed"] = len(briefing_articles)
             briefing["total_articles"] = len(regional_articles)
             briefing["reporting_window"] = "Last 24 hours"
-            # Stamp the actual served tier (issue #3). Regional briefings do
-            # NOT pass `prefer_featherless`, so they always go to Groq —
-            # `_LAST_SERVED_TIER` will reflect that, but the conditional
-            # keeps the anthropic branch correct and is defensive against
-            # future changes to the regional dispatch path.
-            if provider == "anthropic":
-                regional_tier = f"anthropic/{LLM_MODEL}"
-            else:
-                regional_tier = _LAST_SERVED_TIER or f"openai/{LLM_MODEL}"
+            # Stamp the provider that served the regional digest.
+            regional_tier = last_provider_label() or (
+                f"kimi/{BRIEFING_MODEL}"
+                if "api.kimi.com/coding/v1" in LLM_BASE_URL
+                else f"openai/{BRIEFING_MODEL}"
+            )
             briefing["provider"] = regional_tier
 
             # Record rate limit and cache

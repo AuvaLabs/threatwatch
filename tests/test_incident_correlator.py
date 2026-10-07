@@ -106,6 +106,40 @@ class TestClusterArticles:
         assert result["total_clusters"] >= 1
         assert any(c["entity_name"] == "LockBit" for c in result["clusters"])
 
+    def test_does_not_cluster_unrelated_organization_mentions(self):
+        articles = [
+            {
+                "title": "Microsoft publishes its quarterly earnings",
+                "summary": "Business results and cloud revenue",
+                "link": "https://example.com/earnings",
+                "published": "2026-04-20T12:00:00+00:00",
+                "hash": "earnings",
+                "category": "General Cyber Threat",
+            },
+            {
+                "title": "Microsoft patches a Windows vulnerability",
+                "summary": "A routine security update is available",
+                "link": "https://example.com/patch",
+                "published": "2026-04-21T12:00:00+00:00",
+                "hash": "patch",
+                "category": "Vulnerability",
+            },
+            {
+                "title": "Microsoft expands a data center region",
+                "summary": "The company announced new infrastructure",
+                "link": "https://example.com/cloud",
+                "published": "2026-04-22T12:00:00+00:00",
+                "hash": "cloud",
+                "category": "General Cyber Threat",
+            },
+        ]
+        with patch.object(ic, "_synthesize_clusters"), \
+             patch("modules.campaign_tracker.record_clusters", return_value={}), \
+             patch("modules.campaign_tracker.load_campaigns", return_value={}), \
+             patch.object(ic, "_save_clusters"):
+            result = cluster_articles(articles)
+        assert not any(c["entity_type"] == "org" for c in result["clusters"])
+
     def test_no_clusters_when_too_few(self):
         articles = [
             {"title": "Random article A", "summary": "", "hash": "a", "published": ""},

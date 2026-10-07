@@ -31,16 +31,18 @@ def main() -> None:
     except Exception as e:
         logging.warning(f"SSRF guard install failed: {e}")
 
-    from modules.output_writer import load_existing, STATIC_DAILY
+    from modules.output_writer import load_existing, persist_corpus, STATIC_DAILY
     all_articles = load_existing(STATIC_DAILY)
     if not all_articles:
         logging.warning("No articles on disk — skipping AI enrichment.")
-        return
+        return {}
 
     from modules.ai_enrichment import run_ai_enrichment
-    run_ai_enrichment(all_articles)
+    result = run_ai_enrichment(all_articles)
+    persist_corpus(all_articles)
 
     logging.info("==== AI enrichment run complete ====")
+    return result
 
 
 if __name__ == "__main__":

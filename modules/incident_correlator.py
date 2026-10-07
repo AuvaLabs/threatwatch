@@ -116,6 +116,13 @@ def cluster_articles(articles: list[dict[str, Any]]) -> dict[str, Any]:
         if len(indices) < 3:
             continue
 
+        # A company name alone is not evidence that articles describe the
+        # same incident. Keep organization extraction for search and facets,
+        # but only CVE IDs and named threat actors are strong enough to form
+        # an incident cluster without a second correlation signal.
+        if entity_type == "org":
+            continue
+
         # Skip articles already assigned to a larger cluster
         new_indices = indices - seen_indices
         if len(new_indices) < 2:
@@ -164,6 +171,8 @@ def cluster_articles(articles: list[dict[str, Any]]) -> dict[str, Any]:
         clusters.append({
             "entity_type": entity_type,
             "entity_name": entity_name,
+            "cluster_basis": "shared_cve" if entity_type == "cve" else "shared_actor",
+            "confidence": "high" if entity_type == "cve" else "medium",
             "article_count": len(indices),
             "articles": cluster_articles_data,
             "article_hashes": article_hashes,

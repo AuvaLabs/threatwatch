@@ -3,7 +3,7 @@
 import json
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from pathlib import Path
 
 # Import through briefing_generator to avoid circular import
@@ -124,25 +124,21 @@ class TestSplitByAge:
 
 class TestGenerateTopStories:
     def test_returns_none_when_no_provider(self):
-        with patch.object(ts, "_detect_provider", return_value=None):
-            assert generate_top_stories([_make_article()] * 20) is None
-
-    def test_returns_none_when_anthropic_provider(self):
-        with patch.object(ts, "_detect_provider", return_value="anthropic"):
+        with patch.object(ts, "is_available", return_value=False):
             assert generate_top_stories([_make_article()] * 20) is None
 
     def test_returns_none_when_too_few_articles(self):
-        with patch.object(ts, "_detect_provider", return_value="openai"):
+        with patch.object(ts, "is_available", return_value=True):
             assert generate_top_stories([_make_article()] * 5) is None
 
     def test_returns_none_on_empty_articles(self):
-        with patch.object(ts, "_detect_provider", return_value="openai"):
+        with patch.object(ts, "is_available", return_value=True):
             assert generate_top_stories([]) is None
 
     def test_returns_cached_result(self, tmp_path):
         cached_data = {"stories": [{"headline": "Cached"}], "generated_at": "now"}
         articles = [_make_article(title=f"A{i}") for i in range(20)]
-        with patch.object(ts, "_detect_provider", return_value="openai"), \
+        with patch.object(ts, "is_available", return_value=True), \
              patch.object(ts, "_build_digest", return_value="digest text"), \
              patch.object(ts, "_MAX_DIGEST_ARTICLES", 80), \
              patch.object(ts, "get_cached_result", return_value=cached_data), \
@@ -158,7 +154,7 @@ class TestGenerateTopStories:
         top_stories_path.write_text(json.dumps(existing))
 
         articles = [_make_article(title=f"A{i}") for i in range(20)]
-        with patch.object(ts, "_detect_provider", return_value="openai"), \
+        with patch.object(ts, "is_available", return_value=True), \
              patch.object(ts, "_build_digest", return_value="digest text"), \
              patch.object(ts, "_MAX_DIGEST_ARTICLES", 80), \
              patch.object(ts, "get_cached_result", return_value=None), \
@@ -177,10 +173,6 @@ class TestGenerateTopStories:
                 "category": "Data Breach",
             }]
         })
-        # The article at briefing_articles[0] (i.e. article_index=1 from the
-        # LLM) must contain the entities the LLM names ("Acme Corp"), otherwise
-        # the narrative-coupling guard will (correctly) drop it. Articles get
-        # sorted by timestamp DESC, so the Acme article needs the latest stamp.
         future_ts = (datetime.now(timezone.utc) + timedelta(seconds=10)).isoformat()
         articles = [_make_article(title=f"Article {i}", source_name="TestSource")
                     for i in range(19)]
@@ -192,12 +184,12 @@ class TestGenerateTopStories:
         last_call_path = tmp_path / ".top_stories_last_call"
         top_stories_path = tmp_path / "top_stories.json"
 
-        with patch.object(ts, "_detect_provider", return_value="openai"), \
+        with patch.object(ts, "is_available", return_value=True), \
              patch.object(ts, "_build_digest", return_value="digest text"), \
              patch.object(ts, "_MAX_DIGEST_ARTICLES", 80), \
              patch.object(ts, "_TOP_STORIES_MODEL", "test-model"), \
              patch.object(ts, "get_cached_result", return_value=None), \
-             patch.object(ts, "_call_openai_compatible", return_value=llm_response), \
+             patch.object(ts, "call_llm", return_value=llm_response), \
              patch.object(ts, "_parse_json", return_value=json.loads(llm_response)), \
              patch.object(ts, "cache_result"), \
              patch.object(ts, "_LAST_TOP_STORIES_PATH", last_call_path), \
@@ -208,17 +200,17 @@ class TestGenerateTopStories:
         assert "stories" in result
         assert len(result["stories"]) == 1
         assert result["stories"][0]["headline"] == "Acme Corp confirms data breach"
-        assert result["provider"] == "openai/test-model"
+        assert result["provider"] == "kimi/test-model"
 
     def test_llm_failure_returns_none(self, tmp_path):
         articles = [_make_article(title=f"A{i}") for i in range(20)]
         last_call_path = tmp_path / ".nonexistent"
 
-        with patch.object(ts, "_detect_provider", return_value="openai"), \
+        with patch.object(ts, "is_available", return_value=True), \
              patch.object(ts, "_build_digest", return_value="digest"), \
              patch.object(ts, "_MAX_DIGEST_ARTICLES", 80), \
              patch.object(ts, "get_cached_result", return_value=None), \
-             patch.object(ts, "_call_openai_compatible", side_effect=Exception("API down")), \
+             patch.object(ts, "call_llm", side_effect=Exception("API down")), \
              patch.object(ts, "_LAST_TOP_STORIES_PATH", last_call_path):
             result = generate_top_stories(articles)
         assert result is None
@@ -227,11 +219,11 @@ class TestGenerateTopStories:
         articles = [_make_article(title=f"A{i}") for i in range(20)]
         last_call_path = tmp_path / ".nonexistent"
 
-        with patch.object(ts, "_detect_provider", return_value="openai"), \
+        with patch.object(ts, "is_available", return_value=True), \
              patch.object(ts, "_build_digest", return_value="digest"), \
              patch.object(ts, "_MAX_DIGEST_ARTICLES", 80), \
              patch.object(ts, "get_cached_result", return_value=None), \
-             patch.object(ts, "_call_openai_compatible", return_value="not json"), \
+             patch.object(ts, "call_llm", return_value="not json"), \
              patch.object(ts, "_parse_json", return_value=None), \
              patch.object(ts, "_LAST_TOP_STORIES_PATH", last_call_path):
             result = generate_top_stories(articles)

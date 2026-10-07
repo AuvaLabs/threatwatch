@@ -8,30 +8,30 @@ services:
     environment:
       - SITE_DOMAIN=${SITE_DOMAIN:-localhost:8098}
       - FEED_CUTOFF_DAYS=${FEED_CUTOFF_DAYS:-7}
+      - MAX_FUTURE_MINUTES=${MAX_FUTURE_MINUTES:-15}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_BASE_URL=${LLM_BASE_URL:-}
       - LLM_MODEL=${LLM_MODEL:-}
       - BRIEFING_MODEL=${BRIEFING_MODEL:-}
+      - TOP_STORIES_MODEL=${TOP_STORIES_MODEL:-}
       - LLM_PROVIDER=${LLM_PROVIDER:-auto}
       # AI enrichment runs out-of-band by default (every 3rd pipeline tick,
       # i.e. every 30 min) so Groq rate limits don't block fetch ingestion.
       # Set AI_ENRICHMENT_INLINE=1 to run AI on every pipeline tick (legacy).
       - AI_ENRICHMENT_INLINE=${AI_ENRICHMENT_INLINE:-0}
       - AI_ENRICHMENT_EVERY=${AI_ENRICHMENT_EVERY:-3}
-      - LLM_TIMEOUT=${LLM_TIMEOUT:-30}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
       - LLM_CIRCUIT_THRESHOLD=${LLM_CIRCUIT_THRESHOLD:-3}
-      # Featherless.ai — paid OpenAI-compatible provider for the daily
-      # briefing only (32K ctx > Groq 6K TPM). Falls back to Groq+8B.
+      # First independent OpenAI-compatible fallback for every AI capability.
       - FEATHERLESS_API_KEY=${FEATHERLESS_API_KEY:-}
       - FEATHERLESS_BASE_URL=${FEATHERLESS_BASE_URL:-}
       - FEATHERLESS_MODEL=${FEATHERLESS_MODEL:-}
       - FEATHERLESS_TIMEOUT=${FEATHERLESS_TIMEOUT:-60}
-      # Claude Bridge — host-local OpenAI-compatible shim using the user's
-      # Claude Max subscription (operated by RedBlue's claude-bridge:8400).
-      # 2nd-tier briefing fallback (Featherless → Bridge → Groq+8B).
-      - CLAUDE_BRIDGE_URL=${CLAUDE_BRIDGE_URL:-}
-      - CLAUDE_BRIDGE_MODEL=${CLAUDE_BRIDGE_MODEL:-sonnet}
-      - CLAUDE_BRIDGE_TIMEOUT=${CLAUDE_BRIDGE_TIMEOUT:-300}
+      # Second independent OpenAI-compatible fallback for every capability.
+      - BRIEFING_FALLBACK_API_KEY=${BRIEFING_FALLBACK_API_KEY:-}
+      - BRIEFING_FALLBACK_BASE_URL=${BRIEFING_FALLBACK_BASE_URL:-}
+      - BRIEFING_FALLBACK_MODEL=${BRIEFING_FALLBACK_MODEL:-}
+      - BRIEFING_FALLBACK_TIMEOUT=${BRIEFING_FALLBACK_TIMEOUT:-60}
       # Fetch parallelism. Raising to 16 (from 8) roughly halves the
       # critical-path tail of slow feed tails that used to serialise
       # behind a small pool.
@@ -70,6 +70,7 @@ services:
       - PORT=${PORT:-8098}
       - SITE_DOMAIN=${SITE_DOMAIN:-localhost:8098}
       - READ_FROM_SQLITE=1
+      - SSR_ARTICLE_LIMIT=${SSR_ARTICLE_LIMIT:-50}
     ports:
       - "${PORT:-8098}:8098"
     volumes:

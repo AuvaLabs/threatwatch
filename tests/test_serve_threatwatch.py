@@ -466,8 +466,17 @@ class TestHTTPRoutes:
         assert isinstance(data, dict)
         assert data["total"] == 1
         assert len(data["articles"]) == 1
-        assert data["limit"] == 0
+        assert data["limit"] == 50
         assert data["has_more"] is False
+
+    def test_articles_default_is_bounded(self, test_server):
+        articles = [{"title": f"Article {i}"} for i in range(75)]
+        with patch("serve_threatwatch.load_articles", return_value=articles):
+            status, _, body = _get(test_server + "/api/articles")
+        assert status == 200
+        data = json.loads(body)
+        assert len(data["articles"]) == 50
+        assert data["has_more"] is True
 
     def test_articles_pagination(self, test_server):
         articles = [{"title": f"Article {i}"} for i in range(50)]
@@ -478,6 +487,44 @@ class TestHTTPRoutes:
         assert len(data["articles"]) == 10
         assert data["total"] == 50
         assert data["has_more"] is True
+
+    def test_v1_articles_uses_same_bounded_contract(self, test_server):
+        articles = [{"hash": str(i), "title": f"Article {i}"} for i in range(60)]
+        with patch("serve_threatwatch.load_articles", return_value=articles):
+            status, _, body = _get(test_server + "/api/v1/articles")
+        data = json.loads(body)
+        assert status == 200
+        assert data["limit"] == 50
+        assert len(data["articles"]) == 50
+
+    def test_v1_article_detail(self, test_server):
+        articles = [{"hash": "abc123", "title": "Matched", "full_content": "private body"}]
+        with patch("serve_threatwatch.load_articles", return_value=articles):
+            status, _, body = _get(test_server + "/api/v1/articles/abc123")
+        data = json.loads(body)
+        assert status == 200
+        assert data["title"] == "Matched"
+        assert "full_content" not in data
+
+    def test_v1_sources_aggregates_named_publishers(self, test_server):
+        articles = [
+            {"source_name": "Source A", "source": "https://a.test/rss"},
+            {"source_name": "Source A", "source": "https://a.test/rss"},
+            {"source_name": "Source B", "source": "https://b.test/rss"},
+        ]
+        with patch("serve_threatwatch.load_articles", return_value=articles):
+            status, _, body = _get(test_server + "/api/v1/sources")
+        data = json.loads(body)
+        assert status == 200
+        assert data["total"] == 2
+        assert data["sources"][0]["article_count"] == 2
+
+    def test_v1_openapi_is_available(self, test_server):
+        status, _, body = _get(test_server + "/api/v1/openapi.json")
+        data = json.loads(body)
+        assert status == 200
+        assert data["openapi"].startswith("3.")
+        assert "/api/v1/articles" in data["paths"]
 
     def test_articles_bad_offset(self, test_server):
         with patch("serve_threatwatch.load_articles", return_value=[]):

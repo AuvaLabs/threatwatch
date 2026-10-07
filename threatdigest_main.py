@@ -35,6 +35,7 @@ from modules.epss_enricher import enrich_articles_with_epss
 from modules.kev_enricher import enrich_articles_with_kev
 from modules.attack_tagger import tag_articles_with_attack
 from modules.trend_detector import update_trends
+from modules.article_contract import normalize_article
 
 
 def enrich_articles(articles, summarize=False, stats=None):
@@ -77,6 +78,8 @@ def enrich_articles(articles, summarize=False, stats=None):
                 stats.cache_misses += 1
             if result.get("_ai_enhanced"):
                 stats.ai_escalations = getattr(stats, "ai_escalations", 0) + 1
+            if result.get("_ai_failed"):
+                stats.analysis_failures += 1
 
         enriched_article = {
             **article,
@@ -98,7 +101,7 @@ def enrich_articles(articles, summarize=False, stats=None):
         if enriched_article["is_cyber_attack"]:
             if summarize and enriched_article["summary"]:
                 log_article_summary(original_url, enriched_article["summary"])
-            enriched.append(enriched_article)
+            enriched.append(normalize_article(enriched_article))
             if stats:
                 stats.cyber_articles += 1
         else:
@@ -379,16 +382,21 @@ def main():
     except Exception as e:
         logging.debug(f"Briefing staleness check skipped: {e}")
 
-    # Incident clustering + actor profiles on FULL corpus
+    # Incident clustering and actor profiling are independent capabilities.
+    # A failure in one must not prevent the other from refreshing.
     try:
         if all_articles:
             from modules.incident_correlator import cluster_articles
             cluster_articles(all_articles)
+    except Exception as e:
+        logging.warning(f"Incident clustering failed: {e}")
 
+    try:
+        if all_articles:
             from modules.actor_profiler import generate_profiles
             generate_profiles(all_articles)
     except Exception as e:
-        logging.warning(f"Clustering/profiling failed: {e}")
+        logging.warning(f"Actor profiling failed: {e}")
 
     stats.finalize()
 

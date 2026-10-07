@@ -2,19 +2,18 @@
 
 # ThreatWatch
 
-**AI-powered cyber threat intelligence platform — zero cost**
+**Analyst-focused cyber threat intelligence aggregation and briefing**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: Non-Commercial](https://img.shields.io/badge/license-Non--Commercial-orange.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
-[![Zero Cost](https://img.shields.io/badge/cost-%240%2Fmonth-brightgreen)]()
 [![AI Powered](https://img.shields.io/badge/AI-intelligence--briefing-8B5CF6?logo=openai&logoColor=white)]()
 [![Feeds](https://img.shields.io/badge/feeds-150+-blue)]()
 [![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/threatwatch?style=social)](https://github.com/AuvaLabs/threatwatch)
 
 **[Live Demo](https://threatwatch.auvalabs.com)**
 
-AI-powered threat intelligence platform that aggregates 150+ RSS feeds, dark web sources, and NewsAPI — classifies, deduplicates, and generates analyst-grade intelligence digests with AI-curated top stories, incident clustering, threat actor profiles, and actionable priority recommendations with source citations. Runs entirely free using Groq's API free tier. Self-hosted, zero-cost infrastructure.
+Threat intelligence platform that aggregates RSS feeds, public dark web sources, NVD, and NewsAPI. It classifies and deduplicates coverage, then produces source-linked briefings, priority stories, incident context, and analyst actions. The core feed works without an LLM; optional AI capabilities support independent provider fallback.
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Architecture](#architecture) · [API](#api-endpoints) · [Integrations](docs/INTEGRATIONS.md) · [Contributing](#contributing)
 
@@ -38,14 +37,15 @@ AI-powered threat intelligence platform that aggregates 150+ RSS feeds, dark web
 - **8-thread parallel fetching** — processes all feeds in seconds
 - Rolling **7-day window** with merge across pipeline runs
 
-### AI Intelligence (Groq-powered, zero cost)
+### AI intelligence with provider fallback
 - **Intelligence Digest** — hourly AI-generated threat landscape summary with trending threats, vulnerability spotlight, sector impact, and priority actions — every finding links back to source articles
 - **Top Stories** — AI picks the 5-8 most significant incidents from all articles, with significance ratings (CRITICAL/HIGH/MODERATE)
 - **Article Summaries** — structured AI summaries (what/who/impact) for articles missing descriptions
 - **Incident Clustering** — auto-groups related articles by CVE, threat actor, or organization with AI-synthesized cluster narratives
 - **Threat Actor Profiles** — cached AI-generated profiles for detected actors (origin, TTPs, target sectors)
-- **AI Classification Escalation** — low-confidence articles get reclassified by Groq LLM
-- **Smart key rotation** — multiple API keys with automatic 429 failover for sustainable free-tier usage
+- **AI Classification Escalation**: low-confidence articles can be reclassified by the configured LLM route
+- **Provider resilience**: primary key rotation plus two independent OpenAI-compatible fallback endpoints
+- **Honest health**: freshness and latest-run status for global, regional, top-story, and summary capabilities
 
 ### Classification
 - **24 threat categories**: Ransomware, Zero-Day, APT/Nation-State, DDoS, Supply Chain, Phishing, Malware, Data Breach, Vulnerability, Threat Research & Analysis, Detection & Response, and more
@@ -55,7 +55,7 @@ AI-powered threat intelligence platform that aggregates 150+ RSS feeds, dark web
 - ISO-3166 country code mapping for ransomware victim data (DE → Europe, JP → APAC, BR → LATAM, etc.)
 - **15 industry sectors**
 - **Noise filtering** — product announcements, job listings, funding rounds, training content auto-excluded
-- **Quality score 92/100** — comprehensive audit covering classification, dedup, regions, timeliness
+- Built-in quality audit covering classification, deduplication, regions, source balance, and timeliness
 
 ### Deduplication
 - Fuzzy matching with a **word-shingle inverted index** (24x faster than naive pairwise)
@@ -64,7 +64,7 @@ AI-powered threat intelligence platform that aggregates 150+ RSS feeds, dark web
 
 ### Dashboard
 - Server-side rendered, **loads in under a second**
-- **Single HTML file** — no build step, no framework, no JavaScript bundle; terminal-grade design system (Space Grotesk + IBM Plex Sans/Mono, rem type scale, amber-on-carbon default theme)
+- **Single HTML file**: no build step, no framework, no JavaScript bundle; calm light reading canvas with an optional dark operations theme
 - **9 focused tabs**: Intel Brief, Breach, Exploits, Malware, Dark Web, Ransomware, APT Tracker, Brands, Tech
 - Each tab filters the left-panel live feed — one click to see all matching articles
 - EXPLOITS merges zero-days + vulnerabilities + patches (one analyst workflow)
@@ -87,7 +87,7 @@ AI-powered threat intelligence platform that aggregates 150+ RSS feeds, dark web
 - **"X new since HH:MM UTC" pill** — returning-reader counter at the top of the feed; persistent NEW badge on each article published since your last visit, dismissible with one click
 - **Share buttons** — copy-link on each article (`?article=<hash>` permalinks) and a one-click share that copies the briefing's level + headline + dashboard URL ready to paste into Slack/Teams/Telegram
 - Client-side statistical digest as fallback (the AI/NORMAL toggle; zero cost, no API key needed)
-- **5 switchable themes** — Terminal (amber-on-carbon, default), Light, Solarized, Arctic, Phosphor (retro CRT)
+- **5 switchable themes**: Light is the default, with Terminal, Solarized, Arctic, and Phosphor alternatives
 - Both live URLs displayed in the page footer
 
 ### Region accuracy
@@ -160,6 +160,8 @@ For automatic refresh, add a cron job:
 | `PORT` | `8098` | Dashboard server port |
 | `SITE_DOMAIN` | `localhost:8098` | Domain for RSS feed links |
 | `FEED_CUTOFF_DAYS` | `7` | Rolling window for articles |
+| `MAX_FUTURE_MINUTES` | `15` | Maximum tolerated upstream clock skew |
+| `SSR_ARTICLE_LIMIT` | `50` | Maximum articles embedded in initial HTML |
 
 ### Optional: NewsAPI
 
@@ -178,38 +180,38 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 |---|---|---|
 | `LLM_API_KEY` | _(empty)_ | API key for your LLM provider |
 | `LLM_API_KEYS` | _(empty)_ | Comma-separated keys for round-robin rotation |
-| `LLM_BASE_URL` | `https://api.groq.com/openai/v1` | API base URL |
-| `LLM_MODEL` | `llama-3.3-70b-versatile` | Model name |
-| `LLM_PROVIDER` | `auto` | `auto`, `openai`, `anthropic`, `ollama` |
+| `LLM_BASE_URL` | provider dependent | Primary API base URL |
+| `LLM_MODEL` | provider dependent | Primary model name |
+| `LLM_PROVIDER` | `openai` | OpenAI-compatible provider mode |
 
-**Recommended free setup** — [Groq](https://console.groq.com) provides free API access (500K tokens/day per key):
+Example Kimi configuration:
 
 ```env
-LLM_API_KEY=gsk_your_key_here
-LLM_BASE_URL=https://api.groq.com/openai/v1
-LLM_MODEL=llama-3.3-70b-versatile
-
-# Optional: multiple keys for higher throughput (round-robin with 429 failover)
-LLM_API_KEYS=gsk_key1,gsk_key2,gsk_key3
+LLM_API_KEY=your_key_here
+LLM_BASE_URL=https://api.kimi.com/coding/v1
+LLM_MODEL=kimi-for-coding
+BRIEFING_MODEL=kimi-for-coding
+TOP_STORIES_MODEL=kimi-for-coding
 ```
 
-Also works with OpenAI, Together, Ollama (local), Mistral, DeepSeek, and any OpenAI-compatible API. Smart key rotation automatically fails over on rate limits (429).
+OpenAI, Groq, Gemini's OpenAI compatibility endpoint, Cerebras, Together, Ollama, Mistral, DeepSeek, and other OpenAI-compatible APIs can also be used.
 
-### Optional: premium tiers for the daily briefing
+### Optional provider fallbacks
 
-The global daily briefing prompt (~7-8K tokens) exceeds Groq free-tier per-request 6K TPM, which forces the briefing to run on the lighter `llama-3.1-8b-instant` model with a clipped 1200-token output. Two optional layers can give it real headroom — either or both can be enabled:
+The same fallback route protects every AI capability, not only the global briefing:
 
 | Variable | Tier | Default | Description |
 |---|---|---|---|
-| `FEATHERLESS_API_KEY` | 1 (paid) | _(empty)_ | Featherless.ai key (`rc_...`) — primary briefing path, 32K context |
-| `FEATHERLESS_BASE_URL` | 1 | `https://api.featherless.ai/v1` | OpenAI-compatible endpoint |
-| `FEATHERLESS_MODEL` | 1 | `deepseek-ai/DeepSeek-V3.2` | Featherless model id (also: `kimi-k2`, `glm46-357b`) |
+| `FEATHERLESS_API_KEY` | 1 | _(empty)_ | First fallback provider key |
+| `FEATHERLESS_BASE_URL` | 1 | _(empty)_ | First fallback OpenAI-compatible endpoint |
+| `FEATHERLESS_MODEL` | 1 | _(empty)_ | First fallback model |
 | `FEATHERLESS_TIMEOUT` | 1 | `60` | Per-request seconds |
-| `CLAUDE_BRIDGE_URL` | 2 (subscription) | _(empty)_ | Local OpenAI-compatible shim wrapping the `claude` CLI (e.g. `http://host-gateway:8400/v1`) |
-| `CLAUDE_BRIDGE_MODEL` | 2 | `sonnet` | Claude model id (`sonnet`, `opus`, `haiku`) |
-| `CLAUDE_BRIDGE_TIMEOUT` | 2 | `300` | Per-request seconds |
+| `BRIEFING_FALLBACK_API_KEY` | 2 | _(empty)_ | Second fallback provider key |
+| `BRIEFING_FALLBACK_BASE_URL` | 2 | _(empty)_ | Second fallback OpenAI-compatible endpoint |
+| `BRIEFING_FALLBACK_MODEL` | 2 | _(empty)_ | Second fallback model |
+| `BRIEFING_FALLBACK_TIMEOUT` | 2 | `60` | Per-request seconds |
 
-The briefing tries tier 1 → tier 2 → Groq+8B in order. Each tier is independent and a failure (429, 5xx, timeout) drops straight to the next tier without retrying. Regional briefings, top stories, classifier, and the other AI features keep using Groq directly — only the global briefing opts into the cascade.
+The route tries primary, first fallback, then second fallback. HTTP 429, timeout, connection, 5xx, invalid response, and retired-model failures move to the next independent provider.
 
 ### Feed configuration
 
@@ -233,7 +235,7 @@ Edit these files to add or remove feeds. No restart needed — changes apply on 
 
 **Frontend** (`threatwatch.html`): Single HTML file. No build step, no framework.
 
-**Storage**: Flat JSON files. No database, no Redis, no message queue.
+**Storage**: SQLite primary store with atomic JSON exports and fallback reads. No Redis or external queue is required.
 
 ### Project structure
 
@@ -249,7 +251,7 @@ modules/
   ├── keyword_classifier.py  # Zero-cost regex classifier (24 categories)
   ├── hybrid_classifier.py   # Keyword + AI escalation classifier
   ├── region_inferrer.py     # Content-based region attribution
-  ├── llm_client.py          # Shared Groq/OpenAI client (multi-key rotation)
+  ├── llm_client.py          # Shared provider router and key rotation
   ├── briefing_generator.py  # AI briefing, top stories, article summaries
   ├── incident_correlator.py # Entity-based incident clustering + AI synthesis
   ├── actor_profiler.py      # Threat actor profile generation + caching
@@ -292,8 +294,14 @@ The server runs on port **8098** by default:
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/` | Dashboard (server-side rendered HTML) |
-| `GET` | `/api/articles` | All articles as JSON array |
-| `GET` | `/api/articles?offset=0&limit=20` | Paginated articles |
+| `GET` | `/api/articles` | Paginated articles, 50 by default and 100 maximum |
+| `GET` | `/api/v1/articles` | Stable versioned article collection |
+| `GET` | `/api/v1/articles/{id}` | Stable versioned article detail |
+| `GET` | `/api/v1/briefings/latest` | Stable latest global briefing |
+| `GET` | `/api/v1/incidents` | Stable incident-cluster collection |
+| `GET` | `/api/v1/sources` | Source coverage and article counts |
+| `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |
+| `GET` | `/api/v1/openapi.json` | OpenAPI 3.1 discovery document |
 | `GET` | `/api/briefing` | AI intelligence digest with source citations, serving tier (`provider`), staleness (`served_stale`) and threat-level provenance (`threat_level_source`) |
 | `GET` | `/api/briefing/na` | North America regional digest |
 | `GET` | `/api/briefing/emea` | EMEA regional digest |

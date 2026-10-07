@@ -8,48 +8,50 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
+# Provider-agnostic LLM config for AI features.
+# Supports any OpenAI-compatible API. Kimi is the default/recommended provider.
+_KIMI_API_KEY = os.getenv("KIMI_API_KEY")
+LLM_API_KEY = os.getenv("LLM_API_KEY") or _KIMI_API_KEY or os.getenv("OPENAI_API_KEY")
 
-# Provider-agnostic LLM config for AI briefing
-# Supports any OpenAI-compatible API (OpenAI, Groq, Together, Ollama, Mistral, DeepSeek, etc.)
-# Falls back to Anthropic SDK if LLM_PROVIDER=anthropic
-LLM_API_KEY = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or ANTHROPIC_API_KEY
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
-LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "auto")  # auto, openai, anthropic, ollama
+# Default to the Kimi coding endpoint when a Kimi key is present; otherwise
+# keep the legacy Groq default for operators who explicitly set OPENAI_API_KEY.
+_default_base_url = (
+    "https://api.kimi.com/coding/v1"
+    if _KIMI_API_KEY else "https://api.groq.com/openai/v1"
+)
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", _default_base_url)
 
-# The global daily briefing prompt (~7-8K tokens with 80 articles + enrichment)
-# exceeds Groq free-tier TPM for 70B (~6K/min), causing every call to 429.
-# Default the briefing to the lighter 8B model which has higher TPM headroom.
-BRIEFING_MODEL = os.getenv("BRIEFING_MODEL", "llama-3.1-8b-instant")
+# Kimi coding endpoint only accepts temperature=1, so the client omits the
+# field for that base URL. Default the model to Kimi's coding model when the
+# configured endpoint is Kimi; otherwise keep the legacy Groq default.
+_default_model = (
+    "kimi-for-coding"
+    if "api.kimi.com/coding/v1" in LLM_BASE_URL else "llama-3.3-70b-versatile"
+)
+LLM_MODEL = os.getenv("LLM_MODEL", _default_model)
 
-# Multiple API keys for round-robin rotation (comma-separated in env)
-# Doubles the free-tier budget: 2 keys x 500K tokens/day = 1M tokens/day
+# We only use OpenAI-compatible endpoints now.
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+
+# Multiple API keys for round-robin rotation (comma-separated in env).
 LLM_API_KEYS = [
     k.strip() for k in os.getenv("LLM_API_KEYS", "").split(",") if k.strip()
 ] or ([LLM_API_KEY] if LLM_API_KEY else [])
 
-# Featherless.ai — paid OpenAI-compatible provider used ONLY for the daily
-# global briefing. Groq free-tier 6K TPM rejects the ~7-8K briefing prompt;
-# Featherless gives 32K context. The token is shared across multiple projects
-# (effective platform-wide concurrency ≈ 1 for cost-4 models like
-# deepseek-ai/DeepSeek-V3.2/kimi-k2/glm46), so we use it sparingly and fall back to
-# Groq+8B on any failure rather than retrying.
-FEATHERLESS_API_KEY = os.getenv("FEATHERLESS_API_KEY", "").strip()
-FEATHERLESS_BASE_URL = os.getenv(
-    "FEATHERLESS_BASE_URL", "https://api.featherless.ai/v1"
-).rstrip("/")
-FEATHERLESS_MODEL = os.getenv("FEATHERLESS_MODEL", "deepseek-ai/DeepSeek-V3.2")
+# Briefing and top-stories models default to the global LLM model so a single
+# provider switch (e.g. to Kimi) propagates everywhere.
+BRIEFING_MODEL = os.getenv("BRIEFING_MODEL", LLM_MODEL)
+TOP_STORIES_MODEL = os.getenv("TOP_STORIES_MODEL", LLM_MODEL)
 
-# Secondary briefing provider — any authenticated OpenAI-compatible API used as
-# the 2nd-tier fallback for the daily briefing (primary FEATHERLESS → this →
-# base Groq+8B). Replaces the retired Claude Bridge slot. Unlike the base/
-# FEATHERLESS tiers this is briefing-only, so a distinct provider here (e.g.
-# Cerebras) gives the flagship briefing a third independent path. Send the key
-# as a bearer; leave BASE_URL blank to disable the tier.
-BRIEFING_FALLBACK_BASE_URL = os.getenv("BRIEFING_FALLBACK_BASE_URL", "").strip().rstrip("/")
-BRIEFING_FALLBACK_API_KEY = os.getenv("BRIEFING_FALLBACK_API_KEY", "").strip()
+# Optional independent OpenAI-compatible fallbacks. Historical variable names
+# are retained so existing VPS configuration keeps working while routing is
+# now shared by every AI capability, not just the global briefing.
+FEATHERLESS_API_KEY = os.getenv("FEATHERLESS_API_KEY", "")
+FEATHERLESS_BASE_URL = os.getenv("FEATHERLESS_BASE_URL", "")
+FEATHERLESS_MODEL = os.getenv("FEATHERLESS_MODEL", "")
+FEATHERLESS_TIMEOUT = float(os.getenv("FEATHERLESS_TIMEOUT", "60"))
+BRIEFING_FALLBACK_API_KEY = os.getenv("BRIEFING_FALLBACK_API_KEY", "")
+BRIEFING_FALLBACK_BASE_URL = os.getenv("BRIEFING_FALLBACK_BASE_URL", "")
 BRIEFING_FALLBACK_MODEL = os.getenv("BRIEFING_FALLBACK_MODEL", "")
 BRIEFING_FALLBACK_TIMEOUT = float(os.getenv("BRIEFING_FALLBACK_TIMEOUT", "60"))
 
@@ -119,31 +121,15 @@ MAX_SEEN_TITLES = 10000
 MAX_SEEN_HASHES = 50000
 
 FEED_CUTOFF_DAYS = int(os.getenv("FEED_CUTOFF_DAYS", "7"))
+MAX_FUTURE_MINUTES = int(os.getenv("MAX_FUTURE_MINUTES", "15"))
 DAILY_BUDGET_USD = float(os.getenv("DAILY_BUDGET_USD", "2.00"))
 
 
 def validate_config():
-    if not ANTHROPIC_API_KEY:
-        logger.info(
-            "ANTHROPIC_API_KEY not set — keyword classifier only (zero cost)."
-        )
-    else:
-        logger.info(
-            "ANTHROPIC_API_KEY set — hybrid mode (keyword + AI escalation)."
-        )
     if LLM_API_KEY:
         logger.info(
-            f"LLM configured — AI briefing enabled ({LLM_PROVIDER}/{LLM_MODEL} via {LLM_BASE_URL.split('@')[-1]})."
+            f"LLM configured: AI features enabled ({LLM_PROVIDER}/{LLM_MODEL} via "
+            f"{LLM_BASE_URL.split('@')[-1]})."
         )
     else:
-        logger.info("No LLM API key — AI briefing disabled (zero cost).")
-    if FEATHERLESS_API_KEY:
-        logger.info(
-            f"Featherless configured — global briefing will prefer "
-            f"{FEATHERLESS_MODEL} (32K ctx); Groq+{BRIEFING_MODEL} fallback."
-        )
-    if BRIEFING_FALLBACK_BASE_URL:
-        logger.info(
-            f"Briefing fallback configured — {BRIEFING_FALLBACK_MODEL} via "
-            f"{BRIEFING_FALLBACK_BASE_URL}; 2nd-tier briefing fallback."
-        )
+        logger.info("No LLM API key: AI features disabled (zero cost).")

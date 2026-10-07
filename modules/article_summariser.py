@@ -3,7 +3,6 @@
 Runs over articles that lack a `summary` field and generates a structured
 what/who/impact/summary triple via the LLM. Extracted from
 `briefing_generator.py` to keep that file under the 800-line cap.
-Shares LLM plumbing via re-imports rather than duplicating.
 """
 from __future__ import annotations
 
@@ -13,14 +12,10 @@ import os
 from typing import Any
 
 from modules.ai_cache import get_cached_result, cache_result
-from modules.briefing_generator import (
-    _detect_provider,
-    _call_openai_compatible,
-    _parse_json,
-)
+from modules.llm_client import call_llm, is_available
+from modules.utils import extract_json as _parse_json
 
 logger = logging.getLogger(__name__)
-
 
 
 # --- AI Article Summaries: batch-summarize articles missing summaries ---
@@ -57,8 +52,7 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
     Modifies articles in-place. Returns count of summaries generated.
     Uses batched calls to minimize token usage.
     """
-    provider = _detect_provider()
-    if not provider or provider == "anthropic":
+    if not is_available():
         return 0
 
     # Find articles missing summaries
@@ -96,10 +90,11 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
             summaries = cached
         else:
             try:
-                reply = _call_openai_compatible(
+                reply = call_llm(
                     user_content,
                     system_prompt=_SUMMARY_PROMPT,
                     max_tokens=800,
+                    response_format={"type": "json_object"},
                     caller="summaries",
                 )
                 summaries = _parse_json(reply)
@@ -121,6 +116,8 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
                 if 0 <= batch_idx < len(batch) and summary_text:
                     orig_idx = batch[batch_idx][0]
                     articles[orig_idx]["summary"] = summary_text
+                    articles[orig_idx]["summary_method"] = "ai"
+                    articles[orig_idx]["summary_generated"] = True
                     # Store structured intel fields if available
                     if item.get("what"):
                         articles[orig_idx]["intel_what"] = item["what"]

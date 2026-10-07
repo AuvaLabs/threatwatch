@@ -276,8 +276,6 @@ class TestFollowRedirects:
         mock_resp.url = "http://evil.onion/"
 
         call_count = {"n": 0}
-        original_is_safe = url_resolver_mod.is_safe_url
-
         def side_effect(u):
             call_count["n"] += 1
             if call_count["n"] == 1:

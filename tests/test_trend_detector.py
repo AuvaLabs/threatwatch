@@ -160,7 +160,6 @@ class TestUpdateTrendsLogging:
         trend_file = mock_trend_file
         dates = [(datetime.now(timezone.utc) - timedelta(days=i)).strftime("%Y-%m-%d")
                  for i in range(7, 0, -1)]
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         seed = {d: {"categories": {"Ransomware": 2}, "keywords": {}} for d in dates}
         trend_file.write_text(json.dumps({"daily_counts": seed}))
         # Current run adds 10 Ransomware articles — should spike.

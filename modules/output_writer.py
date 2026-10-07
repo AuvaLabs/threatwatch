@@ -8,11 +8,15 @@ from pathlib import Path
 
 from feedgen.feed import FeedGenerator
 
-from modules.config import SITE_URL, SITE_DOMAIN, OUTPUT_DIR, FEED_CUTOFF_DAYS
+from modules.config import (
+    SITE_URL, SITE_DOMAIN, OUTPUT_DIR, FEED_CUTOFF_DAYS, MAX_FUTURE_MINUTES,
+)
 from modules.date_utils import parse_datetime
+from modules.deduplicator import normalize_url
 from modules.utils import write_json_atomic
 from modules.regions import collapse_regions as _collapse_regions
 from modules.regions import MAX_MERGED_REGIONS as _MAX_MERGED_REGIONS
+from modules.article_contract import normalize_article
 
 HOURLY_DIR = OUTPUT_DIR / "hourly"
 DAILY_DIR = OUTPUT_DIR / "daily"
@@ -57,6 +61,7 @@ def _merge_articles(existing, new_articles):
     """Merge new articles into existing, dedup by hash AND title, drop older than cutoff."""
     seen_hashes = set()
     seen_titles = set()
+    seen_links = set()
     merged = []
 
     def _add(article):
@@ -72,10 +77,19 @@ def _merge_articles(existing, new_articles):
             return
         if title and title in seen_titles:
             return
+        link = normalize_url(article.get("link", ""))
+        allow_shared_link = (
+            article.get("isDarkweb")
+            and article.get("darkwebSource") == "ransomware.live"
+        )
+        if link and link in seen_links and not allow_shared_link:
+            return
         seen_hashes.add(h)
         if title:
             seen_titles.add(title)
-        merged.append(article)
+        if link and not allow_shared_link:
+            seen_links.add(link)
+        merged.append(normalize_article(article))
 
     # New articles take priority (added first)
     for article in new_articles:
@@ -94,6 +108,7 @@ def _merge_articles(existing, new_articles):
     # ingestion instead. Articles with NO parseable date at all are kept —
     # dropping undatable data would silently bleed legit articles.
     cutoff = datetime.now(timezone.utc) - timedelta(days=FEED_CUTOFF_DAYS)
+    future_limit = datetime.now(timezone.utc) + timedelta(minutes=MAX_FUTURE_MINUTES)
     filtered = []
     for article in merged:
         article_dt = (
@@ -101,7 +116,7 @@ def _merge_articles(existing, new_articles):
             or parse_datetime(article.get("ingested_at", ""))
             or parse_datetime(article.get("timestamp", ""))
         )
-        if article_dt is not None and article_dt < cutoff:
+        if article_dt is not None and (article_dt < cutoff or article_dt > future_limit):
             continue
         filtered.append(article)
 
@@ -164,6 +179,16 @@ def write_daily_output(articles):
         logger.debug(f"SQLite: corpus synced to {n} rows (== daily_latest.json)")
     except Exception as exc:
         logger.warning(f"SQLite write skipped: {exc}")
+
+
+def persist_corpus(articles: list[dict]) -> None:
+    """Atomically persist an enriched full corpus to JSON and SQLite."""
+    _write_json(articles, STATIC_DAILY)
+    try:
+        from modules.db import sync_corpus
+        sync_corpus(articles)
+    except Exception as exc:
+        logger.warning(f"SQLite enrichment sync skipped: {exc}")
 
 
 def _parse_pub_date(date_str):

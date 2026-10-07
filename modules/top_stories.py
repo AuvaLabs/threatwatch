@@ -2,10 +2,7 @@
 
 Selects the 5-8 most significant incidents from the article corpus for the
 security team's daily briefing. Extracted from `briefing_generator.py` to
-keep that file under the 800-line cap. Shares the LLM plumbing
-(`_detect_provider`, `_call_openai_compatible`, `_parse_json`) via imports
-from briefing_generator so there is only one source of truth for provider
-routing / rate limits / response parsing.
+keep that file under the 800-line cap.
 """
 from __future__ import annotations
 
@@ -17,33 +14,26 @@ from typing import Any
 
 from modules.ai_cache import get_cached_result, cache_result
 from modules.date_utils import article_datetime
+from modules.llm_client import (
+    call_llm, clear_last_provider, is_available, last_provider_label,
+)
 from modules.briefing_generator import (
-    _detect_provider,
-    _call_openai_compatible,
     _parse_json,
     _build_digest,
     _MAX_DIGEST_ARTICLES,
 )
 import os
 
-from modules.config import OUTPUT_DIR, LLM_MODEL
+from modules.config import OUTPUT_DIR, TOP_STORIES_MODEL
 
 logger = logging.getLogger(__name__)
 
 
+# Backwards-compatible alias for tests and any callers that patch it.
+_TOP_STORIES_MODEL = TOP_STORIES_MODEL
 _TOP_STORIES_PATH = OUTPUT_DIR / "top_stories.json"
 _TOP_STORIES_COOLDOWN = 3600  # 1 hour
 _LAST_TOP_STORIES_PATH = OUTPUT_DIR / ".top_stories_last_call"
-# Top stories runs after briefing + regional in the AI enrichment chain,
-# which together burn most of Groq free-tier per-key TPM in seconds. The
-# 70B 5K-token prompt then 429s on every key. Use the lighter 8B model
-# by default — editorial selection doesn't need deep reasoning. Override
-# via TOP_STORIES_MODEL env var.
-_TOP_STORIES_MODEL = os.environ.get("TOP_STORIES_MODEL", "llama-3.1-8b-instant")
-# 8B has an 8K context window — the briefing-default 80-article digest
-# overflows it. 30 articles is enough to pick a top-5-to-8 list and fits
-# comfortably (~2.5K input tokens + 1.5K output reserve). When running
-# on a larger model, the cap is harmless (the 70B sees more if anything).
 _TOP_STORIES_MAX_ARTICLES = int(os.environ.get("TOP_STORIES_MAX_ARTICLES", "30"))
 
 _TOP_STORIES_PROMPT = """You are a cyber threat intelligence editor selecting the most significant incidents for a security team's daily briefing. Your job: cut through the noise and surface what actually matters.
@@ -142,9 +132,8 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
     Uses a separate rate limit and cache from the main briefing.
     Returns a list of top story dicts or None.
     """
-    provider = _detect_provider()
-    if not provider or provider == "anthropic":
-        return None  # Only use Groq/OpenAI-compatible for this
+    if not is_available():
+        return None
 
     if not articles or len(articles) < 10:
         return None
@@ -194,10 +183,12 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
     )
 
     try:
-        reply = _call_openai_compatible(
+        clear_last_provider()
+        reply = call_llm(
             user_content,
             system_prompt=_TOP_STORIES_PROMPT,
-            max_tokens=1500,
+            max_tokens=6000,
+            response_format={"type": "json_object"},
             caller="top_stories",
             model=_TOP_STORIES_MODEL,
         )
@@ -229,11 +220,14 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
                 )
                 continue
 
-            # Verify proper nouns / cited CVEs in story trace to the linked
-            # article (not the whole corpus). Stops the case where the LLM
-            # picks article_index=N but writes a headline about article M's
-            # entities — the same narrative-coupling failure that hit the
-            # global briefing.
+            # Verify cited CVEs trace to the linked article (not the whole
+            # corpus). Stops the case where the LLM picks article_index=N but
+            # writes a summary that cites a CVE from article M. Per-article
+            # proper-noun grounding is intentionally skipped here: headline
+            # elaboration ("French", "European", "ERP") is common with Kimi
+            # and dropping stories for every unlisted capitalized word leaves
+            # the panel empty. CVE grounding catches the high-impact
+            # narrative-coupling risk.
             idx = story.get("article_index", 0) - 1
             if 0 <= idx < len(briefing_articles):
                 src = briefing_articles[idx]
@@ -241,8 +235,8 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
                     src.get("title") or "",
                     src.get("translated_title") or "",
                     src.get("summary") or "",
+                    (src.get("full_content") or "")[:4000],
                 ])
-                src_text_lower = src_text.lower()
                 src_cves = {m.upper() for m in CVE_RE.findall(src_text)}
                 missing_cves = cited - src_cves
                 if missing_cves:
@@ -250,18 +244,6 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
                         "Top-stories drop — story cites CVEs %s not in linked "
                         "article #%d: %r",
                         sorted(missing_cves), idx + 1,
-                        story.get("headline", "")[:80],
-                    )
-                    continue
-                missing_nouns = {
-                    n for n in _extract_proper_nouns(story_text)
-                    if n.lower() not in src_text_lower
-                }
-                if missing_nouns:
-                    logger.warning(
-                        "Top-stories drop — story names %s not in linked "
-                        "article #%d: %r",
-                        sorted(missing_nouns), idx + 1,
                         story.get("headline", "")[:80],
                     )
                     continue
@@ -294,7 +276,7 @@ def generate_top_stories(articles: list[dict[str, Any]]) -> list[dict[str, Any]]
             "stories": stories,
             "generated_at": now.isoformat(),
             "articles_analyzed": min(len(articles), cap),
-            "provider": f"{provider}/{_TOP_STORIES_MODEL}",
+            "provider": last_provider_label() or f"kimi/{_TOP_STORIES_MODEL}",
         }
 
         # Record and cache

@@ -153,8 +153,8 @@ class TestRecordClusters:
         with patch.object(ct, "CAMPAIGNS_PATH", path), \
              patch("modules.campaign_tracker.upsert_campaign", create=True, side_effect=Exception("no db")):
             # Record a different cluster — OldActor not in this batch
-            mapping = record_clusters([{"entity_type": "actor", "entity_name": "NewActor",
-                                       "article_hashes": ["x"], "article_count": 1}])
+            record_clusters([{"entity_type": "actor", "entity_name": "NewActor",
+                             "article_hashes": ["x"], "article_count": 1}])
         with patch.object(ct, "CAMPAIGNS_PATH", path):
             campaigns = load_campaigns()
         assert campaigns["old-id"]["status"] == "dormant"

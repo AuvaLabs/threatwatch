@@ -1,6 +1,6 @@
 import json
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from modules.ai_engine import _extract_json, analyze_article, SAFE_DEFAULT
 
@@ -24,55 +24,43 @@ class TestExtractJson:
 
 
 class TestAnalyzeArticle:
-    @patch("modules.ai_engine.track_usage")
     @patch("modules.ai_engine.check_daily_budget", return_value=True)
-    @patch("modules.ai_engine._get_client")
-    def test_successful_analysis(self, mock_get_client, mock_budget, mock_track):
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock()]
-        mock_response.content[0].text = json.dumps({
+    @patch("modules.ai_engine.get_cached_result", return_value=None)
+    @patch("modules.llm_client.call_llm")
+    def test_successful_analysis(self, mock_call_llm, mock_cache, mock_budget):
+        mock_call_llm.return_value = json.dumps({
             "is_cyber_attack": True,
             "category": "Ransomware",
             "confidence": 95,
             "translated_title": "Test Title",
             "summary": "A ransomware attack occurred.",
         })
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
         result = analyze_article("Test Title", "Some content")
         assert result["is_cyber_attack"] is True
         assert result["category"] == "Ransomware"
         assert result["confidence"] == 95
+        mock_call_llm.assert_called_once()
 
-    @patch("modules.ai_engine._get_client")
-    def test_malformed_json_returns_safe_default(self, mock_get_client):
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock()]
-        mock_response.content[0].text = "I cannot parse this as JSON properly {broken"
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
+    @patch("modules.ai_engine.check_daily_budget", return_value=True)
+    @patch("modules.ai_engine.get_cached_result", return_value=None)
+    @patch("modules.llm_client.call_llm")
+    def test_malformed_json_returns_safe_default(self, mock_call_llm, mock_cache, mock_budget):
+        mock_call_llm.return_value = "I cannot parse this as JSON properly {broken"
 
         result = analyze_article("Test Title")
         assert result["is_cyber_attack"] is False
         assert result["translated_title"] == "Test Title"
+        assert result["ai_analysis_failed"] is True
 
-    @patch("modules.ai_engine._get_client")
-    def test_api_error_returns_safe_default(self, mock_get_client):
-        import anthropic
-        mock_client = MagicMock()
-        mock_client.messages.create.side_effect = anthropic.APIError(
-            message="rate limited",
-            request=MagicMock(),
-            body=None,
-        )
-        mock_get_client.return_value = mock_client
-
+    @patch("modules.ai_engine.check_daily_budget", return_value=True)
+    @patch("modules.ai_engine.get_cached_result", return_value=None)
+    @patch("modules.llm_client.call_llm", side_effect=RuntimeError("API down"))
+    def test_api_error_returns_safe_default(self, mock_call_llm, mock_cache, mock_budget):
         result = analyze_article("Test Title")
         assert result["is_cyber_attack"] is False
         assert result["translated_title"] == "Test Title"
+        assert result["ai_analysis_failed"] is True
 
     @patch("modules.ai_engine.get_cached_result")
     def test_cache_hit_skips_api(self, mock_cache):
@@ -95,59 +83,36 @@ class TestAnalyzeArticle:
         assert result["_budget_skipped"] is True
         assert result["is_cyber_attack"] is False
 
-    @patch("modules.ai_engine.track_usage")
     @patch("modules.ai_engine.check_daily_budget", return_value=True)
-    @patch("modules.ai_engine._get_client")
     @patch("modules.ai_engine.get_cached_result", return_value=None)
-    def test_fills_missing_fields(self, mock_cache, mock_get_client, mock_budget, mock_track):
+    @patch("modules.llm_client.call_llm")
+    def test_fills_missing_fields(self, mock_call_llm, mock_cache, mock_budget):
         """Response missing some fields gets defaults filled in."""
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock()]
-        mock_response.content[0].text = json.dumps({
+        mock_call_llm.return_value = json.dumps({
             "is_cyber_attack": True,
             "category": "Malware",
             # Missing: confidence, translated_title, summary
         })
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
         result = analyze_article("Fill test")
         assert result["confidence"] == 0  # Filled from SAFE_DEFAULT
         assert result["translated_title"] == "Fill test"  # Filled from title arg
 
-    @patch("modules.ai_engine.track_usage")
     @patch("modules.ai_engine.check_daily_budget", return_value=True)
-    @patch("modules.ai_engine._get_client")
     @patch("modules.ai_engine.get_cached_result", return_value=None)
-    def test_with_content(self, mock_cache, mock_get_client, mock_budget, mock_track):
+    @patch("modules.llm_client.call_llm")
+    def test_with_content(self, mock_call_llm, mock_cache, mock_budget):
         """Article content is included in the prompt."""
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock()]
-        mock_response.content[0].text = json.dumps({
+        mock_call_llm.return_value = json.dumps({
             "is_cyber_attack": True, "category": "Ransomware",
             "confidence": 85, "translated_title": "Test", "summary": "S",
         })
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
 
         result = analyze_article("Test", "Full article content here")
         assert result["is_cyber_attack"] is True
         # Check content was passed to API
-        call_args = mock_client.messages.create.call_args
-        user_msg = call_args.kwargs["messages"][0]["content"]
-        assert "Full article content" in user_msg
-
-    @patch("modules.ai_engine._get_client")
-    @patch("modules.ai_engine.get_cached_result", return_value=None)
-    def test_unexpected_exception_returns_failed(self, mock_cache, mock_get_client):
-        mock_client = MagicMock()
-        mock_client.messages.create.side_effect = RuntimeError("unexpected")
-        mock_get_client.return_value = mock_client
-
-        result = analyze_article("Exception test")
-        assert result["ai_analysis_failed"] is True
+        call_args = mock_call_llm.call_args
+        assert "Full article content" in call_args.args[0]
 
 
 class TestGetFailureStats:

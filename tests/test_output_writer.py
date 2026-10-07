@@ -112,6 +112,34 @@ class TestMergeArticles:
         merged = _merge_articles([], [article])
         assert len(merged) == 1
 
+    def test_future_dated_article_is_excluded(self):
+        future = _make_article(
+            "future",
+            published=(datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+        )
+        assert _merge_articles([], [future]) == []
+
+    def test_duplicate_canonical_link_is_excluded(self):
+        first = _make_article(
+            "first", title="First report", link="https://example.com/story?utm_source=x"
+        )
+        duplicate = _make_article(
+            "second", title="Second headline", link="https://example.com/story"
+        )
+        merged = _merge_articles([], [first, duplicate])
+        assert [article["hash"] for article in merged] == ["first"]
+
+    def test_ransomware_victims_may_share_landing_page(self):
+        first = _make_article(
+            "victim-1", title="Victim One", link="https://ransomware.live/victims",
+            isDarkweb=True, darkwebSource="ransomware.live",
+        )
+        second = _make_article(
+            "victim-2", title="Victim Two", link="https://ransomware.live/victims",
+            isDarkweb=True, darkwebSource="ransomware.live",
+        )
+        assert len(_merge_articles([], [first, second])) == 2
+
 
 # ---------------------------------------------------------------------------
 # _write_json
