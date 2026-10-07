@@ -4624,6 +4624,13 @@ function _isNoise(title, summary) {
   return _NOISE_FILTERS.some(re => re.test(text));
 }
 
+function isBulkVulnerabilityArticle(article) {
+  const source = String(article.source || '');
+  return article.category === 'Vulnerability Disclosure' && (
+    source === 'nvd:cve' || source === 'https://vulners.com/rss.xml'
+  );
+}
+
 function transformArticles(articles) {
   if (!Array.isArray(articles)) return [];
   return articles.filter(article => {
@@ -4665,6 +4672,7 @@ function transformArticles(articles) {
       kevRansomware: article.kev_ransomware_use === 'Known',
       kevEntries: Array.isArray(article.kev_entries) ? article.kev_entries : [],
       victimSectors: Array.isArray(article.victim_sectors) ? article.victim_sectors : [],
+      isBulkVulnerability: isBulkVulnerabilityArticle(article),
       _id: 'td-' + (article.hash || i)
     };
   });
@@ -4720,6 +4728,14 @@ async function fetchArticlesFromAPI() {
 /* ============================================================= */
 /* RENDER NEWS FEED CARDS (LEFT PANEL)                            */
 /* ============================================================= */
+function _isDefaultNewsView(filter) {
+  return filter === 'all' && state.activeRegion === 'all' &&
+    !state.watchFilter && !state.feedSearch && !state.activeKevFilter &&
+    !state.activeCveFilter && !state.activeSectorFilter &&
+    !state.activeSector && !state.activeActor && !state.activeCategory &&
+    !state._actionDrilldown;
+}
+
 function filterMatchesItem(filter, item) {
   // Region filter — apply to left panel too
   if (state.activeRegion && state.activeRegion !== 'all') {
@@ -4734,6 +4750,12 @@ function filterMatchesItem(filter, item) {
   // Victim-sector drilldown — active when an analyst clicks a sector pill.
   if (state.activeSectorFilter) {
     if (!(item.victimSectors || []).includes(state.activeSectorFilter)) return false;
+  }
+  // Keep machine-generated CVE telemetry in the Exploits tab and analyst
+  // drilldowns without letting it overwhelm the default news briefing.
+  // KEV-listed vulnerabilities remain visible because they require action.
+  if (_isDefaultNewsView(filter) && item.isBulkVulnerability && !item.kevListed) {
+    return false;
   }
   // Category filter
   let catMatch = true;
@@ -4974,8 +4996,11 @@ function renderFeedCards(reset = true) {
   // Update header count
   const countBadge = document.getElementById('feed-count-badge');
   const hasDrilldown = state.activeSector || state.activeActor || state.activeCategory || state._actionDrilldown || state.activeCveFilter || state.activeSectorFilter;
-  if (filter === 'all' && !hasDrilldown) {
-    countBadge.textContent = '[' + state.newsItems.length + ' items]';
+  if (_isDefaultNewsView(filter)) {
+    const hidden = state.newsItems.length - filtered.length;
+    countBadge.textContent = '[' + filtered.length + ' news · ' + hidden + ' CVEs in Exploits]';
+  } else if (filter === 'all' && !hasDrilldown) {
+    countBadge.textContent = '[' + filtered.length + ' items]';
   } else {
     const labels = [];
     if (state.activeCveFilter) labels.push(state.activeCveFilter);
