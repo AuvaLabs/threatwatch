@@ -29,6 +29,12 @@ class TestLoadSaveHealth:
         fh.save_health(data)
         assert fh.load_health() == data
 
+    def test_save_uses_atomic_writer(self):
+        data = {"https://example.com": {"status": "ok"}}
+        with patch.object(fh, "write_json_atomic") as write:
+            fh.save_health(data)
+        write.assert_called_once_with(fh.HEALTH_FILE, data, ensure_ascii=False, indent=2)
+
     def test_load_returns_empty_on_corrupt_file(self, isolated_health_file):
         isolated_health_file.write_text("not-json", encoding="utf-8")
         assert fh.load_health() == {}

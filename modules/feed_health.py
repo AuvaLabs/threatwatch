@@ -21,6 +21,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 from modules.config import STATE_DIR
+from modules.utils import write_json_atomic
 
 HEALTH_FILE = STATE_DIR / "feed_health.json"
 
@@ -74,7 +75,7 @@ def load_health() -> dict:
 
 def save_health(data: dict) -> None:
     HEALTH_FILE.parent.mkdir(parents=True, exist_ok=True)
-    HEALTH_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_json_atomic(HEALTH_FILE, data, ensure_ascii=False, indent=2)
 
 
 def _signal_score(entry: dict) -> float:
