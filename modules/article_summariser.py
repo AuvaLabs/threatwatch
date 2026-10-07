@@ -44,14 +44,14 @@ Rules:
 - "impact": the consequence or scale, extracted verbatim. Style template: "<COUNT> records exposed" or "systems offline for <N> days". Use null if no impact figure is in the content.
 - "summary": 1 sentence combining the above into a readable intelligence summary, citing only entities present in the content
 - For CVE/vulnerability articles, include product and severity in "what"
-- Return ONLY valid JSON array — no markdown, no explanation
+- Return ONLY one valid JSON object — no markdown, no explanation
 
 Input format: numbered articles with title and content snippet.
 Output format:
-[
+{"summaries": [
   {"index": 1, "what": "...", "who": "...", "impact": "...", "summary": "..."},
   {"index": 2, "what": "...", "who": "...", "impact": "...", "summary": "..."}
-]"""
+]}"""
 
 
 def summarize_articles(articles: list[dict[str, Any]]) -> int:
@@ -99,22 +99,32 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
             summaries = cached
         else:
             try:
-                if network_batches > 0 and _SUMMARY_BATCH_DELAY_SECONDS > 0:
-                    time.sleep(_SUMMARY_BATCH_DELAY_SECONDS)
-                network_batches += 1
-                reply = call_llm(
-                    user_content,
-                    system_prompt=_SUMMARY_PROMPT,
-                    max_tokens=800,
-                    response_format={"type": "json_object"},
-                    caller="summaries",
-                )
-                summaries = _parse_json(reply)
+                summaries = None
+                for attempt in range(2):
+                    if network_batches > 0 and _SUMMARY_BATCH_DELAY_SECONDS > 0:
+                        time.sleep(_SUMMARY_BATCH_DELAY_SECONDS)
+                    network_batches += 1
+                    reply = call_llm(
+                        user_content,
+                        system_prompt=_SUMMARY_PROMPT,
+                        max_tokens=800,
+                        response_format={"type": "json_object"},
+                        caller="summaries",
+                    )
+                    summaries = _parse_json(reply)
+                    if summaries is not None:
+                        break
+                    logger.warning(
+                        "Summary batch returned invalid JSON on attempt %d", attempt + 1
+                    )
                 if summaries is None:
                     continue
                 # Handle both list and dict-with-list responses
                 if isinstance(summaries, dict):
                     summaries = summaries.get("summaries", [])
+                if not isinstance(summaries, list):
+                    logger.warning("Summary batch returned an invalid response shape")
+                    continue
                 cache_result(cache_key, summaries)
             except Exception as e:
                 logger.warning(f"Summary batch failed: {e}")

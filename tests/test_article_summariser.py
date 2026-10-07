@@ -61,6 +61,23 @@ class TestSummarizeArticles:
             count = summarize_articles(articles)
         assert count == 0
 
+    def test_malformed_response_is_retried_once(self, monkeypatch):
+        articles = [_article(summary="")]
+        parsed = {
+            "summaries": [{"index": 1, "summary": "Recovered summary"}]
+        }
+        monkeypatch.setattr("modules.article_summariser._SUMMARY_BATCH_DELAY_SECONDS", 0)
+        with patch("modules.article_summariser.is_available", return_value=True), \
+             patch("modules.article_summariser.get_cached_result", return_value=None), \
+             patch("modules.article_summariser.call_llm", side_effect=["bad", "good"]) as call, \
+             patch("modules.article_summariser._parse_json", side_effect=[None, parsed]), \
+             patch("modules.article_summariser.cache_result"):
+            count = summarize_articles(articles)
+
+        assert count == 1
+        assert articles[0]["summary"] == "Recovered summary"
+        assert call.call_count == 2
+
     def test_dict_response_unwrapped(self):
         articles = [_article(summary="")]
         dict_response = {"summaries": [{"index": 1, "summary": "From dict"}]}
