@@ -73,7 +73,6 @@ services:
       - PORT=${PORT:-8098}
       - SITE_DOMAIN=${SITE_DOMAIN:-localhost:8098}
       - READ_FROM_SQLITE=1
-      - SSR_ARTICLE_LIMIT=${SSR_ARTICLE_LIMIT:-50}
     ports:
       - "${PORT:-8098}:8098"
     volumes:

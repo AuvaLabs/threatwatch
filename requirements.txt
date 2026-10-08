@@ -9,7 +9,8 @@ feedgen==1.0.0
 feedparser==6.0.12
 httpx==0.28.1
 lingua-language-detector==2.1.1
-lxml==6.1.0
+lxml==6.1.3
+lxml-html-clean==0.4.5
 python-dotenv==1.2.2
 pyyaml==6.0.3
 readability-lxml==0.8.4.1

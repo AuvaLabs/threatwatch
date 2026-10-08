@@ -133,6 +133,11 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
+cd frontend
+npm ci
+npm run build
+cd ..
+
 mkdir -p data/output/hourly data/output/daily \
          data/state/ai_cache \
          data/logs/run_logs data/logs/summaries
@@ -162,7 +167,6 @@ For automatic refresh, add a cron job:
 | `SITE_DOMAIN` | `localhost:8098` | Domain for RSS feed links |
 | `FEED_CUTOFF_DAYS` | `7` | Rolling window for articles |
 | `MAX_FUTURE_MINUTES` | `15` | Maximum tolerated upstream clock skew |
-| `SSR_ARTICLE_LIMIT` | `50` | Maximum articles embedded in initial HTML |
 
 ### Optional: NewsAPI
 
@@ -235,9 +239,9 @@ Edit these files to add or remove feeds. No restart needed — changes apply on 
 
 **Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify (regex + AI) → Region Inference → NVD/EPSS/ATT&CK → Output → AI Briefing → Top Stories → Summaries → Clustering → Actor Profiles
 
-**Server** (`serve_threatwatch.py`): Python HTTP server with SSR, ETag caching, gzip, CORS
+**Server** (`serve_threatwatch.py`): Python HTTP server with safe application routing, ETag caching, gzip, and restricted CORS
 
-**Frontend** (`threatwatch.html`): Single HTML file. No build step, no framework.
+**Frontend** (`frontend/`): Preact and TypeScript analyst workspace built with Vite. The initial shell is small and intelligence is loaded through bounded API requests rather than embedded into the page.
 
 **Storage**: SQLite primary store with atomic JSON exports and fallback reads. No Redis or external queue is required.
 
@@ -245,8 +249,12 @@ Edit these files to add or remove feeds. No restart needed — changes apply on 
 
 ```
 threatdigest_main.py         # Pipeline orchestrator
-serve_threatwatch.py         # HTTP server with SSR
-threatwatch.html             # Dashboard UI (single file)
+serve_threatwatch.py         # HTTP server and public API
+frontend/                    # Typed analyst workspace
+  ├── src/components/        # Navigation, news rows, and shared states
+  ├── src/views/             # Overview and specialist workspaces
+  ├── src/services/          # Bounded API client
+  └── src/styles/            # Accessible design system
 modules/
   ├── feed_loader.py         # YAML feed config parser
   ├── feed_fetcher.py        # Parallel RSS fetcher
@@ -380,6 +388,10 @@ Public JSON endpoints support CORS. Operational health endpoints are same-origin
 pip install -r requirements.txt
 pytest tests/ -v
 pytest tests/ --cov=modules --cov-report=term-missing
+
+cd frontend
+npm test
+npm run build
 ```
 
 ---

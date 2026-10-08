@@ -1,23 +1,43 @@
-"""Regression checks for the briefing-first news feed curation."""
+"""Static contract checks for the replacement analyst workspace."""
 
 from pathlib import Path
 
 
-HTML = (Path(__file__).parent.parent / "threatwatch.html").read_text(encoding="utf-8")
+ROOT = Path(__file__).parent.parent
+FRONTEND = ROOT / "frontend" / "src"
 
 
-def test_machine_vulnerability_sources_are_identified():
-    assert "function isBulkVulnerabilityArticle(article)" in HTML
-    assert "source === 'nvd:cve'" in HTML
-    assert "source === 'https://vulners.com/rss.xml'" in HTML
+def _read(relative_path: str) -> str:
+    return (FRONTEND / relative_path).read_text(encoding="utf-8")
 
 
-def test_default_news_view_hides_non_kev_machine_records():
-    assert "_isDefaultNewsView(filter)" in HTML
-    assert "item.isBulkVulnerability && !item.kevListed" in HTML
-    assert "CVEs in Exploits" in HTML
+def test_primary_navigation_matches_analyst_jobs():
+    shell = _read("components/AppShell.tsx")
+    for destination in (
+        "Overview",
+        "News",
+        "Vulnerabilities",
+        "Campaigns",
+        "Watchlists",
+        "Briefings",
+        "API",
+    ):
+        assert destination in shell
 
 
-def test_exploits_tab_still_includes_vulnerability_cards():
-    assert "filter === 'exploits'" in HTML
-    assert "item.cssType === 'vuln'" in HTML
+def test_news_view_handles_pending_summaries_explicitly():
+    article_list = _read("components/ArticleList.tsx")
+    assert "Summary pending" in article_list
+    assert "summary_method" in article_list
+
+
+def test_vulnerability_view_uses_dedicated_api_filter():
+    vulnerabilities = _read("views/VulnerabilitiesView.tsx")
+    assert 'view: "vulnerabilities"' in vulnerabilities
+
+
+def test_design_uses_risk_colors_only_as_semantic_tokens():
+    tokens = _read("styles/tokens.css")
+    assert "--color-risk-critical" in tokens
+    assert "--color-risk-warning" in tokens
+    assert "--reading-width" in tokens

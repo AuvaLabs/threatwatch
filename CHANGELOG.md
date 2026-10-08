@@ -2,6 +2,18 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-08: Briefing-first analyst workspace
+
+- Replaced the monolithic dashboard with a typed Preact and TypeScript application.
+- Added focused Overview, News, Story, Vulnerabilities, Campaigns, Watchlists, Briefings, API, and System Status workspaces.
+- Changed the default experience from competing dashboard panels to a concise lead development, assessment, priority actions, and chronological intelligence stream.
+- Added explicit loading, empty, stale, missing-summary, unclassified, and API failure states.
+- Added dedicated desktop and mobile navigation, responsive tables, accessible control labels, keyboard focus, and reduced-motion handling.
+- Removed inline script and style execution from the content security policy.
+- Stopped embedding the article corpus in the initial HTML response. News and vulnerability data now use bounded, filtered API requests.
+- Added search, category, region, and specialist vulnerability filters to the stable article API.
+- Added frontend unit and component coverage above 80 percent, plus route-level browser validation.
+
 ## 2026-06-12 — Full-system overhaul: data accuracy, silent-failure elimination, UI truthfulness + redesign foundation
 
 A three-phase audit (discover → plan → execute) of the entire pipeline,

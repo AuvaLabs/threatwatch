@@ -1,3 +1,11 @@
+FROM node:22-alpine AS frontend-builder
+
+WORKDIR /build/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -14,12 +22,13 @@ RUN apt-get update && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source
-COPY threatdigest_main.py serve_threatwatch.py threatwatch.html favicon.svg ./
+# Copy application source and the immutable frontend build.
+COPY threatdigest_main.py serve_threatwatch.py favicon.svg ./
 COPY modules/ modules/
 COPY config/ config/
 COPY app/ app/
 COPY scripts/ scripts/
+COPY --from=frontend-builder /build/frontend/dist/ frontend/dist/
 
 # Create data directory structure
 RUN mkdir -p data/output/hourly data/output/daily \

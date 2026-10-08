@@ -9,8 +9,8 @@ import html
 import json
 import logging
 import math
+import mimetypes
 import os
-import secrets
 import sys
 import threading
 import time
@@ -20,13 +20,12 @@ from http import HTTPStatus
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from socketserver import ThreadingMixIn
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
 PORT = int(os.environ.get("PORT", 8098))
 CACHE_TTL = 30  # seconds
-SSR_ARTICLE_LIMIT = int(os.environ.get("SSR_ARTICLE_LIMIT", "50"))
-SSR_PLACEHOLDER = "<!-- __SSR_DATA__ -->"
 WATCHLIST_WRITE_ENABLED = os.environ.get("WATCHLIST_WRITE_ENABLED", "").lower() in ("1", "true", "yes")
 WATCHLIST_TOKEN = os.environ.get("WATCHLIST_TOKEN", "")
 # SQLite read path toggle. When set, load_articles prefers the shadow store
@@ -42,7 +41,6 @@ _cache_lock = threading.Lock()  # guards all _cache writes; reads use GIL
 # traffic and API bodies are cheap to compress.
 _gzip_memo: tuple = ("", b"")
 _gzip_memo_lock = threading.Lock()
-_ssr_lock = threading.Lock()
 
 # Peers from which we trust forwarded-IP headers. Behind nginx every request
 # appears to come from 127.0.0.1, so without this every public user is bucketed
@@ -97,31 +95,15 @@ def _is_rate_limited(ip: str) -> bool:
         return False
 
 # ── Security headers ──────────────────────────────────────────────────────────
-# Per-process nonce used to authorise the single inline <script> block in
-# threatwatch.html. Rotates on every server restart — an attacker who injects
-# HTML via a compromised feed cannot guess this value, so their injected
-# <script> tags do not execute. Weaker than a per-request nonce (which would
-# defeat the 30s rendered-page cache) but strictly stronger than the prior
-# 'unsafe-inline' policy.
-_CSP_NONCE = secrets.token_urlsafe(24)
-
-# Tightened CSP: script-src no longer allows 'unsafe-inline'. Every former
-# inline onclick handler now routes through the `_dispatchClick` delegator
-# in threatwatch.html. The remaining single inline <script> block is
-# authorised by the per-process nonce. Inline event handlers, javascript:
-# URLs, and eval are all refused by the browser.
-#
-# style-src retains 'unsafe-inline' because the HTML still has 100+ style=""
-# attributes and a mix of inline <style> blocks; migrating those is a
-# separate follow-up.
+# The replacement frontend ships external scripts and styles only. Keeping
+# inline execution disabled lets feed content remain untrusted by default.
 _CSP = (
     "default-src 'self'; "
-    f"script-src 'self' 'nonce-{_CSP_NONCE}'; "
-    "style-src 'self' 'unsafe-inline'; "
+    "script-src 'self'; "
+    "style-src 'self'; "
     "img-src 'self' data: blob:; "
-    "font-src 'self' https://fonts.gstatic.com; "
+    "font-src 'self'; "
     "connect-src 'self'; "
-    "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "frame-ancestors 'none';"
 )
 _SECURITY_HEADERS = {
@@ -271,60 +253,6 @@ def load_clusters():
         return json.loads(raw)
     except (FileNotFoundError, json.JSONDecodeError):
         return None
-
-
-def _annotate_with_clusters(articles: list, clusters_payload: dict | None) -> None:
-    """Attach story-cluster metadata to each article in-place.
-
-    For every clustered article we add a `cluster` sub-object with the cluster's
-    display name, its first-seen date, and its article count. The frontend uses
-    these fields to render a "Story: Nd old · X sources" pill so that recurring
-    coverage of the same underlying CVE/campaign does not look like fresh news.
-
-    When an article belongs to multiple clusters (CVE + org, say), we prefer the
-    cluster with the earliest `first_seen` so the badge reflects the true age
-    of the story.
-    """
-    if not clusters_payload:
-        return
-    cluster_list = clusters_payload.get("clusters") or []
-    if not cluster_list:
-        return
-
-    index: dict[str, dict] = {}
-    for c in cluster_list:
-        if (c.get("article_count") or 0) < 3:
-            continue
-        meta = {
-            "entity_name": c.get("entity_name"),
-            "entity_type": c.get("entity_type"),
-            "article_count": c.get("article_count"),
-            "first_seen": c.get("first_seen"),
-            # Campaign fields survive across pipeline runs — the frontend
-            # story-pill prefers first_observed so long-running campaigns
-            # don't appear "new" each Monday after the 7-day window rolls.
-            "campaign_id": c.get("campaign_id"),
-            "first_observed": c.get("first_observed"),
-            "campaign_status": c.get("campaign_status"),
-            "total_observed_articles": c.get("total_observed_articles"),
-        }
-        for h in c.get("article_hashes") or []:
-            prev = index.get(h)
-            if prev is None:
-                index[h] = meta
-                continue
-            # Keep the cluster with the earlier first_seen (older story wins)
-            a_first = meta.get("first_seen") or ""
-            b_first = prev.get("first_seen") or ""
-            if a_first and (not b_first or a_first < b_first):
-                index[h] = meta
-
-    if not index:
-        return
-    for a in articles:
-        h = a.get("hash")
-        if h and h in index:
-            a["cluster"] = index[h]
 
 
 # CVE IDs in URL paths — tight regex to avoid any injection surface in
@@ -492,20 +420,6 @@ def _build_cve_view(cve_id: str) -> bytes:
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-
-
-def _slim_clusters_for_ssr(clusters_payload: dict | None) -> dict | None:
-    """Return a copy of clusters with per-article hash lists stripped.
-
-    `article_hashes` is only needed server-side for the article→cluster join.
-    Shipping it in SSR bloats the HTML by 50-500 strings per cluster.
-    """
-    if not clusters_payload:
-        return clusters_payload
-    trimmed = []
-    for c in clusters_payload.get("clusters") or []:
-        trimmed.append({k: v for k, v in c.items() if k != "article_hashes"})
-    return {**clusters_payload, "clusters": trimmed}
 
 
 def load_actor_profiles():
@@ -757,113 +671,40 @@ def build_health() -> bytes:
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     payload["briefing_stale"] = briefing_stale
-    payload["briefing_age_hours"] = briefing_age_hours
+    payload["briefing_age_hours"] = (
+        briefing_age_hours
+        if briefing_age_hours is not None and math.isfinite(briefing_age_hours)
+        else None
+    )
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
-def build_ssr_data():
-    """Build the server-side rendered data payload to embed in HTML.
-
-    Uses a lock to prevent cache stampede: only one thread recomputes while
-    others return stale data.
-    """
-    now = time.time()
-    key = "__ssr_data__"
-    entry = _cache.get(key)
-    if entry and (now - entry[0]) < CACHE_TTL:
-        return entry[1]
-
-    # Try to acquire the lock; if another thread is already rebuilding,
-    # return stale data (if available) instead of blocking.
-    acquired = _ssr_lock.acquire(blocking=False)
-    if not acquired:
-        if entry:
-            return entry[1]
-        # No stale data and another thread is rebuilding — block until ready.
-        with _ssr_lock:
-            return _cache.get(key, (0, "{}"))[1]
-
-    try:
-        articles = load_articles()
-        stats = load_stats()
-        briefing = load_briefing()
-        top_stories = load_top_stories()
-        clusters = load_clusters()
-        actor_profiles = load_actor_profiles()
-        trends = load_trends()
-
-        # Regional briefings
-        regional_briefings = {}
-        for rk in ("na", "emea", "apac"):
-            rpath = BASE_DIR / "data" / "output" / f"briefing_{rk}.json"
-            try:
-                raw = read_cached(rpath)
-                regional_briefings[rk] = json.loads(raw)
-            except (FileNotFoundError, json.JSONDecodeError):
-                pass
-
-        # Strip full_content from SSR payload to reduce page size
-        # (full_content is only needed for article detail view via API)
-        ssr_articles = [
-            {k: v for k, v in a.items() if k != "full_content"}
-            for a in articles[:SSR_ARTICLE_LIMIT]
-        ]
-        _annotate_with_clusters(ssr_articles, clusters)
-        # After article annotation, the hash list inside each cluster is dead
-        # weight in the SSR payload (often 50-500 hashes per cluster). The
-        # frontend cluster panel only needs the display fields.
-        ssr_clusters = _slim_clusters_for_ssr(clusters)
-
-        ssr_payload = {
-            "articles": ssr_articles,
-            "stats": stats,
-            "briefing": briefing,
-            "top_stories": top_stories,
-            "clusters": ssr_clusters,
-            "actor_profiles": actor_profiles,
-            "trends": trends,
-            "regional_briefings": regional_briefings if regional_briefings else None,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-        # Serialize and cache
-        ssr_json = json.dumps(ssr_payload, ensure_ascii=False, separators=(",", ":"))
-        with _cache_lock:
-            _cache[key] = (now, ssr_json)
-        return ssr_json
-    finally:
-        _ssr_lock.release()
-
-
 def render_page():
-    """Read HTML template and inject SSR data."""
+    """Return the built frontend shell without embedding the article corpus."""
     now = time.time()
     key = "__rendered_page__"
     entry = _cache.get(key)
     if entry and (now - entry[0]) < CACHE_TTL:
         return entry[1]
 
-    template_path = BASE_DIR / "threatwatch.html"
-    template = read_cached(template_path).decode("utf-8")
-
-    ssr_json = build_ssr_data()
-    # Escape '</' sequences so an attacker-supplied article title can't break
-    # out of the containing tag. script-type='application/json' is NOT
-    # executed by browsers so script-src leaves it alone per spec — frontend
-    # reads `textContent` and JSON.parse()s.
-    safe_json = ssr_json.replace("</", "<\\/")
-    ssr_script = f'<script id="ssr-data" type="application/json">{safe_json}</script>'
-    rendered = template.replace(SSR_PLACEHOLDER, ssr_script)
-    # Authorise the single inline <script> block at the bottom of the
-    # template with the per-process CSP nonce. Only the bare `<script>`
-    # opener at line 2516 needs it — `<script id=...>` (ssr-data) and any
-    # future tags with attributes skip the match.
-    rendered = rendered.replace("\n<script>\n", f'\n<script nonce="{_CSP_NONCE}">\n', 1)
-
-    body = rendered.encode("utf-8")
+    body = read_cached(FRONTEND_DIST / "index.html")
     with _cache_lock:
         _cache[key] = (now, body)
     return body
+
+
+def resolve_frontend_asset(url_path: str) -> Path | None:
+    """Resolve a built asset path while rejecting traversal and directories."""
+    if not url_path.startswith("/assets/"):
+        return None
+    relative = Path(unquote(url_path).lstrip("/"))
+    root = FRONTEND_DIST.resolve()
+    candidate = (FRONTEND_DIST / relative).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
 
 
 def load_ioc_items() -> list:
@@ -910,6 +751,57 @@ def build_sources() -> bytes:
     ).encode("utf-8")
 
 
+def _first_param(params: dict, name: str) -> str:
+    return str(params.get(name, [""])[0] or "").strip()
+
+
+def _is_vulnerability_article(article: dict) -> bool:
+    source = str(article.get("source") or "").lower()
+    category = str(article.get("category") or "").lower()
+    return bool(
+        article.get("cve_ids")
+        or source in {"nvd:cve", "https://vulners.com/rss.xml"}
+        or any(term in category for term in ("vulnerab", "patch", "zero-day"))
+    )
+
+
+def _is_bulk_vulnerability_article(article: dict) -> bool:
+    source = str(article.get("source") or "").lower()
+    return source in {"nvd:cve", "https://vulners.com/rss.xml"}
+
+
+def _matches_article_filters(article: dict, filters: dict[str, str]) -> bool:
+    searchable = " ".join(
+        str(article.get(field) or "")
+        for field in ("title", "translated_title", "summary", "source_name", "category")
+    ).casefold()
+    if filters["q"] and filters["q"].casefold() not in searchable:
+        return False
+    for field in ("category", "region", "source"):
+        expected = filters[field]
+        actual = article.get("source_name") if field == "source" else article.get(field)
+        if expected and str(actual or "").casefold() != expected.casefold():
+            return False
+    view = filters["view"].casefold()
+    is_vulnerability = _is_vulnerability_article(article)
+    if view == "vulnerabilities" and not is_vulnerability:
+        return False
+    kev_listed = article.get("kev_listed") or article.get("kevListed")
+    if view == "news" and _is_bulk_vulnerability_article(article) and not kev_listed:
+        return False
+    return True
+
+
+def filter_articles(articles: list[dict], params: dict) -> tuple[list[dict], dict[str, str]]:
+    """Apply bounded public query filters without changing the stored corpus."""
+    filters = {
+        name: _first_param(params, name)
+        for name in ("q", "category", "region", "source", "view")
+    }
+    filtered = [article for article in articles if _matches_article_filters(article, filters)]
+    return filtered, filters
+
+
 STATIC_ROUTES = {
     "/api/briefing": {
         "file": BASE_DIR / "data" / "output" / "briefing.json",
@@ -952,6 +844,15 @@ STATIC_ROUTES = {
         "content_type": "image/svg+xml",
     },
 }
+
+UI_ROUTES = frozenset({
+    "/", "/news", "/vulnerabilities", "/campaigns", "/watchlists",
+    "/briefings", "/api-docs", "/system",
+})
+
+
+def _is_ui_route(path: str) -> bool:
+    return path in UI_ROUTES or path.startswith("/news/")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1244,10 +1145,17 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             )
             return
 
+        asset = resolve_frontend_asset(path)
+        if asset is not None:
+            content_type = mimetypes.guess_type(asset.name)[0] or "application/octet-stream"
+            self._send_body(content_type, read_cached(asset), head_only)
+            return
+
         path = v1_aliases.get(path, path)
 
-        # Route: / — server-side rendered HTML
-        if path == "/":
+        # UI routes all return the same application shell. Data is fetched
+        # through bounded API requests instead of being embedded in HTML.
+        if _is_ui_route(path):
             try:
                 body = render_page()
             except FileNotFoundError:
@@ -1495,7 +1403,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         # Route: /api/articles — with pagination support
         if path == "/api/articles":
             try:
-                articles = load_articles()
+                articles, active_filters = filter_articles(load_articles(), params)
             except OSError:
                 self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Error loading articles")
                 return
@@ -1531,6 +1439,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 "offset": offset,
                 "limit": limit,
                 "has_more": (offset + len(page)) < total,
+                "filters": active_filters,
             }
 
             body = json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -1595,7 +1504,7 @@ def main():
     server = ThreadedHTTPServer(("0.0.0.0", PORT), ThreatWatchHandler)
     logger.info("ThreatWatch v2.0 server starting on http://0.0.0.0:%d", PORT)
     logger.info("Base directory: %s", BASE_DIR)
-    logger.info("SSR enabled — articles embedded in HTML on each request")
+    logger.info("Frontend shell enabled; intelligence loads through bounded API requests")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -1,4 +1,4 @@
-"""Tests for serve_threatwatch.py — rate limiter, SSR data, routing, and security."""
+"""Tests for serve_threatwatch.py: rate limiter, data loading, routing, and security."""
 import collections
 import json
 import threading
@@ -83,45 +83,6 @@ class TestRateLimiter:
 
 
 # ── SSR data building ─────────────────────────────────────────────────────────
-
-class TestBuildSsrData:
-    def setup_method(self):
-        # Clear the in-memory cache so each test starts fresh
-        sw._cache.clear()
-
-    def test_returns_valid_json(self):
-        with patch("serve_threatwatch.load_articles", return_value=[]), \
-             patch("serve_threatwatch.load_stats", return_value={}), \
-             patch("serve_threatwatch.load_briefing", return_value=None):
-            result = sw.build_ssr_data()
-        parsed = json.loads(result)
-        assert "articles" in parsed
-        assert "stats" in parsed
-        assert "generated_at" in parsed
-
-    def test_caches_result(self):
-        calls = []
-        def _load():
-            calls.append(1)
-            return []
-
-        with patch("serve_threatwatch.load_articles", side_effect=_load), \
-             patch("serve_threatwatch.load_stats", return_value={}), \
-             patch("serve_threatwatch.load_briefing", return_value=None):
-            sw.build_ssr_data()
-            sw.build_ssr_data()  # second call should use cache
-
-        assert len(calls) == 1
-
-    def test_includes_briefing_data(self):
-        briefing = {"summary": "Test briefing", "sections": []}
-        with patch("serve_threatwatch.load_articles", return_value=[]), \
-             patch("serve_threatwatch.load_stats", return_value={}), \
-             patch("serve_threatwatch.load_briefing", return_value=briefing):
-            result = sw.build_ssr_data()
-        parsed = json.loads(result)
-        assert parsed["briefing"] == briefing
-
 
 # ── load_* helpers ────────────────────────────────────────────────────────────
 
@@ -276,6 +237,16 @@ class TestHealthEndpoint:
         assert data["status"] == "unknown"
         assert data["articles_total"] == 0
 
+    def test_health_serializes_missing_briefing_age_as_null(self, tmp_path):
+        with patch("serve_threatwatch.load_stats", return_value={}), \
+             patch("serve_threatwatch.BASE_DIR", tmp_path), \
+             patch("modules.briefing_health.check_briefing_freshness",
+                   return_value={"stale": True, "age_hours": float("inf")}):
+            body = sw.build_health()
+
+        assert b"Infinity" not in body
+        assert json.loads(body)["briefing_age_hours"] is None
+
     def test_health_includes_feed_summary(self, tmp_path):
         from datetime import datetime, timezone
         state_dir = tmp_path / "data" / "state"
@@ -325,28 +296,28 @@ class TestHealthEndpoint:
 
 # ── render_page XSS guard ─────────────────────────────────────────────────────
 
-class TestRenderPageXssGuard:
+class TestFrontendApplicationShell:
     def setup_method(self):
         sw._cache.clear()
 
-    def test_script_tag_breakout_escaped(self, tmp_path):
-        """Ensure </script> inside JSON data cannot break out of the script tag."""
-        template = f'<html>{sw.SSR_PLACEHOLDER}</html>'
-        template_file = tmp_path / "threatwatch.html"
-        template_file.write_bytes(template.encode())
+    def test_render_page_reads_built_frontend_without_embedded_corpus(self, tmp_path):
+        dist = tmp_path / "frontend" / "dist"
+        dist.mkdir(parents=True)
+        index = dist / "index.html"
+        index.write_text('<html><main id="app"></main></html>', encoding="utf-8")
 
-        articles = [{"title": "Test</script><script>alert(1)"}]
-        ssr_payload = {"articles": articles, "stats": {}, "briefing": None}
-
-        with patch("serve_threatwatch.read_cached", return_value=template.encode()), \
-             patch("serve_threatwatch.build_ssr_data",
-                   return_value=json.dumps(ssr_payload, ensure_ascii=False)):
+        with patch.object(sw, "FRONTEND_DIST", dist):
             body = sw.render_page()
 
         html = body.decode("utf-8")
-        # The raw </script> must not appear inside our script block unescaped
-        assert "<\\/script>" in html or "</script>" not in html.split(
-            '<script id="ssr-data"')[1].split("</script>")[0]
+        assert '<main id="app">' in html
+        assert "ssr-data" not in html
+
+    def test_frontend_asset_rejects_path_traversal(self, tmp_path):
+        dist = tmp_path / "frontend" / "dist"
+        dist.mkdir(parents=True)
+        with patch.object(sw, "FRONTEND_DIST", dist):
+            assert sw.resolve_frontend_asset("/assets/../../secret") is None
 
 
 # ── Watchlist helpers ────────────────────────────────────────────────────────
@@ -497,6 +468,64 @@ class TestHTTPRoutes:
         assert data["limit"] == 50
         assert len(data["articles"]) == 50
 
+    def test_articles_supports_search_and_faceted_filters(self, test_server):
+        articles = [
+            {
+                "hash": "1",
+                "title": "Critical cloud breach",
+                "summary": "Identity provider compromised",
+                "category": "Data Breach",
+                "region": "EMEA",
+                "source_name": "Trusted Source",
+            },
+            {
+                "hash": "2",
+                "title": "Routine patch update",
+                "summary": "Product maintenance release",
+                "category": "Patch/Security Update",
+                "region": "NA",
+                "source_name": "Vendor Blog",
+            },
+        ]
+        with patch("serve_threatwatch.load_articles", return_value=articles):
+            status, _, body = _get(
+                test_server + "/api/v1/articles?q=identity&category=Data%20Breach&region=EMEA"
+            )
+        data = json.loads(body)
+        assert status == 200
+        assert data["total"] == 1
+        assert data["articles"][0]["hash"] == "1"
+        assert data["filters"]["q"] == "identity"
+
+    def test_articles_vulnerability_view_keeps_cve_records(self, test_server):
+        articles = [
+            {"hash": "1", "title": "CVE record", "source": "nvd:cve", "cve_ids": ["CVE-2026-1"]},
+            {"hash": "2", "title": "Campaign report", "category": "Ransomware", "cve_ids": []},
+        ]
+        with patch("serve_threatwatch.load_articles", return_value=articles):
+            status, _, body = _get(test_server + "/api/v1/articles?view=vulnerabilities")
+        data = json.loads(body)
+        assert status == 200
+        assert data["total"] == 1
+        assert data["articles"][0]["hash"] == "1"
+
+    def test_news_view_hides_only_bulk_machine_cve_records(self, test_server):
+        articles = [
+            {"hash": "1", "title": "Raw CVE", "source": "nvd:cve", "cve_ids": ["CVE-2026-1"]},
+            {
+                "hash": "2",
+                "title": "Researchers report active CVE exploitation",
+                "source": "https://example.com/feed",
+                "category": "Vulnerability",
+                "cve_ids": ["CVE-2026-1"],
+            },
+        ]
+        with patch("serve_threatwatch.load_articles", return_value=articles):
+            status, _, body = _get(test_server + "/api/v1/articles?view=news")
+        data = json.loads(body)
+        assert status == 200
+        assert [article["hash"] for article in data["articles"]] == ["2"]
+
     def test_v1_article_detail(self, test_server):
         articles = [{"hash": "abc123", "title": "Matched", "full_content": "private body"}]
         with patch("serve_threatwatch.load_articles", return_value=articles):
@@ -544,6 +573,13 @@ class TestHTTPRoutes:
         assert status == 404
         data = json.loads(body)
         assert data["error"] == "Not found"
+
+    def test_known_frontend_route_returns_application_shell(self, test_server):
+        with patch("serve_threatwatch.render_page", return_value=b"<html>app</html>"):
+            status, headers, body = _get(test_server + "/vulnerabilities")
+        assert status == 200
+        assert "text/html" in headers.get("Content-Type", "")
+        assert body == b"<html>app</html>"
 
     def test_options_returns_no_content(self, test_server):
         req = Request(test_server + "/api/articles", method="OPTIONS")

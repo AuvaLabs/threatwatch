@@ -1,0 +1,68 @@
+:root {
+  color-scheme: light;
+  --color-canvas: #f5f7f4;
+  --color-surface: #ffffff;
+  --color-surface-soft: #eef3ef;
+  --color-surface-raised: #fafcf9;
+  --color-ink: #11221e;
+  --color-ink-soft: #475a54;
+  --color-ink-muted: #5f706a;
+  --color-border: #dce4df;
+  --color-border-strong: #cbd7d0;
+  --color-brand: #0a684e;
+  --color-brand-strong: #07523e;
+  --color-brand-soft: #dff0e9;
+  --color-action: #07523e;
+  --color-risk-critical: #bd302c;
+  --color-risk-critical-soft: #fbe9e7;
+  --color-risk-warning: #b16808;
+  --color-risk-warning-soft: #fff2d9;
+  --color-info: #316b9b;
+  --color-info-soft: #e8f1f8;
+  --shadow-small: 0 1px 2px rgb(17 34 30 / 5%), 0 6px 18px rgb(17 34 30 / 4%);
+  --shadow-raised: 0 16px 44px rgb(17 34 30 / 10%);
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-reading: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --reading-width: 74ch;
+  --sidebar-width: 228px;
+  --topbar-height: 72px;
+  --radius-small: 7px;
+  --radius-medium: 12px;
+  --radius-large: 18px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-canvas: #111815;
+  --color-surface: #17211d;
+  --color-surface-soft: #1d2b26;
+  --color-surface-raised: #1a2521;
+  --color-ink: #edf4f0;
+  --color-ink-soft: #b7c6bf;
+  --color-ink-muted: #8c9d96;
+  --color-border: #2b3b34;
+  --color-border-strong: #3b4e46;
+  --color-brand: #57c49a;
+  --color-brand-strong: #74d5b0;
+  --color-brand-soft: #1f3c32;
+  --color-action: #1c6f54;
+  --color-risk-critical: #ff8178;
+  --color-risk-critical-soft: #432522;
+  --color-risk-warning: #f5bd64;
+  --color-risk-warning-soft: #40341e;
+  --color-info: #8bc3ef;
+  --color-info-soft: #243b4c;
+  --shadow-small: 0 1px 2px rgb(0 0 0 / 20%);
+  --shadow-raised: 0 16px 44px rgb(0 0 0 / 30%);
+}
