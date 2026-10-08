@@ -807,6 +807,18 @@ def _ledger_search_text(record: dict) -> str:
     ]).casefold()
 
 
+_LEDGER_LIST_FIELDS = (
+    "id", "entity_type", "entity_name", "title", "summary", "decision", "state",
+    "version", "first_seen", "last_updated", "last_changed", "report_count",
+    "source_count", "vulnerability", "affected_products", "hunt_id",
+    "readiness_score", "observable_count", "open_questions",
+)
+
+
+def _ledger_list_record(record: dict) -> dict:
+    return {field: record.get(field) for field in _LEDGER_LIST_FIELDS}
+
+
 def _is_vulnerability_article(article: dict) -> bool:
     source = str(article.get("source") or "").lower()
     category = str(article.get("category") or "").lower()
@@ -1252,16 +1264,16 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 query = filters["q"].casefold()
                 records = [item for item in records if query in _ledger_search_text(item)]
             total = len(records)
-            page = records[offset:offset + limit]
-            record_ids = {item.get("id") for item in page}
+            page_records = records[offset:offset + limit]
+            record_ids = {item.get("id") for item in page_records}
             response = {
                 **payload,
                 "total": total,
                 "offset": offset,
                 "limit": limit,
-                "has_more": offset + len(page) < total,
+                "has_more": offset + len(page_records) < total,
                 "filters": filters,
-                "records": page,
+                "records": [_ledger_list_record(item) for item in page_records],
                 "changes": [
                     item for item in payload.get("changes", [])
                     if isinstance(item, dict) and item.get("record_id") in record_ids

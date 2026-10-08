@@ -19,7 +19,7 @@ The public service publishes vendor-neutral threat records. A consumer can retri
 7. An unchanged rebuild preserves the version, timestamp, and history.
 8. A record that leaves the rolling reporting window is retained as `not_recent` instead of disappearing.
 
-Initial tracking events and state changes include the source article identifiers that supported the assessment at that time. Each record retains up to 30 changes. The global change register retains up to 500 changes, and the ledger retains up to 1,000 records.
+Initial tracking events and state changes include the source article identifiers that supported the assessment at that time. Each record retains up to 30 changes. The global change register retains up to 500 changes, and the ledger retains up to 5,000 records.
 
 ## Decision rules
 
@@ -49,7 +49,7 @@ Supported filters:
 - `offset`: non-negative integer
 - `limit`: 1 to 200
 
-The response includes global decision counts, the current bounded change register, the filtered total, and the requested record page.
+The response includes global decision counts, the current bounded change register, the filtered total, and a compact requested record page. Full sources, evidence, remediation, techniques, and retained history are available from the record detail endpoint.
 
 ### Read one record
 

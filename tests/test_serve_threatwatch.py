@@ -747,7 +747,7 @@ class TestHTTPRoutes:
         payload = {
             "summary": {"total_records": 2},
             "records": [
-                {"id": "threat-abc123", "entity_type": "cve", "entity_name": "CVE-2026-1000", "affected_products": ["Acme Gateway"], "decision": {"action": "patch"}, "state": {"activity": "active"}},
+                {"id": "threat-abc123", "entity_type": "cve", "entity_name": "CVE-2026-1000", "affected_products": ["Acme Gateway"], "decision": {"action": "patch"}, "state": {"activity": "active"}, "sources": [{"url": "https://example.test"}], "changes": [{"id": "private-history"}]},
                 {"id": "threat-def456", "entity_type": "actor", "entity_name": "Qilin", "decision": {"action": "hunt"}, "state": {"activity": "active"}},
             ],
             "changes": [],
@@ -759,6 +759,8 @@ class TestHTTPRoutes:
         assert status == 200
         assert result["total"] == 1
         assert result["records"][0]["id"] == "threat-abc123"
+        assert "sources" not in result["records"][0]
+        assert "changes" not in result["records"][0]
         assert result["filters"] == {"type": "cve", "action": "patch", "q": "gateway", "activity": ""}
 
     def test_ledger_endpoint_rejects_unknown_filters(self, test_server):

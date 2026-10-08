@@ -203,3 +203,16 @@ class TestThreatLedger:
         assert first["records"][0]["version"] == 1
         assert second["records"][0]["version"] == 1
         assert second["run_change_count"] == 0
+
+    def test_record_limit_does_not_count_discarded_changes(self, monkeypatch):
+        monkeypatch.setattr("modules.threat_ledger.MAX_RECORDS", 2)
+        articles = [
+            _article(str(index), "Lab One", cve_ids=[f"CVE-2026-{1000 + index}"])
+            for index in range(3)
+        ]
+
+        payload = build_ledger(articles, {"clusters": []}, {"hunts": []}, generated_at=NOW)
+
+        assert len(payload["records"]) == 2
+        assert payload["run_change_count"] == 2
+        assert len(payload["changes"]) == 2

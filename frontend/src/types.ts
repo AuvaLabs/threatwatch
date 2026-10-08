@@ -283,6 +283,13 @@ export interface ThreatRecord {
   changes: LedgerChange[];
 }
 
+export type ThreatRecordSummary = Pick<ThreatRecord,
+  | "id" | "entity_type" | "entity_name" | "title" | "summary" | "decision"
+  | "state" | "version" | "first_seen" | "last_updated" | "last_changed"
+  | "report_count" | "source_count" | "vulnerability" | "affected_products"
+  | "hunt_id" | "readiness_score" | "observable_count" | "open_questions"
+>;
+
 export interface LedgerResponse {
   schema_version: number;
   generated_at: string;
@@ -294,7 +301,7 @@ export interface LedgerResponse {
   has_more: boolean;
   filters: Record<string, string>;
   changes: LedgerChange[];
-  records: ThreatRecord[];
+  records: ThreatRecordSummary[];
 }
 
 export type InvestigationStatus = "open" | "monitoring" | "closed";

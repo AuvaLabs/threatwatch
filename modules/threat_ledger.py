@@ -17,7 +17,7 @@ from modules.utils import write_json_atomic
 
 LEDGER_PATH = OUTPUT_DIR / "threat_ledger.json"
 SCHEMA_VERSION = 1
-MAX_RECORDS = 1_000
+MAX_RECORDS = 5_000
 MAX_RECORD_CHANGES = 30
 MAX_GLOBAL_CHANGES = 500
 _CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}", re.IGNORECASE)
@@ -404,6 +404,8 @@ def build_ledger(
         -item["source_count"], item["entity_name"].casefold(),
     ))
     records = records[:MAX_RECORDS]
+    retained_ids = {record["id"] for record in records}
+    new_events = [event for event in new_events if event.get("record_id") in retained_ids]
     changes = [change for record in records for change in _list(record.get("changes"))]
     changes.sort(key=lambda item: str(item.get("changed_at") or ""), reverse=True)
     action_counts = {action: sum(record["decision"]["action"] == action for record in records) for action in ("patch", "hunt", "investigate", "monitor")}

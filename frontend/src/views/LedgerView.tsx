@@ -3,7 +3,7 @@ import { ErrorState, LoadingState, PageHeader } from "../components/PageState";
 import { useResource } from "../hooks/useResource";
 import { navigate } from "../router";
 import { api } from "../services/api";
-import type { LedgerAction, LedgerChange, LedgerResponse, ThreatRecord } from "../types";
+import type { LedgerAction, LedgerChange, LedgerResponse, ThreatRecordSummary } from "../types";
 import { formattedDate } from "../utils/format";
 
 const actionLabels: Record<LedgerAction, string> = {
@@ -14,10 +14,10 @@ const actionLabels: Record<LedgerAction, string> = {
 };
 const REGISTER_BATCH_SIZE = 20;
 const API_PAGE_SIZE = 200;
-const MAX_LEDGER_RECORDS = 1_000;
+const MAX_LEDGER_RECORDS = 5_000;
 
 async function loadActiveLedger(signal: AbortSignal): Promise<LedgerResponse> {
-  const records: ThreatRecord[] = [];
+  const records: ThreatRecordSummary[] = [];
   const changes = new Map<string, LedgerChange>();
   let first: LedgerResponse | null = null;
   let hasMore = true;
@@ -38,7 +38,7 @@ function follow(event: Event, path: string): void {
   navigate(path);
 }
 
-function RecordRow({ record }: { record: ThreatRecord }) {
+function RecordRow({ record }: { record: ThreatRecordSummary }) {
   const path = `/ledger/${record.id}`;
   return <article class={`ledger-row ledger-${record.decision.urgency}`}>
     <div class="ledger-decision"><strong>{actionLabels[record.decision.action]}</strong><span>{record.decision.urgency}</span></div>
