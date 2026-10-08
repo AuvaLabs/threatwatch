@@ -17,20 +17,22 @@ const API_PAGE_SIZE = 200;
 const MAX_LEDGER_RECORDS = 5_000;
 
 async function loadActiveLedger(signal: AbortSignal): Promise<LedgerResponse> {
-  const records: ThreatRecordSummary[] = [];
+  const first = await api.ledger({ activity: "active", offset: 0, limit: API_PAGE_SIZE }, signal);
+  const retainedTotal = Math.min(first.total, MAX_LEDGER_RECORDS);
+  const remaining = Math.max(0, retainedTotal - first.records.length);
+  const offsets = Array.from(
+    { length: Math.ceil(remaining / API_PAGE_SIZE) },
+    (_, index) => first.records.length + index * API_PAGE_SIZE,
+  );
+  const following = await Promise.all(offsets.map((offset) => (
+    api.ledger({ activity: "active", offset, limit: API_PAGE_SIZE }, signal)
+  )));
+  const pages = [first, ...following].sort((left, right) => left.offset - right.offset);
+  const records: ThreatRecordSummary[] = pages.flatMap((page) => page.records).slice(0, retainedTotal);
   const changes = new Map<string, LedgerChange>();
-  let first: LedgerResponse | null = null;
-  let hasMore = true;
-  while (hasMore && records.length < MAX_LEDGER_RECORDS) {
-    const page = await api.ledger({ activity: "active", offset: records.length, limit: API_PAGE_SIZE }, signal);
-    first ||= page;
-    records.push(...page.records);
-    page.changes.forEach((change) => changes.set(change.id, change));
-    hasMore = page.has_more && page.records.length > 0;
-  }
-  if (!first) throw new Error("Threat ledger returned no response");
+  pages.forEach((page) => page.changes.forEach((change) => changes.set(change.id, change)));
   const mergedChanges = [...changes.values()].sort((left, right) => right.changed_at.localeCompare(left.changed_at));
-  return { ...first, offset: 0, limit: records.length, has_more: hasMore, records, changes: mergedChanges };
+  return { ...first, offset: 0, limit: records.length, has_more: records.length < first.total, records, changes: mergedChanges };
 }
 
 function follow(event: Event, path: string): void {

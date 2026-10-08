@@ -78,20 +78,21 @@ describe("LedgerView", () => {
 
   it("collects every server page before applying local filters", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (path: string) => {
-      const isSecondPage = path.includes("offset=1");
-      const item = { ...record, id: isSecondPage ? "threat-second" : "threat-first", title: isSecondPage ? "Second page record" : "First page record" };
+      const isSecondPage = path.includes("offset=200");
+      const records = isSecondPage
+        ? [{ ...record, id: "threat-second", title: "Second page record" }]
+        : Array.from({ length: 200 }, (_, index) => ({ ...record, id: `threat-${index}`, title: `First page record ${index}` }));
       return jsonResponse({
         generated_at: "2026-10-08T10:00:00Z", run_change_count: 0,
-        summary: { total_records: 2, active_records: 2, patch: 2, hunt: 0, qualified_hunts: 2, investigate: 0, monitor: 0 },
-        total: 2, offset: isSecondPage ? 1 : 0, limit: 200, has_more: !isSecondPage,
-        filters: {}, changes: [], records: [item],
+        summary: { total_records: 201, active_records: 201, patch: 201, hunt: 0, qualified_hunts: 201, investigate: 0, monitor: 0 },
+        total: 201, offset: isSecondPage ? 200 : 0, limit: 200, has_more: !isSecondPage,
+        filters: {}, changes: [], records,
       });
     }));
 
     render(<LedgerView />);
 
-    expect(await screen.findByText("First page record")).toBeTruthy();
-    expect(await screen.findByText("Second page record")).toBeTruthy();
+    expect(await screen.findByText("Showing 20 of 201 records")).toBeTruthy();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
