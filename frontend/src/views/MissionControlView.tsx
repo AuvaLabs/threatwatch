@@ -1,4 +1,5 @@
 import { useState } from "preact/hooks";
+import { BriefingSources } from "../components/BriefingSources";
 import { ErrorState, LoadingState } from "../components/PageState";
 import { PriorityCard } from "../components/PriorityCard";
 import { useResource } from "../hooks/useResource";
@@ -45,7 +46,7 @@ export function MissionControlView() {
         <article><strong>{operations.metrics.active_threats}</strong><span>Correlated threats</span></article>
       </section>
       <section class="command-brief surface">
-        <div><p class="eyebrow">Command brief</p><h2>{briefing?.headline || "Narrative briefing unavailable"}</h2><p>{excerpt(briefing?.what_happened, 340) || "Use the decision queue below while narrative enrichment recovers."}</p></div>
+        <div><p class="eyebrow">Command brief</p><h2>{briefing?.headline || "Narrative briefing unavailable"}</h2><p>{excerpt(briefing?.what_happened, 340) || "Use the decision queue below while narrative enrichment recovers."}</p><BriefingSources briefing={briefing} compact limit={3} /></div>
         <div class="command-brief-action"><span>{briefing?.threat_level || "Unclassified"}</span><button class="button secondary" onClick={() => navigate("/reports")} type="button">Open report</button></div>
       </section>
       <section aria-labelledby="queue-title" class="decision-queue">

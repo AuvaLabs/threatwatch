@@ -1,4 +1,5 @@
 import type { Briefing, OperationalSummary } from "../types";
+import { briefingSources, sourceHref, sourcePublisher, sourceTitle } from "./briefing";
 import { formattedDate } from "../utils/format";
 
 export function operationalReport(summary: OperationalSummary, briefing: Briefing | null): string {
@@ -23,6 +24,15 @@ export function operationalReport(summary: OperationalSummary, briefing: Briefin
     lines.push(`   ${priority.recommended_action}`);
     lines.push(`   Basis: ${priority.reasons.join("; ") || "Operational scoring threshold"}`);
   });
+  const sources = briefingSources(briefing);
+  if (sources.length) {
+    lines.push("", "## Sources");
+    sources.forEach((source) => {
+      const href = sourceHref(source.link);
+      const title = sourceTitle(source);
+      lines.push(`[${source.index}] ${href ? `[${title}](${href})` : title} - ${sourcePublisher(source)}`);
+    });
+  }
   lines.push("", "## Validation note", summary.exposure.disclaimer);
   return lines.join("\n");
 }

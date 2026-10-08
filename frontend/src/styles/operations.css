@@ -40,6 +40,19 @@
 .command-brief h2 { font-size: clamp(1.6rem, 3vw, 2.7rem); font-weight: 500; letter-spacing: -0.055em; margin-bottom: var(--space-3); max-width: 28ch; }
 .command-brief .eyebrow { color: var(--color-ink); }
 .command-brief p { margin-bottom: 0; max-width: 72ch; }
+.briefing-sources { border-top: 1px solid var(--color-border); margin-top: var(--space-5); padding-top: var(--space-4); }
+.briefing-sources .eyebrow { margin-bottom: var(--space-3); }
+.briefing-sources ol { display: grid; gap: var(--space-3); list-style: none; margin: 0; padding: 0; }
+.briefing-sources li { align-items: start; display: grid; gap: var(--space-2); grid-template-columns: 34px minmax(0, 1fr); }
+.briefing-sources a { color: var(--color-ink); font-weight: 700; text-decoration-color: var(--color-border-strong); text-underline-offset: 3px; }
+.briefing-sources a:hover { color: var(--color-brand); }
+.briefing-sources small { color: var(--color-ink-muted); display: block; font-family: var(--font-mono); font-size: 0.58rem; margin-top: 2px; text-transform: uppercase; }
+.source-index, .source-more { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.62rem; }
+.source-more { display: block; margin-top: var(--space-3); }
+.source-unavailable { color: var(--color-ink-muted); font-size: 0.76rem; }
+.briefing-sources.compact ol { gap: var(--space-2); }
+.briefing-sources.compact li { font-size: 0.74rem; }
+.briefing-sources.compact li div > a, .briefing-sources.compact li div > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
 .command-brief-action { align-content: space-between; border-left: 1px solid color-mix(in srgb, var(--color-ink) 28%, transparent); display: grid; gap: var(--space-4); justify-items: start; padding-left: var(--space-5); }
 .command-brief-action > span { color: var(--color-ink); font-family: var(--font-mono); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
 

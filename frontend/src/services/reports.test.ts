@@ -15,10 +15,17 @@ const summary: OperationalSummary = {
 
 describe("operational reports", () => {
   it("renders metrics, priorities, and briefing evidence", () => {
-    const report = operationalReport(summary, { headline: "Active exploitation", what_happened: "Edge devices are targeted." });
+    const report = operationalReport(summary, {
+      headline: "Active exploitation",
+      what_happened: "Edge devices are targeted.",
+      headline_source: 1,
+      source_articles: [{ index: 1, title: "CISA advisory", link: "https://cisa.gov/advisory", source_name: "CISA" }],
+    });
     expect(report).toContain("Active exploitation");
     expect(report).toContain("1 immediate decisions");
     expect(report).toContain("Patch or isolate.");
+    expect(report).toContain("## Sources");
+    expect(report).toContain("[1] [CISA advisory](https://cisa.gov/advisory) - CISA");
     expect(report).toContain("Validate relevance.");
   });
 

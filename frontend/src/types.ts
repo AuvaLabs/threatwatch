@@ -47,8 +47,8 @@ export interface BriefingAction {
 
 export interface SourceArticle {
   index: number;
-  title: string;
-  link: string;
+  title?: string;
+  link?: string;
   source_name?: string;
 }
 
@@ -63,6 +63,9 @@ export interface Briefing {
   reporting_window?: string;
   provider?: string;
   headline_source?: number;
+  threat_level_source?: number | string;
+  what_happened_sources?: number[];
+  week_in_review_sources?: number[];
   source_articles?: SourceArticle[];
   served_stale?: boolean;
 }
