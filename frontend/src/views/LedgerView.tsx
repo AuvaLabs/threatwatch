@@ -83,7 +83,7 @@ export function LedgerView() {
       <section aria-label="Ledger metrics" class="metric-grid ledger-metrics">
         <article><strong>{resource.data.run_change_count}</strong><span>Changes this run</span></article>
         <article><strong>{resource.data.summary.patch}</strong><span>Patch decisions</span></article>
-        <article><strong>{resource.data.summary.hunt}</strong><span>Qualified hunts</span></article>
+        <article><strong>{resource.data.summary.qualified_hunts ?? resource.data.summary.hunt}</strong><span>Qualified hunts</span></article>
         <article><strong>{resource.data.summary.active_records}</strong><span>Active records</span></article>
       </section>
       <section class="change-register" aria-labelledby="changes-title">

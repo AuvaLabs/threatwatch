@@ -52,7 +52,7 @@ export function MissionControlView() {
       <section aria-label="Operational metrics" class="metric-grid">
         <article><strong>{ledger?.run_change_count ?? 0}</strong><span>Assessment changes</span></article>
         <article><strong>{ledger?.summary.patch ?? operations.metrics.critical_priorities}</strong><span>Patch decisions</span></article>
-        <article><strong>{ledger?.summary.hunt ?? 0}</strong><span>Qualified hunts</span></article>
+        <article><strong>{ledger?.summary.qualified_hunts ?? ledger?.summary.hunt ?? 0}</strong><span>Qualified hunts</span></article>
         <article><strong>{ledger?.summary.active_records ?? operations.metrics.active_threats}</strong><span>Living records</span></article>
       </section>
       <section class="command-brief surface">

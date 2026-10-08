@@ -39,7 +39,7 @@ describe("LedgerView", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({
       generated_at: "2026-10-08T10:00:00Z",
       run_change_count: 1,
-      summary: { total_records: 1, active_records: 1, patch: 1, hunt: 0, investigate: 0, monitor: 0 },
+      summary: { total_records: 1, active_records: 1, patch: 1, hunt: 0, qualified_hunts: 1, investigate: 0, monitor: 0 },
       total: 1, offset: 0, limit: 100, has_more: false, filters: {},
       changes: record.changes,
       records: [record],
@@ -49,6 +49,7 @@ describe("LedgerView", () => {
 
     expect(await screen.findByText("CVE-2026-1000 gained confirmed exploitation evidence.")).toBeTruthy();
     expect(screen.getByText("Independent reporting describes active exploitation.")).toBeTruthy();
+    expect(screen.getByText("Qualified hunts").previousSibling?.textContent).toBe("1");
     expect(screen.getByRole("link", { name: "Open living record" }).getAttribute("href")).toBe("/ledger/threat-abc123");
     expect(screen.getAllByText("Patch now")).toHaveLength(2);
   });
@@ -63,7 +64,7 @@ describe("LedgerView", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({
       generated_at: "2026-10-08T10:00:00Z",
       run_change_count: 0,
-      summary: { total_records: 21, active_records: 21, patch: 21, hunt: 0, investigate: 0, monitor: 0 },
+      summary: { total_records: 21, active_records: 21, patch: 21, hunt: 0, qualified_hunts: 21, investigate: 0, monitor: 0 },
       total: 21, offset: 0, limit: 200, has_more: false, filters: {}, changes: [], records,
     })));
 
@@ -81,7 +82,7 @@ describe("LedgerView", () => {
       const item = { ...record, id: isSecondPage ? "threat-second" : "threat-first", title: isSecondPage ? "Second page record" : "First page record" };
       return jsonResponse({
         generated_at: "2026-10-08T10:00:00Z", run_change_count: 0,
-        summary: { total_records: 2, active_records: 2, patch: 2, hunt: 0, investigate: 0, monitor: 0 },
+        summary: { total_records: 2, active_records: 2, patch: 2, hunt: 0, qualified_hunts: 2, investigate: 0, monitor: 0 },
         total: 2, offset: isSecondPage ? 1 : 0, limit: 200, has_more: !isSecondPage,
         filters: {}, changes: [], records: [item],
       });

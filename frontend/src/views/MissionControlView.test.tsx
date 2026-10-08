@@ -21,7 +21,7 @@ describe("MissionControlView", () => {
       });
       return response({
         generated_at: "2026-10-08T10:00:00Z", run_change_count: 1,
-        summary: { total_records: 1, active_records: 1, patch: 1, hunt: 0, investigate: 0, monitor: 0 },
+        summary: { total_records: 1, active_records: 1, patch: 1, hunt: 0, qualified_hunts: 1, investigate: 0, monitor: 0 },
         records: [], changes: [{ id: "one", record_id: "threat-one", entity_name: "CVE-2026-1", changed_at: "2026-10-08T10:00:00Z", kind: "state_changed", field: "exploitation", previous: "reported", current: "confirmed", summary: "Exploitation is now confirmed.", source_ids: [] }],
       });
     }));
@@ -29,6 +29,7 @@ describe("MissionControlView", () => {
     render(<MissionControlView />);
 
     expect(await screen.findByText("Newest global ledger change.")).toBeTruthy();
+    expect(screen.getByText("Qualified hunts").previousSibling?.textContent).toBe("1");
     expect(screen.getByText("What changed today")).toBeTruthy();
     expect(screen.getByText("Decision queue")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Open the full ledger" }).getAttribute("href")).toBe("/ledger");

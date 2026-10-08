@@ -416,6 +416,7 @@ def build_ledger(
         "summary": {
             "total_records": len(records),
             "active_records": sum(record["state"]["activity"] == "active" for record in records),
+            "qualified_hunts": sum(record["state"]["hunt"] == "qualified" for record in records),
             **action_counts,
         },
         "changes": changes[:MAX_GLOBAL_CHANGES],

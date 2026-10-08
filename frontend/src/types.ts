@@ -294,7 +294,7 @@ export interface LedgerResponse {
   schema_version: number;
   generated_at: string;
   run_change_count: number;
-  summary: { total_records: number; active_records: number; patch: number; hunt: number; investigate: number; monitor: number };
+  summary: { total_records: number; active_records: number; patch: number; hunt: number; qualified_hunts: number; investigate: number; monitor: number };
   total: number;
   offset: number;
   limit: number;

@@ -94,6 +94,7 @@ class TestThreatLedger:
         assert record["vulnerability"]["max_epss"] == 0.72
         assert record["remediation"]["required_action"] == "Apply updates per vendor instructions."
         assert payload["summary"]["patch"] == 1
+        assert payload["summary"]["qualified_hunts"] == 1
         assert payload["changes"][0]["kind"] == "tracking_started"
         assert payload["changes"][0]["summary"] == "ThreatWatch began tracking CVE-2026-1000."
 
