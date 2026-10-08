@@ -68,7 +68,7 @@ ThreatWatch turns public cyber reporting into an operational decision queue. It 
 - **Threats** turns shared actors, vulnerabilities, and organizations into correlated records
 - **Exposure** shows watchlist relevance while clearly separating a match from confirmed asset exposure
 - **Investigations** stores analyst status and notes in a private browser-local workspace with JSON export
-- **Hunts** produces portable, validation-gated evidence packs from observed CVEs, ATT&CK techniques, and indicators
+- **Hunts** correlates all reports in a CVE or actor cluster, validates observables in context, and publishes portable packages only after an evidence gate passes
 - **Reports** builds a copyable and downloadable operating picture with source-linked priorities
 - **Automation** exposes the OpenAPI contract, STIX export, RSS, and dependency health
 - **Sources** preserves the full deduplicated evidence library without making the news feed the primary experience
@@ -204,6 +204,19 @@ The same fallback route protects every AI capability, not only the global briefi
 
 The route tries primary, first fallback, then second fallback. HTTP 429, timeout, connection, 5xx, invalid response, and retired-model failures move to the next independent provider.
 
+### Optional IOC corroboration
+
+Hunt generation works without external provider credentials. When configured, the pipeline performs bounded, cached lookups after local IOC validation. Provider calls never run inside an analyst-facing HTTP request.
+
+| Variable | Default | Description |
+|---|---|---|
+| `THREATFOX_AUTH_KEY` | _(empty)_ | Enables exact IOC corroboration through ThreatFox |
+| `URLHAUS_AUTH_KEY` | _(empty)_ | Enables exact malicious-URL corroboration through URLhaus |
+| `HUNT_ENRICHMENT_MAX_LOOKUPS` | `40` | Maximum provider attempts per pipeline cycle |
+| `HUNT_ENRICHMENT_TTL_HOURS` | `24` | SQLite cache lifetime for provider results |
+
+Provider credentials are optional. Without them, local source correlation, IOC quality checks, ATT&CK mapping, KEV, CVSS, and EPSS context still produce deterministic results.
+
 ### Feed configuration
 
 Feeds are defined in YAML files under `config/`:
@@ -220,7 +233,7 @@ Edit these files to add or remove feeds. No restart needed — changes apply on 
 
 ## Architecture
 
-**Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify (regex + AI) → Region Inference → NVD/EPSS/ATT&CK → Output → AI Briefing → Top Stories → Summaries → Clustering → Actor Profiles
+**Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify (regex + AI) → Region Inference → NVD/EPSS/ATT&CK → IOC validation → Output → Briefings → Clustering → Cached IOC corroboration → Hunt packages → Actor profiles
 
 **Server** (`serve_threatwatch.py`): Python HTTP server with safe application routing, ETag caching, gzip, and restricted CORS
 
@@ -249,6 +262,9 @@ modules/
   ├── llm_client.py          # Shared provider router and key rotation
   ├── briefing_generator.py  # AI briefing, top stories, article summaries
   ├── incident_correlator.py # Entity-based incident clustering + AI synthesis
+  ├── hunt_engine.py         # Evidence gating, provenance, queries, and package generation
+  ├── ioc_quality.py         # Article-aware IOC validation and false-positive controls
+  ├── ioc_enrichment.py      # Optional cached ThreatFox and URLhaus corroboration
   ├── actor_profiler.py      # Threat actor profile generation + caching
   ├── nvd_fetcher.py         # NVD CVE enrichment
   ├── epss_enricher.py       # EPSS exploit probability scores
@@ -265,6 +281,7 @@ config/
   └── feeds_bing.yaml        # Bing News feeds
 scripts/
   ├── validate_feeds.py      # Feed health checker
+  ├── rebuild_hunts.py       # Rebuild hunt artifact from current data
   └── cleanup.py             # Data cleanup utility
 data/
   ├── output/                # JSON + RSS output files
@@ -294,6 +311,8 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/articles/{id}` | Stable versioned article detail |
 | `GET` | `/api/v1/briefings/latest` | Stable latest global briefing |
 | `GET` | `/api/v1/incidents` | Stable incident-cluster collection |
+| `GET` | `/api/v1/hunts` | Qualified hunt packages and developing leads |
+| `GET` | `/api/v1/hunts/{id}` | One complete hunt package with provenance and queries |
 | `GET` | `/api/v1/operations/summary` | Ranked decisions, evidence, metrics, and watchlist relevance |
 | `GET` | `/api/v1/sources` | Source coverage and article counts |
 | `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |
@@ -315,6 +334,8 @@ The server runs on port **8098** by default:
 | `GET` | `/api/rss` | RSS feed (XML) |
 
 Public JSON endpoints support CORS. Operational health endpoints are same-origin unless `CORS_ORIGIN` explicitly permits an origin. All responses support ETag validation and gzip compression.
+
+Hunt packages are built from correlated evidence, not from a single article. A package must have independent corroboration or an authoritative structured-provider match, an actionable observable, mapped ATT&CK behavior, citations, telemetry guidance, and a readiness score of at least 60. Candidates that do not pass remain visible as developing leads and cannot be copied as qualified packages. See [`docs/HUNTS.md`](docs/HUNTS.md) for the contract and operations runbook.
 
 <details>
 <summary>Example: paginated articles response</summary>

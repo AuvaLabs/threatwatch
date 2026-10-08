@@ -63,6 +63,8 @@ self-hosted deployments only.
 | `GET /api/campaigns` | Persistent threat campaigns with stable UUIDs |
 | `GET /api/campaign/<id>` | Single campaign detail |
 | `GET /api/trends` | Spike detection (today vs 14d baseline) + 7d/30d top-mentioned leaderboard |
+| `GET /api/v1/hunts` | Qualified hunt packages and developing leads with sources, observables, behavior, telemetry, and queries |
+| `GET /api/v1/hunts/{id}` | One complete hunt package by stable hunt ID |
 
 ### Standards-based exports
 
@@ -348,6 +350,36 @@ want a subset (e.g. by category or keyword).
 
 Refresh interval suggestion: 15–60 min. The pipeline writes a fresh feed
 every ~10 min so anything tighter is wasted polling.
+
+## Recipe 7: Pull analyst-ready hunt packages
+
+Request only packages that passed the evidence gate:
+
+```bash
+curl -s "https://threatwatch.auvalabs.com/api/v1/hunts?status=qualified" \
+  | jq '.hunts[] | {
+      id,
+      title,
+      readiness_score,
+      report_count,
+      source_count,
+      observables,
+      techniques,
+      telemetry,
+      queries,
+      sources
+    }'
+```
+
+Retrieve the portable Markdown package for a case-management or SOAR workflow:
+
+```bash
+HUNT_ID="hunt-d7b34ff35f6ecbc0"
+curl -s "https://threatwatch.auvalabs.com/api/v1/hunts/${HUNT_ID}" \
+  | jq -r '.markdown'
+```
+
+Do not automate blocking or containment directly from these queries. Qualified means the external evidence passed ThreatWatch's readiness gate. It does not mean the observable is malicious in your environment. Validate matches against process, identity, asset, and time context first.
 
 ---
 

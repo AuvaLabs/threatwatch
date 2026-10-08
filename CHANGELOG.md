@@ -2,6 +2,18 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-08: Evidence-gated hunt packages
+
+- Replaced article-level hunt cards with correlated CVE and actor packages built from every report in the incident cluster.
+- Added source provenance, observable dispositions, ATT&CK behavior, KEV/CVSS/EPSS context, telemetry requirements, starter KQL, triage steps, false-positive checks, limitations, and portable Markdown.
+- Added a hard qualification gate. Candidates without independent corroboration, actionable observables, and mapped behavior remain developing leads.
+- Added article-aware IOC quality controls for publisher domains, source and advisory links, weak domains without threat context, and version-like IPv4 values.
+- Added cached, bounded ThreatFox and URLhaus adapters that run only in the pipeline when credentials are configured.
+- Added `GET /api/v1/hunts`, `GET /api/v1/hunts/{id}`, OpenAPI discovery, and a deterministic fallback when the hunt artifact is missing or older than the cluster artifact.
+- Added `scripts/rebuild_hunts.py` for safe corpus backfills without rewriting source articles.
+- Rebuilt the Hunts workspace as a single-column evidence desk with separate qualified and developing sections.
+- Corrected ATT&CK parsing to accept the pipeline's `technique_id`, `technique_name`, and `tactic` fields.
+
 ## 2026-10-08: Intelligence desk visual system
 
 - Replaced the generic application sidebar and mobile tabs with a numbered masthead index.

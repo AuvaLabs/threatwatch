@@ -1,83 +1,109 @@
-# ThreatWatch — Project Summary
+# ThreatWatch project summary
 
-**ThreatWatch** is a zero-cost, self-hosted cyber threat intelligence platform built by [nicholai.me](https://nicholai.me) at [AuvaLabs](https://github.com/AuvaLabs).
+ThreatWatch is a self-hosted cyber intelligence operations platform built by [nicholai.me](https://nicholai.me) at [AuvaLabs](https://github.com/AuvaLabs). It turns public reporting into a source-linked decision queue, correlated threats, exposure matches, investigations, qualified hunt packages, and operational reports.
 
-## Features
+## Product surfaces
 
-- **Live Threat Intelligence Feed** — 164 RSS/API sources, filtered by category (breach, ransomware, APT, phishing, malware, zero-day, vuln, dark web) and region; confidence score badge with hover tooltip explaining classification drivers
-- **Threat Intelligence Briefing**: deterministic fallback plus optional AI-generated executive summary through a primary and two independent OpenAI-compatible fallback providers
-- **Escalation banner** — when threat level shifts vs the prior briefing, an arrow + colour-coded "Escalated/De-escalated from X to Y" row surfaces the change with the assessment basis as the why
-- **CISA KEV ingestion** — articles referencing CVEs in the CISA Known Exploited Vulnerabilities catalog get distinctive pills (darker for ransomware-linked entries) and feed the briefing prompt as authoritative "actively exploited" signal; KEV-listed CVEs get extended tenure in the briefing headline section (default 72h, env-tunable via `HIGH_PRIORITY_TENURE_HOURS`)
-- **Trending Threats panel** — spike detection (today vs 14d baseline) plus a 7-day top-mentioned leaderboard for ransomware groups, APTs, CVEs, and attack types
-- **Campaign Tracker** — stable UUIDs for persistent incident campaigns with active/dormant/archived status
-- **Incident Clustering** — auto-groups related articles by CVE, threat actor, or organization with AI-synthesized narratives
-- **Ransomware Tracker** — group intelligence grid showing victim posts (ransomware.live) and news per group
-- **APT Tracker** — actor intelligence grid tracking major nation-state threat actors with AI-generated profiles
-- **IOC Tracker** — ThreatFox IOC feed with hash, IP, domain, and URL indicators
-- **IOC Extraction** — per-article IPv4, IPv6, domains, URLs, SHA256/SHA1/MD5, emails with defang handling
-- **Brand Watch** — monitor specific brands/organisations across the intel feed
-- **Tech Watch** — 244 technology vendors across 18 categories; custom tech keywords for any vendor not in the list
-- **NewsAPI integration** — additional security news (100 req/day free tier)
-- **Victim Sector Tagging** — 14-sector regex taxonomy (Healthcare, Finance, Government, etc.)
-- **Region filtering** — GLOBAL / NA / EMEA / MENA / APAC / LATAM with content-based inference
-- **Bounded server-side rendering**: the initial page embeds at most 50 articles and uses the paginated API for refreshes
-- **Auto-refresh** — polls for new data every 2 minutes
-- **"X new since HH:MM UTC" pill** — returning-reader counter; persistent NEW badge on each article published since your last visit, dismissible with one click
-- **Share buttons** — copy-link on each article (`?article=<hash>` permalinks) and a one-click share that copies a paste-ready briefing block (level + UTC timestamp + headline + one-paragraph what_happened + top 3 priority actions + outlook + dashboard URL) ready for Slack/Teams/Telegram/email
-- **5 switchable themes**: calm Light default, Terminal, Solarized, Arctic, and Phosphor
-- **SQLite storage** — Phase 3 complete with READ_FROM_SQLITE=1 in production; JSON files kept as fallback
-- **Artifact health**: freshness and latest-run failure status for global, regional, top-story, and summary capabilities
-- **Canonical article contract**: source identity, canonical URL, normalized timestamps, summary provenance, region, and safe list defaults
-- **Versioned API**: bounded `/api/v1/articles`, article detail, briefings, incidents, sources, AI health, and OpenAPI discovery
+- **Mission Control** ranks deterministic patch, hunt, investigate, and monitor decisions.
+- **Threats** presents CVE and named-actor clusters with persistent campaign history.
+- **Exposure** evaluates configured brand and technology watchlists without claiming confirmed exposure.
+- **Investigations** stores analyst status and notes in a browser-local workspace with JSON export.
+- **Hunts** separates qualified packages from developing leads and includes observable provenance, ATT&CK behavior, vulnerability context, telemetry, queries, sources, and limitations.
+- **Reports** combines the current briefing, metrics, decisions, and source citations into a portable operating picture.
+- **Automation** exposes OpenAPI, STIX 2.1, RSS, health, and integration contracts.
+- **Sources** preserves the full bounded and searchable evidence library.
 
-## Tech Stack
+## Intelligence pipeline
 
-- Python HTTP server (`serve_threatwatch.py`) — port 8098
-- Single-file frontend (`threatwatch.html`) — vanilla JS, no framework, no build step; IBM Plex Mono + Space Grotesk typography
-- Data pipeline: `threatdigest_main.py` orchestrating 20+ modules
-- Docker Compose two-service deployment (pipeline + server)
-- SQLite database (primary) + flat JSON (fallback)
-- 1,400+ tests with project coverage enforced above 80%
-- Decoupled AI enrichment: fetch pipeline (10-min) and AI pipeline (30-min) run on independent schedules; LLM circuit breaker + explicit timeout caps cascade failures
-- ATT&CK-grounded actor profiles: observed techniques/tactics aggregated from articles mentioning the actor, refreshed every run
-- Briefing threat-level webhook alerts with level-change + 6h cooldown deduplication (Slack/Discord/generic)
-- **Telegram dispatcher** — built-in bot posts CRITICAL briefing escalations + per-CVE CISA KEV alerts to a channel with permanent dedup; default threshold tuned for "what I need to know" cadence (~1-2 messages/day on average)
-- **STIX 2.1 export** at `GET /api/stix` for SIEM/SOAR ingest (Microsoft Sentinel, Splunk, Elastic, OpenCTI, MISP)
-- LLM usage tracker: per-key, provider, and caller token accounting, exposed via `GET /api/groq-usage`
-- Integrations guide at [docs/INTEGRATIONS.md](INTEGRATIONS.md) — copy-paste recipes for Microsoft Teams via Azure Logic Apps, Telegram bot setup, RSS in Outlook/Feedly
+- Parallel collection from native security feeds, Google News, Bing News, NewsAPI, NVD, ThreatFox, ransomware.live, CISA KEV, and custom watchlists.
+- Seven-day corpus with exact and fuzzy deduplication, canonical URLs, normalized dates, and SQLite primary persistence.
+- Regex-first classification with optional LLM escalation, region inference, sector tags, CVE extraction, EPSS, KEV, ATT&CK tagging, TTP extraction, and article-aware IOC validation.
+- Briefing and summary generation through a primary OpenAI-compatible route and two independent fallbacks.
+- Incident correlation on shared CVEs and named threat actors, followed by persistent campaign tracking.
+- Evidence-gated hunt generation from every report in a cluster, with optional cached ThreatFox and URLhaus corroboration.
+- Feed, artifact, pipeline, and briefing freshness exposed through health endpoints.
 
-## Architecture
+## Hunt qualification
 
-```
-Browser → serve_threatwatch.py (SSR injection)
-                ↓
-        threatwatch.html (HTML + CSS + JS)
-                ↓
-        /api/articles  /api/briefing  /api/stats  /api/campaigns  /api/cve/<ID>
-                ↓
-        SQLite DB (data/output/threatwatch.db) + JSON fallback
-                ↓
-        threatdigest_main.py (pipeline)
-        ├── feed_fetcher.py        (141 RSS feeds, 16-thread parallel)
-        ├── newsapi_fetcher.py     (NewsAPI security news)
-        ├── darkweb_monitor.py     (ThreatFox, ransomware.live)
-        ├── deduplicator.py        (fuzzy word-shingle dedup)
-        ├── region_inferrer.py     (content-based region attribution)
-        ├── keyword_classifier.py  (24 threat categories)
-        ├── hybrid_classifier.py   (keyword + AI escalation)
-        ├── briefing_generator.py  (AI briefing, any LLM provider)
-        ├── incident_correlator.py (entity-based clustering + AI synthesis)
-        ├── campaign_tracker.py    (persistent campaign tracking)
-        ├── ioc_extractor.py       (IOC extraction per article)
-        ├── victim_tagger.py       (14-sector taxonomy)
-        ├── actor_profiler.py      (threat actor profiles)
-        ├── date_utils.py          (unified date parsing)
-        └── safe_http.py           (SSRF guard)
+A hunt requires independent reporting or an authoritative structured-provider match, an actionable observable, mapped ATT&CK behavior, and a readiness score of at least 60. Publisher domains, source links, advisory references, weak domains without threat context, and version-like IPv4 values are suppressed. Candidates that do not pass remain developing leads.
+
+See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
+
+## Technology
+
+- Python 3.11 HTTP server and pipeline.
+- Preact and TypeScript frontend built with Vite.
+- Docker Compose services for `pipeline` and `server` with one persistent data volume.
+- SQLite primary storage plus atomic JSON artifacts and fallback reads.
+- Strict security headers, bounded APIs, request rate limiting, SSRF protection, safe external URLs, and no scraped full-content exposure in operational APIs.
+- 1,476 backend tests and 46 frontend tests at the 2026-10-08 hunt release. Frontend statement coverage was 95.86 percent.
+
+## Core architecture
+
+```text
+Sources
+  -> fetch and normalize
+  -> deduplicate and classify
+  -> CVE, EPSS, KEV, ATT&CK, TTP, and IOC enrichment
+  -> SQLite plus atomic JSON outputs
+  -> briefings and source-linked reports
+  -> CVE and actor clustering
+  -> cached IOC corroboration
+  -> qualified hunts and developing leads
+  -> versioned API
+  -> Preact analyst workspace
 ```
 
-## Links
+Important implementation files:
 
-- **Live Demo**: https://threatwatch.auvalabs.com
-- **Repository**: https://github.com/AuvaLabs/threatwatch
+```text
+threatdigest_main.py          Pipeline orchestrator
+serve_threatwatch.py          HTTP server and public API
+frontend/src/                 Typed analyst workspace
+modules/operations.py         Operational decision queue
+modules/incident_correlator.py Correlated CVE and actor evidence
+modules/ioc_extractor.py      Text extraction and defang handling
+modules/ioc_quality.py        Article-aware observable validation
+modules/ioc_enrichment.py     Cached provider corroboration
+modules/hunt_engine.py        Qualification and analyst package generation
+modules/db.py                 SQLite persistence and enrichment cache
+scripts/rebuild_hunts.py      Safe hunt artifact backfill
+```
 
-Last updated: 2026-10-07
+## Stable operational APIs
+
+- `GET /api/v1/articles`
+- `GET /api/v1/articles/{id}`
+- `GET /api/v1/briefings/latest`
+- `GET /api/v1/incidents`
+- `GET /api/v1/hunts`
+- `GET /api/v1/hunts/{id}`
+- `GET /api/v1/operations/summary`
+- `GET /api/v1/sources`
+- `GET /api/v1/health`
+- `GET /api/v1/health/ai`
+- `GET /api/v1/health/feeds`
+- `GET /api/v1/openapi.json`
+
+## Deployment
+
+- Repository: `https://github.com/AuvaLabs/threatwatch`
+- Production: `https://threatwatch.auvalabs.com`
+- Production checkout: `/home/deploy/threatwatch` on the `auvalabs` VPS.
+- Persistent data: Docker volume `threatwatch-data` mounted at `/app/data`.
+
+Typical deployment from the maintained workspace:
+
+```bash
+git push origin main
+ssh auvalabs 'cd ~/threatwatch && git pull --ff-only origin main && docker compose build pipeline server && docker compose up -d --no-deps pipeline server'
+```
+
+After hunt changes, rebuild the current artifact and validate both containers:
+
+```bash
+ssh auvalabs 'docker exec threatwatch-pipeline python scripts/rebuild_hunts.py'
+ssh auvalabs 'cd ~/threatwatch && docker compose ps'
+```
+
+Last updated: 2026-10-08
