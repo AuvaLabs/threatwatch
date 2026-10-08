@@ -853,6 +853,24 @@ class TestHTTPRoutes:
             status2, _, _ = _get(test_server + "/", headers={"If-None-Match": etag})
         assert status2 == 304
 
+    def test_etag_conditional_get_accepts_weak_proxy_tag(self, test_server):
+        with patch("serve_threatwatch.render_page", return_value=b"<html>test</html>"):
+            _, headers, _ = _get(test_server + "/")
+            etag = headers.get("Etag") or headers.get("ETag")
+            status, _, _ = _get(test_server + "/", headers={"If-None-Match": f"W/{etag}"})
+
+        assert status == 304
+
+    def test_etag_conditional_get_accepts_tag_list_and_wildcard(self, test_server):
+        with patch("serve_threatwatch.render_page", return_value=b"<html>test</html>"):
+            _, headers, _ = _get(test_server + "/")
+            etag = headers.get("Etag") or headers.get("ETag")
+            listed, _, _ = _get(test_server + "/", headers={"If-None-Match": f'"other", W/{etag}'})
+            wildcard, _, _ = _get(test_server + "/", headers={"If-None-Match": "*"})
+
+        assert listed == 304
+        assert wildcard == 304
+
     def test_post_method_not_allowed(self, test_server):
         status, _, body = _post(test_server + "/api/health", {})
         assert status == 405

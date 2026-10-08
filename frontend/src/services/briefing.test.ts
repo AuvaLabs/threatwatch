@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Briefing } from "../types";
-import { briefingSources, sourceHref, sourcePublisher } from "./briefing";
+import { briefingSources, briefingTitle, sourceHref, sourcePublisher } from "./briefing";
 
 const briefing: Briefing = {
   headline_source: 3,
@@ -33,5 +33,11 @@ describe("briefing evidence", () => {
     expect(sourcePublisher(briefing.source_articles?.[1])).toBe("Example News");
     expect(sourcePublisher(briefing.source_articles?.[0])).toBe("cisa.gov");
     expect(sourcePublisher(undefined)).toBe("Source");
+  });
+
+  it("does not describe a populated briefing as unavailable when its headline is missing", () => {
+    expect(briefingTitle({ headline: "Named assessment", what_happened: "Narrative" })).toBe("Named assessment");
+    expect(briefingTitle({ what_happened: "Narrative without a headline" })).toBe("Current intelligence assessment");
+    expect(briefingTitle(null)).toBe("Narrative assessment unavailable");
   });
 });

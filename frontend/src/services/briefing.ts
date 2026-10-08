@@ -1,5 +1,13 @@
 import type { Briefing, BriefingAction, SourceArticle } from "../types";
 
+export function briefingTitle(briefing: Briefing | null | undefined): string {
+  const headline = briefing?.headline?.trim();
+  if (headline) return headline;
+  return briefing?.what_happened?.trim()
+    ? "Current intelligence assessment"
+    : "Narrative assessment unavailable";
+}
+
 function actionSources(action: BriefingAction | string): number[] {
   return typeof action === "string" || !Array.isArray(action.sources) ? [] : action.sources;
 }

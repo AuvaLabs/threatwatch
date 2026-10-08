@@ -5,6 +5,7 @@ import { PriorityCard } from "../components/PriorityCard";
 import { useResource } from "../hooks/useResource";
 import { navigate } from "../router";
 import { api } from "../services/api";
+import { briefingTitle } from "../services/briefing";
 import { investigationFromPriority } from "../services/operations";
 import { saveInvestigation } from "../services/workspace";
 import type { Briefing, LedgerResponse, OperationalSummary } from "../types";
@@ -56,7 +57,7 @@ export function MissionControlView() {
         <article><strong>{ledger?.summary.active_records ?? operations.metrics.active_threats}</strong><span>Living records</span></article>
       </section>
       <section class="command-brief surface">
-        <div><p class="eyebrow">Command brief</p><h2>{briefing?.headline || "Narrative briefing unavailable"}</h2><p>{excerpt(briefing?.what_happened, 340) || "Use the decision queue below while narrative enrichment recovers."}</p><BriefingSources briefing={briefing} compact limit={3} /></div>
+        <div><p class="eyebrow">Command brief</p><h2>{briefingTitle(briefing)}</h2><p>{excerpt(briefing?.what_happened, 340) || "Use the decision queue below while narrative enrichment recovers."}</p><BriefingSources briefing={briefing} compact limit={3} /></div>
         <div class="command-brief-action"><span>{briefing?.threat_level || "Unclassified"}</span><button class="button secondary" onClick={() => navigate("/reports")} type="button">Open report</button></div>
       </section>
       <section class="today-changes" aria-labelledby="today-changes-title">

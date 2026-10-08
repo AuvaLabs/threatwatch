@@ -11,6 +11,8 @@ All notable changes to ThreatWatch are documented here.
 - Added a dedicated Ledger workspace and detailed records with remediation, affected technology, source links, and explicit unknowns.
 - Added `scripts/rebuild_ledger.py` for safe backfills that preserve versions and do not manufacture changes on unchanged runs.
 - Kept organizational inventory outside the public application. Ledger records are designed for downstream matching inside a consumer's own trusted environment.
+- Corrected partial briefing fallbacks so available narrative and citations are not labeled unavailable when only the headline is missing.
+- Accepted weak and multi-value conditional request validators so proxy-rewritten ETags still produce `304 Not Modified` responses.
 
 ## 2026-10-08: Evidence-gated hunt packages
 

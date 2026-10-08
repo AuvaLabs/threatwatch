@@ -798,6 +798,19 @@ def _first_param(params: dict, name: str) -> str:
     return str(params.get(name, [""])[0] or "").strip()
 
 
+def _etag_matches(if_none_match: str, current: str) -> bool:
+    """Apply weak comparison for GET/HEAD validators, including proxy-rewritten tags."""
+    for candidate in if_none_match.split(","):
+        candidate = candidate.strip()
+        if candidate == "*":
+            return True
+        if candidate[:2].casefold() == "w/":
+            candidate = candidate[2:].strip()
+        if candidate == current:
+            return True
+    return False
+
+
 def _ledger_search_text(record: dict) -> str:
     products = record.get("affected_products")
     safe_products = products if isinstance(products, list) else []
@@ -990,7 +1003,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
 
         # Check If-None-Match for conditional GET (304 Not Modified).
         if_none_match = self.headers.get("If-None-Match", "")
-        if if_none_match == etag:
+        if _etag_matches(if_none_match, etag):
             self.send_response(HTTPStatus.NOT_MODIFIED)
             self.send_header("ETag", etag)
             self._send_security_headers()
