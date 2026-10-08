@@ -77,7 +77,7 @@
 .standalone-search span { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.64rem; text-transform: uppercase; }
 .standalone-search input { background: transparent; border: 0; min-height: 44px; outline: 0; padding: 0; }
 .threat-grid { display: grid; gap: 0 var(--space-8); grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.threat-card { border-width: 1px 0 0; padding: var(--space-5) 0; }
+.threat-card { border-width: 1px 0 0; padding: var(--space-5) var(--space-4); }
 .threat-card-head, .hunt-card-head, .investigation-head { align-items: center; color: var(--color-ink-muted); display: flex; font-family: var(--font-mono); font-size: 0.62rem; gap: var(--space-2); justify-content: space-between; text-transform: uppercase; }
 .threat-card h2 { font-size: 1.2rem; margin-top: var(--space-4); }
 .threat-card dl { display: grid; grid-template-columns: repeat(3, 1fr); margin: var(--space-5) 0 0; }
