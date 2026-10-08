@@ -392,6 +392,7 @@ def main():
     except Exception as e:
         logging.warning(f"Incident clustering failed: {e}")
 
+    hunt_data = None
     try:
         if all_articles and cluster_data:
             enrichment = {}
@@ -408,6 +409,20 @@ def main():
             )
     except Exception as e:
         logging.warning(f"Hunt package generation failed: {e}")
+
+    try:
+        if all_articles and cluster_data:
+            if hunt_data is None:
+                from modules.hunt_engine import build_hunts
+                hunt_data = build_hunts(all_articles, cluster_data)
+            from modules.threat_ledger import write_ledger
+            ledger_data = write_ledger(all_articles, cluster_data, hunt_data)
+            logging.info(
+                "Threat ledger: %s active records, %s changes this run",
+                ledger_data["summary"]["active_records"], ledger_data["run_change_count"],
+            )
+    except Exception as e:
+        logging.warning(f"Threat ledger generation failed: {e}")
 
     try:
         if all_articles:

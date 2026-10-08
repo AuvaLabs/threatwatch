@@ -16,6 +16,9 @@
   .ai-ready { grid-template-columns: 1fr; }
   .endpoint-row { grid-template-columns: 52px 1fr auto; }
   .endpoint-row p { grid-column: 2 / -1; }
+  .ledger-row { grid-template-columns: 100px minmax(0, 1fr); }
+  .ledger-open { border-left: 0; grid-column: 2; padding-left: 0; }
+  .ledger-detail-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 620px) {
@@ -35,6 +38,16 @@
   .endpoint-row .text-button,
   .endpoint-row p { grid-column: 2; justify-self: start; }
   .status-grid { grid-template-columns: 1fr; }
+  .ledger-record-header { align-items: start; grid-template-columns: 1fr; }
+  .ledger-facts { grid-template-columns: repeat(2, 1fr); }
+  .ledger-facts div:nth-child(3) { border-left: 0; padding-left: 0; }
+  .ledger-filter,
+  .ledger-row,
+  .change-register li,
+  .record-timeline li { grid-template-columns: 1fr; }
+  .today-changes li { grid-template-columns: 1fr; gap: var(--space-1); }
+  .ledger-decision { border-bottom: 1px solid var(--color-border); border-right: 0; padding: 0 0 var(--space-3); }
+  .ledger-open { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

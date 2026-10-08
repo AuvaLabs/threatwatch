@@ -7,6 +7,8 @@ import { AutomationView } from "./views/AutomationView";
 import { ExposureView } from "./views/ExposureView";
 import { HuntsView } from "./views/HuntsView";
 import { InvestigationsView } from "./views/InvestigationsView";
+import { LedgerRecordView } from "./views/LedgerRecordView";
+import { LedgerView } from "./views/LedgerView";
 import { MissionControlView } from "./views/MissionControlView";
 import { ReportsView } from "./views/ReportsView";
 import { SourcesView } from "./views/SourcesView";
@@ -18,6 +20,8 @@ export function App() {
   const health = useResource(api.health, []);
   const view = (() => {
     switch (route.name) {
+      case "ledger": return <LedgerView />;
+      case "ledgerRecord": return <LedgerRecordView id={route.recordId || ""} />;
       case "threats": return <ThreatsView />;
       case "exposure": return <ExposureView />;
       case "investigations": return <InvestigationsView />;

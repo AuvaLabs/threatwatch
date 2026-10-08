@@ -232,6 +232,71 @@ export interface HuntsResponse {
   hunts: HuntRecord[];
 }
 
+export type LedgerAction = "patch" | "hunt" | "investigate" | "monitor";
+
+export interface LedgerSource {
+  article_id: string;
+  title: string;
+  publisher: string;
+  published?: string | null;
+  url?: string;
+  source_type: "structured" | "reporting" | string;
+}
+
+export interface LedgerChange {
+  id: string;
+  record_id: string;
+  entity_name: string;
+  changed_at: string;
+  kind: "tracking_started" | "state_changed" | string;
+  field: string;
+  previous: unknown;
+  current: unknown;
+  summary: string;
+  source_ids: string[];
+}
+
+export interface ThreatRecord {
+  id: string;
+  entity_type: "cve" | "actor";
+  entity_name: string;
+  title: string;
+  summary: string;
+  decision: { action: LedgerAction; urgency: string; rationale: string };
+  state: { activity: string; exploitation: string; evidence: string; hunt: string; remediation: string };
+  version: number;
+  first_seen?: string | null;
+  last_updated: string;
+  last_changed: string;
+  report_count: number;
+  source_count: number;
+  sources: LedgerSource[];
+  vulnerability?: { cve: string; kev: boolean; max_cvss?: number | null; max_epss?: number | null } | null;
+  affected_products: string[];
+  remediation: { required_action?: string | null; due_date?: string | null; affected_versions: string[]; fixed_versions: string[] };
+  techniques: HuntTechnique[];
+  hunt_id?: string | null;
+  readiness_score: number;
+  observable_count: number;
+  evidence: Array<{ key: string; label: string; status: string; detail: string }>;
+  open_questions: string[];
+  changes: LedgerChange[];
+}
+
+export interface LedgerResponse {
+  schema_version: number;
+  generated_at: string;
+  run_change_count: number;
+  summary: { total_records: number; active_records: number; patch: number; hunt: number; investigate: number; monitor: number };
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
+  filters: Record<string, string>;
+  changes: LedgerChange[];
+  records: ThreatRecord[];
+}
+
 export type InvestigationStatus = "open" | "monitoring" | "closed";
 
 export interface Investigation {

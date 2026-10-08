@@ -24,6 +24,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from modules.hunt_engine import build_hunts
 from modules.operations import build_operational_summary
+from modules.threat_ledger import build_ledger
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
@@ -272,6 +273,23 @@ def load_hunts() -> dict:
     except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
         pass
     return build_hunts(load_articles(), clusters)
+
+
+def load_ledger() -> dict:
+    """Load the pipeline-built ledger, rebuilding stale data without writes."""
+    path = BASE_DIR / "data" / "output" / "threat_ledger.json"
+    hunts = load_hunts()
+    payload = None
+    try:
+        payload = json.loads(read_cached(path))
+        if isinstance(payload, dict) and isinstance(payload.get("records"), list):
+            ledger_time = datetime.fromisoformat(str(payload.get("generated_at") or "").replace("Z", "+00:00"))
+            hunt_time = datetime.fromisoformat(str(hunts.get("generated_at") or "").replace("Z", "+00:00"))
+            if ledger_time >= hunt_time:
+                return payload
+    except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
+        payload = None
+    return build_ledger(load_articles(), load_clusters(), hunts, previous=payload)
 
 
 # CVE IDs in URL paths — tight regex to avoid any injection surface in
@@ -742,6 +760,9 @@ def build_openapi() -> bytes:
         "/api/v1/incidents": {"get": {"summary": "List incident clusters"}},
         "/api/v1/hunts": {"get": {"summary": "List evidence-gated hunt packages"}},
         "/api/v1/hunts/{id}": {"get": {"summary": "Get one hunt package"}},
+        "/api/v1/ledger": {"get": {"summary": "List living threat records"}},
+        "/api/v1/ledger/changes": {"get": {"summary": "List threat state changes"}},
+        "/api/v1/ledger/{id}": {"get": {"summary": "Get one living threat record"}},
         "/api/v1/operations/summary": {"get": {"summary": "Get prioritized operational decisions"}},
         "/api/v1/sources": {"get": {"summary": "List source coverage"}},
         "/api/v1/health": {"get": {"summary": "Get service health"}},
@@ -775,6 +796,15 @@ def build_sources() -> bytes:
 
 def _first_param(params: dict, name: str) -> str:
     return str(params.get(name, [""])[0] or "").strip()
+
+
+def _ledger_search_text(record: dict) -> str:
+    products = record.get("affected_products")
+    safe_products = products if isinstance(products, list) else []
+    return " ".join([
+        *(str(record.get(field) or "") for field in ("entity_name", "title", "summary")),
+        *(str(product) for product in safe_products if product),
+    ]).casefold()
 
 
 def _is_vulnerability_article(article: dict) -> bool:
@@ -868,14 +898,14 @@ STATIC_ROUTES = {
 }
 
 UI_ROUTES = frozenset({
-    "/", "/threats", "/exposure", "/investigations", "/hunts", "/reports",
+    "/", "/ledger", "/threats", "/exposure", "/investigations", "/hunts", "/reports",
     "/automation", "/sources", "/system", "/news", "/vulnerabilities",
     "/campaigns", "/watchlists", "/briefings", "/api-docs",
 })
 
 
 def _is_ui_route(path: str) -> bool:
-    return path in UI_ROUTES or path.startswith("/news/") or path.startswith("/sources/")
+    return path in UI_ROUTES or path.startswith(("/ledger/", "/news/", "/sources/"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1186,6 +1216,92 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 return
             body = json.dumps(
                 hunt, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/ledger":
+            payload = load_ledger()
+            filters = {
+                name: _first_param(params, name)
+                for name in ("type", "action", "q", "activity")
+            }
+            if filters["type"] and filters["type"] not in {"cve", "actor"}:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid ledger entity type")
+                return
+            if filters["action"] and filters["action"] not in {"patch", "hunt", "investigate", "monitor"}:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid ledger action")
+                return
+            if filters["activity"] and filters["activity"] not in {"active", "not_recent"}:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid ledger activity")
+                return
+            try:
+                offset = max(0, int(_first_param(params, "offset") or "0"))
+                limit = min(200, max(1, int(_first_param(params, "limit") or "100")))
+            except ValueError:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid ledger pagination")
+                return
+            records = [item for item in payload.get("records", []) if isinstance(item, dict)]
+            if filters["type"]:
+                records = [item for item in records if item.get("entity_type") == filters["type"]]
+            if filters["action"]:
+                records = [item for item in records if (item.get("decision") or {}).get("action") == filters["action"]]
+            if filters["activity"]:
+                records = [item for item in records if (item.get("state") or {}).get("activity") == filters["activity"]]
+            if filters["q"]:
+                query = filters["q"].casefold()
+                records = [item for item in records if query in _ledger_search_text(item)]
+            total = len(records)
+            page = records[offset:offset + limit]
+            record_ids = {item.get("id") for item in page}
+            response = {
+                **payload,
+                "total": total,
+                "offset": offset,
+                "limit": limit,
+                "has_more": offset + len(page) < total,
+                "filters": filters,
+                "records": page,
+                "changes": [
+                    item for item in payload.get("changes", [])
+                    if isinstance(item, dict) and item.get("record_id") in record_ids
+                ],
+            }
+            body = json.dumps(
+                response, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/ledger/changes":
+            payload = load_ledger()
+            try:
+                limit = min(200, max(1, int(_first_param(params, "limit") or "100")))
+            except ValueError:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid change limit")
+                return
+            all_changes = [item for item in payload.get("changes", []) if isinstance(item, dict)]
+            changes = all_changes[:limit]
+            body = json.dumps(
+                {"generated_at": payload.get("generated_at"), "total": len(all_changes), "changes": changes},
+                ensure_ascii=False, separators=(",", ":"), allow_nan=False,
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path.startswith("/api/v1/ledger/"):
+            record_id = path.removeprefix("/api/v1/ledger/")
+            valid_id = record_id.startswith("threat-") and record_id[7:].isalnum()
+            if not valid_id or len(record_id) > 64:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid threat record id")
+                return
+            payload = load_ledger()
+            record = next((item for item in payload.get("records", []) if item.get("id") == record_id), None)
+            if record is None:
+                self._send_error_json(HTTPStatus.NOT_FOUND, "Threat record not found")
+                return
+            body = json.dumps(
+                record, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
             ).encode("utf-8")
             self._send_body("application/json; charset=utf-8", body, head_only)
             return

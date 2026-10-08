@@ -6,10 +6,9 @@ import { navigate } from "../router";
 import { Icon } from "./Icon";
 
 const navigation = [
-  { label: "Mission Control", href: "/", route: "mission" },
+  { label: "Today", href: "/", route: "mission" },
+  { label: "Ledger", href: "/ledger", route: "ledger" },
   { label: "Threats", href: "/threats", route: "threats" },
-  { label: "Exposure", href: "/exposure", route: "exposure" },
-  { label: "Investigations", href: "/investigations", route: "investigations" },
   { label: "Hunts", href: "/hunts", route: "hunts" },
   { label: "Reports", href: "/reports", route: "reports" },
   { label: "Automation", href: "/automation", route: "automation" },
@@ -41,7 +40,7 @@ export function AppShell({ route, health, children }: { route: RouteName; health
     <div class="app-shell">
       <header class="site-masthead">
         <div class="masthead-row">
-          <a aria-label="ThreatWatch home" class="brand" href="/" onClick={(event) => follow(event, "/")}><span>THREAT</span><b>/</b><span>WATCH</span></a>
+          <a class="brand" href="/" onClick={(event) => follow(event, "/")}><span>THREAT</span><b>/</b><span>WATCH</span></a>
           <span class="desk-edition">INTELLIGENCE DESK&nbsp;&nbsp;•&nbsp;&nbsp;UTC</span>
           <form aria-label="Search ThreatWatch" class="command-search" onSubmit={submitSearch} role="search">
             <Icon name="search" size={18} />
@@ -54,15 +53,15 @@ export function AppShell({ route, health, children }: { route: RouteName; health
         <nav aria-label="Primary navigation" class={`desk-navigation${menuOpen ? " open" : ""}`}>
           <div class="navigation-heading"><span>Desk index</span><button aria-label="Close navigation" class="icon-button" onClick={() => setMenuOpen(false)} type="button"><Icon name="close" /></button></div>
           {navigation.map((item, index) => (
-            <a class={route === item.route || (route === "article" && item.route === "sources") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.label}</a>
+            <a class={route === item.route || (route === "article" && item.route === "sources") || (route === "ledgerRecord" && item.route === "ledger") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.label}</a>
           ))}
-          <a class={`system-link${route === "system" ? " active" : ""}`} href="/system" onClick={(event) => { follow(event, "/system"); setMenuOpen(false); }}><span>09</span>System</a>
+          <a class={`system-link${route === "system" ? " active" : ""}`} href="/system" onClick={(event) => { follow(event, "/system"); setMenuOpen(false); }}><span>08</span>System</a>
         </nav>
       </header>
       {menuOpen && <button aria-label="Close navigation" class="nav-scrim" onClick={() => setMenuOpen(false)} type="button" />}
       <div class="workspace route-workspace">
         <main id="main-content">{children}</main>
-        <footer class="site-footer"><span>THREATWATCH / 3.0</span><span>Public-source intelligence for operational decisions</span></footer>
+        <footer class="site-footer"><span>THREATWATCH / 3.1</span><span>Public evidence for operational decisions</span></footer>
       </div>
     </div>
   );

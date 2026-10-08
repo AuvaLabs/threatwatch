@@ -30,6 +30,9 @@ describe("API client", () => {
     await api.openApi();
     await api.operations();
     await api.hunts();
+    await api.ledger();
+    await api.ledgerRecord("threat-abc123");
+    await api.ledgerChanges();
     expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual([
       "/api/v1/articles/abc%20123",
       "/api/v1/briefings/emea",
@@ -39,7 +42,19 @@ describe("API client", () => {
       "/api/v1/openapi.json",
       "/api/v1/operations/summary",
       "/api/v1/hunts",
+      "/api/v1/ledger",
+      "/api/v1/ledger/threat-abc123",
+      "/api/v1/ledger/changes",
     ]);
+  });
+
+  it("encodes ledger filters", async () => {
+    vi.mocked(fetch).mockResolvedValue(response({ records: [], changes: [] }));
+    await api.ledger({ q: "CVE 2026", type: "cve", action: "patch", activity: "active", limit: 25 });
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/ledger?q=CVE+2026&type=cve&action=patch&activity=active&limit=25",
+      expect.any(Object),
+    );
   });
 
   it("exposes safe server errors", async () => {

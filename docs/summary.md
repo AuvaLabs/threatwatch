@@ -1,13 +1,12 @@
 # ThreatWatch project summary
 
-ThreatWatch is a self-hosted cyber intelligence operations platform built by [nicholai.me](https://nicholai.me) at [AuvaLabs](https://github.com/AuvaLabs). It turns public reporting into a source-linked decision queue, correlated threats, exposure matches, investigations, qualified hunt packages, and operational reports.
+ThreatWatch is a self-hosted cyber intelligence operations platform built by [nicholai.me](https://nicholai.me) at [AuvaLabs](https://github.com/AuvaLabs). It turns public reporting into a source-linked threat-state and decision ledger, correlated threats, qualified hunt packages, and operational reports.
 
 ## Product surfaces
 
-- **Mission Control** ranks deterministic patch, hunt, investigate, and monitor decisions.
+- **Today** leads with material state changes and deterministic patch, hunt, investigate, and monitor decisions.
+- **Ledger** preserves stable CVE and actor records, evidence, uncertainty, decisions, and revision history.
 - **Threats** presents CVE and named-actor clusters with persistent campaign history.
-- **Exposure** evaluates configured brand and technology watchlists without claiming confirmed exposure.
-- **Investigations** stores analyst status and notes in a browser-local workspace with JSON export.
 - **Hunts** separates qualified packages from developing leads and includes observable provenance, ATT&CK behavior, vulnerability context, telemetry, queries, sources, and limitations.
 - **Reports** combines the current briefing, metrics, decisions, and source citations into a portable operating picture.
 - **Automation** exposes OpenAPI, STIX 2.1, RSS, health, and integration contracts.
@@ -21,6 +20,7 @@ ThreatWatch is a self-hosted cyber intelligence operations platform built by [ni
 - Briefing and summary generation through a primary OpenAI-compatible route and two independent fallbacks.
 - Incident correlation on shared CVEs and named threat actors, followed by persistent campaign tracking.
 - Evidence-gated hunt generation from every report in a cluster, with optional cached ThreatFox and URLhaus corroboration.
+- Versioned threat-state generation with deterministic decisions and unchanged-run stability.
 - Feed, artifact, pipeline, and briefing freshness exposed through health endpoints.
 
 ## Hunt qualification
@@ -36,7 +36,7 @@ See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
 - Docker Compose services for `pipeline` and `server` with one persistent data volume.
 - SQLite primary storage plus atomic JSON artifacts and fallback reads.
 - Strict security headers, bounded APIs, request rate limiting, SSRF protection, safe external URLs, and no scraped full-content exposure in operational APIs.
-- 1,476 backend tests and 46 frontend tests at the 2026-10-08 hunt release. Frontend statement coverage was 95.86 percent.
+- 1,492 backend tests and 52 frontend tests at the 2026-10-08 ledger release. Frontend statement coverage was 96.02 percent.
 
 ## Core architecture
 
@@ -50,6 +50,7 @@ Sources
   -> CVE and actor clustering
   -> cached IOC corroboration
   -> qualified hunts and developing leads
+  -> versioned threat-state and decision ledger
   -> versioned API
   -> Preact analyst workspace
 ```
@@ -66,8 +67,10 @@ modules/ioc_extractor.py      Text extraction and defang handling
 modules/ioc_quality.py        Article-aware observable validation
 modules/ioc_enrichment.py     Cached provider corroboration
 modules/hunt_engine.py        Qualification and analyst package generation
+modules/threat_ledger.py      Public record state, decisions, and revision history
 modules/db.py                 SQLite persistence and enrichment cache
 scripts/rebuild_hunts.py      Safe hunt artifact backfill
+scripts/rebuild_ledger.py     History-preserving ledger backfill
 ```
 
 ## Stable operational APIs
@@ -78,6 +81,9 @@ scripts/rebuild_hunts.py      Safe hunt artifact backfill
 - `GET /api/v1/incidents`
 - `GET /api/v1/hunts`
 - `GET /api/v1/hunts/{id}`
+- `GET /api/v1/ledger`
+- `GET /api/v1/ledger/changes`
+- `GET /api/v1/ledger/{id}`
 - `GET /api/v1/operations/summary`
 - `GET /api/v1/sources`
 - `GET /api/v1/health`
@@ -103,6 +109,7 @@ After hunt changes, rebuild the current artifact and validate both containers:
 
 ```bash
 ssh auvalabs 'docker exec threatwatch-pipeline python scripts/rebuild_hunts.py'
+ssh auvalabs 'docker exec threatwatch-pipeline python scripts/rebuild_ledger.py'
 ssh auvalabs 'cd ~/threatwatch && docker compose ps'
 ```
 

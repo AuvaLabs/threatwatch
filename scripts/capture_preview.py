@@ -46,8 +46,8 @@ def capture_frames():
         frames.append(_shot(page, "01_mission_control"))
 
         for name, route in (
-            ("02_threats", "/threats"),
-            ("03_exposure", "/exposure"),
+            ("02_ledger", "/ledger"),
+            ("03_threats", "/threats"),
             ("04_hunts", "/hunts"),
             ("05_reports", "/reports"),
             ("06_automation", "/automation"),
@@ -62,6 +62,14 @@ def capture_frames():
             page.wait_for_load_state("networkidle")
             time.sleep(SCROLL_SETTLE_S)
             frames.append(_shot(page, "07_article_detail"))
+
+        _open(page, "/ledger")
+        first_record = page.query_selector(".ledger-copy a")
+        if first_record:
+            first_record.click()
+            page.wait_for_load_state("networkidle")
+            time.sleep(SCROLL_SETTLE_S)
+            frames.append(_shot(page, "08_ledger_record"))
 
         # Loop back to first frame so the GIF reads as a cycle.
         if frames:

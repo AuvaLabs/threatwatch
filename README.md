@@ -13,7 +13,7 @@
 
 **[Live Demo](https://threatwatch.auvalabs.com)**
 
-ThreatWatch turns public cyber reporting into an operational decision queue. It correlates evidence into threats, scores organizational relevance, prepares investigation and hunt material, and produces source-linked reports. Collection remains the raw material, not the product. The decision engine works without an LLM, while optional AI enrichment uses independent provider fallback.
+ThreatWatch turns public cyber reporting into a living threat-state and decision ledger. It records what changed, why the evidence supports a decision, what remains uncertain, and which original reports justify action. Collection remains the raw material, not the product. The deterministic ledger works without an LLM, while optional AI enrichment uses independent provider fallback.
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Architecture](#architecture) · [Design](docs/DESIGN_DIRECTION.md) · [API](#api-endpoints) · [Integrations](docs/INTEGRATIONS.md) · [Contributing](#contributing)
 
@@ -64,10 +64,9 @@ ThreatWatch turns public cyber reporting into an operational decision queue. It 
 - Cross-source region merge, collapsing to Global when an article spans 3+ regions
 
 ### Intelligence operations workspace
-- **Mission Control** ranks evidence-backed decisions to patch, hunt, investigate, or monitor
+- **Today** leads with material state changes and the evidence-backed decisions they support
+- **Ledger** maintains stable, versioned CVE and actor records with revision history, uncertainty, remediation, affected technology, and original sources
 - **Threats** turns shared actors, vulnerabilities, and organizations into correlated records
-- **Exposure** shows watchlist relevance while clearly separating a match from confirmed asset exposure
-- **Investigations** stores analyst status and notes in a private browser-local workspace with JSON export
 - **Hunts** correlates all reports in a CVE or actor cluster, validates observables in context, and publishes portable packages only after an evidence gate passes
 - **Reports** builds a copyable and downloadable operating picture with source-linked priorities
 - **Automation** exposes the OpenAPI contract, STIX export, RSS, and dependency health
@@ -233,7 +232,7 @@ Edit these files to add or remove feeds. No restart needed — changes apply on 
 
 ## Architecture
 
-**Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify (regex + AI) → Region Inference → NVD/EPSS/ATT&CK → IOC validation → Output → Briefings → Clustering → Cached IOC corroboration → Hunt packages → Actor profiles
+**Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify (regex + AI) → Region Inference → NVD/EPSS/ATT&CK → IOC validation → Output → Briefings → Clustering → Cached IOC corroboration → Hunt packages → Threat-state ledger → Actor profiles
 
 **Server** (`serve_threatwatch.py`): Python HTTP server with safe application routing, ETag caching, gzip, and restricted CORS
 
@@ -248,7 +247,7 @@ threatdigest_main.py         # Pipeline orchestrator
 serve_threatwatch.py         # HTTP server and public API
 frontend/                    # Typed analyst workspace
   ├── src/components/        # Navigation, priority cards, evidence rows, shared states
-  ├── src/views/             # Mission Control and operational workspaces
+  ├── src/views/             # Today, ledger, and operational workspaces
   ├── src/services/          # API, prioritization presentation, reports, local cases
   └── src/styles/            # Accessible design system
 modules/
@@ -263,6 +262,7 @@ modules/
   ├── briefing_generator.py  # AI briefing, top stories, article summaries
   ├── incident_correlator.py # Entity-based incident clustering + AI synthesis
   ├── hunt_engine.py         # Evidence gating, provenance, queries, and package generation
+  ├── threat_ledger.py       # Versioned public threat state and decision history
   ├── ioc_quality.py         # Article-aware IOC validation and false-positive controls
   ├── ioc_enrichment.py      # Optional cached ThreatFox and URLhaus corroboration
   ├── actor_profiler.py      # Threat actor profile generation + caching
@@ -282,6 +282,7 @@ config/
 scripts/
   ├── validate_feeds.py      # Feed health checker
   ├── rebuild_hunts.py       # Rebuild hunt artifact from current data
+  ├── rebuild_ledger.py      # Rebuild ledger while preserving record history
   └── cleanup.py             # Data cleanup utility
 data/
   ├── output/                # JSON + RSS output files
@@ -313,6 +314,9 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/incidents` | Stable incident-cluster collection |
 | `GET` | `/api/v1/hunts` | Qualified hunt packages and developing leads |
 | `GET` | `/api/v1/hunts/{id}` | One complete hunt package with provenance and queries |
+| `GET` | `/api/v1/ledger` | Filterable living threat records and current change register |
+| `GET` | `/api/v1/ledger/changes` | Bounded revision stream for automation and polling |
+| `GET` | `/api/v1/ledger/{id}` | One stable record with evidence and revision history |
 | `GET` | `/api/v1/operations/summary` | Ranked decisions, evidence, metrics, and watchlist relevance |
 | `GET` | `/api/v1/sources` | Source coverage and article counts |
 | `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |
@@ -336,6 +340,8 @@ The server runs on port **8098** by default:
 Public JSON endpoints support CORS. Operational health endpoints are same-origin unless `CORS_ORIGIN` explicitly permits an origin. All responses support ETag validation and gzip compression.
 
 Hunt packages are built from correlated evidence, not from a single article. A package must have independent corroboration or an authoritative structured-provider match, an actionable observable, mapped ATT&CK behavior, citations, telemetry guidance, and a readiness score of at least 60. Candidates that do not pass remain visible as developing leads and cannot be copied as qualified packages. See [`docs/HUNTS.md`](docs/HUNTS.md) for the contract and operations runbook.
+
+The public ledger does not accept or infer an organization's inventory. Its records describe public threat state, evidence quality, reported affected technology, and recommended action. Consumers can match the stable JSON records inside their own trusted environment. See [`docs/LEDGER.md`](docs/LEDGER.md) for the data contract and lifecycle.
 
 <details>
 <summary>Example: paginated articles response</summary>

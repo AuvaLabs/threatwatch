@@ -6,7 +6,8 @@ describe("AppShell", () => {
   it("renders the desk index and health state", () => {
     render(<AppShell health={{ status: "ok" }} route="mission"><p>Content</p></AppShell>);
     const primary = screen.getByRole("navigation", { name: "Primary navigation" });
-    expect(primary.querySelectorAll("a")).toHaveLength(9);
+    expect(primary.querySelectorAll("a")).toHaveLength(8);
+    expect(screen.getByRole("link", { name: /Ledger/ })).toBeTruthy();
     expect(screen.getByText("ok")).toBeTruthy();
     expect(screen.getByText("Content")).toBeTruthy();
   });

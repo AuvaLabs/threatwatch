@@ -65,6 +65,9 @@ self-hosted deployments only.
 | `GET /api/trends` | Spike detection (today vs 14d baseline) + 7d/30d top-mentioned leaderboard |
 | `GET /api/v1/hunts` | Qualified hunt packages and developing leads with sources, observables, behavior, telemetry, and queries |
 | `GET /api/v1/hunts/{id}` | One complete hunt package by stable hunt ID |
+| `GET /api/v1/ledger` | Filterable CVE and actor records with decisions, evidence, and recent changes |
+| `GET /api/v1/ledger/changes` | Bounded revision stream for polling and notifications |
+| `GET /api/v1/ledger/{id}` | One stable record with its complete retained revision history |
 
 ### Standards-based exports
 
@@ -380,6 +383,27 @@ curl -s "https://threatwatch.auvalabs.com/api/v1/hunts/${HUNT_ID}" \
 ```
 
 Do not automate blocking or containment directly from these queries. Qualified means the external evidence passed ThreatWatch's readiness gate. It does not mean the observable is malicious in your environment. Validate matches against process, identity, asset, and time context first.
+
+## Recipe 8: Match public decisions inside a trusted environment
+
+Pull current patch decisions without sending an inventory to ThreatWatch:
+
+```bash
+curl -s "https://threatwatch.auvalabs.com/api/v1/ledger?activity=active&type=cve&action=patch&limit=200" \
+  | jq -r '.records[] | [.entity_name, .decision.urgency, (.affected_products | join(", ")), .id] | @tsv'
+```
+
+Use the returned CVE identifiers as input to a local CMDB, vulnerability scanner, SIEM, or data warehouse join. The join stays inside the trusted environment. ThreatWatch receives no asset or organization data.
+
+Poll the revision stream for decision changes:
+
+```bash
+curl -s -H 'If-None-Match: "previous-etag"' \
+  https://threatwatch.auvalabs.com/api/v1/ledger/changes \
+  | jq '.changes[] | {changed_at, entity_name, field, previous, current, summary}'
+```
+
+Treat `patch`, `hunt`, and `investigate` as routing decisions, not proof of local impact. Retrieve `/api/v1/ledger/{id}` before action to preserve the supporting sources and explicit unknowns in the downstream case.
 
 ---
 

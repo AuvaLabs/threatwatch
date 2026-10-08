@@ -14,10 +14,9 @@ def _read(relative_path: str) -> str:
 def test_primary_navigation_matches_analyst_jobs():
     shell = _read("components/AppShell.tsx")
     for destination in (
-        "Mission Control",
+        "Today",
+        "Ledger",
         "Threats",
-        "Exposure",
-        "Investigations",
         "Hunts",
         "Reports",
         "Automation",
@@ -36,6 +35,8 @@ def test_mission_control_uses_operational_decision_api():
     mission = _read("views/MissionControlView.tsx")
     assert "api.operations" in mission
     assert "Decision queue" in mission
+    assert "What changed today" in mission
+    assert "api.ledger" in mission
 
 
 def test_design_uses_risk_colors_only_as_semantic_tokens():

@@ -2,6 +2,16 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-08: Public threat-state and decision ledger
+
+- Added stable, versioned CVE and actor records that preserve evidence, decisions, uncertainty, and revision history across pipeline runs.
+- Added deterministic patch, hunt, investigate, and monitor states built from public reporting, KEV, EPSS, ATT&CK, and qualified hunt evidence.
+- Added `GET /api/v1/ledger`, `GET /api/v1/ledger/changes`, and `GET /api/v1/ledger/{id}` with bounded filtering and strict identifiers.
+- Replaced the primary Mission Control label with Today and made material ledger changes the first operational register.
+- Added a dedicated Ledger workspace and detailed records with remediation, affected technology, source links, and explicit unknowns.
+- Added `scripts/rebuild_ledger.py` for safe backfills that preserve versions and do not manufacture changes on unchanged runs.
+- Kept organizational inventory outside the public application. Ledger records are designed for downstream matching inside a consumer's own trusted environment.
+
 ## 2026-10-08: Evidence-gated hunt packages
 
 - Replaced article-level hunt cards with correlated CVE and actor packages built from every report in the incident cluster.

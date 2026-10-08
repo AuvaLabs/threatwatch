@@ -2,6 +2,8 @@ import { useEffect, useState } from "preact/hooks";
 
 export type RouteName =
   | "mission"
+  | "ledger"
+  | "ledgerRecord"
   | "threats"
   | "exposure"
   | "investigations"
@@ -15,9 +17,13 @@ export type RouteName =
 export interface Route {
   name: RouteName;
   articleId?: string;
+  recordId?: string;
 }
 
 export function parseRoute(pathname: string): Route {
+  if (pathname.startsWith("/ledger/")) {
+    return { name: "ledgerRecord", recordId: decodeURIComponent(pathname.slice(8)) };
+  }
   if (pathname.startsWith("/sources/")) {
     return { name: "article", articleId: decodeURIComponent(pathname.slice(9)) };
   }
@@ -26,6 +32,7 @@ export function parseRoute(pathname: string): Route {
   }
   const routes: Record<string, RouteName> = {
     "/": "mission",
+    "/ledger": "ledger",
     "/threats": "threats",
     "/exposure": "exposure",
     "/investigations": "investigations",

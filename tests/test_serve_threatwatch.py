@@ -159,6 +159,27 @@ class TestLoadHelpers:
 
         assert result == rebuilt
 
+    def test_load_ledger_rebuilds_when_artifact_predates_hunts(self, tmp_path):
+        output = tmp_path / "data" / "output"
+        output.mkdir(parents=True)
+        stale = {
+            "generated_at": "2026-10-08T00:00:00+00:00",
+            "records": [{"id": "threat-old"}],
+        }
+        (output / "threat_ledger.json").write_text(json.dumps(stale))
+        hunts = {"generated_at": "2026-10-08T01:00:00+00:00", "hunts": []}
+        rebuilt = {"generated_at": "2026-10-08T01:00:01+00:00", "records": []}
+
+        with patch("serve_threatwatch.BASE_DIR", tmp_path), \
+             patch("serve_threatwatch.load_hunts", return_value=hunts), \
+             patch("serve_threatwatch.load_clusters", return_value={"clusters": []}), \
+             patch("serve_threatwatch.load_articles", return_value=[]), \
+             patch("serve_threatwatch.build_ledger", return_value=rebuilt) as builder:
+            result = sw.load_ledger()
+
+        assert result == rebuilt
+        builder.assert_called_once_with([], {"clusters": []}, hunts, previous=stale)
+
 
 class TestOperationalSummary:
     def test_prioritizes_exploited_watchlist_matches_without_raw_content(self):
@@ -670,8 +691,8 @@ class TestHTTPRoutes:
         assert body == b"<html>app</html>"
 
     @pytest.mark.parametrize("path", [
-        "/threats", "/exposure", "/investigations", "/hunts", "/reports",
-        "/automation", "/sources", "/sources/article-1",
+        "/ledger", "/threats", "/exposure", "/investigations", "/hunts", "/reports",
+        "/automation", "/sources", "/sources/article-1", "/ledger/threat-abc123",
     ])
     def test_operational_frontend_routes_return_application_shell(self, test_server, path):
         with patch("serve_threatwatch.render_page", return_value=b"<html>operations</html>"):
@@ -718,6 +739,70 @@ class TestHTTPRoutes:
         with patch("serve_threatwatch.load_hunts", return_value=payload):
             invalid, _, _ = _get(test_server + "/api/v1/hunts/not%20valid")
             missing, _, _ = _get(test_server + "/api/v1/hunts/hunt-missing")
+
+        assert invalid == 400
+        assert missing == 404
+
+    def test_ledger_endpoint_filters_public_records(self, test_server):
+        payload = {
+            "summary": {"total_records": 2},
+            "records": [
+                {"id": "threat-abc123", "entity_type": "cve", "entity_name": "CVE-2026-1000", "affected_products": ["Acme Gateway"], "decision": {"action": "patch"}, "state": {"activity": "active"}},
+                {"id": "threat-def456", "entity_type": "actor", "entity_name": "Qilin", "decision": {"action": "hunt"}, "state": {"activity": "active"}},
+            ],
+            "changes": [],
+        }
+        with patch("serve_threatwatch.load_ledger", return_value=payload):
+            status, _, body = _get(test_server + "/api/v1/ledger?type=cve&action=patch&q=gateway")
+
+        result = json.loads(body)
+        assert status == 200
+        assert result["total"] == 1
+        assert result["records"][0]["id"] == "threat-abc123"
+        assert result["filters"] == {"type": "cve", "action": "patch", "q": "gateway", "activity": ""}
+
+    def test_ledger_endpoint_rejects_unknown_filters(self, test_server):
+        with patch("serve_threatwatch.load_ledger", return_value={"records": []}):
+            bad_type, _, _ = _get(test_server + "/api/v1/ledger?type=organization")
+            bad_action, _, _ = _get(test_server + "/api/v1/ledger?action=block")
+            bad_activity, _, _ = _get(test_server + "/api/v1/ledger?activity=deleted")
+
+        assert (bad_type, bad_action, bad_activity) == (400, 400, 400)
+
+    def test_ledger_changes_and_detail_are_available(self, test_server):
+        payload = {
+            "records": [{"id": "threat-abc123", "entity_name": "CVE-2026-1000"}],
+            "changes": [{"id": "change-one", "record_id": "threat-abc123"}],
+        }
+        with patch("serve_threatwatch.load_ledger", return_value=payload):
+            changes_status, _, changes_body = _get(test_server + "/api/v1/ledger/changes")
+            detail_status, _, detail_body = _get(test_server + "/api/v1/ledger/threat-abc123")
+
+        assert changes_status == 200
+        assert json.loads(changes_body)["changes"][0]["id"] == "change-one"
+        assert detail_status == 200
+        assert json.loads(detail_body)["entity_name"] == "CVE-2026-1000"
+
+    def test_ledger_changes_reports_total_before_limit(self, test_server):
+        payload = {
+            "records": [],
+            "changes": [
+                {"id": "change-one", "record_id": "threat-one"},
+                {"id": "change-two", "record_id": "threat-two"},
+            ],
+        }
+        with patch("serve_threatwatch.load_ledger", return_value=payload):
+            status, _, body = _get(test_server + "/api/v1/ledger/changes?limit=1")
+
+        result = json.loads(body)
+        assert status == 200
+        assert result["total"] == 2
+        assert len(result["changes"]) == 1
+
+    def test_ledger_detail_rejects_invalid_or_missing_id(self, test_server):
+        with patch("serve_threatwatch.load_ledger", return_value={"records": []}):
+            invalid, _, _ = _get(test_server + "/api/v1/ledger/not%20valid")
+            missing, _, _ = _get(test_server + "/api/v1/ledger/threat-missing")
 
         assert invalid == 400
         assert missing == 404
