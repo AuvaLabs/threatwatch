@@ -12,7 +12,7 @@ export function HuntsView() {
     setCopied(await copyText(pack) ? id : "error");
   };
   return <div class="view hunts-view">
-    <PageHeader eyebrow="Evidence to hypothesis" title="Hunts" description="Portable investigation prompts built from observed CVEs, techniques, and indicators." />
+    <PageHeader eyebrow="Hunt desk" title="Hunts" description="Observed CVEs, ATT&CK techniques, and indicators assembled for analyst validation." />
     <div class="notice warning" role="note"><strong>Analyst validation required.</strong> Hunt packs contain leads, not detection rules. Validate scope, syntax, and indicators before production use.</div>
     {copied === "error" && <div class="notice" role="status">Clipboard access is unavailable. Expand the preview and copy the text manually.</div>}
     {resource.loading && <LoadingState label="Assembling evidence packs" />}{resource.error && <ErrorState message={resource.error} />}

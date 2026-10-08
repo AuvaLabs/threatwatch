@@ -2,6 +2,14 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-08: Intelligence desk visual system
+
+- Replaced the generic application sidebar and mobile tabs with a numbered masthead index.
+- Replaced rounded card stacks, pills, shadows, and serif card headlines with ruled registers and direct sans-serif typography.
+- Introduced a warm paper canvas, ink-first hierarchy, and restrained hazard-yellow signal color.
+- Reworked Mission Control metrics, command brief, decision queue, threats, exposure, cases, hunts, reports, automation, sources, articles, and system status around flat editorial layouts.
+- Added a documented design direction and a static regression contract for the visual system.
+
 ## 2026-10-08: Intelligence operations platform
 
 - Replaced the aggregator-first navigation with Mission Control, Threats, Exposure, Investigations, Hunts, Reports, Automation, Sources, and System.

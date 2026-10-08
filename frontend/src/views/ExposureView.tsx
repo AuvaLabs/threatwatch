@@ -7,7 +7,7 @@ export function ExposureView() {
   const resource = useResource(api.operations, []);
   return (
     <div class="view exposure-view">
-      <PageHeader eyebrow="Organization context" title="Exposure" description="Connect external threat evidence to the brands and technologies you monitor." />
+      <PageHeader eyebrow="Watchlist review" title="Exposure" description="Matches between external reporting and the brands and technology you monitor. A match is not proof of exposure." />
       {resource.loading && <LoadingState label="Evaluating watchlist relevance" />}
       {resource.error && <ErrorState message={resource.error} />}
       {resource.data && <>

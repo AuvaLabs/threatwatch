@@ -7,7 +7,7 @@ html {
   color: var(--color-ink);
   font-family: var(--font-ui);
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.55;
   scroll-behavior: smooth;
   text-rendering: optimizeLegibility;
 }
@@ -65,14 +65,16 @@ h3 {
 }
 
 h1 {
-  font-size: clamp(2rem, 3.5vw, 3.25rem);
-  letter-spacing: -0.045em;
+  font-size: clamp(2.25rem, 4.5vw, 4.65rem);
+  font-weight: 500;
+  letter-spacing: -0.065em;
+  line-height: 0.98;
   margin-bottom: var(--space-3);
 }
 
 h2 {
-  font-size: clamp(1.3rem, 2vw, 1.75rem);
-  letter-spacing: -0.025em;
+  font-size: clamp(1.25rem, 2vw, 1.8rem);
+  letter-spacing: -0.035em;
   margin-bottom: var(--space-3);
 }
 
@@ -98,7 +100,8 @@ th {
   color: var(--color-ink-muted);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
   text-align: left;
   text-transform: uppercase;
 }
@@ -127,21 +130,22 @@ th {
 .view {
   margin: 0 auto;
   max-width: 1320px;
-  padding: var(--space-10) var(--space-10) var(--space-16);
+  padding: var(--space-12) var(--space-10) var(--space-16);
 }
 
 .surface {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-medium);
-  box-shadow: var(--shadow-small);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .eyebrow {
-  color: var(--color-brand);
-  font-size: 0.72rem;
-  font-weight: 750;
-  letter-spacing: 0.095em;
+  color: var(--color-ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   margin-bottom: var(--space-2);
   text-transform: uppercase;
 }

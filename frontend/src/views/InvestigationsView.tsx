@@ -20,7 +20,7 @@ export function InvestigationsView() {
   };
   return (
     <div class="view investigations-view">
-      <PageHeader eyebrow="Analyst workspace" title="Investigations" description="Turn operational priorities into durable cases with decisions and notes." actions={workspace.investigations.length ? <button class="button secondary" onClick={() => workspaceDownload(workspace)} type="button">Export workspace</button> : undefined} />
+      <PageHeader eyebrow="Casebook" title="Investigations" description="Status, decisions, and working notes for priorities under review." actions={workspace.investigations.length ? <button class="button secondary" onClick={() => workspaceDownload(workspace)} type="button">Export workspace</button> : undefined} />
       <div class="notice" role="note"><strong>Private to this browser.</strong> Investigations are stored locally on this device. Export regularly if the record must be retained or shared.</div>
       {notice && <div class="notice" role="status">{notice}</div>}
       {!workspace.investigations.length && <EmptyState title="No investigations yet">Open a priority from Mission Control to begin a local investigation.</EmptyState>}

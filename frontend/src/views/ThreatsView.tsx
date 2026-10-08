@@ -13,7 +13,7 @@ export function ThreatsView() {
   });
   return (
     <div class="view threats-view">
-      <PageHeader eyebrow="Correlated evidence" title="Threats" description="Activity grouped into durable threat records instead of isolated headlines." />
+      <PageHeader eyebrow="Threat register" title="Threats" description="Correlated activity built from shared actors, vulnerabilities, and affected organizations." />
       <label class="standalone-search"><span>Filter threats</span><input onInput={(event) => setQuery(event.currentTarget.value)} placeholder="Actor, campaign, malware, or vulnerability" type="search" value={query} /></label>
       {resource.loading && <LoadingState label="Correlating threat evidence" />}
       {resource.error && <ErrorState message={resource.error} />}

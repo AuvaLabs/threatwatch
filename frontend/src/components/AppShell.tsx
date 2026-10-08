@@ -6,14 +6,14 @@ import { navigate } from "../router";
 import { Icon } from "./Icon";
 
 const navigation = [
-  { label: "Mission Control", shortLabel: "Mission", href: "/", route: "mission", icon: "overview" },
-  { label: "Threats", shortLabel: "Threats", href: "/threats", route: "threats", icon: "campaigns" },
-  { label: "Exposure", shortLabel: "Exposure", href: "/exposure", route: "exposure", icon: "shield" },
-  { label: "Investigations", shortLabel: "Cases", href: "/investigations", route: "investigations", icon: "watch" },
-  { label: "Hunts", shortLabel: "Hunts", href: "/hunts", route: "hunts", icon: "search" },
-  { label: "Reports", shortLabel: "Reports", href: "/reports", route: "reports", icon: "briefings" },
-  { label: "Automation", shortLabel: "Automate", href: "/automation", route: "automation", icon: "api" },
-  { label: "Sources", shortLabel: "Sources", href: "/sources", route: "sources", icon: "news" },
+  { label: "Mission Control", href: "/", route: "mission" },
+  { label: "Threats", href: "/threats", route: "threats" },
+  { label: "Exposure", href: "/exposure", route: "exposure" },
+  { label: "Investigations", href: "/investigations", route: "investigations" },
+  { label: "Hunts", href: "/hunts", route: "hunts" },
+  { label: "Reports", href: "/reports", route: "reports" },
+  { label: "Automation", href: "/automation", route: "automation" },
+  { label: "Sources", href: "/sources", route: "sources" },
 ] as const;
 
 function follow(event: Event, href: string): void {
@@ -39,52 +39,31 @@ export function AppShell({ route, health, children }: { route: RouteName; health
 
   return (
     <div class="app-shell">
-      <aside class={`sidebar${menuOpen ? " open" : ""}`}>
-        <div class="brand-row">
-          <a class="brand" href="/" onClick={(event) => follow(event, "/")}>THREATWATCH</a>
-          <button aria-label="Close navigation" class="icon-button sidebar-close" onClick={() => setMenuOpen(false)} type="button"><Icon name="close" /></button>
-        </div>
-        <nav aria-label="Primary navigation" class="primary-nav">
-          {navigation.map((item) => (
-            <a class={route === item.route || (route === "article" && item.route === "sources") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}>
-              <Icon name={item.icon} /><span>{item.label}</span>
-            </a>
-          ))}
-        </nav>
-        <div class="sidebar-footer">
-          <a class={route === "system" ? "active" : ""} href="/system" onClick={(event) => follow(event, "/system")}><Icon name="system" /><span>System status</span></a>
-          <p>Intelligence operations<br />Version 3.0</p>
-        </div>
-      </aside>
-
-      {menuOpen && <button aria-label="Close navigation" class="nav-scrim" onClick={() => setMenuOpen(false)} type="button" />}
-
-      <div class="workspace">
-        <header class="topbar">
-          <button aria-label="Open navigation" class="icon-button menu-button" onClick={() => setMenuOpen(true)} type="button"><Icon name="menu" /></button>
+      <header class="site-masthead">
+        <div class="masthead-row">
+          <a aria-label="ThreatWatch home" class="brand" href="/" onClick={(event) => follow(event, "/")}><span>THREAT</span><b>/</b><span>WATCH</span></a>
+          <span class="desk-edition">INTELLIGENCE DESK&nbsp;&nbsp;•&nbsp;&nbsp;UTC</span>
           <form aria-label="Search ThreatWatch" class="command-search" onSubmit={submitSearch} role="search">
-            <Icon name="search" size={19} />
-            <input aria-label="Ask ThreatWatch" name="q" placeholder="Ask ThreatWatch" type="search" />
-            <span>Search intelligence</span>
+            <Icon name="search" size={18} />
+            <input aria-label="Ask ThreatWatch" name="q" placeholder="Search actors, CVEs, organizations" type="search" />
           </form>
-          <div class="topbar-status">
-            <span class={`health-indicator ${health?.status || "unknown"}`} />
-            <span>{health ? `Platform ${health.status}` : "Checking platform"}</span>
-          </div>
-          <button aria-label={`Switch to ${dark ? "light" : "dark"} theme`} class="icon-button" onClick={() => setDark((value) => !value)} type="button">
-            <Icon name={dark ? "sun" : "moon"} />
-          </button>
-        </header>
+          <div class="topbar-status"><span class={`health-indicator ${health?.status || "unknown"}`} /><span>{health ? health.status : "checking"}</span></div>
+          <button aria-label={`Switch to ${dark ? "light" : "dark"} theme`} class="icon-button" onClick={() => setDark((value) => !value)} type="button"><Icon name={dark ? "sun" : "moon"} /></button>
+          <button aria-label="Open navigation" class="icon-button menu-button" onClick={() => setMenuOpen(true)} type="button"><Icon name="menu" /></button>
+        </div>
+        <nav aria-label="Primary navigation" class={`desk-navigation${menuOpen ? " open" : ""}`}>
+          <div class="navigation-heading"><span>Desk index</span><button aria-label="Close navigation" class="icon-button" onClick={() => setMenuOpen(false)} type="button"><Icon name="close" /></button></div>
+          {navigation.map((item, index) => (
+            <a class={route === item.route || (route === "article" && item.route === "sources") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.label}</a>
+          ))}
+          <a class={`system-link${route === "system" ? " active" : ""}`} href="/system" onClick={(event) => { follow(event, "/system"); setMenuOpen(false); }}><span>09</span>System</a>
+        </nav>
+      </header>
+      {menuOpen && <button aria-label="Close navigation" class="nav-scrim" onClick={() => setMenuOpen(false)} type="button" />}
+      <div class="workspace route-workspace">
         <main id="main-content">{children}</main>
+        <footer class="site-footer"><span>THREATWATCH / 3.0</span><span>Public-source intelligence for operational decisions</span></footer>
       </div>
-
-      <nav aria-label="Mobile navigation" class="mobile-nav">
-        {navigation.slice(0, 5).map((item) => (
-          <a class={route === item.route || (route === "article" && item.route === "sources") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => follow(event, item.href)}>
-            <Icon name={item.icon} size={19} /><span>{item.shortLabel}</span>
-          </a>
-        ))}
-      </nav>
     </div>
   );
 }

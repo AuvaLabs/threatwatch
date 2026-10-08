@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { AppShell } from "./AppShell";
 
 describe("AppShell", () => {
-  it("renders the eight analyst workspaces and health state", () => {
+  it("renders the desk index and health state", () => {
     render(<AppShell health={{ status: "ok" }} route="mission"><p>Content</p></AppShell>);
     const primary = screen.getByRole("navigation", { name: "Primary navigation" });
-    expect(primary.querySelectorAll("a")).toHaveLength(8);
-    expect(screen.getByText("Platform ok")).toBeTruthy();
+    expect(primary.querySelectorAll("a")).toHaveLength(9);
+    expect(screen.getByText("ok")).toBeTruthy();
     expect(screen.getByText("Content")).toBeTruthy();
   });
 
@@ -30,9 +30,9 @@ describe("AppShell", () => {
   it("opens and closes the compact navigation", () => {
     render(<AppShell health={null} route="article"><p>Content</p></AppShell>);
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
-    expect(document.querySelector(".sidebar.open")).toBeTruthy();
+    expect(document.querySelector(".desk-navigation.open")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: "Close navigation" })[0]);
-    expect(document.querySelector(".sidebar.open")).toBeFalsy();
+    expect(document.querySelector(".desk-navigation.open")).toBeFalsy();
   });
 
   it("opens the full source library for an empty search", () => {

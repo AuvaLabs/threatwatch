@@ -11,7 +11,7 @@ async function loadAutomation(signal: AbortSignal) {
 export function AutomationView() {
   const resource = useResource(loadAutomation, []);
   return <div class="view automation-view">
-    <PageHeader eyebrow="Machine-readable intelligence" title="Automation" description="Connect ThreatWatch evidence and priorities to internal workflows through stable interfaces." actions={<a class="button primary" href="/api/stix">Download STIX</a>} />
+    <PageHeader eyebrow="Interfaces" title="Automation" description="REST, STIX, and RSS access to ThreatWatch evidence and priorities." actions={<a class="button primary" href="/api/stix">Download STIX</a>} />
     {resource.loading && <LoadingState label="Loading automation contract" />}{resource.error && <ErrorState message={resource.error} />}
     {resource.data && <>
       <section class="automation-status"><article class="surface"><span class={`health-indicator ${resource.data.health.status}`} /><div><strong>REST API</strong><p>{resource.data.health.status === "ok" ? "Operational" : `Available with ${resource.data.health.status} dependencies`}</p></div></article><article class="surface"><strong>STIX 2.1</strong><p>Download current machine-readable indicators and objects.</p></article><article class="surface"><strong>RSS feed</strong><p><a href="/feed.xml">Subscribe to source reporting</a></p></article></section>

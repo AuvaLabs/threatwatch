@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Article } from "../types";
-import { actionText, articleDate, articleSummary, displayTitle, excerpt, formattedDate, relativeTime, safeExternalUrl, sourceLabel } from "./format";
+import { actionText, articleDate, articleSummary, displayTitle, excerpt, formattedDate, healthReason, relativeTime, safeExternalUrl, sourceLabel } from "./format";
 
 const article = { hash: "abc", title: "Original title" } as Article;
 
@@ -53,5 +53,10 @@ describe("format utilities", () => {
   it("normalizes briefing actions", () => {
     expect(actionText("Patch now")).toBe("Patch now");
     expect(actionText({ action: "Monitor access" })).toBe("Monitor access");
+  });
+
+  it("turns machine health reasons into readable labels", () => {
+    expect(healthReason("artifact_stale_regional_emea")).toBe("Artifact stale regional EMEA");
+    expect(healthReason("ai_capability_failing_article_summaries")).toBe("AI capability failing article summaries");
   });
 });

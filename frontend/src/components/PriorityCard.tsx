@@ -8,7 +8,7 @@ export function PriorityCard({ priority, onInvestigate }: {
 }) {
   const evidenceCount = priority.evidence.cves.length + priority.evidence.techniques.length + priority.evidence.ioc_count;
   return (
-    <article class={`priority-card surface urgency-${priority.urgency}`}>
+    <article class={`priority-entry urgency-${priority.urgency}`}>
       <div class="priority-score"><strong>{priority.score}</strong><span>priority</span></div>
       <div class="priority-copy">
         <div class="priority-labels">

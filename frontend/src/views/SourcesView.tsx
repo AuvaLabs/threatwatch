@@ -24,7 +24,7 @@ export function SourcesView() {
   }, [q, category, region]);
   const reset = () => { setQ(""); setCategory(""); setRegion(""); setOffset(0); };
   return <div class="view sources-view">
-    <PageHeader eyebrow="Evidence library" title="Sources" description="The underlying public reporting used to build threats, priorities, hunts, and reports." />
+    <PageHeader eyebrow="Evidence library" title="Sources" description="Original public reporting behind the threat register, decision queue, hunts, and reports." />
     <div class="notice" role="note">Source reporting is evidence, not a final assessment. Validate consequential claims against the original publisher.</div>
     <form class="filter-bar" onSubmit={(event) => event.preventDefault()}>
       <label class="search-field"><span>Search evidence</span><input onInput={(event) => { setQ(event.currentTarget.value); setOffset(0); }} placeholder="Actor, organization, CVE, or topic" type="search" value={q} /></label>

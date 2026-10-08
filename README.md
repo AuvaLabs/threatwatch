@@ -15,7 +15,7 @@
 
 ThreatWatch turns public cyber reporting into an operational decision queue. It correlates evidence into threats, scores organizational relevance, prepares investigation and hunt material, and produces source-linked reports. Collection remains the raw material, not the product. The decision engine works without an LLM, while optional AI enrichment uses independent provider fallback.
 
-[Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Architecture](#architecture) · [API](#api-endpoints) · [Integrations](docs/INTEGRATIONS.md) · [Contributing](#contributing)
+[Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Architecture](#architecture) · [Design](docs/DESIGN_DIRECTION.md) · [API](#api-endpoints) · [Integrations](docs/INTEGRATIONS.md) · [Contributing](#contributing)
 
 </div>
 
@@ -72,7 +72,7 @@ ThreatWatch turns public cyber reporting into an operational decision queue. It 
 - **Reports** builds a copyable and downloadable operating picture with source-linked priorities
 - **Automation** exposes the OpenAPI contract, STIX export, RSS, and dependency health
 - **Sources** preserves the full deduplicated evidence library without making the news feed the primary experience
-- Calm responsive layout, accessible light and dark themes, explicit empty and degraded states, and mobile navigation
+- Intelligence-desk visual system with a numbered masthead, ruled registers, accessible light and dark themes, and explicit empty and degraded states
 
 ### Region accuracy
 - **Content-based inference** — scans article title for country/demonym mentions and assigns the correct region, overriding feed locale labels (a UK article from a US-localized Google feed gets tagged Europe, not US)

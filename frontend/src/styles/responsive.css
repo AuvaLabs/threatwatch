@@ -1,275 +1,44 @@
 @media (max-width: 1180px) {
-  .article-row {
-    grid-template-columns: 82px 120px minmax(260px, 1fr);
-  }
-
-  .article-tags {
-    grid-column: 3;
-  }
-
-  .campaign-row {
-    grid-template-columns: 110px 1fr;
-  }
-
-  .campaign-row dl {
-    grid-column: 2;
-  }
+  .article-row { grid-template-columns: 82px 120px minmax(260px, 1fr); }
+  .article-tags { grid-column: 3; }
 }
 
 @media (max-width: 900px) {
-  :root {
-    --topbar-height: 64px;
-  }
-
-  .sidebar {
-    box-shadow: var(--shadow-raised);
-    transform: translateX(-105%);
-    transition: transform 180ms ease;
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
-  }
-
-  .workspace {
-    margin-left: 0;
-  }
-
-  .menu-button,
-  .sidebar-close {
-    display: inline-flex;
-  }
-
-  .nav-scrim {
-    background: rgb(6 19 14 / 45%);
-    border: 0;
-    bottom: 0;
-    display: block;
-    left: 0;
-    position: fixed;
-    right: 0;
-    top: 0;
-    z-index: 25;
-  }
-
-  .topbar {
-    padding: 0 var(--space-4);
-  }
-
-  .topbar-status span:last-child,
-  .command-search > span {
-    display: none;
-  }
-
-  .lead-story {
-    grid-template-columns: 1fr;
-  }
-
-  .why-panel {
-    border-left: 0;
-    border-top: 1px solid var(--color-border);
-  }
-
-  .action-list {
-    grid-template-columns: 1fr;
-  }
-
-  .action-list li,
-  .action-list li:first-child {
-    border-left: 0;
-    border-top: 1px solid var(--color-border);
-    padding: var(--space-4) 0;
-  }
-
-  .filter-bar {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .filter-bar .search-field {
-    grid-column: 1 / -1;
-  }
-
-  .article-row {
-    gap: var(--space-2) var(--space-4);
-    grid-template-columns: 90px 1fr;
-  }
-
-  .article-source {
-    justify-self: end;
-    text-align: right;
-  }
-
+  .filter-bar { grid-template-columns: 1fr 1fr; }
+  .filter-bar .search-field { grid-column: 1 / -1; }
+  .article-row { gap: var(--space-2) var(--space-4); grid-template-columns: 90px 1fr; }
+  .article-source { justify-self: end; text-align: right; }
   .article-copy,
-  .article-tags {
-    grid-column: 1 / -1;
-  }
-
+  .article-tags { grid-column: 1 / -1; }
   .record-grid,
   .watch-grid,
   .api-intro,
-  .ai-ready {
-    grid-template-columns: 1fr;
-  }
-
-  .campaign-row {
-    grid-template-columns: 1fr;
-  }
-
-  .campaign-row dl {
-    grid-column: auto;
-  }
-
-  .endpoint-row {
-    grid-template-columns: 52px 1fr auto;
-  }
-
-  .endpoint-row p {
-    grid-column: 2 / -1;
-  }
+  .ai-ready { grid-template-columns: 1fr; }
+  .endpoint-row { grid-template-columns: 52px 1fr auto; }
+  .endpoint-row p { grid-column: 2 / -1; }
 }
 
 @media (max-width: 620px) {
-  .view {
-    padding: var(--space-6) var(--space-4) 96px;
-  }
-
-  .topbar {
-    gap: var(--space-2);
-  }
-
-  .command-search {
-    flex: 1;
-    width: auto;
-  }
-
-  .topbar-status {
-    display: none;
-  }
-
+  .view { padding: var(--space-8) var(--space-4) var(--space-12); }
   .page-header,
-  .briefing-heading {
-    align-items: start;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .briefing-time {
-    align-items: center;
-    flex-direction: row;
-    gap: var(--space-3);
-    text-align: left;
-  }
-
-  .lead-copy,
-  .why-panel,
-  .attention {
-    padding: var(--space-5);
-  }
-
-  .lead-copy h2 {
-    font-size: 1.85rem;
-  }
-
-  .filter-bar {
-    grid-template-columns: 1fr;
-  }
-
-  .filter-bar .search-field {
-    grid-column: auto;
-  }
-
-  .results-summary span {
-    display: none;
-  }
-
-  .article-row {
-    padding: var(--space-4) 0;
-  }
-
-  .record-header h1 {
-    font-size: 2.35rem;
-  }
-
-  .record-summary > p:not(.eyebrow) {
-    font-size: 1.1rem;
-  }
-
-  .record-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .campaign-row dl {
-    grid-template-columns: 1fr;
-  }
-
-  .campaign-row dl div {
-    border-left: 0;
-    border-top: 1px solid var(--color-border);
-    padding: var(--space-3) 0;
-  }
-
-  .briefing-document {
-    border-radius: var(--radius-medium);
-  }
-
-  .briefing-document footer {
-    align-items: start;
-    flex-direction: column;
-  }
-
-  .endpoint-row {
-    grid-template-columns: 46px 1fr;
-  }
-
+  .briefing-heading { align-items: start; flex-direction: column; gap: var(--space-4); }
+  .page-header h1 { font-size: clamp(2.4rem, 14vw, 3.8rem); }
+  .briefing-time { align-items: center; flex-direction: row; gap: var(--space-3); text-align: left; }
+  .filter-bar { grid-template-columns: 1fr; }
+  .filter-bar .search-field { grid-column: auto; }
+  .results-summary span { display: none; }
+  .article-row { padding: var(--space-4) 0; }
+  .record-header h1 { font-size: 2.35rem; }
+  .record-summary > p:not(.eyebrow) { font-size: 1.1rem; }
+  .record-actions { align-items: stretch; flex-direction: column; }
+  .endpoint-row { grid-template-columns: 46px 1fr; }
   .endpoint-row .text-button,
-  .endpoint-row p {
-    grid-column: 2;
-    justify-self: start;
-  }
-
-  .status-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .mobile-nav {
-    align-items: center;
-    background: color-mix(in srgb, var(--color-surface) 95%, transparent);
-    border-top: 1px solid var(--color-border);
-    bottom: 0;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    height: 68px;
-    left: 0;
-    padding-bottom: env(safe-area-inset-bottom);
-    position: fixed;
-    right: 0;
-    z-index: 22;
-    backdrop-filter: blur(12px);
-  }
-
-  .mobile-nav a {
-    align-items: center;
-    color: var(--color-ink-muted);
-    display: flex;
-    flex-direction: column;
-    font-size: 0.6rem;
-    gap: 2px;
-    justify-content: center;
-    min-height: 58px;
-    text-decoration: none;
-  }
-
-  .mobile-nav a.active {
-    color: var(--color-brand);
-  }
+  .endpoint-row p { grid-column: 2; justify-self: start; }
+  .status-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-  }
+  *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }

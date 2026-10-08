@@ -43,3 +43,25 @@ def test_design_uses_risk_colors_only_as_semantic_tokens():
     assert "--color-risk-critical" in tokens
     assert "--color-risk-warning" in tokens
     assert "--reading-width" in tokens
+
+
+def test_editorial_design_rejects_generic_card_defaults():
+    tokens = _read("styles/tokens.css")
+    assert "--color-signal: #f2c230" in tokens
+    assert "--radius-medium: 0" in tokens
+    assert "--shadow-small: none" in tokens
+    assert '--font-reading: "Helvetica Neue"' in tokens
+
+
+def test_shell_uses_a_masthead_instead_of_app_sidebar_and_bottom_tabs():
+    shell = _read("components/AppShell.tsx")
+    assert 'class="site-masthead"' in shell
+    assert "desk-navigation" in shell
+    assert 'class="mobile-nav"' not in shell
+    assert 'class={`sidebar' not in shell
+
+
+def test_decision_queue_is_a_ruled_register_not_a_card_stack():
+    priority = _read("components/PriorityCard.tsx")
+    assert "priority-entry" in priority
+    assert "priority-card surface" not in priority

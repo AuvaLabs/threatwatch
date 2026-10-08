@@ -79,3 +79,13 @@ export function safeExternalUrl(value?: string): string | null {
 export function actionText(value: string | { action: string }): string {
   return typeof value === "string" ? value : value.action;
 }
+
+export function healthReason(value: string): string {
+  const normalized = value
+    .replaceAll("_", " ")
+    .replace(/\bai\b/gi, "AI")
+    .replace(/\bemea\b/gi, "EMEA")
+    .replace(/\bapac\b/gi, "APAC")
+    .replace(/\bna\b/gi, "North America");
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
