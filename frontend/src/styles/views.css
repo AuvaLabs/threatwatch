@@ -435,6 +435,12 @@
 .api-intro code {
   color: var(--color-brand);
   font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.api-intro > *,
+.endpoint-row > * {
+  min-width: 0;
 }
 
 .api-intro p,
@@ -466,6 +472,10 @@
 .endpoint-row p {
   font-size: 0.82rem;
   margin: 0;
+}
+
+.endpoint-row code {
+  overflow-wrap: anywhere;
 }
 
 .status-grid {
