@@ -143,6 +143,58 @@ class TestLoadHelpers:
         assert result[0]["title"] == "IOC"
 
 
+class TestOperationalSummary:
+    def test_prioritizes_exploited_watchlist_matches_without_raw_content(self):
+        articles = [
+            {
+                "hash": "kev-1",
+                "title": "Ivanti gateway exploited in the wild",
+                "summary": "Attackers are targeting internet-facing gateways.",
+                "full_content": "must not cross the operational API boundary",
+                "asset_tags": ["Ivanti"],
+                "cve_ids": ["CVE-2026-1000"],
+                "kev_listed": True,
+                "cvss_score": 9.8,
+                "epss_score": 0.41,
+                "confidence": 92,
+                "iocs": {"ipv4": ["192.0.2.10"]},
+            },
+            {
+                "hash": "routine-1",
+                "title": "Routine product announcement",
+                "summary": "No exploitation reported.",
+            },
+        ]
+        watchlist = {"brands": [], "assets": ["Ivanti"]}
+
+        payload = sw.build_operational_summary(articles, [], watchlist)
+
+        assert payload["metrics"]["decision_queue"] == 1
+        assert payload["metrics"]["watchlist_matches"] == 1
+        priority = payload["priorities"][0]
+        assert priority["id"] == "kev-1"
+        assert priority["urgency"] == "critical"
+        assert priority["action_type"] == "patch"
+        assert priority["watchlist_matches"] == ["Ivanti"]
+        assert priority["evidence"]["ioc_count"] == 1
+        assert "full_content" not in json.dumps(payload)
+
+    def test_deduplicates_shared_cves_and_handles_missing_values(self):
+        articles = [
+            {"hash": "older", "title": "CVE duplicate", "cve_ids": ["CVE-2026-2000"], "cvss_score": 7.5},
+            {"hash": "newer", "title": "CVE duplicate confirmed exploited", "cve_ids": ["CVE-2026-2000"], "kev_listed": True},
+            {"hash": "empty", "title": "Unscored report", "confidence": float("nan")},
+        ]
+
+        payload = sw.build_operational_summary(articles, None, {})
+
+        matching = [item for item in payload["priorities"] if "CVE-2026-2000" in item["evidence"]["cves"]]
+        assert len(matching) == 1
+        assert matching[0]["id"] == "newer"
+        assert payload["exposure"]["configured"] is False
+        json.dumps(payload, allow_nan=False)
+
+
 # ── Health endpoint ──────────────────────────────────────────────────────────
 
 class TestComputeStatus:
@@ -580,6 +632,34 @@ class TestHTTPRoutes:
         assert status == 200
         assert "text/html" in headers.get("Content-Type", "")
         assert body == b"<html>app</html>"
+
+    @pytest.mark.parametrize("path", [
+        "/threats", "/exposure", "/investigations", "/hunts", "/reports",
+        "/automation", "/sources", "/sources/article-1",
+    ])
+    def test_operational_frontend_routes_return_application_shell(self, test_server, path):
+        with patch("serve_threatwatch.render_page", return_value=b"<html>operations</html>"):
+            status, _, body = _get(test_server + path)
+        assert status == 200
+        assert body == b"<html>operations</html>"
+
+    def test_operational_summary_endpoint_returns_bounded_payload(self, test_server):
+        priority = {"hash": "one", "title": "Active exploit", "kev_listed": True}
+        with patch("serve_threatwatch.load_articles", return_value=[priority]), \
+             patch("serve_threatwatch.load_clusters", return_value={"clusters": []}), \
+             patch("serve_threatwatch.load_watchlist_data", return_value={}):
+            status, headers, body = _get(test_server + "/api/v1/operations/summary")
+        assert status == 200
+        assert "application/json" in headers.get("Content-Type", "")
+        payload = json.loads(body)
+        assert payload["metrics"]["decision_queue"] == 1
+        assert payload["priorities"][0]["id"] == "one"
+
+    def test_operational_summary_endpoint_sanitizes_read_failures(self, test_server):
+        with patch("serve_threatwatch.load_articles", side_effect=OSError("private path")):
+            status, _, body = _get(test_server + "/api/v1/operations/summary")
+        assert status == 500
+        assert json.loads(body)["error"] == "Error building operational summary"
 
     def test_options_returns_no_content(self, test_server):
         req = Request(test_server + "/api/articles", method="OPTIONS")

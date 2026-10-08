@@ -1,6 +1,6 @@
-"""Capture an animated GIF preview of the ThreatWatch analyst workspace.
+"""Capture an animated GIF preview of ThreatWatch intelligence operations.
 
-Captures the briefing-first overview and the primary specialist workspaces,
+Captures Mission Control and the primary operational workspaces,
 then stitches them into a single GIF for the README hero image.
 
 Defaults to the local server (http://localhost:8098) so a clean rebuild
@@ -43,19 +43,19 @@ def capture_frames():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(viewport=VIEWPORT)
         _open(page, "/")
-        frames.append(_shot(page, "01_overview"))
+        frames.append(_shot(page, "01_mission_control"))
 
         for name, route in (
-            ("02_news", "/news"),
-            ("03_vulnerabilities", "/vulnerabilities"),
-            ("04_campaigns", "/campaigns"),
-            ("05_briefings", "/briefings"),
-            ("06_api", "/api-docs"),
+            ("02_threats", "/threats"),
+            ("03_exposure", "/exposure"),
+            ("04_hunts", "/hunts"),
+            ("05_reports", "/reports"),
+            ("06_automation", "/automation"),
         ):
             _open(page, route)
             frames.append(_shot(page, name))
 
-        _open(page, "/news")
+        _open(page, "/sources")
         first_article = page.query_selector(".article-copy a")
         if first_article:
             first_article.click()

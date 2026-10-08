@@ -2,30 +2,32 @@ import { useResource } from "./hooks/useResource";
 import { api } from "./services/api";
 import { useRoute } from "./router";
 import { AppShell } from "./components/AppShell";
-import { ApiView } from "./views/ApiView";
 import { ArticleView } from "./views/ArticleView";
-import { BriefingsView } from "./views/BriefingsView";
-import { CampaignsView } from "./views/CampaignsView";
-import { NewsView } from "./views/NewsView";
-import { OverviewView } from "./views/OverviewView";
+import { AutomationView } from "./views/AutomationView";
+import { ExposureView } from "./views/ExposureView";
+import { HuntsView } from "./views/HuntsView";
+import { InvestigationsView } from "./views/InvestigationsView";
+import { MissionControlView } from "./views/MissionControlView";
+import { ReportsView } from "./views/ReportsView";
+import { SourcesView } from "./views/SourcesView";
 import { SystemView } from "./views/SystemView";
-import { VulnerabilitiesView } from "./views/VulnerabilitiesView";
-import { WatchlistsView } from "./views/WatchlistsView";
+import { ThreatsView } from "./views/ThreatsView";
 
 export function App() {
   const route = useRoute();
   const health = useResource(api.health, []);
   const view = (() => {
     switch (route.name) {
-      case "news": return <NewsView />;
+      case "threats": return <ThreatsView />;
+      case "exposure": return <ExposureView />;
+      case "investigations": return <InvestigationsView />;
+      case "hunts": return <HuntsView />;
+      case "reports": return <ReportsView />;
+      case "automation": return <AutomationView />;
+      case "sources": return <SourcesView />;
       case "article": return <ArticleView id={route.articleId || ""} />;
-      case "vulnerabilities": return <VulnerabilitiesView />;
-      case "campaigns": return <CampaignsView />;
-      case "watchlists": return <WatchlistsView />;
-      case "briefings": return <BriefingsView />;
-      case "api": return <ApiView />;
       case "system": return <SystemView />;
-      default: return <OverviewView />;
+      default: return <MissionControlView />;
     }
   })();
   return <AppShell health={health.data} route={route.name}>{view}</AppShell>;

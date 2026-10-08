@@ -9,7 +9,7 @@ function metadata(article: Article): string[] {
 
 function openArticle(event: Event, id: string): void {
   event.preventDefault();
-  navigate(`/news/${encodeURIComponent(id)}`);
+  navigate(`/sources/${encodeURIComponent(id)}`);
 }
 
 export function ArticleList({ articles, compact = false }: { articles: Article[]; compact?: boolean }) {
@@ -34,7 +34,7 @@ export function ArticleList({ articles, compact = false }: { articles: Article[]
               {article.language && article.language !== "en" && <span class="subtle-label">{article.language.toUpperCase()}</span>}
             </div>
             <div class="article-copy">
-              <a href={`/news/${encodeURIComponent(article.hash)}`} onClick={(event) => openArticle(event, article.hash)}>
+              <a href={`/sources/${encodeURIComponent(article.hash)}`} onClick={(event) => openArticle(event, article.hash)}>
                 {displayTitle(article)}
               </a>
               <p class={pending ? "summary-pending" : ""}>{pending ? "Summary pending" : summary}</p>

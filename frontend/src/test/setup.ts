@@ -6,4 +6,5 @@ afterEach(() => {
   localStorage.clear();
   history.replaceState({}, "", "/");
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });

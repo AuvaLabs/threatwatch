@@ -4,6 +4,7 @@ import type {
   Briefing,
   ClustersResponse,
   Health,
+  OperationalSummary,
   OpenApiDocument,
   Watchlist,
 } from "../types";
@@ -66,4 +67,5 @@ export const api = {
   clusters: (signal?: AbortSignal) => request<ClustersResponse>("/api/v1/incidents", signal),
   watchlist: (signal?: AbortSignal) => request<Watchlist>("/api/watchlist", signal),
   openApi: (signal?: AbortSignal) => request<OpenApiDocument>("/api/v1/openapi.json", signal),
+  operations: (signal?: AbortSignal) => request<OperationalSummary>("/api/v1/operations/summary", signal),
 };

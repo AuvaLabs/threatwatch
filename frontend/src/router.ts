@@ -1,14 +1,15 @@
 import { useEffect, useState } from "preact/hooks";
 
 export type RouteName =
-  | "overview"
-  | "news"
+  | "mission"
+  | "threats"
+  | "exposure"
+  | "investigations"
+  | "hunts"
+  | "reports"
+  | "automation"
+  | "sources"
   | "article"
-  | "vulnerabilities"
-  | "campaigns"
-  | "watchlists"
-  | "briefings"
-  | "api"
   | "system";
 
 export interface Route {
@@ -17,20 +18,30 @@ export interface Route {
 }
 
 export function parseRoute(pathname: string): Route {
+  if (pathname.startsWith("/sources/")) {
+    return { name: "article", articleId: decodeURIComponent(pathname.slice(9)) };
+  }
   if (pathname.startsWith("/news/")) {
     return { name: "article", articleId: decodeURIComponent(pathname.slice(6)) };
   }
   const routes: Record<string, RouteName> = {
-    "/": "overview",
-    "/news": "news",
-    "/vulnerabilities": "vulnerabilities",
-    "/campaigns": "campaigns",
-    "/watchlists": "watchlists",
-    "/briefings": "briefings",
-    "/api-docs": "api",
+    "/": "mission",
+    "/threats": "threats",
+    "/exposure": "exposure",
+    "/investigations": "investigations",
+    "/hunts": "hunts",
+    "/reports": "reports",
+    "/automation": "automation",
+    "/sources": "sources",
+    "/news": "sources",
+    "/vulnerabilities": "exposure",
+    "/campaigns": "threats",
+    "/watchlists": "exposure",
+    "/briefings": "reports",
+    "/api-docs": "automation",
     "/system": "system",
   };
-  return { name: routes[pathname] || "overview" };
+  return { name: routes[pathname] || "mission" };
 }
 
 export function navigate(path: string): void {

@@ -108,3 +108,72 @@ export interface OpenApiDocument {
   info: { title: string; version: string };
   paths: Record<string, Record<string, { summary?: string }>>;
 }
+
+export type OperationalUrgency = "critical" | "high" | "medium";
+export type OperationalActionType = "patch" | "hunt" | "investigate" | "monitor";
+
+export interface OperationalEvidence {
+  cves: string[];
+  techniques: string[];
+  iocs: string[];
+  ioc_count: number;
+  kev?: boolean;
+  cvss?: number | null;
+  epss?: number | null;
+  confidence?: number | null;
+}
+
+export interface OperationalPriority {
+  id: string;
+  title: string;
+  summary: string;
+  source_name?: string;
+  published?: string;
+  region?: string;
+  score: number;
+  urgency: OperationalUrgency;
+  action_type: OperationalActionType;
+  recommended_action: string;
+  reasons: string[];
+  watchlist_matches: string[];
+  evidence: OperationalEvidence;
+}
+
+export interface OperationalSummary {
+  generated_at: string;
+  metrics: {
+    decision_queue: number;
+    critical_priorities: number;
+    watchlist_matches: number;
+    kev_records: number;
+    active_threats: number;
+    sources_reviewed: number;
+  };
+  priorities: OperationalPriority[];
+  exposure: {
+    configured: boolean;
+    brands: string[];
+    assets: string[];
+    matches: OperationalPriority[];
+    disclaimer: string;
+  };
+}
+
+export type InvestigationStatus = "open" | "monitoring" | "closed";
+
+export interface Investigation {
+  id: string;
+  sourceId: string;
+  title: string;
+  status: InvestigationStatus;
+  urgency: OperationalUrgency;
+  actionType: OperationalActionType;
+  createdAt: string;
+  updatedAt: string;
+  notes: string;
+  cves: string[];
+}
+
+export interface AnalystWorkspace {
+  investigations: Investigation[];
+}

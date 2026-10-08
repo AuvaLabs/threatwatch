@@ -2,6 +2,18 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-08: Intelligence operations platform
+
+- Replaced the aggregator-first navigation with Mission Control, Threats, Exposure, Investigations, Hunts, Reports, Automation, Sources, and System.
+- Added a deterministic operational priority engine that scores CISA KEV, CVSS, EPSS, watchlist relevance, indicators, ATT&CK techniques, and disruptive activity.
+- Added `/api/v1/operations/summary` with a bounded decision queue and no scraped full-content leakage.
+- Added browser-local investigations with status, analyst notes, deduplication, and portable JSON export.
+- Added evidence-based hunt packs with an explicit production-validation boundary.
+- Added copyable and downloadable operational reports that continue to work when narrative AI enrichment is unavailable.
+- Demoted source reporting to an evidence library and separated watchlist relevance from confirmed exposure.
+- Preserved legacy routes as compatible aliases to the new workspaces.
+- Added responsive operational layouts and frontend unit and component coverage above 90 percent.
+
 ## 2026-10-08: Briefing-first analyst workspace
 
 - Replaced the monolithic dashboard with a typed Preact and TypeScript application.

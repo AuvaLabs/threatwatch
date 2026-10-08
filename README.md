@@ -2,7 +2,7 @@
 
 # ThreatWatch
 
-**Analyst-focused cyber threat intelligence aggregation and briefing**
+**Evidence-backed cyber intelligence operations**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: Non-Commercial](https://img.shields.io/badge/license-Non--Commercial-orange.svg)](LICENSE)
@@ -13,7 +13,7 @@
 
 **[Live Demo](https://threatwatch.auvalabs.com)**
 
-Threat intelligence platform that aggregates RSS feeds, public dark web sources, NVD, and NewsAPI. It classifies and deduplicates coverage, then produces source-linked briefings, priority stories, incident context, and analyst actions. The core feed works without an LLM; optional AI capabilities support independent provider fallback.
+ThreatWatch turns public cyber reporting into an operational decision queue. It correlates evidence into threats, scores organizational relevance, prepares investigation and hunt material, and produces source-linked reports. Collection remains the raw material, not the product. The decision engine works without an LLM, while optional AI enrichment uses independent provider fallback.
 
 [Features](#features) · [Quick start](#quick-start) · [Configuration](#configuration) · [Architecture](#architecture) · [API](#api-endpoints) · [Integrations](docs/INTEGRATIONS.md) · [Contributing](#contributing)
 
@@ -63,33 +63,16 @@ Threat intelligence platform that aggregates RSS feeds, public dark web sources,
 - CVE-aware deduplication — articles reporting different CVEs are never merged
 - Cross-source region merge, collapsing to Global when an article spans 3+ regions
 
-### Dashboard
-- Server-side rendered, **loads in under a second**
-- **Single HTML file**: no build step, no framework, no JavaScript bundle; calm light reading canvas with an optional dark operations theme
-- **9 focused tabs**: Intel Brief, Breach, Exploits, Malware, Dark Web, Ransomware, APT Tracker, Brands, Tech
-- Each tab filters the left-panel live feed — one click to see all matching articles
-- EXPLOITS merges zero-days + vulnerabilities + patches (one analyst workflow)
-- MALWARE includes phishing + supply chain attacks (attack methods)
-- **Brand Watch tab** — monitor specific brands/organisations; selecting a brand filters the left panel
-- **Tech Watch tab** — 244 technology vendors across 18 categories; selecting a vendor filters the left panel
-- Watch filter banner in the left panel shows the active brand/vendor filter at a glance
-- **Ransomware Tracker** — victim posts from ransomware.live + ransomware news, grouped by threat actor
-- **APT Tracker** — actor intelligence grid with drilldown into news articles
-- **4 center-panel sections**: Intelligence Digest (AI), Headlines (AI-curated), Active Threat Actors (with AI profile TTPs), Sector Impact
-- Region filter buttons with article counts — context banner when filtered
-- Article detail view with IOC extraction (CVEs, IPs, hashes, domains)
-- Watchlist preferences saved to localStorage; self-hosted installs can persist keywords server-side
-- **AI Intelligence Digest** — 5-section briefing: What Happened (24h narrative with source links), What To Do (specific actions), Earlier This Week (catch-up), Outlook (forecast). **Regional digests** for NA, EMEA, APAC — auto-switches when region selected
-- **TL;DR lead-story hero** — LLM-written single-sentence headline above each briefing; falls back to a regex-distilled first sentence when the model field is absent
-- **Escalation banner** — when threat level shifts vs the prior briefing, an arrow + colour-coded "Escalated MODERATE → ELEVATED" row surfaces the change with the assessment basis as the why
-- **Headlines panel** — AI-curated 5-8 most significant incidents from last 72 hours, with cluster-related article badges
-- **Trending Threats panel** — spike detection (today vs 14d baseline) plus a 7-day top-mentioned leaderboard for ransomware groups, APTs, CVEs, and attack types
-- **CISA KEV badges** — articles referencing CVEs in the CISA Known Exploited Vulnerabilities catalog get an unmistakable "act now" pill, with darker shading for ransomware-linked entries
-- **"X new since HH:MM UTC" pill** — returning-reader counter at the top of the feed; persistent NEW badge on each article published since your last visit, dismissible with one click
-- **Share buttons** — copy-link on each article (`?article=<hash>` permalinks) and a one-click share that copies the briefing's level + headline + dashboard URL ready to paste into Slack/Teams/Telegram
-- Client-side statistical digest as fallback (the AI/NORMAL toggle; zero cost, no API key needed)
-- **5 switchable themes**: Light is the default, with Terminal, Solarized, Arctic, and Phosphor alternatives
-- Both live URLs displayed in the page footer
+### Intelligence operations workspace
+- **Mission Control** ranks evidence-backed decisions to patch, hunt, investigate, or monitor
+- **Threats** turns shared actors, vulnerabilities, and organizations into correlated records
+- **Exposure** shows watchlist relevance while clearly separating a match from confirmed asset exposure
+- **Investigations** stores analyst status and notes in a private browser-local workspace with JSON export
+- **Hunts** produces portable, validation-gated evidence packs from observed CVEs, ATT&CK techniques, and indicators
+- **Reports** builds a copyable and downloadable operating picture with source-linked priorities
+- **Automation** exposes the OpenAPI contract, STIX export, RSS, and dependency health
+- **Sources** preserves the full deduplicated evidence library without making the news feed the primary experience
+- Calm responsive layout, accessible light and dark themes, explicit empty and degraded states, and mobile navigation
 
 ### Region accuracy
 - **Content-based inference** — scans article title for country/demonym mentions and assigns the correct region, overriding feed locale labels (a UK article from a US-localized Google feed gets tagged Europe, not US)
@@ -251,9 +234,9 @@ Edit these files to add or remove feeds. No restart needed — changes apply on 
 threatdigest_main.py         # Pipeline orchestrator
 serve_threatwatch.py         # HTTP server and public API
 frontend/                    # Typed analyst workspace
-  ├── src/components/        # Navigation, news rows, and shared states
-  ├── src/views/             # Overview and specialist workspaces
-  ├── src/services/          # Bounded API client
+  ├── src/components/        # Navigation, priority cards, evidence rows, shared states
+  ├── src/views/             # Mission Control and operational workspaces
+  ├── src/services/          # API, prioritization presentation, reports, local cases
   └── src/styles/            # Accessible design system
 modules/
   ├── feed_loader.py         # YAML feed config parser
@@ -311,6 +294,7 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/articles/{id}` | Stable versioned article detail |
 | `GET` | `/api/v1/briefings/latest` | Stable latest global briefing |
 | `GET` | `/api/v1/incidents` | Stable incident-cluster collection |
+| `GET` | `/api/v1/operations/summary` | Ranked decisions, evidence, metrics, and watchlist relevance |
 | `GET` | `/api/v1/sources` | Source coverage and article counts |
 | `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |
 | `GET` | `/api/v1/health/feeds` | Per-source health, including stale and silent feeds |

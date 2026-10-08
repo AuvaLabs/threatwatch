@@ -1,8 +1,9 @@
-import { useMemo } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 import { ErrorState, LoadingState } from "../components/PageState";
 import { useResource } from "../hooks/useResource";
 import { navigate } from "../router";
 import { api } from "../services/api";
+import { copyText } from "../services/clipboard";
 import { articleDate, articleSummary, displayTitle, formattedDate, safeExternalUrl } from "../utils/format";
 
 function flattenIndicators(iocs?: Record<string, unknown[]>): Array<[string, string[]]> {
@@ -15,6 +16,7 @@ function flattenIndicators(iocs?: Record<string, unknown[]>): Array<[string, str
 
 export function ArticleView({ id }: { id: string }) {
   const resource = useResource((signal) => api.article(id, signal), [id]);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const indicators = useMemo(() => flattenIndicators(resource.data?.iocs), [resource.data]);
   if (resource.loading) return <LoadingState label="Loading intelligence record" />;
   if (resource.error || !resource.data) return <ErrorState message={resource.error || "The report was not found."} />;
@@ -24,7 +26,7 @@ export function ArticleView({ id }: { id: string }) {
   const external = safeExternalUrl(article.canonical_url || article.link);
   return (
     <div class="view article-view">
-      <button class="back-link" onClick={() => navigate("/news")} type="button">← Back to intelligence</button>
+      <button class="back-link" onClick={() => navigate("/sources")} type="button">← Back to sources</button>
       <article class="article-record">
         <header class="record-header">
           <div class="record-meta">
@@ -59,8 +61,9 @@ export function ArticleView({ id }: { id: string }) {
 
         <footer class="record-actions">
           {external ? <a class="button primary" href={external} rel="noopener noreferrer" target="_blank">Open original source</a> : <span class="notice">Original source unavailable</span>}
-          <button class="button secondary" onClick={() => navigator.clipboard.writeText(location.href)} type="button">Copy intelligence link</button>
+          <button class="button secondary" onClick={async () => setCopyStatus(await copyText(location.href) ? "copied" : "error")} type="button">{copyStatus === "copied" ? "Link copied" : "Copy intelligence link"}</button>
         </footer>
+        {copyStatus === "error" && <div class="notice" role="status">Clipboard access is unavailable. Copy the address from your browser.</div>}
       </article>
     </div>
   );

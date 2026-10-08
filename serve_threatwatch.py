@@ -22,6 +22,8 @@ from pathlib import Path
 from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, unquote, urlparse
 
+from modules.operations import build_operational_summary
+
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
 PORT = int(os.environ.get("PORT", 8098))
@@ -721,6 +723,7 @@ def build_openapi() -> bytes:
         "/api/v1/briefings/latest": {"get": {"summary": "Get latest briefing"}},
         "/api/v1/briefings/{region}": {"get": {"summary": "Get regional briefing"}},
         "/api/v1/incidents": {"get": {"summary": "List incident clusters"}},
+        "/api/v1/operations/summary": {"get": {"summary": "Get prioritized operational decisions"}},
         "/api/v1/sources": {"get": {"summary": "List source coverage"}},
         "/api/v1/health": {"get": {"summary": "Get service health"}},
         "/api/v1/health/ai": {"get": {"summary": "Get AI artifact health"}},
@@ -846,13 +849,14 @@ STATIC_ROUTES = {
 }
 
 UI_ROUTES = frozenset({
-    "/", "/news", "/vulnerabilities", "/campaigns", "/watchlists",
-    "/briefings", "/api-docs", "/system",
+    "/", "/threats", "/exposure", "/investigations", "/hunts", "/reports",
+    "/automation", "/sources", "/system", "/news", "/vulnerabilities",
+    "/campaigns", "/watchlists", "/briefings", "/api-docs",
 })
 
 
 def _is_ui_route(path: str) -> bool:
-    return path in UI_ROUTES or path.startswith("/news/")
+    return path in UI_ROUTES or path.startswith("/news/") or path.startswith("/sources/")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -865,7 +869,7 @@ logger = logging.getLogger("threatwatch")
 class ThreatWatchHandler(BaseHTTPRequestHandler):
     """Request handler with SSR, CORS, and file-based routing."""
 
-    server_version = "ThreatWatch/2.0"
+    server_version = "ThreatWatch/3.0"
 
     def log_message(self, fmt, *args):
         logger.info("%s %s", self.address_string(), fmt % args)
@@ -1112,6 +1116,23 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             safe_article = {k: v for k, v in article.items() if k != "full_content"}
             body = json.dumps(
                 safe_article, ensure_ascii=False, separators=(",", ":"),
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/operations/summary":
+            try:
+                payload = build_operational_summary(
+                    load_articles(), load_clusters(), load_watchlist_data(),
+                )
+            except OSError:
+                self._send_error_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    "Error building operational summary",
+                )
+                return
+            body = json.dumps(
+                payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
             ).encode("utf-8")
             self._send_body("application/json; charset=utf-8", body, head_only)
             return
@@ -1502,7 +1523,7 @@ def main():
     from modules.safe_http import install_ssrf_guard
     install_ssrf_guard()
     server = ThreadedHTTPServer(("0.0.0.0", PORT), ThreatWatchHandler)
-    logger.info("ThreatWatch v2.0 server starting on http://0.0.0.0:%d", PORT)
+    logger.info("ThreatWatch v3.0 server starting on http://0.0.0.0:%d", PORT)
     logger.info("Base directory: %s", BASE_DIR)
     logger.info("Frontend shell enabled; intelligence loads through bounded API requests")
     try:

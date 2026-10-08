@@ -9,21 +9,22 @@ function RouteProbe() {
 
 describe("router", () => {
   it("maps analyst routes and article ids", () => {
-    expect(parseRoute("/")).toEqual({ name: "overview" });
-    expect(parseRoute("/vulnerabilities")).toEqual({ name: "vulnerabilities" });
+    expect(parseRoute("/")).toEqual({ name: "mission" });
+    expect(parseRoute("/exposure")).toEqual({ name: "exposure" });
+    expect(parseRoute("/sources/abc%20123")).toEqual({ name: "article", articleId: "abc 123" });
     expect(parseRoute("/news/abc%20123")).toEqual({ name: "article", articleId: "abc 123" });
-    expect(parseRoute("/unknown")).toEqual({ name: "overview" });
+    expect(parseRoute("/unknown")).toEqual({ name: "mission" });
   });
 
   it("navigates without reloading and notifies listeners", async () => {
     vi.stubGlobal("scrollTo", vi.fn());
     render(<RouteProbe />);
-    expect(screen.getByText("overview:none")).toBeTruthy();
-    navigate("/campaigns");
-    await waitFor(() => expect(screen.getByText("campaigns:none")).toBeTruthy());
+    expect(screen.getByText("mission:none")).toBeTruthy();
+    navigate("/threats");
+    await waitFor(() => expect(screen.getByText("threats:none")).toBeTruthy());
     expect(scrollTo).toHaveBeenCalled();
-    navigate("/campaigns");
+    navigate("/threats");
     fireEvent.popState(window);
-    expect(screen.getByText("campaigns:none")).toBeTruthy();
+    expect(screen.getByText("threats:none")).toBeTruthy();
   });
 });

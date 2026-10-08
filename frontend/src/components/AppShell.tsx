@@ -6,13 +6,14 @@ import { navigate } from "../router";
 import { Icon } from "./Icon";
 
 const navigation = [
-  { label: "Overview", href: "/", route: "overview", icon: "overview" },
-  { label: "News", href: "/news", route: "news", icon: "news" },
-  { label: "Vulnerabilities", href: "/vulnerabilities", route: "vulnerabilities", icon: "shield" },
-  { label: "Campaigns", href: "/campaigns", route: "campaigns", icon: "campaigns" },
-  { label: "Watchlists", href: "/watchlists", route: "watchlists", icon: "watch" },
-  { label: "Briefings", href: "/briefings", route: "briefings", icon: "briefings" },
-  { label: "API", href: "/api-docs", route: "api", icon: "api" },
+  { label: "Mission Control", shortLabel: "Mission", href: "/", route: "mission", icon: "overview" },
+  { label: "Threats", shortLabel: "Threats", href: "/threats", route: "threats", icon: "campaigns" },
+  { label: "Exposure", shortLabel: "Exposure", href: "/exposure", route: "exposure", icon: "shield" },
+  { label: "Investigations", shortLabel: "Cases", href: "/investigations", route: "investigations", icon: "watch" },
+  { label: "Hunts", shortLabel: "Hunts", href: "/hunts", route: "hunts", icon: "search" },
+  { label: "Reports", shortLabel: "Reports", href: "/reports", route: "reports", icon: "briefings" },
+  { label: "Automation", shortLabel: "Automate", href: "/automation", route: "automation", icon: "api" },
+  { label: "Sources", shortLabel: "Sources", href: "/sources", route: "sources", icon: "news" },
 ] as const;
 
 function follow(event: Event, href: string): void {
@@ -33,7 +34,7 @@ export function AppShell({ route, health, children }: { route: RouteName; health
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const value = new FormData(form).get("q")?.toString().trim();
-    navigate(value ? `/news?q=${encodeURIComponent(value)}` : "/news");
+    navigate(value ? `/sources?q=${encodeURIComponent(value)}` : "/sources");
   };
 
   return (
@@ -45,14 +46,14 @@ export function AppShell({ route, health, children }: { route: RouteName; health
         </div>
         <nav aria-label="Primary navigation" class="primary-nav">
           {navigation.map((item) => (
-            <a class={route === item.route || (route === "article" && item.route === "news") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}>
+            <a class={route === item.route || (route === "article" && item.route === "sources") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}>
               <Icon name={item.icon} /><span>{item.label}</span>
             </a>
           ))}
         </nav>
         <div class="sidebar-footer">
           <a class={route === "system" ? "active" : ""} href="/system" onClick={(event) => follow(event, "/system")}><Icon name="system" /><span>System status</span></a>
-          <p>Open-source intelligence<br />Version 2.0</p>
+          <p>Intelligence operations<br />Version 3.0</p>
         </div>
       </aside>
 
@@ -68,7 +69,7 @@ export function AppShell({ route, health, children }: { route: RouteName; health
           </form>
           <div class="topbar-status">
             <span class={`health-indicator ${health?.status || "unknown"}`} />
-            <span>{health ? `Intelligence ${health.status}` : "Checking intelligence"}</span>
+            <span>{health ? `Platform ${health.status}` : "Checking platform"}</span>
           </div>
           <button aria-label={`Switch to ${dark ? "light" : "dark"} theme`} class="icon-button" onClick={() => setDark((value) => !value)} type="button">
             <Icon name={dark ? "sun" : "moon"} />
@@ -79,8 +80,8 @@ export function AppShell({ route, health, children }: { route: RouteName; health
 
       <nav aria-label="Mobile navigation" class="mobile-nav">
         {navigation.slice(0, 5).map((item) => (
-          <a class={route === item.route || (route === "article" && item.route === "news") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => follow(event, item.href)}>
-            <Icon name={item.icon} size={19} /><span>{item.label}</span>
+          <a class={route === item.route || (route === "article" && item.route === "sources") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => follow(event, item.href)}>
+            <Icon name={item.icon} size={19} /><span>{item.shortLabel}</span>
           </a>
         ))}
       </nav>

@@ -36,6 +36,6 @@ describe("ArticleList", () => {
     vi.stubGlobal("scrollTo", vi.fn());
     render(<ArticleList articles={[complete]} />);
     fireEvent.click(screen.getByRole("link", { name: complete.translated_title }));
-    expect(location.pathname).toBe("/news/abc123");
+    expect(location.pathname).toBe("/sources/abc123");
   });
 });
