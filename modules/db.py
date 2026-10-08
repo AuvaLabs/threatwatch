@@ -93,6 +93,20 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         UNIQUE (entity_type, entity_name)
     );
     CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
+
+    CREATE TABLE IF NOT EXISTS observable_enrichments (
+        provider       TEXT NOT NULL,
+        observable_type TEXT NOT NULL,
+        observable_value TEXT NOT NULL,
+        status         TEXT NOT NULL,
+        confidence     INTEGER NOT NULL,
+        expires_at     TEXT,
+        updated_at     TEXT NOT NULL,
+        payload_json   TEXT NOT NULL,
+        PRIMARY KEY (provider, observable_type, observable_value)
+    );
+    CREATE INDEX IF NOT EXISTS idx_observable_enrichment_expiry
+        ON observable_enrichments(expires_at);
     """)
 
 
@@ -251,6 +265,66 @@ def upsert_campaign(campaign: dict[str, Any]) -> None:
                     json.dumps(campaign, ensure_ascii=False),
                 ),
             )
+
+
+def upsert_observable_enrichment(enrichment: dict[str, Any]) -> None:
+    """Persist one provider lookup without storing provider credentials."""
+    provider = str(enrichment.get("provider") or "").strip()
+    observable_type = str(enrichment.get("type") or "").strip()
+    observable_value = str(enrichment.get("value") or "").strip()
+    if not provider or not observable_type or not observable_value:
+        raise ValueError("provider, type, and value are required")
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn_lock:
+        conn = _open()
+        with conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO observable_enrichments
+                (provider, observable_type, observable_value, status,
+                 confidence, expires_at, updated_at, payload_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    provider,
+                    observable_type,
+                    observable_value,
+                    str(enrichment.get("status") or "unknown"),
+                    int(enrichment.get("confidence") or 0),
+                    enrichment.get("expires_at"),
+                    str(enrichment.get("updated_at") or now),
+                    json.dumps(enrichment.get("payload") or {}, ensure_ascii=False),
+                ),
+            )
+
+
+def load_observable_enrichments(*, include_expired: bool = False) -> dict[tuple[str, str], list[dict[str, Any]]]:
+    """Return cached provider evidence grouped by normalized observable."""
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn_lock:
+        conn = _open()
+        sql = "SELECT * FROM observable_enrichments"
+        args: list[Any] = []
+        if not include_expired:
+            sql += " WHERE expires_at IS NULL OR expires_at > ?"
+            args.append(now)
+        rows = conn.execute(sql, args).fetchall()
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row in rows:
+        try:
+            payload = json.loads(row["payload_json"])
+        except (TypeError, json.JSONDecodeError):
+            payload = {}
+        key = (row["observable_type"], row["observable_value"].casefold())
+        grouped.setdefault(key, []).append({
+            "provider": row["provider"],
+            "status": row["status"],
+            "confidence": row["confidence"],
+            "expires_at": row["expires_at"],
+            "updated_at": row["updated_at"],
+            "payload": payload,
+        })
+    return grouped
 
 
 # ── read helpers (for Phase 2 and stats) ──────────────────────────────────────

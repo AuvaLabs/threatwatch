@@ -384,12 +384,30 @@ def main():
 
     # Incident clustering and actor profiling are independent capabilities.
     # A failure in one must not prevent the other from refreshing.
+    cluster_data = None
     try:
         if all_articles:
             from modules.incident_correlator import cluster_articles
-            cluster_articles(all_articles)
+            cluster_data = cluster_articles(all_articles)
     except Exception as e:
         logging.warning(f"Incident clustering failed: {e}")
+
+    try:
+        if all_articles and cluster_data:
+            enrichment = {}
+            try:
+                from modules.ioc_enrichment import refresh_observable_enrichments
+                enrichment = refresh_observable_enrichments(all_articles)
+            except Exception as enrichment_error:
+                logging.warning(f"Hunt IOC enrichment failed: {enrichment_error}")
+            from modules.hunt_engine import write_hunts
+            hunt_data = write_hunts(all_articles, cluster_data, enrichment)
+            logging.info(
+                "Hunt desk: %s qualified packages, %s developing leads",
+                hunt_data["qualified_count"], hunt_data["lead_count"],
+            )
+    except Exception as e:
+        logging.warning(f"Hunt package generation failed: {e}")
 
     try:
         if all_articles:

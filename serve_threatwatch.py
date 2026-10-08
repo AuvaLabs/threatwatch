@@ -22,6 +22,7 @@ from pathlib import Path
 from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, unquote, urlparse
 
+from modules.hunt_engine import build_hunts
 from modules.operations import build_operational_summary
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -255,6 +256,22 @@ def load_clusters():
         return json.loads(raw)
     except (FileNotFoundError, json.JSONDecodeError):
         return None
+
+
+def load_hunts() -> dict:
+    """Load pipeline-built hunts, with a deterministic local fallback."""
+    path = BASE_DIR / "data" / "output" / "hunts.json"
+    clusters = load_clusters()
+    try:
+        payload = json.loads(read_cached(path))
+        if isinstance(payload, dict) and isinstance(payload.get("hunts"), list):
+            hunt_time = datetime.fromisoformat(str(payload.get("generated_at") or "").replace("Z", "+00:00"))
+            cluster_time = datetime.fromisoformat(str((clusters or {}).get("generated_at") or "").replace("Z", "+00:00"))
+            if hunt_time >= cluster_time:
+                return payload
+    except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
+        pass
+    return build_hunts(load_articles(), clusters)
 
 
 # CVE IDs in URL paths — tight regex to avoid any injection surface in
@@ -723,6 +740,8 @@ def build_openapi() -> bytes:
         "/api/v1/briefings/latest": {"get": {"summary": "Get latest briefing"}},
         "/api/v1/briefings/{region}": {"get": {"summary": "Get regional briefing"}},
         "/api/v1/incidents": {"get": {"summary": "List incident clusters"}},
+        "/api/v1/hunts": {"get": {"summary": "List evidence-gated hunt packages"}},
+        "/api/v1/hunts/{id}": {"get": {"summary": "Get one hunt package"}},
         "/api/v1/operations/summary": {"get": {"summary": "Get prioritized operational decisions"}},
         "/api/v1/sources": {"get": {"summary": "List source coverage"}},
         "/api/v1/health": {"get": {"summary": "Get service health"}},
@@ -1133,6 +1152,40 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 return
             body = json.dumps(
                 payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/hunts":
+            payload = load_hunts()
+            status_filter = _first_param(params, "status")
+            if status_filter:
+                if status_filter not in {"qualified", "lead"}:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid hunt status")
+                    return
+                payload = {
+                    **payload,
+                    "hunts": [item for item in payload["hunts"] if item["status"] == status_filter],
+                }
+            body = json.dumps(
+                payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path.startswith("/api/v1/hunts/"):
+            hunt_id = path.removeprefix("/api/v1/hunts/")
+            valid_id = hunt_id.startswith("hunt-") and hunt_id[5:].isalnum()
+            if not valid_id or len(hunt_id) > 64:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid hunt id")
+                return
+            payload = load_hunts()
+            hunt = next((item for item in payload["hunts"] if item["id"] == hunt_id), None)
+            if hunt is None:
+                self._send_error_json(HTTPStatus.NOT_FOUND, "Hunt not found")
+                return
+            body = json.dumps(
+                hunt, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
             ).encode("utf-8")
             self._send_body("application/json; charset=utf-8", body, head_only)
             return

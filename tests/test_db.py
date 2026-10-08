@@ -154,6 +154,24 @@ class TestClose:
         db.close()  # Should not raise
 
 
+class TestObservableEnrichmentCache:
+    def test_round_trips_provider_result(self):
+        db.upsert_observable_enrichment({
+            "provider": "threatfox",
+            "type": "ipv4",
+            "value": "185.220.101.50",
+            "status": "matched",
+            "confidence": 95,
+            "expires_at": "2099-01-01T00:00:00+00:00",
+            "payload": {"malware": "Example"},
+        })
+
+        cached = db.load_observable_enrichments()
+
+        assert cached[("ipv4", "185.220.101.50")][0]["provider"] == "threatfox"
+        assert cached[("ipv4", "185.220.101.50")][0]["payload"]["malware"] == "Example"
+
+
 class TestSyncCorpus:
     """sync_corpus must make SQLite exactly mirror the merged JSON corpus."""
 

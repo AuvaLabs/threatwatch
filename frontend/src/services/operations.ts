@@ -1,5 +1,6 @@
 import type {
   Investigation,
+  HuntRecord,
   OperationalActionType,
   OperationalPriority,
   OperationalUrgency,
@@ -41,18 +42,6 @@ export function investigationFromPriority(priority: OperationalPriority, now = n
   };
 }
 
-export function huntPack(priority: OperationalPriority): string {
-  const sections = [
-    `# ThreatWatch Hunt Pack: ${priority.title}`,
-    `Urgency: ${urgencyLabel(priority.urgency)}`,
-    `Recommended action: ${priority.recommended_action}`,
-    "",
-    "## Evidence",
-    ...priority.reasons.map((reason) => `- ${reason}`),
-  ];
-  if (priority.evidence.cves.length) sections.push("", "## CVEs", ...priority.evidence.cves.map((value) => `- ${value}`));
-  if (priority.evidence.techniques.length) sections.push("", "## ATT&CK techniques", ...priority.evidence.techniques.map((value) => `- ${value}`));
-  if (priority.evidence.iocs.length) sections.push("", "## Indicators", ...priority.evidence.iocs.map((value) => `- ${value}`));
-  sections.push("", "Validate all indicators and generated hunt logic before production use.");
-  return sections.join("\n");
+export function huntPack(hunt: HuntRecord): string {
+  return hunt.markdown;
 }

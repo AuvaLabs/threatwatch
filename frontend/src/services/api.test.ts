@@ -29,6 +29,7 @@ describe("API client", () => {
     await api.watchlist();
     await api.openApi();
     await api.operations();
+    await api.hunts();
     expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual([
       "/api/v1/articles/abc%20123",
       "/api/v1/briefings/emea",
@@ -37,6 +38,7 @@ describe("API client", () => {
       "/api/watchlist",
       "/api/v1/openapi.json",
       "/api/v1/operations/summary",
+      "/api/v1/hunts",
     ]);
   });
 

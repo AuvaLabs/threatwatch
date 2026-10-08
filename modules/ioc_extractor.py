@@ -281,7 +281,19 @@ def annotate_articles_with_iocs(articles: Iterable[dict]) -> int:
         iocs = extract_iocs(text)
         if has_any_iocs(iocs):
             a["iocs"] = iocs
-            hits += 1
+            # Apply source-aware checks after extraction. This removes the
+            # article publisher, cited source URLs, and version-like IPs while
+            # preserving the simple text-only extraction API above.
+            from modules.ioc_quality import article_observables
+            accepted = article_observables(a)
+            filtered = {key: [] for key in iocs}
+            for observable in accepted:
+                filtered[observable["type"]].append(observable["value"])
+            if has_any_iocs(filtered):
+                a["iocs"] = filtered
+                hits += 1
+            else:
+                del a["iocs"]
         elif "iocs" in a:
             del a["iocs"]
     return hits

@@ -50,7 +50,9 @@ def _techniques(article: dict[str, Any]) -> list[str]:
     rendered: list[str] = []
     for value in _list(article.get("attack_techniques")):
         if isinstance(value, dict):
-            text = " ".join(str(value.get(key) or "") for key in ("id", "name")).strip()
+            technique_id = value.get("technique_id") or value.get("id")
+            technique_name = value.get("technique_name") or value.get("name")
+            text = " ".join(str(item or "") for item in (technique_id, technique_name)).strip()
         else:
             text = str(value).strip()
         if text:

@@ -127,6 +127,39 @@ class TestAnnotateArticlesWithIocs:
     def test_empty_list(self):
         assert annotate_articles_with_iocs([]) == 0
 
+    def test_excludes_article_and_publisher_domains(self):
+        articles = [{
+            "title": "Security report - Shattered",
+            "summary": "Read the full analysis at shattered.io.",
+            "link": "https://shattered.io/report/one",
+            "canonical_url": "https://shattered.io/report/one",
+            "source_name": "Shattered",
+        }]
+
+        annotate_articles_with_iocs(articles)
+
+        assert "iocs" not in articles[0]
+
+    def test_excludes_version_like_public_ipv4_in_version_context(self):
+        articles = [{
+            "title": "FortiOS version 7.6.1.1 released",
+            "summary": "Upgrade from version 7.6.1.1.",
+        }]
+
+        annotate_articles_with_iocs(articles)
+
+        assert "iocs" not in articles[0]
+
+    def test_keeps_public_ip_in_explicit_c2_context(self):
+        articles = [{
+            "title": "Malware infrastructure identified",
+            "summary": "C2 server 185.220.101.50 delivered the payload.",
+        }]
+
+        annotate_articles_with_iocs(articles)
+
+        assert articles[0]["iocs"]["ipv4"] == ["185.220.101.50"]
+
 
 class TestHashContextGating:
     def test_git_commit_in_plain_prose_not_an_ioc(self):

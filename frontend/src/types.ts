@@ -162,6 +162,76 @@ export interface OperationalSummary {
   };
 }
 
+export type HuntStatus = "qualified" | "lead";
+
+export interface HuntSource {
+  article_id: string;
+  title: string;
+  publisher: string;
+  published?: string | null;
+  url?: string;
+}
+
+export interface HuntObservable {
+  type: string;
+  value: string;
+  disposition: "confirmed" | "reported" | "lead" | "suppressed";
+  confidence: number;
+  contexts: string[];
+  sources: HuntSource[];
+}
+
+export interface HuntTechnique {
+  id: string;
+  name: string;
+  tactic: string;
+}
+
+export interface HuntQuery {
+  name: string;
+  language: string;
+  telemetry: string;
+  query: string;
+}
+
+export interface HuntRecord {
+  id: string;
+  entity_type: string;
+  entity_name: string;
+  title: string;
+  status: HuntStatus;
+  readiness_score: number;
+  confidence: string;
+  summary: string;
+  hypothesis: string;
+  why_qualified: string[];
+  report_count: number;
+  source_count: number;
+  first_seen?: string | null;
+  sources: HuntSource[];
+  observables: HuntObservable[];
+  techniques: HuntTechnique[];
+  vulnerability?: {
+    cves: string[];
+    kev: boolean;
+    max_cvss?: number | null;
+    max_epss?: number | null;
+  };
+  telemetry: string[];
+  queries: HuntQuery[];
+  false_positives: string[];
+  triage_steps: string[];
+  limitations: string[];
+  markdown: string;
+}
+
+export interface HuntsResponse {
+  generated_at: string;
+  qualified_count: number;
+  lead_count: number;
+  hunts: HuntRecord[];
+}
+
 export type InvestigationStatus = "open" | "monitoring" | "closed";
 
 export interface Investigation {

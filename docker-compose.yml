@@ -47,6 +47,12 @@ services:
       - WEBHOOK_MIN_CONF=${WEBHOOK_MIN_CONF:-80}
       - NEWSAPI_KEY=${NEWSAPI_KEY:-}
       - NEWSAPI_INTERVAL=${NEWSAPI_INTERVAL:-1800}
+      # Optional cached IOC corroboration. Provider calls run in the pipeline,
+      # never in an analyst-facing HTTP request.
+      - THREATFOX_AUTH_KEY=${THREATFOX_AUTH_KEY:-}
+      - URLHAUS_AUTH_KEY=${URLHAUS_AUTH_KEY:-}
+      - HUNT_ENRICHMENT_MAX_LOOKUPS=${HUNT_ENRICHMENT_MAX_LOOKUPS:-40}
+      - HUNT_ENRICHMENT_TTL_HOURS=${HUNT_ENRICHMENT_TTL_HOURS:-24}
     volumes:
       - threatwatch-data:/app/data
     healthcheck:

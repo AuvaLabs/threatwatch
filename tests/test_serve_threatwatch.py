@@ -142,6 +142,23 @@ class TestLoadHelpers:
         assert len(result) == 1
         assert result[0]["title"] == "IOC"
 
+    def test_load_hunts_rebuilds_when_artifact_predates_clusters(self, tmp_path):
+        output = tmp_path / "data" / "output"
+        output.mkdir(parents=True)
+        (output / "hunts.json").write_text(json.dumps({
+            "generated_at": "2026-10-08T00:00:00+00:00", "hunts": [{"id": "stale"}],
+        }))
+        clusters = {"generated_at": "2026-10-08T01:00:00+00:00", "clusters": []}
+        rebuilt = {"generated_at": "2026-10-08T01:00:01+00:00", "hunts": []}
+
+        with patch("serve_threatwatch.BASE_DIR", tmp_path), \
+             patch("serve_threatwatch.load_clusters", return_value=clusters), \
+             patch("serve_threatwatch.load_articles", return_value=[]), \
+             patch("serve_threatwatch.build_hunts", return_value=rebuilt):
+            result = sw.load_hunts()
+
+        assert result == rebuilt
+
 
 class TestOperationalSummary:
     def test_prioritizes_exploited_watchlist_matches_without_raw_content(self):
@@ -193,6 +210,25 @@ class TestOperationalSummary:
         assert matching[0]["id"] == "newer"
         assert payload["exposure"]["configured"] is False
         json.dumps(payload, allow_nan=False)
+
+    def test_reads_pipeline_attack_technique_shape(self):
+        articles = [{
+            "hash": "attack-1",
+            "title": "Observed exploitation behavior",
+            "kev_listed": True,
+            "iocs": {"ipv4": ["185.220.101.50"]},
+            "attack_techniques": [{
+                "technique_id": "T1190",
+                "technique_name": "Exploit Public-Facing Application",
+                "tactic": "Initial Access",
+            }],
+        }]
+
+        payload = sw.build_operational_summary(articles, [], {})
+
+        assert payload["priorities"][0]["evidence"]["techniques"] == [
+            "T1190 Exploit Public-Facing Application"
+        ]
 
 
 # ── Health endpoint ──────────────────────────────────────────────────────────
@@ -660,6 +696,31 @@ class TestHTTPRoutes:
             status, _, body = _get(test_server + "/api/v1/operations/summary")
         assert status == 500
         assert json.loads(body)["error"] == "Error building operational summary"
+
+    def test_hunts_endpoint_returns_correlated_packages(self, test_server):
+        payload = {"generated_at": "2026-10-08T00:00:00Z", "hunts": [{"id": "hunt-abc", "status": "qualified"}]}
+        with patch("serve_threatwatch.load_hunts", return_value=payload):
+            status, _, body = _get(test_server + "/api/v1/hunts")
+
+        assert status == 200
+        assert json.loads(body)["hunts"][0]["id"] == "hunt-abc"
+
+    def test_hunt_detail_returns_one_package(self, test_server):
+        payload = {"generated_at": "2026-10-08T00:00:00Z", "hunts": [{"id": "hunt-abc", "status": "qualified"}]}
+        with patch("serve_threatwatch.load_hunts", return_value=payload):
+            status, _, body = _get(test_server + "/api/v1/hunts/hunt-abc")
+
+        assert status == 200
+        assert json.loads(body)["id"] == "hunt-abc"
+
+    def test_hunt_detail_rejects_invalid_or_missing_id(self, test_server):
+        payload = {"hunts": []}
+        with patch("serve_threatwatch.load_hunts", return_value=payload):
+            invalid, _, _ = _get(test_server + "/api/v1/hunts/not%20valid")
+            missing, _, _ = _get(test_server + "/api/v1/hunts/hunt-missing")
+
+        assert invalid == 400
+        assert missing == 404
 
     def test_options_returns_no_content(self, test_server):
         req = Request(test_server + "/api/articles", method="OPTIONS")
