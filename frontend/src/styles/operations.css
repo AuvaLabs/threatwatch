@@ -22,7 +22,7 @@
 }
 
 .metric-grid article { border-left: 1px solid var(--color-border); display: grid; gap: var(--space-1); padding: var(--space-4); }
-.metric-grid article:first-child { border-left: 0; padding-left: 0; }
+.metric-grid article:first-child { border-left: 0; }
 .metric-grid strong { font-family: var(--font-mono); font-size: 1.65rem; font-weight: 500; letter-spacing: -0.05em; }
 .metric-grid span { color: var(--color-ink-muted); font-size: 0.72rem; }
 
@@ -52,7 +52,7 @@
   display: grid;
   gap: var(--space-5);
   grid-template-columns: 70px minmax(0, 1fr) 168px;
-  padding: var(--space-5) 0;
+  padding: var(--space-5) var(--card-inline-padding);
 }
 
 .priority-entry:hover { background: var(--color-signal-soft); }
@@ -77,7 +77,7 @@
 .standalone-search span { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.64rem; text-transform: uppercase; }
 .standalone-search input { background: transparent; border: 0; min-height: 44px; outline: 0; padding: 0; }
 .threat-grid { display: grid; gap: 0 var(--space-8); grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.threat-card { border-width: 1px 0 0; padding: var(--space-5) var(--space-4); }
+.threat-card { border-width: 1px 0 0; padding: var(--space-5) var(--card-inline-padding); }
 .threat-card-head, .hunt-card-head, .investigation-head { align-items: center; color: var(--color-ink-muted); display: flex; font-family: var(--font-mono); font-size: 0.62rem; gap: var(--space-2); justify-content: space-between; text-transform: uppercase; }
 .threat-card h2 { font-size: 1.2rem; margin-top: var(--space-4); }
 .threat-card dl { display: grid; grid-template-columns: repeat(3, 1fr); margin: var(--space-5) 0 0; }
@@ -87,7 +87,7 @@
 .threat-card dd, .hunt-card dd { font-size: 0.76rem; font-weight: 700; margin: var(--space-1) 0 0; }
 
 .exposure-layout { border-bottom: 1px solid var(--color-ink); border-top: 1px solid var(--color-ink); display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); margin-bottom: var(--space-10); }
-.exposure-inventory, .exposure-summary { border: 0; padding: var(--space-6) 0; }
+.exposure-inventory, .exposure-summary { border: 0; padding: var(--space-6) var(--card-inline-padding); }
 .exposure-inventory { border-right: 1px solid var(--color-border); padding-right: var(--space-8); }
 .exposure-inventory > div { border-top: 1px solid var(--color-border); margin-top: var(--space-5); padding-top: var(--space-4); }
 .exposure-summary { align-content: center; display: grid; padding-left: var(--space-8); }
@@ -96,7 +96,7 @@
 .quiet-empty p { margin: var(--space-2) auto 0; max-width: 60ch; }
 
 .investigation-list { border-top: 2px solid var(--color-ink); display: grid; }
-.investigation-record { border-width: 0 0 1px; padding: var(--space-6) 0; }
+.investigation-record { border-width: 0 0 1px; padding: var(--space-6) var(--card-inline-padding); }
 .investigation-head > div { align-items: center; display: flex; gap: var(--space-2); }
 .investigation-record h2 { margin-top: var(--space-4); }
 .investigation-controls { display: grid; gap: var(--space-6); grid-template-columns: 180px minmax(0, 1fr); margin: var(--space-5) 0; }
@@ -106,7 +106,7 @@
 .investigation-controls textarea { resize: vertical; }
 
 .hunt-grid { border-top: 2px solid var(--color-ink); display: grid; gap: 0 var(--space-8); grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.hunt-card { border-width: 0 0 1px; padding: var(--space-6) 0; }
+.hunt-card { border-width: 0 0 1px; padding: var(--space-6) var(--card-inline-padding); }
 .hunt-card h2 { font-size: 1.18rem; margin-top: var(--space-4); }
 .hunt-card dl { border-bottom: 1px solid var(--color-border); border-top: 1px solid var(--color-border); display: grid; gap: var(--space-3); margin: var(--space-4) 0; padding: var(--space-4) 0; }
 .hunt-card details { margin-bottom: var(--space-4); }
@@ -115,24 +115,24 @@
 
 .button-row { display: flex; gap: var(--space-2); }
 .operational-report { border-width: 3px 0 1px; margin: 0 auto; max-width: 900px; }
-.operational-report header, .operational-report section { border-bottom: 1px solid var(--color-border); padding: var(--space-8) 0; }
+.operational-report header, .operational-report section { border-bottom: 1px solid var(--color-border); padding: var(--space-8) var(--card-inline-padding); }
 .operational-report header { background: transparent; }
 .operational-report header > div { align-items: center; display: flex; justify-content: space-between; }
 .operational-report header time { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.64rem; }
 .operational-report section li { margin-bottom: var(--space-3); }
 .operational-report section li p { margin: var(--space-1) 0 0; }
-.operational-report footer { color: var(--color-ink-muted); font-size: 0.72rem; padding: var(--space-5) 0; }
+.operational-report footer { color: var(--color-ink-muted); font-size: 0.72rem; padding: var(--space-5) var(--card-inline-padding); }
 .report-metrics { border-bottom: 1px solid var(--color-border); border-top: 1px solid var(--color-border); display: grid; grid-template-columns: repeat(3, 1fr); }
 .report-metrics span { border-left: 1px solid var(--color-border); padding: var(--space-4); }
 .report-metrics span:first-child { border-left: 0; padding-left: 0; }
 .report-metrics strong { display: block; font-family: var(--font-mono); font-size: 1.5rem; font-weight: 500; }
 
 .automation-status { border-bottom: 1px solid var(--color-ink); border-top: 1px solid var(--color-ink); display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: var(--space-10); }
-.automation-status article { align-items: start; border: 0; border-left: 1px solid var(--color-border); display: flex; gap: var(--space-3); min-height: 100px; padding: var(--space-5); }
-.automation-status article:first-child { border-left: 0; padding-left: 0; }
+.automation-status article { align-items: start; border: 0; border-left: 1px solid var(--color-border); display: flex; gap: var(--space-3); min-height: 100px; padding: var(--space-5) var(--card-inline-padding); }
+.automation-status article:first-child { border-left: 0; }
 .automation-status p { font-size: 0.78rem; margin: var(--space-1) 0 0; }
 .automation-view .section-heading > code { min-width: 0; overflow-wrap: anywhere; }
-.integration-note { border-width: 3px 0 1px; margin-top: var(--space-10); padding: var(--space-6) 0; }
+.integration-note { border-width: 3px 0 1px; margin-top: var(--space-10); padding: var(--space-6) var(--card-inline-padding); }
 
 @media (max-width: 900px) {
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
@@ -148,22 +148,21 @@
   .command-brief { grid-template-columns: 1fr; padding: var(--space-5); }
   .command-brief-action { border-left: 0; border-top: 1px solid var(--color-border-strong); grid-template-columns: 1fr auto; padding: var(--space-4) 0 0; }
   .threat-grid, .hunt-grid, .exposure-layout, .automation-status { grid-template-columns: 1fr; }
-  .exposure-inventory { border-bottom: 1px solid var(--color-border); border-right: 0; padding-right: 0; }
-  .exposure-summary { padding-left: 0; }
+  .exposure-inventory { border-bottom: 1px solid var(--color-border); border-right: 0; padding-right: var(--card-inline-padding); }
+  .exposure-summary { padding-left: var(--card-inline-padding); }
   .investigation-controls { grid-template-columns: 1fr; }
-  .automation-status article { border-left: 0; border-top: 1px solid var(--color-border); padding-left: 0; }
+  .automation-status article { border-left: 0; border-top: 1px solid var(--color-border); padding-left: var(--card-inline-padding); }
   .automation-status article:first-child { border-top: 0; }
   .automation-view .section-heading { align-items: start; flex-direction: column; }
 }
 
 @media (max-width: 520px) {
-  .metric-grid article { padding: var(--space-4) 0; }
-  .metric-grid article:nth-child(even) { padding-left: var(--space-4); }
+  .metric-grid article { padding: var(--space-4) var(--card-inline-padding); }
   .priority-entry { gap: var(--space-3); grid-template-columns: 44px minmax(0, 1fr); }
   .priority-actions { grid-template-columns: 1fr; }
   .priority-actions > span { grid-column: auto; }
   .threat-card dl, .report-metrics { grid-template-columns: 1fr; }
   .threat-card dl div { border-left: 0; border-top: 1px solid var(--color-border); padding: var(--space-2) 0; }
   .button-row { align-items: stretch; flex-direction: column; }
-  .operational-report header, .operational-report section { padding: var(--space-5) 0; }
+  .operational-report header, .operational-report section { padding: var(--space-5) var(--card-inline-padding); }
 }

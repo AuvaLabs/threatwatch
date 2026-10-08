@@ -188,7 +188,7 @@
   display: grid;
   gap: var(--space-5);
   grid-template-columns: 92px 150px minmax(280px, 1fr) minmax(180px, 260px);
-  padding: var(--space-5) 0;
+  padding: var(--space-5) var(--card-inline-padding);
 }
 
 .article-row:last-child {
@@ -263,7 +263,7 @@
   gap: var(--space-3);
   grid-template-columns: minmax(280px, 1fr) 210px 160px auto;
   margin-bottom: var(--space-6);
-  padding: var(--space-4) 0;
+  padding: var(--space-4) var(--card-inline-padding);
 }
 
 .filter-bar label {

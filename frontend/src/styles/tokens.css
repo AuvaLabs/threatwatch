@@ -40,6 +40,7 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+  --card-inline-padding: var(--space-4);
 }
 
 :root[data-theme="dark"] {

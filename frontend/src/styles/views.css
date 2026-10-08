@@ -29,7 +29,7 @@
 .table-note { padding: 0 var(--space-4) var(--space-4); }
 
 .endpoint-list { border-bottom: 1px solid var(--color-ink); border-top: 2px solid var(--color-ink); margin-bottom: var(--space-8); }
-.endpoint-row { align-items: center; border-bottom: 1px solid var(--color-border); display: grid; gap: var(--space-4); grid-template-columns: 58px minmax(260px, 1fr) 1fr auto; padding: var(--space-4) 0; }
+.endpoint-row { align-items: center; border-bottom: 1px solid var(--color-border); display: grid; gap: var(--space-4); grid-template-columns: 58px minmax(260px, 1fr) 1fr auto; padding: var(--space-4) var(--card-inline-padding); }
 .endpoint-row > * { min-width: 0; }
 .endpoint-row .method { color: var(--color-brand); font-family: var(--font-mono); font-size: 0.66rem; font-weight: 800; }
 .endpoint-row p { font-size: 0.82rem; margin: 0; }

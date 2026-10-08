@@ -27,7 +27,7 @@
   .filter-bar { grid-template-columns: 1fr; }
   .filter-bar .search-field { grid-column: auto; }
   .results-summary span { display: none; }
-  .article-row { padding: var(--space-4) 0; }
+  .article-row { padding: var(--space-4) var(--card-inline-padding); }
   .record-header h1 { font-size: 2.35rem; }
   .record-summary > p:not(.eyebrow) { font-size: 1.1rem; }
   .record-actions { align-items: stretch; flex-direction: column; }
