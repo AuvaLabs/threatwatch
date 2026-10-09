@@ -11,7 +11,7 @@ All notable changes to ThreatWatch are documented here.
 - Ignored generated public documentation payloads that can contain untrusted third-party article content.
 - Restored exact host and port allowlisting for operator-configured private LLM endpoints while keeping other private destinations blocked.
 - Enabled extended GitHub code scanning and corrected URL host classification, asset path resolution, response header allowlists, log handling, and strong ETag hashing from the initial scan.
-- Constrained language detection to Python 3.11 compatible releases so Dependabot can validate otherwise unrelated Python updates.
+- Aligned Dependabot, CI, and the production image on Python 3.11 and constrained language detection to compatible releases so unrelated Python updates remain testable.
 - Added a repository contract test for the public documentation and CI quality gates.
 
 ## 2026-10-08: Public threat-state and decision ledger
