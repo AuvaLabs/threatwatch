@@ -36,6 +36,12 @@ def test_generated_public_payloads_are_ignored():
     assert "docs/articles.json" in ignore_rules
 
 
+def test_python_lock_source_respects_runtime_compatibility():
+    requirements = _read("requirements.in")
+
+    assert "lingua-language-detector>=2.0,<2.2" in requirements
+
+
 def test_public_contributor_docs_match_current_architecture():
     contributing = _read("CONTRIBUTING.md")
     readme = _read("README.md")
