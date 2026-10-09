@@ -36,7 +36,7 @@ See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
 - Docker Compose services for `pipeline` and `server` with one persistent data volume.
 - SQLite primary storage plus atomic JSON artifacts and fallback reads.
 - Strict security headers, bounded APIs, request rate limiting, SSRF protection, safe external URLs, and no scraped full-content exposure in operational APIs.
-- 1,495 backend tests and 53 frontend tests at the 2026-10-08 ledger release. Frontend statement coverage was 96.08 percent.
+- 1,502 backend tests and 53 frontend tests at the 2026-10-09 repository audit. Backend coverage was 88.24 percent and frontend statement coverage was 96.08 percent.
 
 ## Core architecture
 
@@ -113,4 +113,4 @@ ssh auvalabs 'docker exec threatwatch-pipeline python scripts/rebuild_ledger.py'
 ssh auvalabs 'cd ~/threatwatch && docker compose ps'
 ```
 
-Last updated: 2026-10-08
+Last updated: 2026-10-09

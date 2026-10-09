@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 import modules.safe_http as safe_http
-from modules.safe_http import _is_public_ip, install_ssrf_guard
+from modules.safe_http import _configured_endpoint_allowlist, _is_public_ip, install_ssrf_guard
 
 
 class TestIsPublicIp:
@@ -63,6 +63,23 @@ class TestIsPublicIp:
         assert _is_public_ip("") is False
 
 
+class TestConfiguredEndpointAllowlist:
+    def test_collects_operator_configured_llm_endpoints(self, monkeypatch):
+        monkeypatch.setenv("LLM_BASE_URL", "http://ollama.internal:11434/v1")
+        monkeypatch.setenv("BRIEFING_FALLBACK_BASE_URL", "https://fallback.internal/v1")
+
+        assert _configured_endpoint_allowlist() == frozenset({
+            ("ollama.internal", 11434),
+            ("fallback.internal", 443),
+        })
+
+    def test_ignores_malformed_or_unsupported_urls(self, monkeypatch):
+        monkeypatch.setenv("LLM_BASE_URL", "not-a-url")
+        monkeypatch.setenv("FEATHERLESS_BASE_URL", "file:///tmp/provider")
+
+        assert _configured_endpoint_allowlist() == frozenset()
+
+
 class TestInstallSsrfGuard:
     """Test install_ssrf_guard with careful isolation."""
 
@@ -98,6 +115,31 @@ class TestInstallSsrfGuard:
         with patch("modules.safe_http.socket.getaddrinfo", return_value=fake_info):
             with pytest.raises(ConnectionRefusedError, match="non-public"):
                 urllib3_conn.create_connection(("evil.com", 80))
+
+    def test_allows_configured_private_llm_endpoint(self, monkeypatch):
+        from urllib3.util import connection as urllib3_conn
+
+        monkeypatch.setenv("LLM_BASE_URL", "http://ollama.internal:11434/v1")
+        original = MagicMock(return_value="connected")
+        urllib3_conn.create_connection = original
+        install_ssrf_guard()
+        guarded = urllib3_conn.create_connection
+        fake_info = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("172.18.0.4", 11434))]
+
+        with patch("modules.safe_http.socket.getaddrinfo", return_value=fake_info):
+            assert guarded(("ollama.internal", 11434)) == "connected"
+
+        original.assert_called_once()
+
+    def test_configured_host_does_not_allow_another_port(self, monkeypatch):
+        monkeypatch.setenv("LLM_BASE_URL", "http://ollama.internal:11434/v1")
+        install_ssrf_guard()
+        from urllib3.util import connection as urllib3_conn
+        fake_info = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("172.18.0.4", 8080))]
+
+        with patch("modules.safe_http.socket.getaddrinfo", return_value=fake_info):
+            with pytest.raises(ConnectionRefusedError, match="non-public"):
+                urllib3_conn.create_connection(("ollama.internal", 8080))
 
     def test_blocks_link_local(self):
         install_ssrf_guard()

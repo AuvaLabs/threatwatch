@@ -1,0 +1,25 @@
+name: Feature request
+description: Propose a focused product or integration improvement
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the analyst or operator problem, not only the proposed interface.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Explain what a successful result would let a user do.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting context
+      description: Add safe examples, standards, or integration constraints.

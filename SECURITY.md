@@ -29,7 +29,7 @@ ThreatWatch implements the following protections:
 - **XSS prevention** — HTML escaping on all user-controlled output; SSR JSON injection uses `</` escaping; STIX pattern injection sanitization
 - **Non-root Docker** — container runs as UID 1001 unprivileged user
 - **Security headers** — X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy no-referrer
-- **Dependency auditing** — `pip-audit` runs in CI on every push
+- **Dependency auditing**: `pip-audit` and `npm audit` run in CI on every push
 - **Bearer token auth** — optional token protection for watchlist write endpoint
 - **CORS restriction** — sensitive endpoints (`/api/health`, `/api/watchlist`) require `CORS_ORIGIN` match; public data endpoints allow wildcard
 - **Atomic file writes** — watchlist persistence uses tmp+rename to prevent corruption under concurrent requests
@@ -41,7 +41,7 @@ The following are in scope:
 
 - `threatdigest_main.py` and `modules/` — pipeline code
 - `serve_threatwatch.py` — HTTP server
-- `threatwatch.html` — dashboard frontend
+- `frontend/src/` and the Vite build: analyst workspace frontend
 - `scripts/` — deployment and utility scripts
 - Docker configuration
 
@@ -57,5 +57,6 @@ The following are out of scope:
 - Keep your `.env` file out of version control (it is gitignored by default)
 - Set `WATCHLIST_TOKEN` when enabling server-side watchlist writes
 - Set `CORS_ORIGIN` to your production domain to restrict cross-origin access to sensitive API endpoints
+- Private LLM endpoints are trusted only when their exact host and port are configured in a supported provider base URL variable
 - Rotate LLM API keys regularly if using AI briefing
 - Review feed configurations before deploying in sensitive environments

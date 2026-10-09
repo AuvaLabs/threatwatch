@@ -2,6 +2,16 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-09: GitHub repository accuracy and quality gates
+
+- Corrected contributor and security documentation to match the non-commercial license, Preact frontend, SQLite persistence, and current source layout.
+- Added frontend tests, frontend production build, and npm dependency auditing to GitHub Actions.
+- Raised the enforced backend coverage floor from 75 percent to 80 percent.
+- Restricted workflow permissions, pinned action dependencies, added timeouts, and prevented duplicate runs on superseded commits.
+- Ignored generated public documentation payloads that can contain untrusted third-party article content.
+- Restored exact host and port allowlisting for operator-configured private LLM endpoints while keeping other private destinations blocked.
+- Added a repository contract test for the public documentation and CI quality gates.
+
 ## 2026-10-08: Public threat-state and decision ledger
 
 - Added stable, versioned CVE and actor records that preserve evidence, decisions, uncertainty, and revision history across pipeline runs.

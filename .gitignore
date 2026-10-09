@@ -3,6 +3,10 @@ data/logs/
 data/output/
 data/state/
 
+# Generated public snapshots can contain untrusted third-party content
+docs/index.html
+docs/articles.json
+
 # Keep directory structure
 !data/.gitkeep
 !data/logs/.gitkeep

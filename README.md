@@ -5,6 +5,7 @@
 **Evidence-backed cyber intelligence operations**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![CI](https://github.com/AuvaLabs/threatwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/AuvaLabs/threatwatch/actions/workflows/ci.yml)
 [![License: Non-Commercial](https://img.shields.io/badge/license-Non--Commercial-orange.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![AI Powered](https://img.shields.io/badge/AI-intelligence--briefing-8B5CF6?logo=openai&logoColor=white)]()
@@ -306,7 +307,7 @@ The server runs on port **8098** by default:
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/` | Dashboard (server-side rendered HTML) |
+| `GET` | `/` | Preact analyst workspace application shell |
 | `GET` | `/api/articles` | Paginated articles, 50 by default and 100 maximum |
 | `GET` | `/api/v1/articles` | Stable versioned article collection |
 | `GET` | `/api/v1/articles/{id}` | Stable versioned article detail |
@@ -437,7 +438,7 @@ See [SECURITY.md](SECURITY.md) for the security policy and how to report vulnera
 
 ## License
 
-ThreatWatch is **open source for non-commercial use**.
+ThreatWatch is **source-available for non-commercial use**.
 
 See [LICENSE](LICENSE) for the full terms or contact [nicholai.me](https://nicholai.me).
 

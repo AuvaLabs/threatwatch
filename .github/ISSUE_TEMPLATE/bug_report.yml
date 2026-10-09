@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a reproducible ThreatWatch defect
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private data, or unpublished vulnerability details. Follow SECURITY.md for security reports.
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Describe what happened and include safe logs or screenshots when useful.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: Provide the smallest repeatable sequence.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include operating system, Python version, browser, and deployment method as applicable.
+    validations:
+      required: true
