@@ -24,6 +24,10 @@ def test_ci_enforces_complete_quality_harness():
     for step in required_steps:
         assert step in workflow
 
+    assert "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24" not in workflow
+    assert "ubuntu-latest" not in workflow
+    assert workflow.count("runs-on: ubuntu-24.04") == 5
+
 
 def test_generated_public_payloads_are_ignored():
     ignore_rules = _read(".gitignore").splitlines()
