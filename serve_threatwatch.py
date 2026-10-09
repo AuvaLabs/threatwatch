@@ -9,7 +9,6 @@ import html
 import json
 import logging
 import math
-import mimetypes
 import os
 import sys
 import threading
@@ -45,6 +44,44 @@ _cache_lock = threading.Lock()  # guards all _cache writes; reads use GIL
 # traffic and API bodies are cheap to compress.
 _gzip_memo: tuple = ("", b"")
 _gzip_memo_lock = threading.Lock()
+
+_CONTENT_TYPES = {
+    "application/json; charset=utf-8": "application/json; charset=utf-8",
+    "application/octet-stream": "application/octet-stream",
+    "application/stix+json; charset=utf-8": "application/stix+json; charset=utf-8",
+    "application/xml; charset=utf-8": "application/xml; charset=utf-8",
+    "font/woff": "font/woff",
+    "font/woff2": "font/woff2",
+    "image/gif": "image/gif",
+    "image/jpeg": "image/jpeg",
+    "image/png": "image/png",
+    "image/svg+xml": "image/svg+xml",
+    "image/webp": "image/webp",
+    "text/css": "text/css",
+    "text/html; charset=utf-8": "text/html; charset=utf-8",
+    "text/javascript; charset=utf-8": "text/javascript; charset=utf-8",
+}
+
+_ASSET_CONTENT_TYPES = {
+    ".css": "text/css",
+    ".gif": "image/gif",
+    ".jpeg": "image/jpeg",
+    ".jpg": "image/jpeg",
+    ".js": "text/javascript; charset=utf-8",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".webp": "image/webp",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+}
+
+
+def _normalized_content_type(content_type: str) -> str:
+    return _CONTENT_TYPES.get(content_type, "application/octet-stream")
+
+
+def _build_etag(body: bytes) -> str:
+    return f'"{hashlib.sha256(body).hexdigest()}"'
 
 # Peers from which we trust forwarded-IP headers. Behind nginx every request
 # appears to come from 127.0.0.1, so without this every public user is bucketed
@@ -734,14 +771,17 @@ def resolve_frontend_asset(url_path: str) -> Path | None:
     """Resolve a built asset path while rejecting traversal and directories."""
     if not url_path.startswith("/assets/"):
         return None
-    relative = Path(unquote(url_path).lstrip("/"))
-    root = FRONTEND_DIST.resolve()
-    candidate = (FRONTEND_DIST / relative).resolve()
-    try:
-        candidate.relative_to(root)
-    except ValueError:
+    asset_name = unquote(url_path.removeprefix("/assets/"))
+    if not asset_name or "/" in asset_name or "\\" in asset_name:
         return None
-    return candidate if candidate.is_file() else None
+    try:
+        candidates = tuple((FRONTEND_DIST / "assets").iterdir())
+    except OSError:
+        return None
+    return next(
+        (candidate for candidate in candidates if candidate.name == asset_name and candidate.is_file()),
+        None,
+    )
 
 
 def load_ioc_items() -> list:
@@ -973,8 +1013,9 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         if path in self._RESTRICTED_CORS_PATHS:
             origin = self.headers.get("Origin", "")
             allowed = os.environ.get("CORS_ORIGIN", "")
-            if allowed and origin == allowed:
-                self.send_header("Access-Control-Allow-Origin", origin)
+            safe_allowed = allowed.replace("\r", "").replace("\n", "")
+            if safe_allowed and origin == safe_allowed:
+                self.send_header("Access-Control-Allow-Origin", safe_allowed)
                 self.send_header("Vary", "Origin")
             # If no CORS_ORIGIN configured or origin doesn't match, omit the header
             # (browser will block the cross-origin request)
@@ -999,7 +1040,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
     def _send_body(self, content_type, body, head_only=False):
         """Send response with ETag, Last-Modified, and optional gzip compression."""
         # Compute ETag from raw body before any compression.
-        etag = '"' + hashlib.md5(body).hexdigest() + '"'
+        etag = _build_etag(body)
 
         # Check If-None-Match for conditional GET (304 Not Modified).
         if_none_match = self.headers.get("If-None-Match", "")
@@ -1026,7 +1067,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         else:
             self.send_response(HTTPStatus.OK)
 
-        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Type", _normalized_content_type(content_type))
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "public, max-age=30")
         self.send_header("ETag", etag)
@@ -1362,7 +1403,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
 
         asset = resolve_frontend_asset(path)
         if asset is not None:
-            content_type = mimetypes.guess_type(asset.name)[0] or "application/octet-stream"
+            content_type = _ASSET_CONTENT_TYPES.get(asset.suffix.lower(), "application/octet-stream")
             self._send_body(content_type, read_cached(asset), head_only)
             return
 
@@ -1516,8 +1557,8 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 return
             try:
                 body = _build_cve_view(cve_id)
-            except Exception as exc:
-                logger.error("CVE view error for %s: %s", cve_id, exc)
+            except Exception:
+                logger.error("CVE view failed for a validated identifier")
                 self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "CVE view failed")
                 return
             self._send_body("application/json; charset=utf-8", body, head_only)

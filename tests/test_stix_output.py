@@ -82,7 +82,7 @@ class TestIocToIndicator:
         ioc = {**SAMPLE_IOC, "iocType": "domain", "iocValue": "malicious.example.com"}
         indicator = _ioc_to_indicator(ioc)
         assert indicator is not None
-        assert "malicious.example.com" in indicator["pattern"]
+        assert indicator["pattern"] == "[domain-name:value = 'malicious.example.com']"
 
     def test_md5_hash_ioc(self):
         ioc = {**SAMPLE_IOC, "iocType": "md5_hash", "iocValue": "a" * 32}

@@ -312,7 +312,11 @@ class TestDispatchKEVAlerts:
             assert "Acme" in text
             # NVD link is the canonical CVE reference (not the JSON API endpoint)
             assert "https://nvd.nist.gov/vuln/detail/CVE-2026-1077" in text
-            assert "https://example.test" in text
+            expected_links = (
+                '<a href="https://nvd.nist.gov/vuln/detail/CVE-2026-1077">NVD detail →</a>'
+                ' · <a href="https://example.test/#kev">Open ThreatWatch</a>'
+            )
+            assert text.splitlines()[-1] == expected_links
 
 
     def _today_minus(self, days: int) -> str:

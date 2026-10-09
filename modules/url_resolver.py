@@ -31,6 +31,17 @@ _CACHE_MAX = 1000
 _CACHE_LOCK = threading.Lock()
 
 
+def is_google_news_url(url: str) -> bool:
+    """Return whether a URL uses the exact Google News HTTPS origin."""
+    if not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    return parsed.scheme == "https" and parsed.hostname == "news.google.com"
+
+
 def is_clearnet_url(url: str) -> bool:
     """Return True only if url is a regular clearnet http/https address.
 
@@ -101,10 +112,11 @@ def decode_google_news_url(url: str) -> str | None:
     Returns the decoded URL, or None if the URL is not a Google News link
     or decoding fails.
     """
-    if 'news.google.com' not in url or '/articles/' not in url:
+    parsed = urlparse(url)
+    if not is_google_news_url(url) or '/articles/' not in parsed.path:
         return None
     try:
-        encoded = url.split('/articles/')[-1].split('?')[0]
+        encoded = parsed.path.rsplit('/articles/', 1)[-1]
         pad = (4 - len(encoded) % 4) % 4
         decoded = base64.urlsafe_b64decode(encoded + '=' * pad)
         match = _GNEWS_URL_RE.search(decoded)
@@ -161,13 +173,13 @@ def extract_url_from_gnews_summary(summary: str) -> str | None:
       <a href="https://actual-article.com/path">Title</a>&nbsp;|&nbsp;Source
     Parsing this is zero-cost and works regardless of protobuf encoding changes.
     """
-    if not summary or 'news.google.com' not in summary and 'http' not in summary:
+    if not summary or 'http' not in summary:
         return None
     try:
         soup = BeautifulSoup(summary, 'html.parser')
         for tag in soup.find_all('a', href=True):
             href = tag['href']
-            if href.startswith('http') and 'news.google.com' not in href:
+            if is_clearnet_url(href) and not is_google_news_url(href):
                 return href
     except Exception:
         pass
@@ -195,7 +207,8 @@ def resolve_original_url(url: str, summary: str = '') -> str:
         return cached
 
     # 1. Try to extract from Google News summary HTML (zero-cost, no HTTP)
-    if 'news.google.com' in url and summary:
+    is_google_news = is_google_news_url(url)
+    if is_google_news and summary:
         from_summary = extract_url_from_gnews_summary(summary)
         if from_summary and is_clearnet_url(from_summary):
             _cache_set(url, from_summary)
@@ -208,7 +221,7 @@ def resolve_original_url(url: str, summary: str = '') -> str:
         return gnews_decoded
 
     # 3. Non-Google URLs: embedded param, redirect, or canonical HTML
-    if 'news.google.com' not in url:
+    if not is_google_news:
         embedded = extract_embedded_url(url)
         if embedded:
             result = embedded

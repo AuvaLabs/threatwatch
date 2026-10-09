@@ -63,11 +63,11 @@ class TestExtractIocs:
 
     def test_url(self):
         iocs = extract_iocs("Download from https://evil.example.com/payload.exe")
-        assert any("evil.example.com" in u for u in iocs["urls"])
+        assert iocs["urls"] == ["https://evil.example.com/payload.exe"]
 
     def test_hxxps_url(self):
         iocs = extract_iocs("C2: hxxps://evil.example.com/c2")
-        assert any("evil.example.com" in u for u in iocs["urls"])
+        assert iocs["urls"] == ["https://evil.example.com/c2"]
 
     def test_email(self):
         iocs = extract_iocs("Contact: attacker@evil.com for ransom")

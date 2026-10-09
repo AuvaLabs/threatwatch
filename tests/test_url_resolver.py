@@ -16,6 +16,7 @@ from modules.url_resolver import (
     extract_url_from_gnews_summary,
     follow_redirects,
     is_clearnet_url,
+    is_google_news_url,
     is_safe_url,
     resolve_original_url,
 )
@@ -31,6 +32,20 @@ def _load_real_beautifulsoup():
     finally:
         if mock is not None:
             sys.modules["bs4"] = mock
+
+
+class TestGoogleNewsUrlClassification:
+    def test_accepts_exact_google_news_host(self):
+        assert is_google_news_url("https://news.google.com/rss/articles/id") is True
+
+    @pytest.mark.parametrize("url", [
+        "https://evil.test/?next=https://news.google.com/rss/articles/id",
+        "https://news.google.com@evil.test/rss/articles/id",
+        "https://news.google.com.evil.test/rss/articles/id",
+        "not-a-url-with-news.google.com-inside",
+    ])
+    def test_rejects_google_news_substring_lookalikes(self, url):
+        assert is_google_news_url(url) is False
 
 
 class TestIsClearnetUrl:

@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from modules.config import CATEGORIES, FEED_CUTOFF_DAYS
 from modules.keyword_classifier import _RULES, _NOISE_PATTERNS, _CYBER_KEYWORDS
+from modules.url_resolver import is_google_news_url
 
 
 def load_articles(path=None):
@@ -351,7 +352,7 @@ def audit_sources(articles):
     dominant = [(s, n) for s, n in source_counts.items()
                 if n > total * 0.15
                 and s not in _BULK_SOURCES
-                and "news.google.com" not in s]
+                and not is_google_news_url(s)]
     if dominant:
         findings.append({
             "severity": "HIGH",

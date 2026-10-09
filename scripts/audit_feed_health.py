@@ -16,11 +16,24 @@ import yaml
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 CONFIG_DIR = Path(__file__).parent.parent / "config"
 DATA_DIR = Path(__file__).parent.parent / "data"
+
+
+def _search_feed_provider(source: str) -> str | None:
+    try:
+        host = (urlparse(source).hostname or "").lower()
+    except ValueError:
+        return None
+    if host == "google.com" or host.endswith(".google.com"):
+        return "google"
+    if host == "bing.com" or host.endswith(".bing.com"):
+        return "bing"
+    return None
 
 
 def load_feeds():
@@ -131,9 +144,9 @@ def audit_feeds(configured_feeds, articles, health_data):
         source = a.get("source", "")
         if a.get("darkweb"):
             cat_by_feed_type[cat]["darkweb"] += 1
-        elif "google.com" in source:
+        elif _search_feed_provider(source) == "google":
             cat_by_feed_type[cat]["google"] += 1
-        elif "bing.com" in source:
+        elif _search_feed_provider(source) == "bing":
             cat_by_feed_type[cat]["bing"] += 1
         elif source in configured_feeds and configured_feeds[source]["config_file"] == "feeds_native.yaml":
             cat_by_feed_type[cat]["native"] += 1

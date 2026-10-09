@@ -30,6 +30,7 @@ ThreatWatch implements the following protections:
 - **Non-root Docker** — container runs as UID 1001 unprivileged user
 - **Security headers** — X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy no-referrer
 - **Dependency auditing**: `pip-audit` and `npm audit` run in CI on every push
+- **Code scanning**: extended Python and JavaScript analysis runs on the default branch
 - **Bearer token auth** — optional token protection for watchlist write endpoint
 - **CORS restriction** — sensitive endpoints (`/api/health`, `/api/watchlist`) require `CORS_ORIGIN` match; public data endpoints allow wildcard
 - **Atomic file writes** — watchlist persistence uses tmp+rename to prevent corruption under concurrent requests

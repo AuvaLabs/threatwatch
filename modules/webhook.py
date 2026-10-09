@@ -23,6 +23,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,14 @@ def _get_session() -> requests.Session:
 
 
 def _is_slack_url(url: str) -> bool:
-    return "hooks.slack.com" in url or "discord.com/api/webhooks" in url
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    return parsed.scheme == "https" and parsed.hostname in {
+        "hooks.slack.com",
+        "discord.com",
+    }
 
 
 def _format_slack(articles: list[dict]) -> dict:

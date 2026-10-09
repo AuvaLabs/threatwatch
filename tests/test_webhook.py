@@ -24,6 +24,23 @@ LOW_CONF_ARTICLE = {**CYBER_ARTICLE, "confidence": 40}
 NON_CYBER_ARTICLE = {**CYBER_ARTICLE, "is_cyber_attack": False, "confidence": 95}
 
 
+class TestWebhookClassification:
+    @pytest.mark.parametrize("url", [
+        "https://hooks.slack.com/services/example",
+        "https://discord.com/api/webhooks/example",
+    ])
+    def test_accepts_supported_webhook_hosts(self, url):
+        assert wh._is_slack_url(url) is True
+
+    @pytest.mark.parametrize("url", [
+        "https://evil.test/?next=https://hooks.slack.com/services/example",
+        "https://hooks.slack.com@evil.test/services/example",
+        "http://hooks.slack.com/services/example",
+    ])
+    def test_rejects_substring_and_non_tls_lookalikes(self, url):
+        assert wh._is_slack_url(url) is False
+
+
 class TestDispatchNoOp:
     def test_no_webhook_url_is_noop(self):
         with patch.object(wh, "WEBHOOK_URL", ""):

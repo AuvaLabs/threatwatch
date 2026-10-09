@@ -1,5 +1,6 @@
 """Tests for serve_threatwatch.py: rate limiter, data loading, routing, and security."""
 import collections
+import hashlib
 import json
 import threading
 import time
@@ -424,9 +425,19 @@ class TestFrontendApplicationShell:
 
     def test_frontend_asset_rejects_path_traversal(self, tmp_path):
         dist = tmp_path / "frontend" / "dist"
-        dist.mkdir(parents=True)
+        assets = dist / "assets"
+        assets.mkdir(parents=True)
+        expected = assets / "app.js"
+        expected.write_text("console.log('ok')", encoding="utf-8")
         with patch.object(sw, "FRONTEND_DIST", dist):
             assert sw.resolve_frontend_asset("/assets/../../secret") is None
+            assert sw.resolve_frontend_asset("/assets/nested/app.js") is None
+            assert sw.resolve_frontend_asset("/assets/app.js") == expected
+
+    def test_response_metadata_uses_safe_allowlists(self):
+        assert sw._normalized_content_type("text/css") == "text/css"
+        assert sw._normalized_content_type("text/plain\r\nX-Evil: true") == "application/octet-stream"
+        assert sw._build_etag(b"body") == f'"{hashlib.sha256(b"body").hexdigest()}"'
 
 
 # ── Watchlist helpers ────────────────────────────────────────────────────────
