@@ -337,6 +337,56 @@ class TestHealthEndpoint:
         assert data["articles_total"] == 0  # no corpus in tmp BASE_DIR
         assert data["articles_cyber"] == 20
 
+    def test_health_exposes_release_and_verified_backup_metadata(self, tmp_path):
+        from datetime import datetime, timedelta, timezone
+
+        completed_at = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        status_dir = tmp_path / "data" / "state"
+        status_dir.mkdir(parents=True)
+        (status_dir / "backup_status.json").write_text(json.dumps({
+            "ok": True,
+            "archive": "tw_20261010_010203.tgz",
+            "sha256": "a" * 64,
+            "completed_at": completed_at,
+            "verified_at": completed_at,
+            "sqlite_files": 2,
+            "json_files": 17,
+            "offsite": {"configured": False, "ok": None},
+        }))
+
+        with patch.dict("os.environ", {
+            "TW_BUILD_SHA": "1234567890abcdef",
+            "TW_BUILD_TIME": "2026-10-10T01:02:03Z",
+        }), patch("serve_threatwatch.load_stats", return_value={}), \
+             patch("serve_threatwatch.BASE_DIR", tmp_path):
+            data = json.loads(sw.build_health())
+
+        assert data["deployment"] == {
+            "sha": "1234567890abcdef",
+            "built_at": "2026-10-10T01:02:03Z",
+            "api_schema_version": "1.0.0",
+            "artifact_schema_versions": {"hunts": 1, "ledger": 1},
+        }
+        assert data["backup"]["ok"] is True
+        assert 1.9 <= data["backup"]["age_hours"] <= 2.1
+        assert data["backup"]["last_restore_verified_at"] == completed_at
+
+    def test_health_handles_invalid_backup_status_without_crashing(self, tmp_path):
+        status_dir = tmp_path / "data" / "state"
+        status_dir.mkdir(parents=True)
+        (status_dir / "backup_status.json").write_text("{")
+
+        with patch("serve_threatwatch.load_stats", return_value={}), \
+             patch("serve_threatwatch.BASE_DIR", tmp_path):
+            data = json.loads(sw.build_health())
+
+        assert data["backup"] == {
+            "configured": False,
+            "ok": None,
+            "age_hours": None,
+            "last_restore_verified_at": None,
+        }
+
     def test_health_handles_missing_stats(self, tmp_path):
         # No completed_at in stats → status="unknown" under the contract that
         # reports real health rather than always returning "ok".

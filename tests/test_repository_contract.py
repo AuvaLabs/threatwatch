@@ -61,3 +61,19 @@ def test_public_contributor_docs_match_current_architecture():
         assert claim not in security
 
     assert "open source for non-commercial use" not in readme.lower()
+
+
+def test_release_scripts_fail_closed_and_verify_recovery():
+    deploy = _read("scripts/deploy.sh")
+    backup = _read("scripts/backup_volume.sh")
+    verify = _read("scripts/verify_backup.sh")
+
+    assert "/api/v1/health" in deploy
+    assert "|| true" not in deploy
+    assert "TW_HEALTH_TIMEOUT" in deploy
+    assert "rollback" in deploy.lower()
+    assert "verify_backup.sh" in backup
+    assert 'pause "$WRITER_CONTAINER"' in backup
+    assert 'unpause "$WRITER_CONTAINER"' in backup
+    assert "sha256sum" in backup
+    assert "verify_backup.py" in verify

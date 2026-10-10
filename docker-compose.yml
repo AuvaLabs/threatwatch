@@ -1,6 +1,10 @@
 services:
   pipeline:
-    build: .
+    build:
+      context: .
+      args:
+        TW_BUILD_SHA: ${TW_BUILD_SHA:-unknown}
+        TW_BUILD_TIME: ${TW_BUILD_TIME:-unknown}
     container_name: threatwatch-pipeline
     restart: unless-stopped
     env_file:
@@ -70,7 +74,11 @@ services:
     command: ["python", "scripts/run_pipeline.py"]
 
   server:
-    build: .
+    build:
+      context: .
+      args:
+        TW_BUILD_SHA: ${TW_BUILD_SHA:-unknown}
+        TW_BUILD_TIME: ${TW_BUILD_TIME:-unknown}
     container_name: threatwatch-server
     restart: unless-stopped
     env_file:

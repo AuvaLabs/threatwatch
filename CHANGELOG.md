@@ -2,6 +2,16 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-11: Verified recovery and guarded releases
+
+- Replaced fixed-delay deployment with a bounded health poll against the versioned API.
+- Added release SHA, build time, API schema version, artifact schema versions, backup age, and last restore verification to service health.
+- Added automatic image rollback when a started release fails its health, corpus continuity, backup, or API route gate.
+- Changed volume backups to briefly pause the pipeline writer so SQLite and WAL files are captured at one filesystem instant.
+- Added SHA-256 sidecars and isolated restore verification with archive path safety, SQLite integrity checks, row counts, and JSON parsing.
+- Made configured offsite transfer failures fail the backup job and exposed non-sensitive offsite status in health metadata.
+- Added recovery and release regression tests plus production operations documentation.
+
 ## 2026-10-09: GitHub repository accuracy and quality gates
 
 - Corrected contributor and security documentation to match the non-commercial license, Preact frontend, SQLite persistence, and current source layout.

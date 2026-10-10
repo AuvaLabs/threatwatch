@@ -102,8 +102,19 @@ Typical deployment from the maintained workspace:
 
 ```bash
 git push origin main
-ssh auvalabs 'cd ~/threatwatch && git pull --ff-only origin main && docker compose build pipeline server && docker compose up -d --no-deps pipeline server'
+ssh auvalabs 'cd ~/threatwatch && git pull --ff-only origin main && bash scripts/deploy.sh'
 ```
+
+The deployment script fails closed on a dirty checkout or unhealthy baseline,
+creates a restore-verified backup, embeds the release SHA and build time, polls
+the versioned health endpoint, checks corpus continuity and the primary API
+routes, and restores the previous container images on failure.
+
+`scripts/backup_volume.sh` briefly pauses the pipeline writer for a consistent
+SQLite and WAL snapshot. It writes a SHA-256 sidecar, restores the archive into
+an isolated temporary directory, checks every SQLite database and JSON file,
+and publishes the result through `/api/v1/health`. Configured offsite transfer
+failures cause the job to fail.
 
 After hunt changes, rebuild the current artifact and validate both containers:
 
@@ -113,4 +124,4 @@ ssh auvalabs 'docker exec threatwatch-pipeline python scripts/rebuild_ledger.py'
 ssh auvalabs 'cd ~/threatwatch && docker compose ps'
 ```
 
-Last updated: 2026-10-09
+Last updated: 2026-10-11

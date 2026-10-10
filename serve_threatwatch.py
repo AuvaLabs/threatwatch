@@ -27,6 +27,8 @@ from modules.threat_ledger import build_ledger
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+API_SCHEMA_VERSION = "1.0.0"
+ARTIFACT_SCHEMA_VERSIONS = {"hunts": 1, "ledger": 1}
 PORT = int(os.environ.get("PORT", 8098))
 CACHE_TTL = 30  # seconds
 WATCHLIST_WRITE_ENABLED = os.environ.get("WATCHLIST_WRITE_ENABLED", "").lower() in ("1", "true", "yes")
@@ -742,6 +744,8 @@ def build_health() -> bytes:
         "api_cost_today_usd": latest_run.get("api_cost_today", 0),
         "feed_health": feed_summary,
         "ai_artifacts": artifact_health,
+        "deployment": _deployment_metadata(),
+        "backup": _backup_status(),
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     payload["briefing_stale"] = briefing_stale
@@ -751,6 +755,52 @@ def build_health() -> bytes:
         else None
     )
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def _deployment_metadata() -> dict:
+    return {
+        "sha": os.environ.get("TW_BUILD_SHA", "unknown"),
+        "built_at": os.environ.get("TW_BUILD_TIME", "unknown"),
+        "api_schema_version": API_SCHEMA_VERSION,
+        "artifact_schema_versions": ARTIFACT_SCHEMA_VERSIONS,
+    }
+
+
+def _backup_status() -> dict:
+    default = {
+        "configured": False,
+        "ok": None,
+        "age_hours": None,
+        "last_restore_verified_at": None,
+    }
+    path = BASE_DIR / "data" / "state" / "backup_status.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return default
+    if not isinstance(payload, dict):
+        return default
+
+    completed_at = payload.get("completed_at")
+    age_hours = None
+    try:
+        completed = datetime.fromisoformat(str(completed_at).replace("Z", "+00:00"))
+        if completed.tzinfo is None:
+            completed = completed.replace(tzinfo=timezone.utc)
+        age_hours = round(max(0, (datetime.now(timezone.utc) - completed).total_seconds()) / 3600, 2)
+    except (TypeError, ValueError):
+        pass
+    return {
+        "configured": True,
+        "ok": payload.get("ok") is True,
+        "age_hours": age_hours,
+        "last_restore_verified_at": payload.get("verified_at"),
+        "archive": payload.get("archive"),
+        "sha256": payload.get("sha256"),
+        "sqlite_files": payload.get("sqlite_files"),
+        "json_files": payload.get("json_files"),
+        "offsite": payload.get("offsite"),
+    }
 
 
 def render_page():
@@ -811,7 +861,7 @@ def build_openapi() -> bytes:
     }
     payload = {
         "openapi": "3.1.0",
-        "info": {"title": "ThreatWatch API", "version": "1.0.0"},
+        "info": {"title": "ThreatWatch API", "version": API_SCHEMA_VERSION},
         "paths": paths,
     }
     return json.dumps(payload, separators=(",", ":")).encode("utf-8")

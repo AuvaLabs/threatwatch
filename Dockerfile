@@ -10,6 +10,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+ARG TW_BUILD_SHA=unknown
+ARG TW_BUILD_TIME=unknown
+ENV TW_BUILD_SHA=${TW_BUILD_SHA} \
+    TW_BUILD_TIME=${TW_BUILD_TIME}
+
 # Install system dependencies required by lxml/trafilatura
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

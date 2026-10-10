@@ -106,6 +106,26 @@ docker compose up -d
 
 The pipeline runs immediately on startup, then every 10 minutes. Dashboard is at **http://localhost:8098**.
 
+For an existing production installation, release a clean checkout through the
+guarded workflow:
+
+```bash
+bash scripts/deploy.sh
+```
+
+The release script requires healthy versioned API output, creates and restores
+a verified backup, embeds the Git SHA and build time, checks article-count
+continuity, validates the primary API routes, and restores the prior images if
+the new release fails its gate. Nightly backups use the same recovery proof:
+
+```cron
+15 3 * * * cd /path/to/threatwatch && TW_BACKUP_DIR=/path/to/backups bash scripts/backup_volume.sh
+```
+
+Each archive receives a SHA-256 sidecar. `scripts/verify_backup.sh` restores it
+to an isolated temporary directory, runs SQLite integrity checks, and parses
+every JSON artifact before the backup is marked healthy.
+
 ### Manual setup
 
 ```bash
@@ -386,6 +406,18 @@ The public ledger does not accept or infer an organization's inventory. Its reco
   "articles_cyber": 120,
   "api_cost_today_usd": 0.05,
   "feed_health": {"ok": 140, "dead": 5, "slow": 10},
+  "deployment": {
+    "sha": "1234567890abcdef",
+    "built_at": "2026-10-10T01:02:03Z",
+    "api_schema_version": "1.0.0",
+    "artifact_schema_versions": {"hunts": 1, "ledger": 1}
+  },
+  "backup": {
+    "configured": true,
+    "ok": true,
+    "age_hours": 6.25,
+    "last_restore_verified_at": "2026-10-10T03:15:48+00:00"
+  },
   "generated_at": "2026-03-21T10:05:00+00:00"
 }
 ```
