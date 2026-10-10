@@ -67,13 +67,17 @@ def test_release_scripts_fail_closed_and_verify_recovery():
     deploy = _read("scripts/deploy.sh")
     backup = _read("scripts/backup_volume.sh")
     verify = _read("scripts/verify_backup.sh")
+    dockerfile = _read("Dockerfile")
 
     assert "/api/v1/health" in deploy
     assert "|| true" not in deploy
     assert "TW_HEALTH_TIMEOUT" in deploy
+    assert '--build-arg "TW_BUILD_SHA=$EXPECTED_SHA"' in deploy
+    assert '--build-arg "TW_BUILD_TIME=$BUILD_TIME"' in deploy
     assert "rollback" in deploy.lower()
     assert "verify_backup.sh" in backup
     assert 'pause "$WRITER_CONTAINER"' in backup
     assert 'unpause "$WRITER_CONTAINER"' in backup
     assert "sha256sum" in backup
     assert "verify_backup.py" in verify
+    assert dockerfile.index("RUN pip install") < dockerfile.index("ARG TW_BUILD_SHA")

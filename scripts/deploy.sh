@@ -102,11 +102,12 @@ echo "[deploy] creating verified backup"
 bash "$SCRIPT_DIR/backup_volume.sh"
 
 capture_current_images
-export TW_BUILD_SHA="$EXPECTED_SHA"
-export TW_BUILD_TIME="$BUILD_TIME"
 if $REBUILD; then
   echo "[deploy] building release images"
-  "${COMPOSE[@]}" build pipeline server
+  "${COMPOSE[@]}" build \
+    --build-arg "TW_BUILD_SHA=$EXPECTED_SHA" \
+    --build-arg "TW_BUILD_TIME=$BUILD_TIME" \
+    pipeline server
 fi
 
 echo "[deploy] starting release"

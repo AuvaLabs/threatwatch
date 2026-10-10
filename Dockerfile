@@ -10,11 +10,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-ARG TW_BUILD_SHA=unknown
-ARG TW_BUILD_TIME=unknown
-ENV TW_BUILD_SHA=${TW_BUILD_SHA} \
-    TW_BUILD_TIME=${TW_BUILD_TIME}
-
 # Install system dependencies required by lxml/trafilatura
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -26,6 +21,13 @@ RUN apt-get update && \
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Release metadata changes on every deployment. Keep it after dependency
+# installation so a new Git SHA does not invalidate the expensive pip layer.
+ARG TW_BUILD_SHA=unknown
+ARG TW_BUILD_TIME=unknown
+ENV TW_BUILD_SHA=${TW_BUILD_SHA} \
+    TW_BUILD_TIME=${TW_BUILD_TIME}
 
 # Copy application source and the immutable frontend build.
 COPY threatdigest_main.py serve_threatwatch.py favicon.svg ./
