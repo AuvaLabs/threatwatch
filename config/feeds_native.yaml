@@ -137,13 +137,13 @@
 
 # Proofpoint — returns 404 (verified 2026-03-22)
 # - url: https://www.proofpoint.com/us/blog/rss.xml
-  category: Native
-  region: US
+#   category: Native
+#   region: US
 
 # Zscaler — returns 404 (verified 2026-03-22)
 # - url: https://www.zscaler.com/blogs/security-research/rss
-  category: Native
-  region: Global
+#   category: Native
+#   region: Global
 
 # Trend Micro Research — original /en_us/research.rss.html URL 404s as of
 # 2026-05-10; switched to the FeedBurner-hosted feed which serves 100 entries.
@@ -221,8 +221,8 @@
 
 # FortiGuard — returns 500 (verified 2026-03-22)
 # - url: https://www.fortiguard.com/rss/ir.xml
-  category: Native
-  region: Global
+#   category: Native
+#   region: Global
 
 # F5 advisory RSS retired — article-specific RSS URL no longer valid
 
@@ -314,10 +314,10 @@
 #   category: Native
 #   region: Global
 
-# Arctic Wolf — returns 404 (verified 2026-03-22)
+# Arctic Wolf returns 404 (verified 2026-03-22)
 # - url: https://www.arcticwolf.com/resources/blog/feed/
-  category: Native
-  region: Global
+#   category: Native
+#   region: Global
 
 - url: https://blog.sucuri.net/feed/
   category: Native
@@ -337,13 +337,13 @@
 
 # Dragos — returns 404 (verified 2026-03-22)
 # - url: https://www.dragos.com/blog/feed/
-  category: Native
-  region: Global
+#   category: Native
+#   region: Global
 
 # Nozomi Networks — returns 404 (verified 2026-03-22)
 # - url: https://www.nozominetworks.com/blog/feed/
-  category: Native
-  region: Global
+#   category: Native
+#   region: Global
 
 # Tier 13: Dark Web & Breach News Aggregators
 # Hackread — returns 403 from VPS IP (verified 2026-04-01)
@@ -383,6 +383,11 @@
   region: Europe
 
 # Tier 15: Threat Intelligence Research
+- url: https://www.morphisec.com/blog/topic/threat-research/feed/
+  name: Morphisec Threat Labs
+  category: Native
+  region: Global
+
 - url: https://www.intel471.com/blog/feed
   category: Native
   region: Global
@@ -438,6 +443,21 @@
   region: Global
 
 # Tier 19: Major Vendor Blogs (round 2, verified 2026-04-21)
+- url: https://aws.amazon.com/security/security-bulletins/rss/feed/
+  name: AWS Security Bulletins
+  category: Native
+  region: Global
+
+- url: https://www.microsoft.com/en-us/security/blog/feed/
+  name: Microsoft Security Blog
+  category: Native
+  region: Global
+
+- url: https://aws.amazon.com/blogs/security/feed/
+  name: AWS Security Blog
+  category: Native
+  region: Global
+
 - url: https://www.reversinglabs.com/blog/rss.xml
   category: Native
   region: Global

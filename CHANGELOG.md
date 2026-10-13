@@ -2,6 +2,13 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-13: Primary security source expansion
+
+- Added the Morphisec Threat Labs research feed without importing the broader vendor marketing feed.
+- Added AWS Security Bulletins, AWS Security Blog, and Microsoft Security Blog as named primary sources.
+- Corrected a commented Arctic Wolf entry that unintentionally overwrote the CERT Polska region from Poland to Global.
+- Added configuration regression tests for source identity, uniqueness, category, and region.
+
 ## 2026-10-11: Verified recovery and guarded releases
 
 - Replaced fixed-delay deployment with a bounded health poll against the versioned API.

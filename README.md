@@ -9,7 +9,7 @@
 [![License: Non-Commercial](https://img.shields.io/badge/license-Non--Commercial-orange.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![AI Powered](https://img.shields.io/badge/AI-intelligence--briefing-8B5CF6?logo=openai&logoColor=white)]()
-[![Feeds](https://img.shields.io/badge/feeds-141-blue)]()
+[![Feeds](https://img.shields.io/badge/feeds-145-blue)]()
 [![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/threatwatch?style=social)](https://github.com/AuvaLabs/threatwatch)
 
 **[Live Demo](https://threatwatch.auvalabs.com)**
@@ -31,7 +31,7 @@ ThreatWatch turns public cyber reporting into a living threat-state and decision
 ## Features
 
 ### Collection
-- **141 RSS feeds** covering security blogs, vendor advisories, CERTs, Google News, and Bing News
+- **145 RSS feeds** covering security blogs, vendor advisories, CERTs, Google News, and Bing News
 - **NewsAPI integration** — additional security news with rate-limited fetching (100 req/day free tier)
 - **Dark web monitoring** — ThreatFox IOCs, ransomware victim tracking (ransomware.live), active C2 server IPs
 - **Continuous pipeline** with a new cycle every 10 minutes and typical completion in 2 to 4 minutes
