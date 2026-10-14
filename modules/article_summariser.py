@@ -32,10 +32,11 @@ def _positive_int_env(name: str, default: int) -> int:
 
 # --- AI Article Summaries: batch-summarize articles missing summaries ---
 
-_SUMMARY_BATCH_SIZE = 10  # articles per LLM call
+_SUMMARY_BATCH_SIZE = _positive_int_env("SUMMARY_BATCH_SIZE", 5)
 # Was 30/run which only covered ~2% of the ~1600 articles/run backlog, leaving
 # >50% of the corpus without summaries. Groq's free tier accommodates higher
-# throughput; batches of 10 keep token usage per call predictable.
+# throughput. Five-article batches keep structured responses below common
+# output limits and avoid spending a second call on truncated JSON.
 _MAX_SUMMARIES_PER_RUN = _positive_int_env("MAX_SUMMARIES_PER_RUN", 150)
 _SUMMARY_MAX_TOKENS = _positive_int_env("SUMMARY_MAX_TOKENS", 1600)
 try:

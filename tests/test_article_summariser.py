@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 # Import via briefing_generator to avoid circular import
 from modules.briefing_generator import summarize_articles
+from modules import article_summariser as summariser
 
 
 def _article(title="Test", summary="", is_cyber=True):
@@ -13,6 +14,9 @@ def _article(title="Test", summary="", is_cyber=True):
 
 
 class TestSummarizeArticles:
+    def test_default_batch_size_keeps_structured_output_within_limit(self):
+        assert summariser._SUMMARY_BATCH_SIZE == 5
+
     def test_returns_zero_without_provider(self):
         with patch("modules.article_summariser.is_available", return_value=False):
             assert summarize_articles([_article()]) == 0
@@ -109,6 +113,7 @@ class TestSummarizeArticles:
             for index in range(1, 11)
         ])
         monkeypatch.setattr("modules.article_summariser._MAX_SUMMARIES_PER_RUN", 20)
+        monkeypatch.setattr("modules.article_summariser._SUMMARY_BATCH_SIZE", 10)
         monkeypatch.setattr("modules.article_summariser._SUMMARY_BATCH_DELAY_SECONDS", 5.0)
 
         with patch("modules.article_summariser.is_available", return_value=True), \
@@ -129,6 +134,7 @@ class TestSummarizeArticles:
             for index in range(1, 11)
         ]
         monkeypatch.setattr("modules.article_summariser._MAX_SUMMARIES_PER_RUN", 20)
+        monkeypatch.setattr("modules.article_summariser._SUMMARY_BATCH_SIZE", 10)
         monkeypatch.setattr("modules.article_summariser._SUMMARY_BATCH_DELAY_SECONDS", 5.0)
 
         with patch("modules.article_summariser.is_available", return_value=True), \

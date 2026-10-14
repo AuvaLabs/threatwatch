@@ -199,8 +199,9 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `LLM_MODEL` | provider dependent | Primary model name |
 | `LLM_PROVIDER` | `openai` | OpenAI-compatible provider mode |
 | `MAX_SUMMARIES_PER_RUN` | `150` | Maximum articles summarized per enrichment cycle |
+| `SUMMARY_BATCH_SIZE` | `5` | Articles per structured summary call |
 | `SUMMARY_BATCH_DELAY_SECONDS` | `5` | Delay between uncached summary batches to protect provider quotas |
-| `SUMMARY_MAX_TOKENS` | `1600` | Output budget for each ten-article summary batch |
+| `SUMMARY_MAX_TOKENS` | `1600` | Output budget for each structured summary batch |
 
 Example Claude configuration:
 
