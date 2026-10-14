@@ -1,8 +1,7 @@
 """AI-powered cyber threat intelligence briefing generator.
 
-Generates analyst-grade intelligence briefings using an OpenAI-compatible LLM.
-Kimi is the default/recommended provider; any OpenAI-compatible endpoint works
-via LLM_* environment variables.
+Generates analyst-grade intelligence briefings through the shared LLM client.
+Native Anthropic and OpenAI-compatible providers are supported.
 
 Configure via environment variables:
   LLM_API_KEY: API key (falls back to KIMI_API_KEY, then OPENAI_API_KEY)
@@ -24,7 +23,7 @@ from pathlib import Path
 
 
 from modules.config import (
-    LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, BRIEFING_MODEL,
+    ANTHROPIC_API_KEY, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, BRIEFING_MODEL,
     MAX_CONTENT_CHARS, OUTPUT_DIR,
 )
 from modules.ai_cache import get_cached_result, cache_result
@@ -120,7 +119,7 @@ Every array field (`what_happened_sources`, `what_to_do[].sources`, `week_in_rev
 
 def _detect_provider() -> str | None:
     """Return the provider handle if an LLM API key is configured."""
-    if not LLM_API_KEY:
+    if not (ANTHROPIC_API_KEY or LLM_API_KEY):
         return None
     return "openai"
 
@@ -1099,7 +1098,10 @@ def generate_regional_briefings(articles: list[dict[str, Any]]) -> dict[str, Any
         try:
             clear_last_provider()
             reply = _call_openai_compatible(
-                user_content, caller="regional", max_tokens=4000
+                user_content,
+                caller="regional",
+                max_tokens=4000,
+                model=BRIEFING_MODEL,
             )
 
             briefing = _parse_json(reply)

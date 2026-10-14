@@ -132,11 +132,18 @@ class TestParseJson:
 # ---------------------------------------------------------------------------
 class TestDetectProvider:
     def test_no_key_returns_none(self):
-        with patch("modules.briefing_generator.LLM_API_KEY", None):
+        with patch("modules.briefing_generator.LLM_API_KEY", None), \
+             patch("modules.briefing_generator.ANTHROPIC_API_KEY", ""):
             assert _detect_provider() is None
 
     def test_key_configured_returns_openai(self):
-        with patch("modules.briefing_generator.LLM_API_KEY", "sk-test"):
+        with patch("modules.briefing_generator.LLM_API_KEY", "sk-test"), \
+             patch("modules.briefing_generator.ANTHROPIC_API_KEY", ""):
+            assert _detect_provider() == "openai"
+
+    def test_anthropic_key_returns_provider_handle(self):
+        with patch("modules.briefing_generator.LLM_API_KEY", ""), \
+             patch("modules.briefing_generator.ANTHROPIC_API_KEY", "sk-test"):
             assert _detect_provider() == "openai"
 
 

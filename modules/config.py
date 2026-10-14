@@ -8,6 +8,19 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+# Native Anthropic provider. When configured it is preferred over the generic
+# OpenAI-compatible chain, which remains available as a fallback.
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-5-5")
+ANTHROPIC_BRIEFING_MODEL = os.getenv(
+    "ANTHROPIC_BRIEFING_MODEL", "claude-sonnet-5-5"
+)
+ANTHROPIC_TOP_STORIES_MODEL = os.getenv(
+    "ANTHROPIC_TOP_STORIES_MODEL", "claude-sonnet-5-5"
+)
+ANTHROPIC_TIMEOUT = float(os.getenv("ANTHROPIC_TIMEOUT", "60"))
+
 # Provider-agnostic LLM config for AI features.
 # Supports any OpenAI-compatible API. Kimi is the default/recommended provider.
 _KIMI_API_KEY = os.getenv("KIMI_API_KEY")
@@ -40,8 +53,16 @@ LLM_API_KEYS = [
 
 # Briefing and top-stories models default to the global LLM model so a single
 # provider switch (e.g. to Kimi) propagates everywhere.
-BRIEFING_MODEL = os.getenv("BRIEFING_MODEL", LLM_MODEL)
-TOP_STORIES_MODEL = os.getenv("TOP_STORIES_MODEL", LLM_MODEL)
+BRIEFING_MODEL = (
+    ANTHROPIC_BRIEFING_MODEL
+    if ANTHROPIC_API_KEY
+    else os.getenv("BRIEFING_MODEL", LLM_MODEL)
+)
+TOP_STORIES_MODEL = (
+    ANTHROPIC_TOP_STORIES_MODEL
+    if ANTHROPIC_API_KEY
+    else os.getenv("TOP_STORIES_MODEL", LLM_MODEL)
+)
 
 # Optional independent OpenAI-compatible fallbacks. Historical variable names
 # are retained so existing VPS configuration keeps working while routing is
@@ -126,7 +147,13 @@ DAILY_BUDGET_USD = float(os.getenv("DAILY_BUDGET_USD", "2.00"))
 
 
 def validate_config():
-    if LLM_API_KEY:
+    if ANTHROPIC_API_KEY:
+        logger.info(
+            "LLM configured: AI features enabled "
+            f"(native Anthropic/{ANTHROPIC_MODEL} via "
+            f"{ANTHROPIC_BASE_URL.split('@')[-1]})."
+        )
+    elif LLM_API_KEY:
         logger.info(
             f"LLM configured: AI features enabled ({LLM_PROVIDER}/{LLM_MODEL} via "
             f"{LLM_BASE_URL.split('@')[-1]})."

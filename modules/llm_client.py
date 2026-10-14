@@ -10,6 +10,10 @@ from typing import Any
 import requests
 
 from modules.config import (
+    ANTHROPIC_API_KEY,
+    ANTHROPIC_BASE_URL,
+    ANTHROPIC_MODEL,
+    ANTHROPIC_TIMEOUT,
     BRIEFING_FALLBACK_API_KEY,
     BRIEFING_FALLBACK_BASE_URL,
     BRIEFING_FALLBACK_MODEL,
@@ -44,6 +48,7 @@ class Provider:
     keys: tuple[str, ...]
     timeout: float
     rotate_keys: bool = False
+    protocol: str = "openai"
 
 
 def _record_success() -> None:
@@ -117,15 +122,24 @@ def _primary_timeout() -> float:
 
 def _configured_providers(model_override: str | None = None) -> list[Provider]:
     providers: list[Provider] = []
+    anthropic_configured = bool(
+        ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL and ANTHROPIC_MODEL
+    )
+    if anthropic_configured:
+        providers.append(Provider(
+            "anthropic", ANTHROPIC_BASE_URL, model_override or ANTHROPIC_MODEL,
+            (ANTHROPIC_API_KEY,), ANTHROPIC_TIMEOUT, protocol="anthropic",
+        ))
     primary_keys = (
         tuple(LLM_API_KEYS) or (LLM_API_KEY,)
         if LLM_API_KEY else ()
     )
     if LLM_BASE_URL and primary_keys:
+        primary_model = LLM_MODEL if anthropic_configured else model_override or LLM_MODEL
         providers.append(Provider(
             "kimi" if _is_kimi_endpoint() else "primary",
             LLM_BASE_URL,
-            model_override or LLM_MODEL,
+            primary_model,
             primary_keys,
             _primary_timeout(),
             rotate_keys=True,
@@ -142,9 +156,9 @@ def _configured_providers(model_override: str | None = None) -> list[Provider]:
             keys, BRIEFING_FALLBACK_TIMEOUT,
         ))
     unique: list[Provider] = []
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, str]] = set()
     for provider in providers:
-        identity = (provider.base_url.rstrip("/"), provider.model)
+        identity = (provider.protocol, provider.base_url.rstrip("/"), provider.model)
         if identity not in seen:
             unique.append(provider)
             seen.add(identity)
@@ -169,6 +183,74 @@ def _payload(provider: Provider, user_content: str, system_prompt: str,
     if response_format is not None:
         payload["response_format"] = response_format
     return payload
+
+
+def _anthropic_payload(provider: Provider, user_content: str,
+                       system_prompt: str, max_tokens: int) -> dict[str, Any]:
+    return {
+        "model": provider.model,
+        "max_tokens": max_tokens,
+        "system": system_prompt,
+        "messages": [{"role": "user", "content": user_content}],
+    }
+
+
+def _request_parts(provider: Provider, api_key: str, user_content: str,
+                   system_prompt: str, max_tokens: int,
+                   response_format: dict | None) -> tuple[str, dict, dict]:
+    if provider.protocol == "anthropic":
+        url = f"{provider.base_url.rstrip('/')}/messages"
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        }
+        payload = _anthropic_payload(
+            provider, user_content, system_prompt, max_tokens,
+        )
+        return url, headers, payload
+    url = f"{provider.base_url.rstrip('/')}/chat/completions"
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    payload = _payload(
+        provider, user_content, system_prompt, max_tokens, response_format,
+    )
+    return url, headers, payload
+
+
+def _anthropic_response(data: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    blocks = data.get("content")
+    if not isinstance(blocks, list):
+        raise ValueError("invalid Anthropic content")
+    content = "".join(
+        block.get("text", "")
+        for block in blocks
+        if isinstance(block, dict) and block.get("type") == "text"
+    ).strip()
+    if not content:
+        raise ValueError("empty provider response")
+    usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
+    prompt_tokens = int(usage.get("input_tokens") or 0)
+    completion_tokens = int(usage.get("output_tokens") or 0)
+    normalized = {
+        "usage": {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+        }
+    }
+    return content, normalized
+
+
+def _provider_response(provider: Provider,
+                       data: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    if provider.protocol == "anthropic":
+        return _anthropic_response(data)
+    content = data["choices"][0]["message"]["content"].strip()
+    if not content:
+        raise ValueError("empty provider response")
+    return content, data
 
 
 def _response_format_unsupported(response: requests.Response) -> bool:
@@ -200,15 +282,16 @@ def _record_usage(api_key: str, data: dict, caller: str | None, provider: Provid
 def _call_provider(provider: Provider, user_content: str, system_prompt: str,
                    max_tokens: int, response_format: dict | None,
                    caller: str | None) -> str:
-    url = f"{provider.base_url.rstrip('/')}/chat/completions"
     last_error = "provider unavailable"
     for attempt, api_key in enumerate(_provider_keys(provider), 1):
-        payload = _payload(provider, user_content, system_prompt, max_tokens, response_format)
-        allow_format_retry = response_format is not None
+        url, headers, payload = _request_parts(
+            provider, api_key, user_content, system_prompt, max_tokens,
+            response_format,
+        )
+        allow_format_retry = (
+            provider.protocol == "openai" and response_format is not None
+        )
         while True:
-            headers = {"Content-Type": "application/json"}
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
             try:
                 response = _get_http_session().post(
                     url, json=payload, headers=headers, timeout=provider.timeout,
@@ -224,10 +307,8 @@ def _call_provider(provider: Provider, user_content: str, system_prompt: str,
                     break
                 response.raise_for_status()
                 data = response.json()
-                content = data["choices"][0]["message"]["content"].strip()
-                if not content:
-                    raise RuntimeError("empty provider response")
-                _record_usage(api_key, data, caller, provider)
+                content, usage_data = _provider_response(provider, data)
+                _record_usage(api_key, usage_data, caller, provider)
                 return content
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
                 last_error = type(exc).__name__

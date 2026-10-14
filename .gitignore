@@ -29,6 +29,7 @@ frontend/coverage/
 .env.bak*
 .env.*.bak
 !.env.example
+.secrets/
 
 # OS
 *.swp

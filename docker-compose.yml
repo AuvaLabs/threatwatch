@@ -9,6 +9,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+      - path: ${ANTHROPIC_ENV_FILE:-.secrets/anthropic.env}
+        required: false
     environment:
       - SITE_DOMAIN=${SITE_DOMAIN:-localhost:8098}
       - FEED_CUTOFF_DAYS=${FEED_CUTOFF_DAYS:-7}

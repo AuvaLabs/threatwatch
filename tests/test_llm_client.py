@@ -59,6 +59,10 @@ def single_key(monkeypatch):
     monkeypatch.setattr(llm_client, "LLM_API_KEY", "test-key")
     monkeypatch.setattr(llm_client, "LLM_BASE_URL", "https://api.example.com/v1")
     monkeypatch.setattr(llm_client, "LLM_MODEL", "test-model")
+    monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(llm_client, "ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
+    monkeypatch.setattr(llm_client, "ANTHROPIC_MODEL", "claude-haiku-5-5")
+    monkeypatch.setattr(llm_client, "ANTHROPIC_TIMEOUT", 60.0)
     monkeypatch.setattr(llm_client, "FEATHERLESS_API_KEY", "")
     monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "")
     monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_API_KEY", "")
@@ -181,6 +185,109 @@ class TestProviderFailover:
             call_llm("x", system_prompt="y")
 
         assert mock_session.post.call_count == 1
+
+
+class TestAnthropicProvider:
+    def test_native_messages_request_is_preferred(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "sk-ant-test")
+        mock_session.post.return_value = _mock_response(
+            json_body={
+                "content": [{"type": "text", "text": "  claude result  "}],
+                "usage": {"input_tokens": 12, "output_tokens": 5},
+            }
+        )
+
+        result = call_llm("article", system_prompt="analyse")
+
+        assert result == "claude result"
+        request = mock_session.post.call_args
+        assert request.args[0] == "https://api.anthropic.com/v1/messages"
+        assert request.kwargs["headers"]["x-api-key"] == "sk-ant-test"
+        assert request.kwargs["headers"]["anthropic-version"] == "2023-06-01"
+        assert "Authorization" not in request.kwargs["headers"]
+        assert request.kwargs["json"] == {
+            "model": "claude-haiku-5-5",
+            "max_tokens": 2000,
+            "system": "analyse",
+            "messages": [{"role": "user", "content": "article"}],
+        }
+        assert llm_client.last_provider_label() == "anthropic/claude-haiku-5-5"
+
+    def test_task_model_override_only_applies_to_anthropic(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "sk-ant-test")
+        anthropic_429 = _mock_response(status_code=429, text="rate limited")
+        primary_ok = _mock_response(
+            json_body={"choices": [{"message": {"content": "fallback result"}}]}
+        )
+        mock_session.post.side_effect = [anthropic_429, primary_ok]
+
+        result = call_llm("x", system_prompt="y", model="claude-sonnet-5-5")
+
+        assert result == "fallback result"
+        calls = mock_session.post.call_args_list
+        assert calls[0].kwargs["json"]["model"] == "claude-sonnet-5-5"
+        assert calls[1].kwargs["json"]["model"] == "test-model"
+        assert calls[1].args[0] == "https://api.example.com/v1/chat/completions"
+
+    def test_structured_output_hint_is_not_sent_as_openai_field(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "sk-ant-test")
+        mock_session.post.return_value = _mock_response(
+            json_body={
+                "content": [{"type": "text", "text": "{}"}],
+                "usage": {"input_tokens": 8, "output_tokens": 1},
+            }
+        )
+
+        call_llm(
+            "x", system_prompt="return JSON",
+            response_format={"type": "json_object"},
+        )
+
+        payload = mock_session.post.call_args.kwargs["json"]
+        assert "response_format" not in payload
+        assert "temperature" not in payload
+
+    def test_native_usage_is_normalized_for_usage_tracker(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "sk-ant-test")
+        mock_session.post.return_value = _mock_response(
+            json_body={
+                "content": [{"type": "text", "text": "ok"}],
+                "usage": {"input_tokens": 12, "output_tokens": 5},
+            }
+        )
+
+        with patch.object(llm_client, "_record_usage") as record:
+            call_llm("x", system_prompt="y", caller="summaries")
+
+        data = record.call_args.args[1]
+        assert data["usage"] == {
+            "prompt_tokens": 12,
+            "completion_tokens": 5,
+            "total_tokens": 17,
+        }
+        assert record.call_args.args[3].name == "anthropic"
+
+    def test_empty_native_content_falls_back(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "sk-ant-test")
+        empty = _mock_response(
+            json_body={
+                "content": [{"type": "thinking", "thinking": "internal"}],
+                "usage": {"input_tokens": 3, "output_tokens": 2},
+            }
+        )
+        primary_ok = _mock_response(
+            json_body={"choices": [{"message": {"content": "safe fallback"}}]}
+        )
+        mock_session.post.side_effect = [empty, primary_ok]
+
+        assert call_llm("x", system_prompt="y") == "safe fallback"
+        assert mock_session.post.call_count == 2
 
 
 class TestKimiEndpoint:
@@ -315,6 +422,12 @@ class TestIsAvailable:
         monkeypatch.setattr(llm_client, "LLM_API_KEY", "")
         monkeypatch.setattr(llm_client, "LLM_API_KEYS", [])
         assert is_available() is False
+
+    def test_true_with_anthropic_key_only(self, monkeypatch):
+        monkeypatch.setattr(llm_client, "LLM_API_KEY", "")
+        monkeypatch.setattr(llm_client, "LLM_API_KEYS", [])
+        monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "sk-ant-test")
+        assert is_available() is True
 
 
 class TestAllKeysExhausted:

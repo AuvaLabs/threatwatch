@@ -25,11 +25,18 @@ def _article(title="Test", category="Ransomware", confidence=90, region="US",
 
 class TestDetectProvider:
     def test_no_api_key_returns_none(self):
-        with patch.object(bg, "LLM_API_KEY", ""):
+        with patch.object(bg, "LLM_API_KEY", ""), \
+             patch.object(bg, "ANTHROPIC_API_KEY", ""):
             assert bg._detect_provider() is None
 
     def test_key_configured_returns_openai(self):
-        with patch.object(bg, "LLM_API_KEY", "key"):
+        with patch.object(bg, "LLM_API_KEY", "key"), \
+             patch.object(bg, "ANTHROPIC_API_KEY", ""):
+            assert bg._detect_provider() == "openai"
+
+    def test_anthropic_key_returns_provider_handle(self):
+        with patch.object(bg, "LLM_API_KEY", ""), \
+             patch.object(bg, "ANTHROPIC_API_KEY", "key"):
             assert bg._detect_provider() == "openai"
 
 
@@ -371,10 +378,10 @@ class TestGenerateRegionalDigests:
         articles = self._articles("US", 20)
         with patch.object(bg, "_detect_provider", return_value="openai"), \
              patch.object(bg, "get_cached_result", return_value=None), \
-             patch.object(bg, "_call_openai_compatible", return_value=llm_reply), \
+             patch.object(bg, "_call_openai_compatible", return_value=llm_reply) as call_mock, \
              patch.object(bg, "_parse_json", return_value=json.loads(llm_reply)), \
              patch.object(bg, "cache_result"), \
-             patch.object(bg, "LLM_MODEL", "test"), \
+             patch.object(bg, "BRIEFING_MODEL", "sonnet-test"), \
              patch.object(bg, "_save_regional_briefing"), \
              patch.object(bg, "_regional_rate_limit_path",
                          side_effect=lambda k: tmp_path / f".rate_{k}"), \
@@ -383,6 +390,7 @@ class TestGenerateRegionalDigests:
             result = bg.generate_regional_briefings(articles)
         assert "na" in result
         assert result["na"]["what_happened"] == "NA digest."
+        assert call_mock.call_args.kwargs["model"] == "sonnet-test"
 
     def test_skips_region_with_too_few_articles(self, tmp_path):
         articles = self._articles("US", 2)  # Only 2 — below threshold of 5

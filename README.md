@@ -182,10 +182,17 @@ Sign up at [newsapi.org](https://newsapi.org) for a free API key (100 requests/d
 
 ### Optional: AI intelligence platform
 
-ThreatWatch works without any API keys. To enable the full AI platform (intelligence digest, top stories, article summaries, incident clustering, actor profiles, and AI classification), configure any OpenAI-compatible LLM provider:
+ThreatWatch works without any API keys. To enable the full AI platform (intelligence digest, top stories, article summaries, incident clustering, actor profiles, and AI classification), configure the native Claude provider, an OpenAI-compatible provider, or both:
 
 | Variable | Default | Description |
 |---|---|---|
+| `ANTHROPIC_ENV_FILE` | `.secrets/anthropic.env` | Gitignored runtime secret file loaded by Compose |
+| `ANTHROPIC_API_KEY` | _(empty)_ | Preferred native Claude API key |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com/v1` | Native Claude API base URL |
+| `ANTHROPIC_MODEL` | `claude-haiku-5-5` | Bulk enrichment model |
+| `ANTHROPIC_BRIEFING_MODEL` | `claude-sonnet-5-5` | Command and regional briefing model |
+| `ANTHROPIC_TOP_STORIES_MODEL` | `claude-sonnet-5-5` | Top-story synthesis model |
+| `ANTHROPIC_TIMEOUT` | `60` | Native Claude request timeout in seconds |
 | `LLM_API_KEY` | _(empty)_ | API key for your LLM provider |
 | `LLM_API_KEYS` | _(empty)_ | Comma-separated keys for round-robin rotation |
 | `LLM_BASE_URL` | provider dependent | Primary API base URL |
@@ -194,6 +201,19 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `MAX_SUMMARIES_PER_RUN` | `150` | Maximum articles summarized per enrichment cycle |
 | `SUMMARY_BATCH_DELAY_SECONDS` | `5` | Delay between uncached summary batches to protect provider quotas |
 | `SUMMARY_MAX_TOKENS` | `1600` | Output budget for each ten-article summary batch |
+
+Example Claude configuration:
+
+```env
+ANTHROPIC_API_KEY=your_key_here
+ANTHROPIC_MODEL=claude-haiku-5-5
+ANTHROPIC_BRIEFING_MODEL=claude-sonnet-5-5
+ANTHROPIC_TOP_STORIES_MODEL=claude-sonnet-5-5
+```
+
+When Claude is configured, it is tried first. Haiku handles routine, high-volume
+enrichment while Sonnet handles briefings and top-story synthesis. The generic
+`LLM_*` provider remains the first independent fallback.
 
 Example Kimi configuration:
 
@@ -222,7 +242,9 @@ The same fallback route protects every AI capability, not only the global briefi
 | `BRIEFING_FALLBACK_MODEL` | 2 | _(empty)_ | Second fallback model |
 | `BRIEFING_FALLBACK_TIMEOUT` | 2 | `60` | Per-request seconds |
 
-The route tries primary, first fallback, then second fallback. HTTP 429, timeout, connection, 5xx, invalid response, and retired-model failures move to the next independent provider.
+The route tries native Claude, the primary OpenAI-compatible provider, first
+fallback, then second fallback. HTTP 429, timeout, connection, 5xx, invalid
+response, and retired-model failures move to the next independent provider.
 
 ### Optional IOC corroboration
 
