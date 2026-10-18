@@ -40,14 +40,14 @@ MODEL_SERVICES_MODEL=gpt-6-luna
 MODEL_SERVICES_TIMEOUT=240
 MODEL_SERVICES_REASONING_EFFORT=low
 MODEL_SERVICES_CALLERS=briefing,top_stories
-MODEL_SERVICES_DAILY_CALL_LIMIT=8
-MODEL_SERVICES_CALLER_COOLDOWN_SECONDS=21600
+MODEL_SERVICES_DAILY_CALL_LIMIT=48
+MODEL_SERVICES_CALLER_COOLDOWN_SECONDS=3600
 LLM_ZERO_COST_PROVIDERS=modelservices,primary,fallback
 ```
 
 The automated route supports only the global briefing and top-stories callers.
 It uses `gpt-6-luna` with low reasoning, allows at most one attempt per caller
-every six hours, and permits at most eight attempts per UTC day. Attempts are
+every hour, and permits at most 48 attempts per UTC day. Attempts are
 reserved before network access, so failures and timeouts cannot bypass the
 subscription guard. Regional briefings and bulk enrichment continue through
 the normal provider chain. The gateway is reached over IPv4 because its edge

@@ -198,8 +198,8 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `MODEL_SERVICES_URL` | AuvaLabs gateway | Exact private gateway chat endpoint |
 | `MODEL_SERVICES_MODEL` | `gpt-6-luna` | Economical model used for scheduled synthesis |
 | `MODEL_SERVICES_CALLERS` | `briefing,top_stories` | Callers allowed to use the shared subscription |
-| `MODEL_SERVICES_DAILY_CALL_LIMIT` | `8` | Maximum gateway attempts per UTC day |
-| `MODEL_SERVICES_CALLER_COOLDOWN_SECONDS` | `21600` | Minimum seconds between attempts by one caller |
+| `MODEL_SERVICES_DAILY_CALL_LIMIT` | `48` | Maximum gateway attempts per UTC day |
+| `MODEL_SERVICES_CALLER_COOLDOWN_SECONDS` | `3600` | Minimum seconds between attempts by one caller |
 | `LLM_API_KEY` | _(empty)_ | API key for your LLM provider |
 | `LLM_API_KEYS` | _(empty)_ | Comma-separated keys for round-robin rotation |
 | `LLM_BASE_URL` | provider dependent | Primary API base URL |
@@ -230,8 +230,8 @@ independent fallback.
 
 When the private Model Services token is configured, `gpt-6-luna` is tried
 before Claude only for the global briefing and top-stories callers. The durable
-quota guard limits each caller to one attempt every six hours and limits the
-combined route to eight attempts per UTC day. Bulk summaries, classification,
+quota guard limits each caller to one attempt every hour and limits the
+combined route to 48 attempts per UTC day. Bulk summaries, classification,
 regional briefings, and enrichment never use the subscription-backed gateway.
 See `docs/LLM_PROVIDERS.md` for the full routing and secret-file contract.
 

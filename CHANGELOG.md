@@ -8,6 +8,7 @@ All notable changes to ThreatWatch are documented here.
 - Fixed gateway access from the production VPS by binding only that provider to the approved IPv4 path.
 - Selected `gpt-6-luna` with low reasoning for scheduled synthesis and excluded larger subscription models from automation.
 - Added durable per-caller cooldown and daily attempt limits with normal provider failover when the allowance is unavailable.
+- Tuned the Luna allowance to 48 attempts per UTC day with an hourly caller cooldown.
 - Added a separate gitignored Compose secret file for the gateway bearer token.
 
 ## 2026-10-18: Feed recovery and corpus diversity

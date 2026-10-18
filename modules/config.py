@@ -42,10 +42,10 @@ MODEL_SERVICES_CALLERS = frozenset(
     if value.strip()
 )
 MODEL_SERVICES_DAILY_CALL_LIMIT = max(
-    0, int(os.getenv("MODEL_SERVICES_DAILY_CALL_LIMIT", "8"))
+    0, int(os.getenv("MODEL_SERVICES_DAILY_CALL_LIMIT", "48"))
 )
 MODEL_SERVICES_CALLER_COOLDOWN_SECONDS = max(
-    0, int(os.getenv("MODEL_SERVICES_CALLER_COOLDOWN_SECONDS", "21600"))
+    0, int(os.getenv("MODEL_SERVICES_CALLER_COOLDOWN_SECONDS", "3600"))
 )
 
 # Provider-agnostic LLM config for AI features.
