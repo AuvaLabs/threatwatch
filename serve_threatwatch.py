@@ -723,6 +723,28 @@ def build_health() -> bytes:
     except Exception as exc:
         logger.warning("Artifact health check failed: %s", exc)
 
+    operational_artifacts = None
+    try:
+        from modules.operational_artifact_health import check_operational_artifact_health
+        operational_artifacts = check_operational_artifact_health(
+            BASE_DIR / "data" / "output"
+        )
+        if operational_artifacts["configured"] and not operational_artifacts["ok"]:
+            reasons.extend(
+                f"operational_artifact_stale_{name}"
+                for name in operational_artifacts["stale_capabilities"]
+                if f"operational_artifact_stale_{name}" not in reasons
+            )
+            reasons.extend(
+                f"operational_capability_failing_{name}"
+                for name in operational_artifacts["failing_capabilities"]
+                if f"operational_capability_failing_{name}" not in reasons
+            )
+            if status == "ok":
+                status = "degraded"
+    except Exception as exc:
+        logger.warning("Operational artifact health check failed: %s", exc)
+
     payload = {
         "status": status,
         "reasons": reasons,
@@ -744,6 +766,7 @@ def build_health() -> bytes:
         "api_cost_today_usd": latest_run.get("api_cost_today", 0),
         "feed_health": feed_summary,
         "ai_artifacts": artifact_health,
+        "operational_artifacts": operational_artifacts,
         "deployment": _deployment_metadata(),
         "backup": _backup_status(),
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -857,6 +880,7 @@ def build_openapi() -> bytes:
         "/api/v1/sources": {"get": {"summary": "List source coverage"}},
         "/api/v1/health": {"get": {"summary": "Get service health"}},
         "/api/v1/health/ai": {"get": {"summary": "Get AI artifact health"}},
+        "/api/v1/health/artifacts": {"get": {"summary": "Get hunt and ledger health"}},
         "/api/v1/health/feeds": {"get": {"summary": "Get feed health"}},
     }
     payload = {
@@ -1051,6 +1075,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
     # map of pipeline internals (token spend, classifier accuracy, DB size).
     _RESTRICTED_CORS_PATHS = frozenset({
         "/api/health", "/api/v1/health", "/api/v1/health/ai",
+        "/api/v1/health/artifacts",
         "/api/v1/health/feeds",
         "/api/watchlist", "/api/quality", "/api/groq-usage",
     })
@@ -1426,6 +1451,15 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             from modules.artifact_health import check_artifact_health
             body = json.dumps(
                 check_artifact_health(BASE_DIR / "data" / "output"),
+                ensure_ascii=False, separators=(",", ":"),
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/health/artifacts":
+            from modules.operational_artifact_health import check_operational_artifact_health
+            body = json.dumps(
+                check_operational_artifact_health(BASE_DIR / "data" / "output"),
                 ensure_ascii=False, separators=(",", ":"),
             ).encode("utf-8")
             self._send_body("application/json; charset=utf-8", body, head_only)

@@ -258,9 +258,11 @@
 # Akamai Security blog RSS returns 403 (verified 2026-03-14)
 
 # Tier 11: Regional CERTs
-- url: https://www.jpcert.or.jp/english/rss/jpcert-en.rdf
-  category: Native
-  region: Japan
+# Disabled 2026-10-18: the endpoint returned no usable entries across repeated checks.
+# Japan coverage continues through regional discovery sources.
+# - url: https://www.jpcert.or.jp/english/rss/jpcert-en.rdf
+#   category: Native
+#   region: Japan
 
 # CERT-In removed 2026-06-12: connect timeout from both the VPS and a
 # residential network (verified) — endpoint appears geo-fenced or down.
@@ -383,10 +385,11 @@
   region: Europe
 
 # Tier 15: Threat Intelligence Research
-- url: https://www.morphisec.com/blog/topic/threat-research/feed/
-  name: Morphisec Threat Labs
-  category: Native
-  region: Global
+# Disabled 2026-10-18: the endpoint returned no usable entries across repeated checks.
+# - url: https://www.morphisec.com/blog/topic/threat-research/feed/
+#   name: Morphisec Threat Labs
+#   category: Native
+#   region: Global
 
 - url: https://www.intel471.com/blog/feed
   category: Native
@@ -411,9 +414,10 @@
   category: Native
   region: Global
 
-- url: https://research.intezer.com/index.xml
-  category: Native
-  region: Global
+# Disabled 2026-10-18: the endpoint returned no usable entries across repeated checks.
+# - url: https://research.intezer.com/index.xml
+#   category: Native
+#   region: Global
 
 # Tier 16: ICS/OT & Specialized
 - url: https://ics-cert.kaspersky.com/feed/
@@ -438,9 +442,10 @@
   category: Native
   region: Global
 
-- url: https://www.imperva.com/blog/feed/
-  category: Native
-  region: Global
+# Disabled 2026-10-18: persistent fetch failures produced no current coverage.
+# - url: https://www.imperva.com/blog/feed/
+#   category: Native
+#   region: Global
 
 # Tier 19: Major Vendor Blogs (round 2, verified 2026-04-21)
 - url: https://aws.amazon.com/security/security-bulletins/rss/feed/

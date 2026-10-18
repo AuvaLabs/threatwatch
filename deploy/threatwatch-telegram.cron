@@ -1,0 +1,3 @@
+# ThreatWatch daily briefing at 08:00 UTC. Container data is persisted on the host.
+CRON_TZ=UTC
+0 8 * * * deploy /usr/bin/docker exec threatwatch-pipeline python scripts/post_briefing_to_telegram.py >> /home/deploy/threatwatch/data/logs/telegram_daily.log 2>&1

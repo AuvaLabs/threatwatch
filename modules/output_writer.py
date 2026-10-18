@@ -10,6 +10,7 @@ from feedgen.feed import FeedGenerator
 
 from modules.config import (
     SITE_URL, SITE_DOMAIN, OUTPUT_DIR, FEED_CUTOFF_DAYS, MAX_FUTURE_MINUTES,
+    MAX_ARTICLES_PER_SOURCE,
 )
 from modules.date_utils import parse_datetime
 from modules.deduplicator import normalize_url
@@ -69,6 +70,8 @@ def _merge_articles(existing, new_articles):
         # deduplicate_articles. Anything reaching this merge step without one
         # is malformed data (bypassed dedup, legacy load, corrupt JSON) and
         # gets dropped instead of mixed into the persisted corpus.
+        if not isinstance(article, dict):
+            return
         h = article.get("hash", "")
         if not h:
             return
@@ -142,6 +145,23 @@ def _merge_articles(existing, new_articles):
         ),
         reverse=True,
     )
+
+    if MAX_ARTICLES_PER_SOURCE:
+        source_counts: dict[str, int] = {}
+        balanced = []
+        for article in filtered:
+            source = str(
+                article.get("source_name") or article.get("source") or "Unknown source"
+            ).strip().casefold()
+            count = source_counts.get(source, 0)
+            if count >= MAX_ARTICLES_PER_SOURCE:
+                continue
+            source_counts[source] = count + 1
+            balanced.append(article)
+        dropped = len(filtered) - len(balanced)
+        if dropped:
+            logger.info("Source balance cap removed %d excess articles", dropped)
+        filtered = balanced
 
     logger.info(
         f"Merged: {len(new_articles)} new + {len(existing)} existing "

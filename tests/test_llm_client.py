@@ -53,7 +53,7 @@ def mock_session():
 
 
 @pytest.fixture(autouse=True)
-def single_key(monkeypatch):
+def single_key(monkeypatch, tmp_path):
     """Force single-key mode so attempts=1 and we don't churn through rotation."""
     monkeypatch.setattr(llm_client, "LLM_API_KEYS", ["test-key"])
     monkeypatch.setattr(llm_client, "LLM_API_KEY", "test-key")
@@ -67,6 +67,8 @@ def single_key(monkeypatch):
     monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "")
     monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_API_KEY", "")
     monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_BASE_URL", "")
+    monkeypatch.delenv("LLM_ZERO_COST_PROVIDERS", raising=False)
+    monkeypatch.setattr("modules.cost_tracker.COST_FILE", tmp_path / "api_costs.json")
 
 
 class TestCallLLMDefaultBehavior:
@@ -155,6 +157,22 @@ class TestCallLLMResponseFormat:
 
 
 class TestProviderFailover:
+    def test_paid_provider_budget_skip_falls_through_to_free_primary(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "sk-ant-test")
+        monkeypatch.setenv("LLM_ZERO_COST_PROVIDERS", "primary")
+        mock_session.post.return_value = _mock_response(
+            json_body={"choices": [{"message": {"content": "free result"}}]}
+        )
+
+        with patch("modules.cost_tracker.can_use_provider", side_effect=lambda name: name == "primary"):
+            result = call_llm("x", system_prompt="y")
+
+        assert result == "free result"
+        assert mock_session.post.call_count == 1
+        assert mock_session.post.call_args.args[0] == "https://api.example.com/v1/chat/completions"
+
     def test_primary_404_falls_back_to_secondary(self, mock_session, monkeypatch):
         monkeypatch.setattr(llm_client, "FEATHERLESS_API_KEY", "fallback-key")
         monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "https://fallback.example/v1")

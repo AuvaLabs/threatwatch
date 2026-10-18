@@ -52,6 +52,7 @@ class TestRunStatsFinalize:
         mock_ai.get_failure_stats.return_value = {}
         with patch("modules.run_stats.get_today_spend", return_value=0.01), \
              patch("modules.run_stats.get_total_spend", return_value=0.05), \
+             patch("modules.run_stats.check_daily_budget", return_value=True), \
              patch.dict("sys.modules", {"modules.ai_engine": mock_ai}):
             stats.finalize()
 
@@ -71,6 +72,7 @@ class TestRunStatsFinalize:
         mock_ai.get_failure_stats.return_value = {}
         with patch("modules.run_stats.get_today_spend", return_value=0.0), \
              patch("modules.run_stats.get_total_spend", return_value=0.0), \
+             patch("modules.run_stats.check_daily_budget", return_value=True), \
              patch.dict("sys.modules", {"modules.ai_engine": mock_ai}):
             stats.finalize()
 
@@ -81,6 +83,7 @@ class TestRunStatsFinalize:
         stats = rs.RunStats()
         with patch("modules.run_stats.get_today_spend", return_value=0.0), \
              patch("modules.run_stats.get_total_spend", return_value=0.0), \
+             patch("modules.run_stats.check_daily_budget", return_value=True), \
              patch.dict("sys.modules", {"modules.ai_engine": None}):
             stats.finalize()  # should not raise (try/except catches ImportError)
 

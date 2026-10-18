@@ -2,6 +2,15 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-18: Analyst artifact recovery and provider budget controls
+
+- Rejected malformed URL and domain observables at the IOC boundary so one bad extraction cannot abort Hunts or Threat Ledger generation.
+- Added a live-corpus rebuild and smoke harness to the guarded deployment workflow.
+- Added Hunts and Threat Ledger freshness and generation status to service health.
+- Unified provider token accounting and daily budget enforcement while allowing explicitly configured free routes to remain available.
+- Added per-source corpus balancing and retired four persistently silent or failing native feeds.
+- Added a container-aware daily Telegram cron template, dry-run validation, and delivery status persistence.
+
 ## 2026-10-13: Primary security source expansion
 
 - Added the Morphisec Threat Labs research feed without importing the broader vendor marketing feed.

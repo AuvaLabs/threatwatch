@@ -114,6 +114,10 @@ echo "[deploy] starting release"
 DEPLOY_STARTED=true
 "${COMPOSE[@]}" up -d --no-deps pipeline server
 
+echo "[deploy] rebuilding and validating analyst artifacts"
+"${COMPOSE[@]}" exec -T pipeline python scripts/rebuild_analyst_artifacts.py --write
+"${COMPOSE[@]}" exec -T pipeline python scripts/rebuild_analyst_artifacts.py
+
 deadline=$((SECONDS + HEALTH_TIMEOUT))
 while [ "$SECONDS" -lt "$deadline" ]; do
   if curl -fsS "$HEALTH_URL" > "$POST_HEALTH" 2>/dev/null && \
@@ -157,7 +161,7 @@ then
 fi
 
 API_ROOT=${HEALTH_URL%/health}
-for route in openapi.json operations/summary hunts ledger sources; do
+for route in openapi.json operations/summary hunts ledger sources health/artifacts; do
   curl -fsS "$API_ROOT/$route" >/dev/null
 done
 curl -fsS "${API_ROOT%/api/v1}/" >/dev/null

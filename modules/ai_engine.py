@@ -11,7 +11,6 @@ from modules.config import (
     MAX_CONTENT_CHARS,
 )
 from modules.ai_cache import get_cached_result, cache_result
-from modules.cost_tracker import check_daily_budget
 
 _client = None
 _failure_count = 0
@@ -49,12 +48,6 @@ def analyze_article(title: str, content: str | None = None, source_language: str
             truncated = content[:MAX_CONTENT_CHARS]
             user_content += f"\n\nArticle content:\n{truncated}"
 
-        if not check_daily_budget():
-            global _budget_skip_count
-            _budget_skip_count += 1
-            logger.warning(f"Budget limit reached, skipping: {title}")
-            return {**SAFE_DEFAULT, "translated_title": title, "_budget_skipped": True}
-
         reply = call_llm(
             user_content,
             system_prompt=SYSTEM_PROMPT,
@@ -78,7 +71,9 @@ def analyze_article(title: str, content: str | None = None, source_language: str
         return result
 
     except Exception as e:
-        global _failure_count
+        global _failure_count, _budget_skip_count
+        if "budget reached" in str(e):
+            _budget_skip_count += 1
         _failure_count += 1
         logger.error(f"Unexpected error analyzing '{title}': {e}")
         return {**SAFE_DEFAULT, "translated_title": title, "ai_analysis_failed": True}

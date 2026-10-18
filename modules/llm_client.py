@@ -272,6 +272,11 @@ def _provider_keys(provider: Provider) -> list[str]:
 
 def _record_usage(api_key: str, data: dict, caller: str | None, provider: Provider) -> None:
     try:
+        from modules.cost_tracker import record_provider_usage
+        record_provider_usage(provider.name, provider.model, data, caller=caller)
+    except Exception as exc:
+        logger.warning("LLM cost record failed: %s", exc)
+    try:
         from modules.groq_usage import record_usage
         label = f"{provider.name}:{caller}" if caller else provider.name
         record_usage(api_key or provider.name, data, caller=label)
@@ -337,6 +342,11 @@ def call_llm(user_content: str, system_prompt: str, max_tokens: int = 2000,
         raise RuntimeError("No LLM provider configured")
     failures: list[str] = []
     for provider in providers:
+        from modules.cost_tracker import can_use_provider
+        if not can_use_provider(provider.name):
+            failures.append(f"{provider.name}: paid budget reached")
+            logger.warning("Skipping paid LLM provider %s: daily budget reached", provider.name)
+            continue
         try:
             result = _call_provider(
                 provider, user_content, system_prompt, max_tokens,

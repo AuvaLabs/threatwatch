@@ -428,6 +428,26 @@ class TestHealthEndpoint:
         assert data["feed_health"].get("ok", 0) == 1
         assert data["feed_health"].get("dead", 0) == 1
 
+    def test_health_degrades_when_hunts_or_ledger_are_missing(self, tmp_path):
+        from datetime import datetime, timezone
+
+        output = tmp_path / "data" / "output"
+        output.mkdir(parents=True)
+        (output / "daily_latest.json").write_text("[]")
+        fresh = datetime.now(timezone.utc).isoformat()
+        with patch(
+            "serve_threatwatch.load_stats",
+            return_value={"latest": {"completed_at": fresh}},
+        ), patch("serve_threatwatch.BASE_DIR", tmp_path), patch(
+            "modules.briefing_health.check_briefing_freshness",
+            return_value={"stale": False, "age_hours": 0.1},
+        ):
+            data = json.loads(sw.build_health())
+
+        assert data["status"] == "degraded"
+        assert data["operational_artifacts"]["ok"] is False
+        assert "operational_artifact_stale_hunts" in data["reasons"]
+
     def test_health_excludes_abandoned_feeds(self, tmp_path):
         """Feeds not checked in >24h (e.g. disabled in config) don't count."""
         from datetime import datetime, timezone, timedelta

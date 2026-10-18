@@ -33,8 +33,11 @@ def _host(value: Any) -> str:
     raw = _text(value)
     if not raw:
         return ""
-    parsed = urlparse(raw if "://" in raw else f"https://{raw}")
-    return (parsed.hostname or "").casefold().removeprefix("www.")
+    try:
+        parsed = urlparse(raw if "://" in raw else f"https://{raw}")
+        return (parsed.hostname or "").casefold().removeprefix("www.")
+    except ValueError:
+        return ""
 
 
 def _registrable_token(domain: str) -> str:
@@ -128,6 +131,8 @@ def article_observables(article: dict[str, Any]) -> list[dict[str, Any]]:
     observables: list[dict[str, Any]] = []
     for ioc_type, value in _values(article):
         context = _context(text, value)
+        if ioc_type in {"domains", "urls"} and not _host(value):
+            continue
         if ioc_type in {"domains", "urls"} and _is_publisher_reference(value, article):
             continue
         if ioc_type == "ipv4" and _is_version_ip(value, text):

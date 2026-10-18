@@ -24,10 +24,9 @@ class TestExtractJson:
 
 
 class TestAnalyzeArticle:
-    @patch("modules.ai_engine.check_daily_budget", return_value=True)
     @patch("modules.ai_engine.get_cached_result", return_value=None)
     @patch("modules.llm_client.call_llm")
-    def test_successful_analysis(self, mock_call_llm, mock_cache, mock_budget):
+    def test_successful_analysis(self, mock_call_llm, mock_cache):
         mock_call_llm.return_value = json.dumps({
             "is_cyber_attack": True,
             "category": "Ransomware",
@@ -42,10 +41,9 @@ class TestAnalyzeArticle:
         assert result["confidence"] == 95
         mock_call_llm.assert_called_once()
 
-    @patch("modules.ai_engine.check_daily_budget", return_value=True)
     @patch("modules.ai_engine.get_cached_result", return_value=None)
     @patch("modules.llm_client.call_llm")
-    def test_malformed_json_returns_safe_default(self, mock_call_llm, mock_cache, mock_budget):
+    def test_malformed_json_returns_safe_default(self, mock_call_llm, mock_cache):
         mock_call_llm.return_value = "I cannot parse this as JSON properly {broken"
 
         result = analyze_article("Test Title")
@@ -53,10 +51,9 @@ class TestAnalyzeArticle:
         assert result["translated_title"] == "Test Title"
         assert result["ai_analysis_failed"] is True
 
-    @patch("modules.ai_engine.check_daily_budget", return_value=True)
     @patch("modules.ai_engine.get_cached_result", return_value=None)
     @patch("modules.llm_client.call_llm", side_effect=RuntimeError("API down"))
-    def test_api_error_returns_safe_default(self, mock_call_llm, mock_cache, mock_budget):
+    def test_api_error_returns_safe_default(self, mock_call_llm, mock_cache):
         result = analyze_article("Test Title")
         assert result["is_cyber_attack"] is False
         assert result["translated_title"] == "Test Title"
@@ -76,17 +73,19 @@ class TestAnalyzeArticle:
         result = analyze_article("Some Title", "Some content")
         assert result == cached
 
-    @patch("modules.ai_engine.check_daily_budget", return_value=False)
     @patch("modules.ai_engine.get_cached_result", return_value=None)
-    def test_budget_exceeded_returns_skipped(self, mock_cache, mock_budget):
+    @patch(
+        "modules.llm_client.call_llm",
+        side_effect=RuntimeError("All providers exhausted: anthropic: paid budget reached"),
+    )
+    def test_budget_exceeded_is_counted_after_provider_failover(self, mock_call_llm, mock_cache):
         result = analyze_article("Budget test")
-        assert result["_budget_skipped"] is True
+        assert result["ai_analysis_failed"] is True
         assert result["is_cyber_attack"] is False
 
-    @patch("modules.ai_engine.check_daily_budget", return_value=True)
     @patch("modules.ai_engine.get_cached_result", return_value=None)
     @patch("modules.llm_client.call_llm")
-    def test_fills_missing_fields(self, mock_call_llm, mock_cache, mock_budget):
+    def test_fills_missing_fields(self, mock_call_llm, mock_cache):
         """Response missing some fields gets defaults filled in."""
         mock_call_llm.return_value = json.dumps({
             "is_cyber_attack": True,
@@ -98,10 +97,9 @@ class TestAnalyzeArticle:
         assert result["confidence"] == 0  # Filled from SAFE_DEFAULT
         assert result["translated_title"] == "Fill test"  # Filled from title arg
 
-    @patch("modules.ai_engine.check_daily_budget", return_value=True)
     @patch("modules.ai_engine.get_cached_result", return_value=None)
     @patch("modules.llm_client.call_llm")
-    def test_with_content(self, mock_call_llm, mock_cache, mock_budget):
+    def test_with_content(self, mock_call_llm, mock_cache):
         """Article content is included in the prompt."""
         mock_call_llm.return_value = json.dumps({
             "is_cyber_attack": True, "category": "Ransomware",

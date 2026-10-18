@@ -29,6 +29,26 @@ def _make_article(hash_val, days_ago=0, **extra):
 # ---------------------------------------------------------------------------
 
 class TestMergeArticles:
+    def test_null_article_is_rejected_without_aborting_merge(self):
+        valid = _make_article("valid")
+
+        assert [item["hash"] for item in _merge_articles([], [None, valid])] == ["valid"]
+
+    def test_caps_each_source_after_newest_first_sort(self, monkeypatch):
+        monkeypatch.setattr("modules.output_writer.MAX_ARTICLES_PER_SOURCE", 2)
+        articles = [
+            _make_article(f"same-{index}", days_ago=index, source_name="Noisy Feed")
+            for index in range(4)
+        ]
+        articles.append(_make_article("other", source_name="Other Feed"))
+
+        merged = _merge_articles([], articles)
+
+        assert [item["hash"] for item in merged if item["source_name"] == "Noisy Feed"] == [
+            "same-0", "same-1",
+        ]
+        assert any(item["hash"] == "other" for item in merged)
+
     def test_new_articles_take_priority_in_ordering(self):
         existing = [_make_article("old", days_ago=1)]
         new = [_make_article("new")]

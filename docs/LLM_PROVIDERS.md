@@ -77,6 +77,24 @@ BRIEFING_FALLBACK_TIMEOUT=60
 Provider-specific models are used on fallback routes. A primary task-specific
 model override is never sent to a different provider.
 
+## Usage accounting and budget behavior
+
+Every successful response records input tokens, output tokens, caller, route,
+model, and nominal cost in `data/state/api_costs.json`. The daily budget reads
+that same ledger before each billable provider attempt. This prevents a token
+telemetry file and a separate empty cost file from disagreeing.
+
+```env
+DAILY_BUDGET_USD=2.00
+LLM_ZERO_COST_PROVIDERS=primary,fallback
+```
+
+Route names in `LLM_ZERO_COST_PROVIDERS` remain available after the paid budget
+is reached. Only list a route when its configured account is actually free or
+covered by a separate credit agreement. Current built-in nominal pricing covers
+the configured Claude Haiku, Claude Sonnet, Gemini Flash Lite, and GPT OSS 120B
+models. Unknown models are logged and counted as unpriced calls.
+
 ## Compatibility behavior
 
 - Native Claude uses `POST /v1/messages`, `x-api-key`, and the required API
@@ -95,6 +113,7 @@ model override is never sent to a different provider.
 ## Health contract
 
 `/api/v1/health/ai` reports freshness for the global briefing, top stories, and
-all three regional briefings. `/api/health` becomes `degraded` when a critical
-artifact is stale or when the latest enrichment run reports a capability
-failure.
+all three regional briefings. `/api/v1/health/artifacts` separately reports
+Hunts and Threat Ledger generation and freshness. `/api/health` becomes
+`degraded` when a critical artifact is stale or when the latest run reports a
+capability failure.

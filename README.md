@@ -115,8 +115,9 @@ bash scripts/deploy.sh
 
 The release script requires healthy versioned API output, creates and restores
 a verified backup, embeds the Git SHA and build time, checks article-count
-continuity, validates the primary API routes, and restores the prior images if
-the new release fails its gate. Nightly backups use the same recovery proof:
+continuity, rebuilds Hunts and Threat Ledger from the live corpus, validates
+their health endpoint, and restores the prior images if the new release fails
+its gate. Nightly backups use the same recovery proof:
 
 ```cron
 15 3 * * * cd /path/to/threatwatch && TW_BACKUP_DIR=/path/to/backups bash scripts/backup_volume.sh
@@ -198,6 +199,9 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `LLM_BASE_URL` | provider dependent | Primary API base URL |
 | `LLM_MODEL` | provider dependent | Primary model name |
 | `LLM_PROVIDER` | `openai` | OpenAI-compatible provider mode |
+| `DAILY_BUDGET_USD` | `2.00` | Nominal daily spend ceiling for billable provider routes |
+| `LLM_ZERO_COST_PROVIDERS` | _(empty)_ | Comma-separated route names that remain available after the paid budget is reached |
+| `MAX_ARTICLES_PER_SOURCE` | `250` | Maximum articles retained per named source, or `0` to disable balancing |
 | `MAX_SUMMARIES_PER_RUN` | `150` | Maximum articles summarized per enrichment cycle |
 | `SUMMARY_BATCH_SIZE` | `5` | Articles per structured summary call |
 | `SUMMARY_BATCH_DELAY_SECONDS` | `5` | Delay between uncached summary batches to protect provider quotas |
@@ -215,6 +219,12 @@ ANTHROPIC_TOP_STORIES_MODEL=claude-sonnet-5-5
 When Claude is configured, it is tried first. Haiku handles routine, high-volume
 enrichment while Sonnet handles briefings and top-story synthesis. The generic
 `LLM_*` provider remains the first independent fallback.
+
+Usage from every successful provider call is written to the same cost ledger
+used by the daily budget gate. Routes listed in `LLM_ZERO_COST_PROVIDERS`, such
+as a free-tier `primary` or `fallback`, continue serving after paid routes reach
+the limit. Unknown model prices are counted as unpriced calls and logged for
+operator review.
 
 Example Kimi configuration:
 

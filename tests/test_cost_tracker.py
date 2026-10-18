@@ -1,6 +1,14 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from modules.cost_tracker import _calculate_cost, PRICE_INPUT_PER_MTOK, PRICE_OUTPUT_PER_MTOK, PRICE_CACHE_READ_PER_MTOK, PRICE_CACHE_WRITE_PER_MTOK
+from modules.cost_tracker import (
+    _calculate_cost,
+    PRICE_CACHE_READ_PER_MTOK,
+    PRICE_CACHE_WRITE_PER_MTOK,
+    PRICE_INPUT_PER_MTOK,
+    PRICE_OUTPUT_PER_MTOK,
+    can_use_provider,
+    record_provider_usage,
+)
 
 
 def _make_usage(input_tokens=0, output_tokens=0, cache_read=0, cache_creation=0):
@@ -91,3 +99,50 @@ class TestCheckDailyBudget:
 
         from modules.cost_tracker import check_daily_budget
         assert check_daily_budget() is False
+
+
+class TestProviderAccounting:
+    def test_null_state_is_repaired_at_the_persistence_boundary(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("modules.cost_tracker.COST_FILE", tmp_path / "costs.json")
+        (tmp_path / "costs.json").write_text(
+            '{"daily":null,"total_usd":null}', encoding="utf-8"
+        )
+
+        cost = record_provider_usage(
+            "anthropic",
+            "claude-haiku-5-5",
+            {"usage": {"prompt_tokens": 10, "completion_tokens": 5}},
+        )
+
+        assert cost > 0
+        data = __import__("json").loads((tmp_path / "costs.json").read_text())
+        assert data["total_usd"] > 0
+        assert next(iter(data["daily"].values()))["api_calls"] == 1
+
+    def test_anthropic_usage_updates_enforced_cost_file(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("modules.cost_tracker.COST_FILE", tmp_path / "costs.json")
+        cost = record_provider_usage(
+            "anthropic",
+            "claude-haiku-5-5",
+            {"usage": {"prompt_tokens": 100_000, "completion_tokens": 100_000}},
+            caller="summaries",
+        )
+
+        assert cost == pytest.approx(0.06)
+        data = __import__("json").loads((tmp_path / "costs.json").read_text())
+        day = next(iter(data["daily"].values()))
+        assert day["api_calls"] == 1
+        assert day["by_provider"]["anthropic"]["cost_usd"] == pytest.approx(0.06)
+
+    def test_zero_cost_provider_remains_available_after_paid_budget(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("modules.cost_tracker.COST_FILE", tmp_path / "costs.json")
+        monkeypatch.setattr("modules.cost_tracker.DAILY_BUDGET_USD", 0.01)
+        monkeypatch.setenv("LLM_ZERO_COST_PROVIDERS", "primary,fallback")
+        record_provider_usage(
+            "anthropic",
+            "claude-sonnet-5-5",
+            {"usage": {"prompt_tokens": 10_000, "completion_tokens": 1_000}},
+        )
+
+        assert can_use_provider("anthropic") is False
+        assert can_use_provider("primary") is True

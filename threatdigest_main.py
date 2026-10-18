@@ -393,6 +393,10 @@ def main():
         logging.warning(f"Incident clustering failed: {e}")
 
     hunt_data = None
+    operational_status = {
+        "hunts": {"ok": False, "error": "not_generated"},
+        "ledger": {"ok": False, "error": "not_generated"},
+    }
     try:
         if all_articles and cluster_data:
             enrichment = {}
@@ -407,8 +411,10 @@ def main():
                 "Hunt desk: %s qualified packages, %s developing leads",
                 hunt_data["qualified_count"], hunt_data["lead_count"],
             )
+            operational_status["hunts"] = {"ok": True}
     except Exception as e:
         logging.warning(f"Hunt package generation failed: {e}")
+        operational_status["hunts"] = {"ok": False, "error": "generation_failed"}
 
     try:
         if all_articles and cluster_data:
@@ -421,8 +427,16 @@ def main():
                 "Threat ledger: %s active records, %s changes this run",
                 ledger_data["summary"]["active_records"], ledger_data["run_change_count"],
             )
+            operational_status["ledger"] = {"ok": True}
     except Exception as e:
         logging.warning(f"Threat ledger generation failed: {e}")
+        operational_status["ledger"] = {"ok": False, "error": "generation_failed"}
+
+    try:
+        from modules.operational_artifact_health import write_operational_artifact_status
+        write_operational_artifact_status(operational_status)
+    except Exception as e:
+        logging.warning(f"Operational artifact status write failed: {e}")
 
     try:
         if all_articles:

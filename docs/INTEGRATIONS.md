@@ -310,16 +310,26 @@ explicit "linked to known ransomware" flag when applicable, the first 1–2
 covering articles, and links to NVD's CVE detail page + the ThreatWatch
 dashboard.
 
-**Mode C — guaranteed daily post (system cron):** When you want a once-a-day
+**Mode C: guaranteed daily post (system cron):** When you want a once-a-day
 post regardless of threat level, use the standalone script. Add to your
-host crontab:
+host cron directory:
 
 ```bash
 # Post the latest briefing to Telegram every day at 08:00 UTC
-0 8 * * * /home/deploy/threatwatch/scripts/post_briefing_to_telegram.py
+sudo install -o root -g root -m 0644 \
+  deploy/threatwatch-telegram.cron /etc/cron.d/threatwatch-telegram
 ```
 
-The script exits 1 on failure so cron MAILTO catches delivery problems.
+The cron entry runs the script inside `threatwatch-pipeline`, where the runtime
+environment and persisted briefing are already available. Validate configuration
+without posting a message:
+
+```bash
+docker exec threatwatch-pipeline python scripts/post_briefing_to_telegram.py --dry-run
+```
+
+The script exits 1 on failure and records successful or failed delivery state in
+`data/state/telegram_daily_status.json`.
 It does not consume the alert dedup state, so Modes A, B, and C can all
 fire independently without interfering.
 

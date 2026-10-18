@@ -6,7 +6,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 from modules.config import OUTPUT_DIR
-from modules.cost_tracker import get_today_spend, get_total_spend
+from modules.cost_tracker import check_daily_budget, get_today_spend, get_total_spend
 from modules.utils import write_json_atomic
 
 STATS_FILE = OUTPUT_DIR / "stats.json"
@@ -50,7 +50,9 @@ class RunStats:
         try:
             from modules.ai_engine import get_failure_stats
             failure_stats = get_failure_stats()
-            self.budget_exceeded = failure_stats.get("budget_skips", 0) > 0
+            self.budget_exceeded = (
+                failure_stats.get("budget_skips", 0) > 0 or not check_daily_budget()
+            )
         except Exception:
             pass
 
