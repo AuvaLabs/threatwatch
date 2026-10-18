@@ -28,9 +28,12 @@ from modules.config import (
     LLM_BASE_URL,
     LLM_MODEL,
     MODEL_SERVICES_API_KEY,
-    MODEL_SERVICES_CALLERS,
-    MODEL_SERVICES_MODEL,
-    MODEL_SERVICES_REASONING_EFFORT,
+    MODEL_SERVICES_LUNA_CALLERS,
+    MODEL_SERVICES_LUNA_MODEL,
+    MODEL_SERVICES_LUNA_REASONING_EFFORT,
+    MODEL_SERVICES_SOL_CALLERS,
+    MODEL_SERVICES_SOL_MODEL,
+    MODEL_SERVICES_SOL_REASONING_EFFORT,
     MODEL_SERVICES_TIMEOUT,
     MODEL_SERVICES_URL,
     OUTPUT_DIR,
@@ -56,6 +59,8 @@ class Provider:
     timeout: float
     rotate_keys: bool = False
     protocol: str = "openai"
+    reasoning_effort: str | None = None
+    quota_route: str | None = None
 
 
 def _record_success() -> None:
@@ -141,22 +146,36 @@ def _primary_timeout() -> float:
     return float(os.environ.get("LLM_TIMEOUT", str(default)))
 
 
+def _model_services_provider(caller: str | None) -> Provider | None:
+    if not MODEL_SERVICES_API_KEY or not MODEL_SERVICES_URL:
+        return None
+    if caller in MODEL_SERVICES_SOL_CALLERS and MODEL_SERVICES_SOL_MODEL:
+        return Provider(
+            "modelservices", MODEL_SERVICES_URL, MODEL_SERVICES_SOL_MODEL,
+            (MODEL_SERVICES_API_KEY,), MODEL_SERVICES_TIMEOUT,
+            protocol="modelservices",
+            reasoning_effort=MODEL_SERVICES_SOL_REASONING_EFFORT,
+            quota_route="sol",
+        )
+    if caller in MODEL_SERVICES_LUNA_CALLERS and MODEL_SERVICES_LUNA_MODEL:
+        return Provider(
+            "modelservices", MODEL_SERVICES_URL, MODEL_SERVICES_LUNA_MODEL,
+            (MODEL_SERVICES_API_KEY,), MODEL_SERVICES_TIMEOUT,
+            protocol="modelservices",
+            reasoning_effort=MODEL_SERVICES_LUNA_REASONING_EFFORT,
+            quota_route="luna",
+        )
+    return None
+
+
 def _configured_providers(
     model_override: str | None = None,
     caller: str | None = None,
 ) -> list[Provider]:
     providers: list[Provider] = []
-    if (
-        MODEL_SERVICES_API_KEY
-        and MODEL_SERVICES_URL
-        and MODEL_SERVICES_MODEL
-        and caller in MODEL_SERVICES_CALLERS
-    ):
-        providers.append(Provider(
-            "modelservices", MODEL_SERVICES_URL, MODEL_SERVICES_MODEL,
-            (MODEL_SERVICES_API_KEY,), MODEL_SERVICES_TIMEOUT,
-            protocol="modelservices",
-        ))
+    model_services = _model_services_provider(caller)
+    if model_services:
+        providers.append(model_services)
     anthropic_configured = bool(
         ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL and ANTHROPIC_MODEL
     )
@@ -244,7 +263,7 @@ def _model_services_payload(
             {"role": "user", "content": user_content},
         ],
         "max_tokens": max_tokens,
-        "reasoning_effort": MODEL_SERVICES_REASONING_EFFORT,
+        "reasoning_effort": provider.reasoning_effort,
         "stream": False,
     }
 
@@ -409,11 +428,11 @@ def call_llm(user_content: str, system_prompt: str, max_tokens: int = 2000,
     for provider in providers:
         if provider.protocol == "modelservices":
             from modules.model_services_quota import claim
-            if not claim(caller):
+            if not claim(provider.quota_route or "", caller):
                 failures.append("modelservices: quota or cooldown reached")
                 logger.info(
-                    "Skipping Model Services for %s: quota or cooldown reached",
-                    caller,
+                    "Skipping Model Services %s route for %s: quota or cooldown reached",
+                    provider.quota_route, caller,
                 )
                 continue
         from modules.cost_tracker import can_use_provider

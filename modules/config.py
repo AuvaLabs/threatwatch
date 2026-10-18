@@ -21,31 +21,51 @@ ANTHROPIC_TOP_STORIES_MODEL = os.getenv(
 )
 ANTHROPIC_TIMEOUT = float(os.getenv("ANTHROPIC_TIMEOUT", "60"))
 
-# AuvaLabs Model Services is a private, subscription-backed gateway. It is
-# intentionally restricted to low-frequency synthesis callers and the Luna
-# model so unattended jobs cannot consume the shared interactive allowance.
+# AuvaLabs Model Services is a private, subscription-backed gateway. Route
+# frequent ranking through Luna and reserve Sol for infrequent deep synthesis.
 MODEL_SERVICES_API_KEY = os.getenv("MODEL_SERVICES_API_KEY", "")
 MODEL_SERVICES_URL = os.getenv(
     "MODEL_SERVICES_URL",
     "https://modelservices.auvalabs.com/techmodel/servicesapi/chat",
 )
-MODEL_SERVICES_MODEL = os.getenv("MODEL_SERVICES_MODEL", "gpt-6-luna")
 MODEL_SERVICES_TIMEOUT = float(os.getenv("MODEL_SERVICES_TIMEOUT", "240"))
-MODEL_SERVICES_REASONING_EFFORT = os.getenv(
-    "MODEL_SERVICES_REASONING_EFFORT", "low"
+MODEL_SERVICES_LUNA_MODEL = os.getenv(
+    "MODEL_SERVICES_LUNA_MODEL", "gpt-6-luna"
 )
-MODEL_SERVICES_CALLERS = frozenset(
+MODEL_SERVICES_LUNA_REASONING_EFFORT = os.getenv(
+    "MODEL_SERVICES_LUNA_REASONING_EFFORT", "low"
+)
+MODEL_SERVICES_LUNA_CALLERS = frozenset(
     value.strip()
     for value in os.getenv(
-        "MODEL_SERVICES_CALLERS", "briefing,top_stories"
+        "MODEL_SERVICES_LUNA_CALLERS", "top_stories"
     ).split(",")
     if value.strip()
 )
-MODEL_SERVICES_DAILY_CALL_LIMIT = max(
-    0, int(os.getenv("MODEL_SERVICES_DAILY_CALL_LIMIT", "48"))
+MODEL_SERVICES_LUNA_DAILY_CALL_LIMIT = max(
+    0, int(os.getenv("MODEL_SERVICES_LUNA_DAILY_CALL_LIMIT", "24"))
 )
-MODEL_SERVICES_CALLER_COOLDOWN_SECONDS = max(
-    0, int(os.getenv("MODEL_SERVICES_CALLER_COOLDOWN_SECONDS", "3600"))
+MODEL_SERVICES_LUNA_CALLER_COOLDOWN_SECONDS = max(
+    0, int(os.getenv("MODEL_SERVICES_LUNA_CALLER_COOLDOWN_SECONDS", "3600"))
+)
+MODEL_SERVICES_SOL_MODEL = os.getenv(
+    "MODEL_SERVICES_SOL_MODEL", "gpt-6.1-sol"
+)
+MODEL_SERVICES_SOL_REASONING_EFFORT = os.getenv(
+    "MODEL_SERVICES_SOL_REASONING_EFFORT", "medium"
+)
+MODEL_SERVICES_SOL_CALLERS = frozenset(
+    value.strip()
+    for value in os.getenv(
+        "MODEL_SERVICES_SOL_CALLERS", "briefing"
+    ).split(",")
+    if value.strip()
+)
+MODEL_SERVICES_SOL_DAILY_CALL_LIMIT = max(
+    0, int(os.getenv("MODEL_SERVICES_SOL_DAILY_CALL_LIMIT", "2"))
+)
+MODEL_SERVICES_SOL_CALLER_COOLDOWN_SECONDS = max(
+    0, int(os.getenv("MODEL_SERVICES_SOL_CALLER_COOLDOWN_SECONDS", "43200"))
 )
 
 # Provider-agnostic LLM config for AI features.

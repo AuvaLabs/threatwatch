@@ -73,11 +73,16 @@ def single_key(monkeypatch, tmp_path):
         "MODEL_SERVICES_URL",
         "https://modelservices.example/techmodel/servicesapi/chat",
     )
-    monkeypatch.setattr(llm_client, "MODEL_SERVICES_MODEL", "gpt-6-luna")
     monkeypatch.setattr(llm_client, "MODEL_SERVICES_TIMEOUT", 240.0)
-    monkeypatch.setattr(llm_client, "MODEL_SERVICES_REASONING_EFFORT", "low")
+    monkeypatch.setattr(llm_client, "MODEL_SERVICES_LUNA_MODEL", "gpt-6-luna")
+    monkeypatch.setattr(llm_client, "MODEL_SERVICES_LUNA_REASONING_EFFORT", "low")
     monkeypatch.setattr(
-        llm_client, "MODEL_SERVICES_CALLERS", frozenset({"briefing", "top_stories"})
+        llm_client, "MODEL_SERVICES_LUNA_CALLERS", frozenset({"top_stories"})
+    )
+    monkeypatch.setattr(llm_client, "MODEL_SERVICES_SOL_MODEL", "gpt-6.1-sol")
+    monkeypatch.setattr(llm_client, "MODEL_SERVICES_SOL_REASONING_EFFORT", "medium")
+    monkeypatch.setattr(
+        llm_client, "MODEL_SERVICES_SOL_CALLERS", frozenset({"briefing"})
     )
     monkeypatch.delenv("LLM_ZERO_COST_PROVIDERS", raising=False)
     monkeypatch.setattr("modules.cost_tracker.COST_FILE", tmp_path / "api_costs.json")
@@ -187,11 +192,11 @@ class TestProviderFailover:
 
 
 class TestModelServicesProvider:
-    def test_allowed_briefing_uses_gateway_first(self, mock_session, monkeypatch):
+    def test_briefing_uses_sol_first(self, mock_session, monkeypatch):
         monkeypatch.setattr(llm_client, "MODEL_SERVICES_API_KEY", "gateway-secret")
         mock_session.post.return_value = _mock_response(
             json_body={
-                "model": "gpt-6-luna",
+                "model": "gpt-6.1-sol",
                 "choices": [{"message": {"content": '{"status":"ok"}'}}],
             }
         )
@@ -207,7 +212,7 @@ class TestModelServicesProvider:
             )
 
         assert result == '{"status":"ok"}'
-        claim.assert_called_once_with("briefing")
+        claim.assert_called_once_with("sol", "briefing")
         request = mock_session.post.call_args
         assert request.args[0] == (
             "https://modelservices.example/techmodel/servicesapi/chat"
@@ -216,18 +221,42 @@ class TestModelServicesProvider:
         assert request.kwargs["timeout"] == 240.0
         assert request.kwargs["json"] == {
             "provider": "chatgpt",
-            "model": "gpt-6-luna",
+            "model": "gpt-6.1-sol",
             "messages": [
                 {"role": "system", "content": "Return JSON"},
                 {"role": "user", "content": "incident data"},
             ],
             "max_tokens": 8000,
-            "reasoning_effort": "low",
+            "reasoning_effort": "medium",
             "stream": False,
         }
         assert "response_format" not in request.kwargs["json"]
         assert mock_session.post.call_count == 1
         llm_client._get_http_session.assert_called_once_with(force_ipv4=True)
+        assert llm_client.last_provider_label() == "modelservices/gpt-6.1-sol"
+
+    def test_top_stories_uses_luna_first(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "MODEL_SERVICES_API_KEY", "gateway-secret")
+        mock_session.post.return_value = _mock_response(
+            json_body={
+                "model": "gpt-6-luna",
+                "choices": [{"message": {"content": '{"top_stories":[]}'}}],
+            }
+        )
+
+        with patch("modules.model_services_quota.claim", return_value=True) as claim:
+            result = call_llm(
+                "article digest",
+                system_prompt="Return JSON",
+                response_format={"type": "json_object"},
+                caller="top_stories",
+            )
+
+        assert result == '{"top_stories":[]}'
+        claim.assert_called_once_with("luna", "top_stories")
+        payload = mock_session.post.call_args.kwargs["json"]
+        assert payload["model"] == "gpt-6-luna"
+        assert payload["reasoning_effort"] == "low"
         assert llm_client.last_provider_label() == "modelservices/gpt-6-luna"
 
     def test_disallowed_bulk_caller_does_not_use_gateway(

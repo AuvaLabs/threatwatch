@@ -4,11 +4,11 @@ All notable changes to ThreatWatch are documented here.
 
 ## 2026-10-18: Bounded private model gateway
 
-- Added a dedicated AuvaLabs Model Services route for global briefings and top stories.
+- Added dedicated AuvaLabs Model Services routes for global briefings and top stories.
 - Fixed gateway access from the production VPS by binding only that provider to the approved IPv4 path.
-- Selected `gpt-6-luna` with low reasoning for scheduled synthesis and excluded larger subscription models from automation.
-- Added durable per-caller cooldown and daily attempt limits with normal provider failover when the allowance is unavailable.
-- Tuned the Luna allowance to 48 attempts per UTC day with an hourly caller cooldown.
+- Assigned `gpt-6-luna` with low reasoning to hourly top-story ranking and `gpt-6.1-sol` with medium reasoning to twice-daily global briefings.
+- Added independent, durable per-route cooldown and daily attempt limits with normal provider failover when an allowance is unavailable.
+- Bounded Luna to 24 attempts and Sol to two attempts per UTC day.
 - Added a separate gitignored Compose secret file for the gateway bearer token.
 
 ## 2026-10-18: Feed recovery and corpus diversity

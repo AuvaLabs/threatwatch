@@ -36,26 +36,32 @@ Configure the bounded route in `.env`:
 
 ```env
 MODEL_SERVICES_URL=https://modelservices.auvalabs.com/techmodel/servicesapi/chat
-MODEL_SERVICES_MODEL=gpt-6-luna
 MODEL_SERVICES_TIMEOUT=240
-MODEL_SERVICES_REASONING_EFFORT=low
-MODEL_SERVICES_CALLERS=briefing,top_stories
-MODEL_SERVICES_DAILY_CALL_LIMIT=48
-MODEL_SERVICES_CALLER_COOLDOWN_SECONDS=3600
+MODEL_SERVICES_LUNA_MODEL=gpt-6-luna
+MODEL_SERVICES_LUNA_REASONING_EFFORT=low
+MODEL_SERVICES_LUNA_CALLERS=top_stories
+MODEL_SERVICES_LUNA_DAILY_CALL_LIMIT=24
+MODEL_SERVICES_LUNA_CALLER_COOLDOWN_SECONDS=3600
+MODEL_SERVICES_SOL_MODEL=gpt-6.1-sol
+MODEL_SERVICES_SOL_REASONING_EFFORT=medium
+MODEL_SERVICES_SOL_CALLERS=briefing
+MODEL_SERVICES_SOL_DAILY_CALL_LIMIT=2
+MODEL_SERVICES_SOL_CALLER_COOLDOWN_SECONDS=43200
 LLM_ZERO_COST_PROVIDERS=modelservices,primary,fallback
 ```
 
-The automated route supports only the global briefing and top-stories callers.
-It uses `gpt-6-luna` with low reasoning, allows at most one attempt per caller
-every hour, and permits at most 48 attempts per UTC day. Attempts are
-reserved before network access, so failures and timeouts cannot bypass the
-subscription guard. Regional briefings and bulk enrichment continue through
-the normal provider chain. The gateway is reached over IPv4 because its edge
-policy allowlists the production VPS IPv4 address.
+The Luna route supports only top-story ranking. It uses low reasoning, permits
+24 attempts per UTC day, and enforces an hourly cooldown. The Sol route supports
+only the global briefing. It uses medium reasoning, permits two attempts per
+UTC day, and enforces a 12-hour cooldown. The limits are independent, so Luna
+activity cannot consume the Sol allowance. Attempts are reserved before network
+access, so failures and timeouts cannot bypass either subscription guard.
 
-Do not configure `gpt-6.1-sol` or `gpt-6-astra` for scheduled work. Those models
-remain available for deliberate, manual analysis where their higher allowance
-cost is justified.
+When either bounded route is unavailable, that request continues through the
+normal provider chain. This also means hourly briefing refreshes between the two
+Sol windows still have a provider path. Regional briefings and bulk enrichment
+never use the subscription-backed gateway. The gateway is reached over IPv4
+because its edge policy allowlists the production VPS IPv4 address.
 
 ## Native Claude configuration
 

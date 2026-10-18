@@ -196,10 +196,14 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `ANTHROPIC_TIMEOUT` | `60` | Native Claude request timeout in seconds |
 | `MODEL_SERVICES_ENV_FILE` | `.secrets/modelservices.env` | Gitignored gateway bearer-token file loaded by Compose |
 | `MODEL_SERVICES_URL` | AuvaLabs gateway | Exact private gateway chat endpoint |
-| `MODEL_SERVICES_MODEL` | `gpt-6-luna` | Economical model used for scheduled synthesis |
-| `MODEL_SERVICES_CALLERS` | `briefing,top_stories` | Callers allowed to use the shared subscription |
-| `MODEL_SERVICES_DAILY_CALL_LIMIT` | `48` | Maximum gateway attempts per UTC day |
-| `MODEL_SERVICES_CALLER_COOLDOWN_SECONDS` | `3600` | Minimum seconds between attempts by one caller |
+| `MODEL_SERVICES_LUNA_MODEL` | `gpt-6-luna` | Efficient model used for top-story ranking |
+| `MODEL_SERVICES_LUNA_CALLERS` | `top_stories` | Callers allowed to use the Luna route |
+| `MODEL_SERVICES_LUNA_DAILY_CALL_LIMIT` | `24` | Maximum Luna attempts per UTC day |
+| `MODEL_SERVICES_LUNA_CALLER_COOLDOWN_SECONDS` | `3600` | Minimum seconds between Luna attempts by one caller |
+| `MODEL_SERVICES_SOL_MODEL` | `gpt-6.1-sol` | Higher-capability model used for the global briefing |
+| `MODEL_SERVICES_SOL_CALLERS` | `briefing` | Callers allowed to use the Sol route |
+| `MODEL_SERVICES_SOL_DAILY_CALL_LIMIT` | `2` | Maximum Sol attempts per UTC day |
+| `MODEL_SERVICES_SOL_CALLER_COOLDOWN_SECONDS` | `43200` | Minimum seconds between Sol attempts by one caller |
 | `LLM_API_KEY` | _(empty)_ | API key for your LLM provider |
 | `LLM_API_KEYS` | _(empty)_ | Comma-separated keys for round-robin rotation |
 | `LLM_BASE_URL` | provider dependent | Primary API base URL |
@@ -228,11 +232,12 @@ Haiku handles routine, high-volume enrichment while Sonnet handles briefings
 and top-story synthesis. The generic `LLM_*` provider remains the first
 independent fallback.
 
-When the private Model Services token is configured, `gpt-6-luna` is tried
-before Claude only for the global briefing and top-stories callers. The durable
-quota guard limits each caller to one attempt every hour and limits the
-combined route to 48 attempts per UTC day. Bulk summaries, classification,
-regional briefings, and enrichment never use the subscription-backed gateway.
+When the private Model Services token is configured, `gpt-6-luna` ranks top
+stories at most hourly and `gpt-6.1-sol` creates the global command briefing at
+most twice per UTC day. Each route has an independent durable quota. When a
+route is unavailable, the caller continues through Claude and the remaining
+providers. Bulk summaries, classification, regional briefings, and enrichment
+never use the subscription-backed gateway.
 See `docs/LLM_PROVIDERS.md` for the full routing and secret-file contract.
 
 Usage from every successful provider call is written to the same cost ledger
