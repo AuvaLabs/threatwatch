@@ -115,6 +115,10 @@ class TestNoiseFiltering:
         # Networking events
         "Tewkesbury Borough Business Voice announces cyber security themed networking breakfast",
         "Video: The top cybersecurity talent under one roof",
+        "Uganda's NITA-U participates in cybersecurity leadership training in Morocco",
+        "Florida Virtual School is expanding cybersecurity course offerings",
+        "Kicking off Cybersecurity Career Week with NIST!",
+        "VIDEO: Kent Chamber luncheon highlights cybersecurity, AI risks, insurance and employee training",
         # Non-cyber social/political
         "Indonesia to ban children under 16 from social media",
         "Qatar arrests 313 people for sharing Iran attack videos",
@@ -127,6 +131,31 @@ class TestNoiseFiltering:
             f"'{title}' should be filtered as noise, "
             f"got cyber={result['is_cyber_attack']}, cat={result['category']}"
         )
+
+
+class TestCompoundClassification:
+    """Headline evidence should outrank unrelated body context."""
+
+    @pytest.mark.parametrize("content", [
+        "The wider report also covers nation-state and state-sponsored activity.",
+        "The guidance is intended for critical infrastructure operators.",
+    ])
+    def test_phishing_headline_wins_over_body_context(self, content, tmp_path, monkeypatch):
+        monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")
+
+        result = classify_article(
+            "Microsoft disrupts three phishing kits used in scam messages",
+            content,
+        )
+
+        assert result["category"] == "Phishing"
+
+    def test_named_actor_still_wins_over_phishing_method(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")
+
+        result = classify_article("Kimsuky phishing campaign targets researchers")
+
+        assert result["category"] == "Nation-State Attack"
 
 
 class TestNoFalsePositives:

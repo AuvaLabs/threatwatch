@@ -49,6 +49,32 @@ class TestMergeArticles:
         ]
         assert any(item["hash"] == "other" for item in merged)
 
+    def test_caps_discovery_feed_across_syndicated_publishers(self, monkeypatch):
+        monkeypatch.setattr("modules.output_writer.MAX_ARTICLES_PER_SOURCE", 10)
+        monkeypatch.setattr("modules.output_writer.MAX_ARTICLES_PER_FEED", 2)
+        feed_url = "https://news.example.test/search?q=cybersecurity"
+        articles = [
+            _make_article(
+                f"aggregate-{index}",
+                days_ago=index,
+                source=feed_url,
+                source_name=f"Publisher {index}",
+            )
+            for index in range(4)
+        ]
+        articles.append(_make_article(
+            "native",
+            source="https://native.example.test/feed",
+            source_name="Native Source",
+        ))
+
+        merged = _merge_articles([], articles)
+
+        assert [
+            item["hash"] for item in merged if item.get("source") == feed_url
+        ] == ["aggregate-0", "aggregate-1"]
+        assert any(item["hash"] == "native" for item in merged)
+
     def test_new_articles_take_priority_in_ordering(self):
         existing = [_make_article("old", days_ago=1)]
         new = [_make_article("new")]

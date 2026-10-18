@@ -2,6 +2,13 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-18: Feed recovery and corpus diversity
+
+- Cleared transport errors when a feed returns a valid but quiet response while preserving stale and silent-feed detection.
+- Exposed current error-feed details in the health API.
+- Added a feed-level corpus cap so aggregate discovery feeds cannot bypass publisher balancing.
+- Filtered confirmed training, course, career-week, and chamber-event stories from the threat corpus.
+
 ## 2026-10-18: Analyst artifact recovery and provider budget controls
 
 - Rejected malformed URL and domain observables at the IOC boundary so one bad extraction cannot abort Hunts or Threat Ledger generation.

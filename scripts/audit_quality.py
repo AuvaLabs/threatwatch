@@ -97,7 +97,7 @@ def audit_classification(articles):
         ("Data Breach", re.compile(r"data\s+breach|breached|data\s+leak|records\s+stolen", re.I)),
         ("Nation-State Attack", re.compile(r"\bapt\d{1,3}\b|nation.state|state.sponsored|lazarus|typhoon", re.I)),
         ("Zero-Day Exploit", re.compile(r"zero.day|0day|actively\s+exploited", re.I)),
-        ("Phishing", re.compile(r"phishing|spearphish|credential\s+harvest|BEC", re.I)),
+        ("Phishing", re.compile(r"phishing|spearphish|credential\s+harvest|\bbec\b", re.I)),
     ]
     # Known compound relationships where either category is acceptable
     _COMPOUND_PAIRS = {
@@ -116,13 +116,24 @@ def audit_classification(articles):
         frozenset({"Malware", "Data Breach"}),
     }
     misclassified = []
+    actor_title_signal = re.compile(
+        r"\bapt\d|nation.?state|state.?sponsored|lazarus|typhoon|kimsuky"
+        r"|sandworm|bear|kitten|blizzard|sleet|sandstorm|winnti|turla",
+        re.I,
+    )
     for a in articles:
         title = a.get("title", "")
         assigned = a.get("category", "")
         for expected_cat, pattern in misclass_checks:
             if pattern.search(title) and assigned != expected_cat and assigned != "General Cyber Threat":
+                pair = frozenset({assigned, expected_cat})
+                if pair == frozenset({"Nation-State Attack", "Phishing"}):
+                    if actor_title_signal.search(title):
+                        continue
+                if pair == frozenset({"Nation-State Attack", "Cyber Espionage"}):
+                    continue
                 # Skip if the assigned+expected pair is a known compound relationship
-                if frozenset({assigned, expected_cat}) in _COMPOUND_PAIRS:
+                if pair in _COMPOUND_PAIRS:
                     continue
                 misclassified.append({
                     "title": title[:120],
@@ -136,7 +147,7 @@ def audit_classification(articles):
         findings.append({
             "severity": severity,
             "issue": "Potential misclassifications",
-            "detail": f"{len(misclassified)} articles may be misclassified (first-match-wins rule order issue).",
+            "detail": f"{len(misclassified)} articles have a strong title signal that conflicts with the assigned category.",
             "samples": [f"[{m['assigned']} -> {m['expected']}] {m['title']}" for m in misclassified[:10]],
         })
 

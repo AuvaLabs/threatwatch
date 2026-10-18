@@ -47,14 +47,36 @@ class TestRecordFetch:
         assert data[URL]["status"] == "ok"
         assert data[URL]["consecutive_errors"] == 0
 
-    def test_quiet_feed_does_not_increment_errors(self):
-        # Simulate a prior error
+    def test_quiet_success_clears_transport_errors(self):
+        # A valid response proves transport recovery even when the current
+        # collection window contains no articles.
         fh.record_fetch(URL, success=False)
-        before = fh.load_health()[URL]["consecutive_errors"]
-        # Now quiet success
         fh.record_fetch(URL, success=True, entry_count=0)
-        after = fh.load_health()[URL]["consecutive_errors"]
-        assert after == before  # errors not reset and not incremented
+        entry = fh.load_health()[URL]
+        assert entry["consecutive_errors"] == 0
+        assert entry["first_error"] is None
+        assert entry["status"] == "ok"
+
+    @pytest.mark.parametrize("previous_status", ["suspect", "dead"])
+    def test_quiet_success_recovers_degraded_feed(self, previous_status):
+        recent_ts = datetime.now(timezone.utc).isoformat()
+        fh.save_health({
+            URL: {
+                "url": URL,
+                "consecutive_errors": 8,
+                "first_error": recent_ts,
+                "last_success": recent_ts,
+                "last_checked": recent_ts,
+                "status": previous_status,
+            }
+        })
+
+        fh.record_fetch(URL, success=True, entry_count=0)
+
+        entry = fh.load_health()[URL]
+        assert entry["consecutive_errors"] == 0
+        assert entry["first_error"] is None
+        assert entry["status"] == "ok"
 
     def test_failure_increments_errors(self):
         fh.record_fetch(URL, success=False)
@@ -233,6 +255,10 @@ class TestGetHealthJson:
         assert payload["total_tracked"] == 2
         assert payload["ok"] == 1
         assert payload["error"] == 1
+        assert payload["error_feeds"] == [{
+            "url": "https://err1.example.com/feed",
+            "errors": 1,
+        }]
         assert isinstance(payload["dead_feeds"], list)
         assert isinstance(payload["suspect_feeds"], list)
 

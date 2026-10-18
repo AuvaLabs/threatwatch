@@ -15,7 +15,7 @@ import re
 from modules.ai_cache import get_cached_result, cache_result
 from modules.config import MAX_CONTENT_CHARS
 
-# Priority-ordered classification rules (first match wins)
+# Classification rules evaluated together by the weighted classifier.
 _RULES = [
     {
         "category": "Zero-Day Exploit",
@@ -539,7 +539,9 @@ _NOISE_PATTERNS = [
         r"networking\s+breakfast"
         r"|talent\s+under\s+one\s+roof"
         r"|expanding\s+the\s+pool\s+of\s+.*talent"
-        r"|arts?\s+graduate\s+ended\s+up\s+managing\s+cyber",
+        r"|arts?\s+graduate\s+ended\s+up\s+managing\s+cyber"
+        r"|cybersecurity\s+career\s+week"
+        r"|chamber\s+luncheon\s+highlights\s+cybersecurity",
         re.IGNORECASE,
     ),
     # Non-cyber social/political (matched cyber keywords loosely)
@@ -568,7 +570,9 @@ _NOISE_PATTERNS = [
         r"|certification\s+training\s+(to|for|program)"
         r"|provides?\s+cyber\s*security\s+certification\s+training"
         r"|training\s+gaps?\s+(impact|affect)\w*\s+.{0,20}cyber"
-        r"|(adds?|unveils?)\s+.{0,20}cyber\s+security\s+course",
+        r"|(adds?|unveils?)\s+.{0,20}cyber\s+security\s+course"
+        r"|participates?\s+in\s+cybersecurity\s+.{0,30}training"
+        r"|expanding\s+cybersecurity\s+course\s+offerings",
         re.IGNORECASE,
     ),
     # Generic cybersecurity advice / tips (not incident reporting)
@@ -838,9 +842,21 @@ _COMPOUND_OVERRIDES = [
      "title_re": re.compile(
          r"\bapt\d|nation.?state|state.?sponsored|lazarus|volt\s*typhoon|salt\s*typhoon"
          r"|sandworm|fancy\s*bear|cozy\s*bear|kitten|blizzard|sleet|sandstorm"
-         r"|scattered\s+spider|silk\s+typhoon|mustang\s+panda|winnti|turla",
+         r"|scattered\s+spider|silk\s+typhoon|mustang\s+panda|kimsuky|winnti|turla",
          re.I),
      "winner": "Nation-State Attack"},
+    # If actor attribution appears only in body context, keep the explicit
+    # phishing headline as the primary analyst category.
+    {"if_both": ("Nation-State Attack", "Phishing"),
+     "title_re": re.compile(
+         r"phishing|spearphish|credential\s+harvest|\bbec\b|business\s+email",
+         re.I),
+     "winner": "Phishing"},
+    {"if_both": ("Critical Infrastructure Attack", "Phishing"),
+     "title_re": re.compile(
+         r"phishing|spearphish|credential\s+harvest|\bbec\b|business\s+email",
+         re.I),
+     "winner": "Phishing"},
     {"if_both": ("Nation-State Attack", "Malware"),
      "title_re": re.compile(
          r"\bapt\d|nation.?state|state.?sponsored|lazarus|volt\s*typhoon|salt\s*typhoon"

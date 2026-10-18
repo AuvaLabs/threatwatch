@@ -202,6 +202,7 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `DAILY_BUDGET_USD` | `2.00` | Nominal daily spend ceiling for billable provider routes |
 | `LLM_ZERO_COST_PROVIDERS` | _(empty)_ | Comma-separated route names that remain available after the paid budget is reached |
 | `MAX_ARTICLES_PER_SOURCE` | `250` | Maximum articles retained per named source, or `0` to disable balancing |
+| `MAX_ARTICLES_PER_FEED` | `250` | Maximum articles retained per discovery feed URL, or `0` to disable balancing |
 | `MAX_SUMMARIES_PER_RUN` | `150` | Maximum articles summarized per enrichment cycle |
 | `SUMMARY_BATCH_SIZE` | `5` | Articles per structured summary call |
 | `SUMMARY_BATCH_DELAY_SECONDS` | `5` | Delay between uncached summary batches to protect provider quotas |

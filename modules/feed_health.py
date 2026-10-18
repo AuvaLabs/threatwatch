@@ -178,8 +178,10 @@ def _record_fetch_locked(url: str, success: bool, entry_count: int) -> None:
         entry["entries_total"]      += entry_count
 
     elif success and entry_count == 0:
-        # Quiet feed — HTTP ok, no articles in window; don't count as error
-        # but DO count as a successful fetch so signal_score reflects volume.
+        # A valid feed response proves transport recovery even when there are
+        # no articles in the current collection window.
+        entry["consecutive_errors"] = 0
+        entry["first_error"] = None
         entry["fetches_successful"] += 1
         last_ok = entry.get("last_success")
         if last_ok and _days_since(last_ok) >= _STALE_DAYS:
@@ -188,7 +190,8 @@ def _record_fetch_locked(url: str, success: bool, entry_count: int) -> None:
             # Responds but has NEVER yielded an article — wrong URL, empty
             # endpoint, or a challenge page that still parses as a feed.
             entry["status"] = "silent"
-        # If it was already dead/suspect from errors, don't downgrade it here
+        else:
+            entry["status"] = "ok"
 
     else:
         # Actual failure
@@ -290,6 +293,10 @@ def get_health_json() -> dict:
         "dead": len(report.get("dead", [])),
         "stale": len(report.get("stale", [])),
         "silent": len(report.get("silent", [])),
+        "error_feeds": [
+            {"url": e.get("url", ""), "errors": e.get("consecutive_errors", 0)}
+            for e in report.get("error", [])
+        ],
         "dead_feeds": [
             {"url": e.get("url", ""), "errors": e.get("consecutive_errors", 0),
              "last_success": str(e.get("last_success", "never"))[:10]}

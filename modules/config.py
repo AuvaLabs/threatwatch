@@ -145,6 +145,7 @@ FEED_CUTOFF_DAYS = int(os.getenv("FEED_CUTOFF_DAYS", "7"))
 MAX_FUTURE_MINUTES = int(os.getenv("MAX_FUTURE_MINUTES", "15"))
 DAILY_BUDGET_USD = float(os.getenv("DAILY_BUDGET_USD", "2.00"))
 MAX_ARTICLES_PER_SOURCE = max(0, int(os.getenv("MAX_ARTICLES_PER_SOURCE", "250")))
+MAX_ARTICLES_PER_FEED = max(0, int(os.getenv("MAX_ARTICLES_PER_FEED", "250")))
 
 
 def validate_config():
