@@ -2,6 +2,14 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-18: Bounded private model gateway
+
+- Added a dedicated AuvaLabs Model Services route for global briefings and top stories.
+- Fixed gateway access from the production VPS by binding only that provider to the approved IPv4 path.
+- Selected `gpt-6-luna` with low reasoning for scheduled synthesis and excluded larger subscription models from automation.
+- Added durable per-caller cooldown and daily attempt limits with normal provider failover when the allowance is unavailable.
+- Added a separate gitignored Compose secret file for the gateway bearer token.
+
 ## 2026-10-18: Feed recovery and corpus diversity
 
 - Cleared transport errors when a feed returns a valid but quiet response while preserving stale and silent-feed detection.

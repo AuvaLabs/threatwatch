@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import requests
+from requests.adapters import HTTPAdapter
 
 from modules.config import (
     ANTHROPIC_API_KEY,
@@ -26,6 +27,12 @@ from modules.config import (
     LLM_API_KEYS,
     LLM_BASE_URL,
     LLM_MODEL,
+    MODEL_SERVICES_API_KEY,
+    MODEL_SERVICES_CALLERS,
+    MODEL_SERVICES_MODEL,
+    MODEL_SERVICES_REASONING_EFFORT,
+    MODEL_SERVICES_TIMEOUT,
+    MODEL_SERVICES_URL,
     OUTPUT_DIR,
 )
 
@@ -103,8 +110,22 @@ def _advance_key() -> None:
         _write_key_index((_read_key_index() + 1) % len(LLM_API_KEYS))
 
 
-def _get_http_session() -> requests.Session:
-    return requests.Session()
+class _IPv4Adapter(HTTPAdapter):
+    """Bind gateway requests to IPv4 so the source-IP allowlist is stable."""
+
+    def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
+        kwargs["source_address"] = ("0.0.0.0", 0)
+        return super().init_poolmanager(
+            connections, maxsize, block=block, **kwargs,
+        )
+
+
+def _get_http_session(*, force_ipv4: bool = False) -> requests.Session:
+    session = requests.Session()
+    if force_ipv4:
+        session.mount("https://", _IPv4Adapter())
+        session.mount("http://", _IPv4Adapter())
+    return session
 
 
 def _is_kimi_base(base_url: str) -> bool:
@@ -120,8 +141,22 @@ def _primary_timeout() -> float:
     return float(os.environ.get("LLM_TIMEOUT", str(default)))
 
 
-def _configured_providers(model_override: str | None = None) -> list[Provider]:
+def _configured_providers(
+    model_override: str | None = None,
+    caller: str | None = None,
+) -> list[Provider]:
     providers: list[Provider] = []
+    if (
+        MODEL_SERVICES_API_KEY
+        and MODEL_SERVICES_URL
+        and MODEL_SERVICES_MODEL
+        and caller in MODEL_SERVICES_CALLERS
+    ):
+        providers.append(Provider(
+            "modelservices", MODEL_SERVICES_URL, MODEL_SERVICES_MODEL,
+            (MODEL_SERVICES_API_KEY,), MODEL_SERVICES_TIMEOUT,
+            protocol="modelservices",
+        ))
     anthropic_configured = bool(
         ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL and ANTHROPIC_MODEL
     )
@@ -195,6 +230,25 @@ def _anthropic_payload(provider: Provider, user_content: str,
     }
 
 
+def _model_services_payload(
+    provider: Provider,
+    user_content: str,
+    system_prompt: str,
+    max_tokens: int,
+) -> dict[str, Any]:
+    return {
+        "provider": "chatgpt",
+        "model": provider.model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ],
+        "max_tokens": max_tokens,
+        "reasoning_effort": MODEL_SERVICES_REASONING_EFFORT,
+        "stream": False,
+    }
+
+
 def _request_parts(provider: Provider, api_key: str, user_content: str,
                    system_prompt: str, max_tokens: int,
                    response_format: dict | None) -> tuple[str, dict, dict]:
@@ -209,6 +263,15 @@ def _request_parts(provider: Provider, api_key: str, user_content: str,
             provider, user_content, system_prompt, max_tokens,
         )
         return url, headers, payload
+    if provider.protocol == "modelservices":
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = _model_services_payload(
+            provider, user_content, system_prompt, max_tokens,
+        )
+        return provider.base_url, headers, payload
     url = f"{provider.base_url.rstrip('/')}/chat/completions"
     headers = {"Content-Type": "application/json"}
     if api_key:
@@ -298,7 +361,9 @@ def _call_provider(provider: Provider, user_content: str, system_prompt: str,
         )
         while True:
             try:
-                response = _get_http_session().post(
+                response = _get_http_session(
+                    force_ipv4=provider.protocol == "modelservices"
+                ).post(
                     url, json=payload, headers=headers, timeout=provider.timeout,
                 )
                 if _response_format_unsupported(response) and allow_format_retry:
@@ -337,11 +402,20 @@ def call_llm(user_content: str, system_prompt: str, max_tokens: int = 2000,
         raise RuntimeError(
             f"LLM circuit breaker open: >= {_LLM_CIRCUIT_THRESHOLD} consecutive failures"
         )
-    providers = _configured_providers(model)
+    providers = _configured_providers(model, caller)
     if not providers:
         raise RuntimeError("No LLM provider configured")
     failures: list[str] = []
     for provider in providers:
+        if provider.protocol == "modelservices":
+            from modules.model_services_quota import claim
+            if not claim(caller):
+                failures.append("modelservices: quota or cooldown reached")
+                logger.info(
+                    "Skipping Model Services for %s: quota or cooldown reached",
+                    caller,
+                )
+                continue
         from modules.cost_tracker import can_use_provider
         if not can_use_provider(provider.name):
             failures.append(f"{provider.name}: paid budget reached")

@@ -67,6 +67,18 @@ def single_key(monkeypatch, tmp_path):
     monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "")
     monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_API_KEY", "")
     monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_BASE_URL", "")
+    monkeypatch.setattr(llm_client, "MODEL_SERVICES_API_KEY", "")
+    monkeypatch.setattr(
+        llm_client,
+        "MODEL_SERVICES_URL",
+        "https://modelservices.example/techmodel/servicesapi/chat",
+    )
+    monkeypatch.setattr(llm_client, "MODEL_SERVICES_MODEL", "gpt-6-luna")
+    monkeypatch.setattr(llm_client, "MODEL_SERVICES_TIMEOUT", 240.0)
+    monkeypatch.setattr(llm_client, "MODEL_SERVICES_REASONING_EFFORT", "low")
+    monkeypatch.setattr(
+        llm_client, "MODEL_SERVICES_CALLERS", frozenset({"briefing", "top_stories"})
+    )
     monkeypatch.delenv("LLM_ZERO_COST_PROVIDERS", raising=False)
     monkeypatch.setattr("modules.cost_tracker.COST_FILE", tmp_path / "api_costs.json")
 
@@ -173,6 +185,89 @@ class TestProviderFailover:
         assert mock_session.post.call_count == 1
         assert mock_session.post.call_args.args[0] == "https://api.example.com/v1/chat/completions"
 
+
+class TestModelServicesProvider:
+    def test_allowed_briefing_uses_gateway_first(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "MODEL_SERVICES_API_KEY", "gateway-secret")
+        mock_session.post.return_value = _mock_response(
+            json_body={
+                "model": "gpt-6-luna",
+                "choices": [{"message": {"content": '{"status":"ok"}'}}],
+            }
+        )
+
+        with patch("modules.model_services_quota.claim", return_value=True) as claim:
+            result = call_llm(
+                "incident data",
+                system_prompt="Return JSON",
+                max_tokens=8000,
+                response_format={"type": "json_object"},
+                caller="briefing",
+                model="claude-sonnet-5-5",
+            )
+
+        assert result == '{"status":"ok"}'
+        claim.assert_called_once_with("briefing")
+        request = mock_session.post.call_args
+        assert request.args[0] == (
+            "https://modelservices.example/techmodel/servicesapi/chat"
+        )
+        assert request.kwargs["headers"]["Authorization"] == "Bearer gateway-secret"
+        assert request.kwargs["timeout"] == 240.0
+        assert request.kwargs["json"] == {
+            "provider": "chatgpt",
+            "model": "gpt-6-luna",
+            "messages": [
+                {"role": "system", "content": "Return JSON"},
+                {"role": "user", "content": "incident data"},
+            ],
+            "max_tokens": 8000,
+            "reasoning_effort": "low",
+            "stream": False,
+        }
+        assert "response_format" not in request.kwargs["json"]
+        assert mock_session.post.call_count == 1
+        llm_client._get_http_session.assert_called_once_with(force_ipv4=True)
+        assert llm_client.last_provider_label() == "modelservices/gpt-6-luna"
+
+    def test_disallowed_bulk_caller_does_not_use_gateway(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(llm_client, "MODEL_SERVICES_API_KEY", "gateway-secret")
+        mock_session.post.return_value = _mock_response()
+
+        with patch("modules.model_services_quota.claim") as claim:
+            call_llm("articles", system_prompt="summarise", caller="summaries")
+
+        claim.assert_not_called()
+        assert mock_session.post.call_args.args[0] == (
+            "https://api.example.com/v1/chat/completions"
+        )
+
+    def test_exhausted_gateway_quota_falls_through(self, mock_session, monkeypatch):
+        monkeypatch.setattr(llm_client, "MODEL_SERVICES_API_KEY", "gateway-secret")
+        mock_session.post.return_value = _mock_response(
+            json_body={"choices": [{"message": {"content": "fallback result"}}]}
+        )
+
+        with patch("modules.model_services_quota.claim", return_value=False):
+            result = call_llm("x", system_prompt="y", caller="top_stories")
+
+        assert result == "fallback result"
+        assert mock_session.post.call_count == 1
+        assert mock_session.post.call_args.args[0] == (
+            "https://api.example.com/v1/chat/completions"
+        )
+
+    def test_ipv4_session_binds_an_ipv4_source(self):
+        session = llm_client._get_http_session(force_ipv4=True)
+        adapter = session.get_adapter("https://modelservices.auvalabs.com/")
+        assert adapter.poolmanager.connection_pool_kw["source_address"] == (
+            "0.0.0.0", 0,
+        )
+
+
+class TestProviderEndpointFailover:
     def test_primary_404_falls_back_to_secondary(self, mock_session, monkeypatch):
         monkeypatch.setattr(llm_client, "FEATHERLESS_API_KEY", "fallback-key")
         monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "https://fallback.example/v1")

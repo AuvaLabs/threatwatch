@@ -21,6 +21,33 @@ ANTHROPIC_TOP_STORIES_MODEL = os.getenv(
 )
 ANTHROPIC_TIMEOUT = float(os.getenv("ANTHROPIC_TIMEOUT", "60"))
 
+# AuvaLabs Model Services is a private, subscription-backed gateway. It is
+# intentionally restricted to low-frequency synthesis callers and the Luna
+# model so unattended jobs cannot consume the shared interactive allowance.
+MODEL_SERVICES_API_KEY = os.getenv("MODEL_SERVICES_API_KEY", "")
+MODEL_SERVICES_URL = os.getenv(
+    "MODEL_SERVICES_URL",
+    "https://modelservices.auvalabs.com/techmodel/servicesapi/chat",
+)
+MODEL_SERVICES_MODEL = os.getenv("MODEL_SERVICES_MODEL", "gpt-6-luna")
+MODEL_SERVICES_TIMEOUT = float(os.getenv("MODEL_SERVICES_TIMEOUT", "240"))
+MODEL_SERVICES_REASONING_EFFORT = os.getenv(
+    "MODEL_SERVICES_REASONING_EFFORT", "low"
+)
+MODEL_SERVICES_CALLERS = frozenset(
+    value.strip()
+    for value in os.getenv(
+        "MODEL_SERVICES_CALLERS", "briefing,top_stories"
+    ).split(",")
+    if value.strip()
+)
+MODEL_SERVICES_DAILY_CALL_LIMIT = max(
+    0, int(os.getenv("MODEL_SERVICES_DAILY_CALL_LIMIT", "8"))
+)
+MODEL_SERVICES_CALLER_COOLDOWN_SECONDS = max(
+    0, int(os.getenv("MODEL_SERVICES_CALLER_COOLDOWN_SECONDS", "21600"))
+)
+
 # Provider-agnostic LLM config for AI features.
 # Supports any OpenAI-compatible API. Kimi is the default/recommended provider.
 _KIMI_API_KEY = os.getenv("KIMI_API_KEY")

@@ -8,11 +8,12 @@ fallback endpoints.
 
 ## Routing order
 
-1. Native `ANTHROPIC_*` provider when configured.
-2. Primary `LLM_*` provider, including primary key rotation.
-3. `FEATHERLESS_*` fallback.
-4. `BRIEFING_FALLBACK_*` fallback.
-5. Deterministic product behavior, such as the normal digest or a labeled stale
+1. Bounded Model Services route for approved callers when configured.
+2. Native `ANTHROPIC_*` provider when configured.
+3. Primary `LLM_*` provider, including primary key rotation.
+4. `FEATHERLESS_*` fallback.
+5. `BRIEFING_FALLBACK_*` fallback.
+6. Deterministic product behavior, such as the normal digest or a labeled stale
    last-known-good artifact.
 
 Despite their historical names, both fallback configurations apply to every AI
@@ -21,6 +22,40 @@ synthesis, CVE narratives, and actor profiles.
 
 Duplicate protocol, endpoint, and model combinations are removed from the route
 so a provider is not called twice under different configuration names.
+
+## AuvaLabs Model Services configuration
+
+Model Services uses a private gateway bearer token, not an OpenAI API key. Keep
+the token in `.secrets/modelservices.env`:
+
+```env
+MODEL_SERVICES_API_KEY=your-gateway-token
+```
+
+Configure the bounded route in `.env`:
+
+```env
+MODEL_SERVICES_URL=https://modelservices.auvalabs.com/techmodel/servicesapi/chat
+MODEL_SERVICES_MODEL=gpt-6-luna
+MODEL_SERVICES_TIMEOUT=240
+MODEL_SERVICES_REASONING_EFFORT=low
+MODEL_SERVICES_CALLERS=briefing,top_stories
+MODEL_SERVICES_DAILY_CALL_LIMIT=8
+MODEL_SERVICES_CALLER_COOLDOWN_SECONDS=21600
+LLM_ZERO_COST_PROVIDERS=modelservices,primary,fallback
+```
+
+The automated route supports only the global briefing and top-stories callers.
+It uses `gpt-6-luna` with low reasoning, allows at most one attempt per caller
+every six hours, and permits at most eight attempts per UTC day. Attempts are
+reserved before network access, so failures and timeouts cannot bypass the
+subscription guard. Regional briefings and bulk enrichment continue through
+the normal provider chain. The gateway is reached over IPv4 because its edge
+policy allowlists the production VPS IPv4 address.
+
+Do not configure `gpt-6.1-sol` or `gpt-6-astra` for scheduled work. Those models
+remain available for deliberate, manual analysis where their higher allowance
+cost is justified.
 
 ## Native Claude configuration
 
@@ -99,6 +134,8 @@ models. Unknown models are logged and counted as unpriced calls.
 
 - Native Claude uses `POST /v1/messages`, `x-api-key`, and the required API
   version header. Native responses are normalized for shared usage telemetry.
+- Model Services uses its exact gateway URL, sends the `chatgpt` provider field,
+  omits unsupported structured-output fields, and pins transport to IPv4.
 - OpenAI-style `response_format` is not sent to Claude. Existing prompts and
   downstream schema validation enforce JSON for structured capabilities.
 - Kimi coding endpoints omit `temperature`, because they reject values other

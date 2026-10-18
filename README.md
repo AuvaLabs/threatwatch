@@ -194,6 +194,12 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `ANTHROPIC_BRIEFING_MODEL` | `claude-sonnet-5-5` | Command and regional briefing model |
 | `ANTHROPIC_TOP_STORIES_MODEL` | `claude-sonnet-5-5` | Top-story synthesis model |
 | `ANTHROPIC_TIMEOUT` | `60` | Native Claude request timeout in seconds |
+| `MODEL_SERVICES_ENV_FILE` | `.secrets/modelservices.env` | Gitignored gateway bearer-token file loaded by Compose |
+| `MODEL_SERVICES_URL` | AuvaLabs gateway | Exact private gateway chat endpoint |
+| `MODEL_SERVICES_MODEL` | `gpt-6-luna` | Economical model used for scheduled synthesis |
+| `MODEL_SERVICES_CALLERS` | `briefing,top_stories` | Callers allowed to use the shared subscription |
+| `MODEL_SERVICES_DAILY_CALL_LIMIT` | `8` | Maximum gateway attempts per UTC day |
+| `MODEL_SERVICES_CALLER_COOLDOWN_SECONDS` | `21600` | Minimum seconds between attempts by one caller |
 | `LLM_API_KEY` | _(empty)_ | API key for your LLM provider |
 | `LLM_API_KEYS` | _(empty)_ | Comma-separated keys for round-robin rotation |
 | `LLM_BASE_URL` | provider dependent | Primary API base URL |
@@ -217,9 +223,17 @@ ANTHROPIC_BRIEFING_MODEL=claude-sonnet-5-5
 ANTHROPIC_TOP_STORIES_MODEL=claude-sonnet-5-5
 ```
 
-When Claude is configured, it is tried first. Haiku handles routine, high-volume
-enrichment while Sonnet handles briefings and top-story synthesis. The generic
-`LLM_*` provider remains the first independent fallback.
+Outside the bounded Model Services route, configured Claude is tried first.
+Haiku handles routine, high-volume enrichment while Sonnet handles briefings
+and top-story synthesis. The generic `LLM_*` provider remains the first
+independent fallback.
+
+When the private Model Services token is configured, `gpt-6-luna` is tried
+before Claude only for the global briefing and top-stories callers. The durable
+quota guard limits each caller to one attempt every six hours and limits the
+combined route to eight attempts per UTC day. Bulk summaries, classification,
+regional briefings, and enrichment never use the subscription-backed gateway.
+See `docs/LLM_PROVIDERS.md` for the full routing and secret-file contract.
 
 Usage from every successful provider call is written to the same cost ledger
 used by the daily budget gate. Routes listed in `LLM_ZERO_COST_PROVIDERS`, such
@@ -254,9 +268,10 @@ The same fallback route protects every AI capability, not only the global briefi
 | `BRIEFING_FALLBACK_MODEL` | 2 | _(empty)_ | Second fallback model |
 | `BRIEFING_FALLBACK_TIMEOUT` | 2 | `60` | Per-request seconds |
 
-The route tries native Claude, the primary OpenAI-compatible provider, first
-fallback, then second fallback. HTTP 429, timeout, connection, 5xx, invalid
-response, and retired-model failures move to the next independent provider.
+Eligible bounded calls try Model Services first. The remaining route tries
+native Claude, the primary OpenAI-compatible provider, first fallback, then
+second fallback. HTTP 429, timeout, connection, 5xx, invalid response, and
+retired-model failures move to the next independent provider.
 
 ### Optional IOC corroboration
 

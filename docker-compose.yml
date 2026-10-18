@@ -11,6 +11,8 @@ services:
       - .env
       - path: ${ANTHROPIC_ENV_FILE:-.secrets/anthropic.env}
         required: false
+      - path: ${MODEL_SERVICES_ENV_FILE:-.secrets/modelservices.env}
+        required: false
     environment:
       - SITE_DOMAIN=${SITE_DOMAIN:-localhost:8098}
       - FEED_CUTOFF_DAYS=${FEED_CUTOFF_DAYS:-7}
@@ -30,6 +32,14 @@ services:
       - LLM_CIRCUIT_THRESHOLD=${LLM_CIRCUIT_THRESHOLD:-3}
       - DAILY_BUDGET_USD=${DAILY_BUDGET_USD:-2.00}
       - LLM_ZERO_COST_PROVIDERS=${LLM_ZERO_COST_PROVIDERS:-}
+      # Bounded private gateway route for global briefings and top stories.
+      - MODEL_SERVICES_URL=${MODEL_SERVICES_URL:-https://modelservices.auvalabs.com/techmodel/servicesapi/chat}
+      - MODEL_SERVICES_MODEL=${MODEL_SERVICES_MODEL:-gpt-6-luna}
+      - MODEL_SERVICES_TIMEOUT=${MODEL_SERVICES_TIMEOUT:-240}
+      - MODEL_SERVICES_REASONING_EFFORT=${MODEL_SERVICES_REASONING_EFFORT:-low}
+      - MODEL_SERVICES_CALLERS=${MODEL_SERVICES_CALLERS:-briefing,top_stories}
+      - MODEL_SERVICES_DAILY_CALL_LIMIT=${MODEL_SERVICES_DAILY_CALL_LIMIT:-8}
+      - MODEL_SERVICES_CALLER_COOLDOWN_SECONDS=${MODEL_SERVICES_CALLER_COOLDOWN_SECONDS:-21600}
       - MAX_SUMMARIES_PER_RUN=${MAX_SUMMARIES_PER_RUN:-150}
       - SUMMARY_BATCH_SIZE=${SUMMARY_BATCH_SIZE:-5}
       - SUMMARY_BATCH_DELAY_SECONDS=${SUMMARY_BATCH_DELAY_SECONDS:-5}
