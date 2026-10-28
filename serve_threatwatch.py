@@ -1003,6 +1003,7 @@ STATIC_ROUTES = {
     },
     "/api/intelligence-delta": {
         "file": BASE_DIR / "data" / "output" / "intelligence_delta.json",
+        "fallback_body": b'{"available":false,"reason":"command_brief_pending"}',
         "content_type": "application/json; charset=utf-8",
     },
     "/api/briefing": {
@@ -1835,17 +1836,21 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         except FileNotFoundError:
             fallback_file = route.get("fallback_file")
             if fallback_file is None:
-                self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
-                return
-            try:
-                body = read_cached(fallback_file)
-            except FileNotFoundError:
-                self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
-                return
-            except OSError as exc:
-                logger.error("Error reading %s: %s", fallback_file, exc)
-                self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")
-                return
+                fallback_body = route.get("fallback_body")
+                if not isinstance(fallback_body, bytes):
+                    self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
+                    return
+                body = fallback_body
+            else:
+                try:
+                    body = read_cached(fallback_file)
+                except FileNotFoundError:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
+                    return
+                except OSError as exc:
+                    logger.error("Error reading %s: %s", fallback_file, exc)
+                    self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")
+                    return
         except OSError as exc:
             logger.error("Error reading %s: %s", route["file"], exc)
             self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")

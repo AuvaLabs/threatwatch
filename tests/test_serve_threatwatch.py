@@ -651,6 +651,23 @@ class TestHTTPRoutes:
         assert status == 200
         assert json.loads(body)["edition_type"] == "live"
 
+    def test_intelligence_delta_has_explicit_pre_edition_fallback(
+        self, test_server, tmp_path,
+    ):
+        route = {
+            "file": tmp_path / "missing-delta.json",
+            "fallback_body": b'{"available":false,"reason":"command_brief_pending"}',
+            "content_type": "application/json; charset=utf-8",
+        }
+        with patch.dict(sw.STATIC_ROUTES, {"/api/intelligence-delta": route}):
+            status, _, body = _get(test_server + "/api/v1/intelligence-delta")
+
+        assert status == 200
+        assert json.loads(body) == {
+            "available": False,
+            "reason": "command_brief_pending",
+        }
+
     def test_articles_returns_json(self, test_server):
         articles = [{"title": "Test"}]
         with patch("serve_threatwatch.load_articles", return_value=articles):
