@@ -15,6 +15,12 @@ describe("MissionControlView", () => {
         priorities: [], exposure: { configured: false, brands: [], assets: [], matches: [], disclaimer: "" },
       });
       if (path === "/api/v1/briefings/latest") return response({ headline: "Current assessment", what_happened: "Evidence summary", threat_level: "Elevated", source_articles: [] });
+      if (path === "/api/v1/intelligence-delta") return response({
+        available: true,
+        headline: "New exploitation signal",
+        what_happened: "A material change since the command edition.",
+        generated_at: "2026-10-08T11:00:00Z",
+      });
       if (path === "/api/v1/ledger/changes") return response({
         generated_at: "2026-10-08T10:00:00Z", total: 1,
         changes: [{ id: "global", record_id: "threat-global", entity_name: "CVE-2026-2", changed_at: "2026-10-08T10:00:00Z", kind: "state_changed", field: "decision", previous: "monitor", current: "patch", summary: "Newest global ledger change.", source_ids: [] }],
@@ -31,6 +37,8 @@ describe("MissionControlView", () => {
     expect(await screen.findByText("Newest global ledger change.")).toBeTruthy();
     expect(screen.getByText("Qualified hunts").previousSibling?.textContent).toBe("1");
     expect(screen.getByText("What changed today")).toBeTruthy();
+    expect(screen.getByText("New exploitation signal")).toBeTruthy();
+    expect(screen.getByText("A material change since the command edition.")).toBeTruthy();
     expect(screen.getByText("Decision queue")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Open the full ledger" }).getAttribute("href")).toBe("/ledger");
   });

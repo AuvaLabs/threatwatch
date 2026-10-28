@@ -5,7 +5,7 @@ from __future__ import annotations
 import fcntl
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from modules.config import (
@@ -15,6 +15,8 @@ from modules.config import (
     MODEL_SERVICES_SOL_CALLER_COOLDOWN_SECONDS,
     MODEL_SERVICES_SOL_CALLERS,
     MODEL_SERVICES_SOL_DAILY_CALL_LIMIT,
+    MODEL_SERVICES_SOL_SCHEDULE_HOURS_UTC,
+    MODEL_SERVICES_SOL_SCHEDULE_WINDOW_MINUTES,
     STATE_DIR,
 )
 from modules.utils import write_json_atomic
@@ -26,7 +28,7 @@ LOCK_FILE = STATE_DIR / "model_services_usage.lock"
 
 
 def _empty_route() -> dict[str, Any]:
-    return {"calls": 0, "by_caller": {}}
+    return {"calls": 0, "by_caller": {}, "claimed_slots": []}
 
 
 def _empty_state(day: str) -> dict[str, Any]:
@@ -48,7 +50,9 @@ def _normalized_route(value: object) -> dict[str, Any]:
         for caller, timestamp in callers.items()
         if isinstance(caller, str) and isinstance(timestamp, (int, float))
     }
-    return {"calls": calls, "by_caller": valid_callers}
+    slots = value.get("claimed_slots")
+    valid_slots = [slot for slot in slots or [] if isinstance(slot, str)]
+    return {"calls": calls, "by_caller": valid_callers, "claimed_slots": valid_slots}
 
 
 def _load_state(day: str) -> dict[str, Any]:
@@ -96,6 +100,19 @@ def _route_policy(route: str) -> tuple[frozenset[str], int, int] | None:
     return policies.get(route)
 
 
+def _sol_schedule_slot(current: datetime) -> str | None:
+    if not MODEL_SERVICES_SOL_SCHEDULE_HOURS_UTC:
+        return None
+    window = timedelta(minutes=MODEL_SERVICES_SOL_SCHEDULE_WINDOW_MINUTES)
+    for day_offset in (0, -1):
+        base = current + timedelta(days=day_offset)
+        for hour in MODEL_SERVICES_SOL_SCHEDULE_HOURS_UTC:
+            start = base.replace(hour=hour, minute=0, second=0, microsecond=0)
+            if start <= current < start + window:
+                return start.strftime("%Y-%m-%dT%H:00Z")
+    return ""
+
+
 def claim(
     route: str, caller: str | None, *, now: datetime | None = None,
 ) -> bool:
@@ -126,12 +143,23 @@ def claim(
             route_state = state["routes"][route]
             if route_state["calls"] >= daily_limit:
                 return False
-            if _cooldown_active(route_state, caller, timestamp, cooldown):
+            schedule_slot = _sol_schedule_slot(current) if route == "sol" else None
+            if schedule_slot == "":
+                return False
+            if schedule_slot and schedule_slot in route_state["claimed_slots"]:
+                return False
+            if schedule_slot is None and _cooldown_active(
+                route_state, caller, timestamp, cooldown,
+            ):
                 return False
             next_route = {
                 **route_state,
                 "calls": route_state["calls"] + 1,
                 "by_caller": {**route_state["by_caller"], caller: timestamp},
+                "claimed_slots": [
+                    *route_state["claimed_slots"],
+                    *([schedule_slot] if schedule_slot else []),
+                ],
             }
             next_state = {
                 **state,

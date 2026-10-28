@@ -1,4 +1,5 @@
 import logging
+import json
 import os
 import sys
 from datetime import datetime
@@ -6,6 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from modules.config import STATE_DIR, OUTPUT_DIR, MAX_SEEN_HASHES
+from modules.keyword_data import _NOISE_PATTERNS
+from modules.utils import write_json_atomic
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s"
@@ -28,6 +31,8 @@ _LIVE_OUTPUT_FILES = frozenset({
     "hourly_latest.json",
     "stats.json",
     "briefing.json",
+    "command_brief.json",
+    "intelligence_delta.json",
     "briefing_na.json",
     "briefing_emea.json",
     "briefing_apac.json",
@@ -112,10 +117,40 @@ def cleanup_seen_titles():
     logging.info(f"Trimmed titles from {len(titles)} to {len(trimmed)} entries.")
 
 
+def cleanup_noise_articles() -> int:
+    """Remove only deterministic, explicitly matched noise from live corpora."""
+    removed = 0
+    for name in ("daily_latest.json", "hourly_latest.json"):
+        path = OUTPUT_DIR / name
+        try:
+            articles = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(articles, list):
+            continue
+        kept = [
+            article for article in articles
+            if not (
+                isinstance(article, dict)
+                and any(
+                    pattern.search(str(article.get("title") or ""))
+                    for pattern in _NOISE_PATTERNS
+                )
+            )
+        ]
+        removed_here = len(articles) - len(kept)
+        if removed_here:
+            write_json_atomic(path, kept, indent=2, ensure_ascii=False)
+            removed += removed_here
+    logging.info("Removed %d confirmed noise article(s) from live corpora.", removed)
+    return removed
+
+
 def main():
     logging.info("=== Running cleanup script ===")
     cleanup_seen_hashes()
     cleanup_seen_titles()
+    cleanup_noise_articles()
     cleanup_old_outputs()
     # Expire AI cache entries (classifications, syntheses, briefings).
     # Without this sweep nothing ever called clear_old_cache and stale LLM

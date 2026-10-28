@@ -2,6 +2,14 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-10-28: Intelligence delivery hardening
+
+- Preserved twice-daily Sol output as immutable Command Brief editions and published later fallback analysis as a separate Intelligence Delta.
+- Added fixed UTC Sol edition windows, provider-route cooldowns, and safe failure diagnostics.
+- Restricted the public Telegram destination to source-backed briefings and verified KEV alerts, with operations alerts requiring a separate private chat.
+- Recovered the current Huntress feed with a compatible feed-client identity and paused four quiet discovery sources.
+- Reduced discovery-feed concentration and removed confirmed scholarship, product, and certification noise from live corpora.
+
 ## 2026-10-18: Bounded private model gateway
 
 - Added dedicated AuvaLabs Model Services routes for global briefings and top stories.

@@ -68,6 +68,32 @@ MODEL_SERVICES_SOL_CALLER_COOLDOWN_SECONDS = max(
     0, int(os.getenv("MODEL_SERVICES_SOL_CALLER_COOLDOWN_SECONDS", "43200"))
 )
 
+
+def _parse_utc_hours(value: str) -> tuple[int, ...]:
+    hours: list[int] = []
+    for raw_hour in value.split(","):
+        raw_hour = raw_hour.strip()
+        if not raw_hour:
+            continue
+        try:
+            hour = int(raw_hour)
+        except ValueError:
+            logger.warning("Ignoring invalid UTC schedule hour: %r", raw_hour)
+            continue
+        if 0 <= hour <= 23 and hour not in hours:
+            hours.append(hour)
+        else:
+            logger.warning("Ignoring invalid or duplicate UTC schedule hour: %r", raw_hour)
+    return tuple(sorted(hours))
+
+
+MODEL_SERVICES_SOL_SCHEDULE_HOURS_UTC = _parse_utc_hours(
+    os.getenv("MODEL_SERVICES_SOL_SCHEDULE_HOURS_UTC", "3,15")
+)
+MODEL_SERVICES_SOL_SCHEDULE_WINDOW_MINUTES = max(
+    1, int(os.getenv("MODEL_SERVICES_SOL_SCHEDULE_WINDOW_MINUTES", "180"))
+)
+
 # Provider-agnostic LLM config for AI features.
 # Supports any OpenAI-compatible API. Kimi is the default/recommended provider.
 _KIMI_API_KEY = os.getenv("KIMI_API_KEY")
@@ -192,7 +218,7 @@ FEED_CUTOFF_DAYS = int(os.getenv("FEED_CUTOFF_DAYS", "7"))
 MAX_FUTURE_MINUTES = int(os.getenv("MAX_FUTURE_MINUTES", "15"))
 DAILY_BUDGET_USD = float(os.getenv("DAILY_BUDGET_USD", "2.00"))
 MAX_ARTICLES_PER_SOURCE = max(0, int(os.getenv("MAX_ARTICLES_PER_SOURCE", "250")))
-MAX_ARTICLES_PER_FEED = max(0, int(os.getenv("MAX_ARTICLES_PER_FEED", "250")))
+MAX_ARTICLES_PER_FEED = max(0, int(os.getenv("MAX_ARTICLES_PER_FEED", "150")))
 
 
 def validate_config():

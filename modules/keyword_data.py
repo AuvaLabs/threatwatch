@@ -521,6 +521,12 @@ _NOISE_PATTERNS = [
         r"|webinar\s+(guide|for\s+security\s+leaders)",
         re.IGNORECASE,
     ),
+    # Scholarships and academic recruitment
+    re.compile(
+        r"cybersecurity\s+(scholarship|scholarships|fellowship|bursary)"
+        r"|(scholarship|fellowship|bursary)\s+.{0,30}cybersecurity",
+        re.IGNORECASE,
+    ),
     # Celebrity / entertainment using 'cyber attack' loosely
     re.compile(
         r"(apologises?|apologizes?)\s+to\s+\w+\s+for\s+cyber"
@@ -573,6 +579,13 @@ _NOISE_PATTERNS = [
         r"|(adds?|unveils?)\s+.{0,20}cyber\s+security\s+course"
         r"|participates?\s+in\s+cybersecurity\s+.{0,30}training"
         r"|expanding\s+cybersecurity\s+course\s+offerings",
+        re.IGNORECASE,
+    ),
+    # Vendor and organizational compliance certifications
+    re.compile(
+        r"(receives?|earns?|achieves?|obtains?|awarded)\s+.{0,30}"
+        r"(compliance|security|cybersecurity)\s+certification"
+        r"|(iso\s*27001|soc\s*2|pci[ -]?dss)\s+(certified|certification|compliance)",
         re.IGNORECASE,
     ),
     # Generic cybersecurity advice / tips (not incident reporting)
@@ -836,6 +849,11 @@ _CONTEXT_PRIORITY = {
 # rules (Nation-State wins over Phishing/Malware technique categories) come
 # before technique-level overrides (Malware vs Phishing).
 _COMPOUND_OVERRIDES = [
+    # A zero-day headline remains a zero-day even when "leaked" also matches
+    # generic data-loss language.
+    {"if_both": ("Zero-Day Exploit", "Data Breach"),
+     "title_re": re.compile(r"zero.day|0day|actively\s+exploited", re.I),
+     "winner": "Zero-Day Exploit"},
     # APT attribution beats technique labels: an article about APT29 using
     # phishing is a Nation-State story, not a Phishing story.
     {"if_both": ("Nation-State Attack", "Phishing"),

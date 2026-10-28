@@ -8,14 +8,15 @@ import { api } from "../services/api";
 import { briefingTitle } from "../services/briefing";
 import { investigationFromPriority } from "../services/operations";
 import { saveInvestigation } from "../services/workspace";
-import type { Briefing, LedgerResponse, OperationalSummary } from "../types";
+import type { Briefing, IntelligenceDelta, LedgerResponse, OperationalSummary } from "../types";
 import { excerpt, formattedDate } from "../utils/format";
 
-interface MissionData { operations: OperationalSummary; briefing: Briefing | null; ledger: LedgerResponse | null }
+interface MissionData { operations: OperationalSummary; briefing: Briefing | null; delta: IntelligenceDelta | null; ledger: LedgerResponse | null }
 
 async function loadMission(signal: AbortSignal): Promise<MissionData> {
-  const [operations, briefing, ledger, ledgerChanges] = await Promise.allSettled([
+  const [operations, briefing, delta, ledger, ledgerChanges] = await Promise.allSettled([
     api.operations(signal), api.briefing("latest", signal),
+    api.intelligenceDelta(signal),
     api.ledger({ activity: "active", limit: 1 }, signal), api.ledgerChanges(signal),
   ]);
   if (operations.status === "rejected") throw operations.reason;
@@ -23,6 +24,7 @@ async function loadMission(signal: AbortSignal): Promise<MissionData> {
   return {
     operations: operations.value,
     briefing: briefing.status === "fulfilled" ? briefing.value : null,
+    delta: delta.status === "fulfilled" && delta.value.available ? delta.value : null,
     ledger: ledgerValue && ledgerChanges.status === "fulfilled"
       ? { ...ledgerValue, changes: ledgerChanges.value.changes }
       : ledgerValue,
@@ -34,7 +36,7 @@ export function MissionControlView() {
   const [notice, setNotice] = useState("");
   if (resource.loading) return <LoadingState label="Building the operational picture" />;
   if (resource.error || !resource.data) return <ErrorState message={resource.error || "Operational priorities are unavailable."} />;
-  const { operations, briefing, ledger } = resource.data;
+  const { operations, briefing, delta, ledger } = resource.data;
   const track = (priority: OperationalSummary["priorities"][number]) => {
     try {
       const workspace = saveInvestigation(investigationFromPriority(priority));
@@ -60,6 +62,12 @@ export function MissionControlView() {
         <div><p class="eyebrow">Command brief</p><h2>{briefingTitle(briefing)}</h2><p>{excerpt(briefing?.what_happened, 340) || "Use the decision queue below while narrative enrichment recovers."}</p><BriefingSources briefing={briefing} compact limit={3} /></div>
         <div class="command-brief-action"><span>{briefing?.threat_level || "Unclassified"}</span><button class="button secondary" onClick={() => navigate("/reports")} type="button">Open report</button></div>
       </section>
+      {delta && <section class="intelligence-delta surface" aria-label="Live intelligence update">
+        <p class="eyebrow">Since the command brief</p>
+        <h2>{briefingTitle(delta)}</h2>
+        <p>{excerpt(delta.what_happened, 300)}</p>
+        <time>{formattedDate(delta.generated_at)}</time>
+      </section>}
       <section class="today-changes" aria-labelledby="today-changes-title">
         <div class="section-heading"><div><p class="eyebrow">Revision register</p><h2 id="today-changes-title">What changed today</h2></div><a href="/ledger" onClick={(event) => { event.preventDefault(); navigate("/ledger"); }}>Open the full ledger</a></div>
         {ledger?.changes.length ? <ol>{ledger.changes.slice(0, 5).map((change) => <li key={change.id}><time>{formattedDate(change.changed_at)}</time><strong>{change.summary}</strong></li>)}</ol> : <div class="quiet-empty surface"><strong>No assessment changes in the latest run</strong><p>Living records remain available in the public threat ledger.</p></div>}

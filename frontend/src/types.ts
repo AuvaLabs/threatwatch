@@ -68,6 +68,16 @@ export interface Briefing {
   week_in_review_sources?: number[];
   source_articles?: SourceArticle[];
   served_stale?: boolean;
+  edition_type?: "command_brief" | "intelligence_delta";
+  edition_id?: string;
+}
+
+export interface IntelligenceDelta extends Briefing {
+  available: boolean;
+  command_edition_id?: string;
+  command_generated_at?: string;
+  threat_level_changed?: boolean;
+  new_source_indexes?: number[];
 }
 
 export interface Health {

@@ -868,7 +868,9 @@ def build_openapi() -> bytes:
     paths = {
         "/api/v1/articles": {"get": {"summary": "List recent articles"}},
         "/api/v1/articles/{id}": {"get": {"summary": "Get one article"}},
-        "/api/v1/briefings/latest": {"get": {"summary": "Get latest briefing"}},
+        "/api/v1/briefings/latest": {"get": {"summary": "Get latest Sol command briefing"}},
+        "/api/v1/briefings/live": {"get": {"summary": "Get latest live briefing update"}},
+        "/api/v1/intelligence-delta": {"get": {"summary": "Get changes since the command briefing"}},
         "/api/v1/briefings/{region}": {"get": {"summary": "Get regional briefing"}},
         "/api/v1/incidents": {"get": {"summary": "List incident clusters"}},
         "/api/v1/hunts": {"get": {"summary": "List evidence-gated hunt packages"}},
@@ -994,6 +996,15 @@ def filter_articles(articles: list[dict], params: dict) -> tuple[list[dict], dic
 
 
 STATIC_ROUTES = {
+    "/api/command-brief": {
+        "file": BASE_DIR / "data" / "output" / "command_brief.json",
+        "fallback_file": BASE_DIR / "data" / "output" / "briefing.json",
+        "content_type": "application/json; charset=utf-8",
+    },
+    "/api/intelligence-delta": {
+        "file": BASE_DIR / "data" / "output" / "intelligence_delta.json",
+        "content_type": "application/json; charset=utf-8",
+    },
     "/api/briefing": {
         "file": BASE_DIR / "data" / "output" / "briefing.json",
         "content_type": "application/json; charset=utf-8",
@@ -1282,7 +1293,9 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
 
         v1_aliases = {
             "/api/v1/articles": "/api/articles",
-            "/api/v1/briefings/latest": "/api/briefing",
+            "/api/v1/briefings/latest": "/api/command-brief",
+            "/api/v1/briefings/live": "/api/briefing",
+            "/api/v1/intelligence-delta": "/api/intelligence-delta",
             "/api/v1/briefings/na": "/api/briefing/na",
             "/api/v1/briefings/emea": "/api/briefing/emea",
             "/api/v1/briefings/apac": "/api/briefing/apac",
@@ -1820,8 +1833,19 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         try:
             body = read_cached(route["file"])
         except FileNotFoundError:
-            self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
-            return
+            fallback_file = route.get("fallback_file")
+            if fallback_file is None:
+                self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
+                return
+            try:
+                body = read_cached(fallback_file)
+            except FileNotFoundError:
+                self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
+                return
+            except OSError as exc:
+                logger.error("Error reading %s: %s", fallback_file, exc)
+                self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")
+                return
         except OSError as exc:
             logger.error("Error reading %s: %s", route["file"], exc)
             self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")

@@ -47,15 +47,28 @@ MODEL_SERVICES_SOL_REASONING_EFFORT=medium
 MODEL_SERVICES_SOL_CALLERS=briefing
 MODEL_SERVICES_SOL_DAILY_CALL_LIMIT=2
 MODEL_SERVICES_SOL_CALLER_COOLDOWN_SECONDS=43200
+MODEL_SERVICES_SOL_SCHEDULE_HOURS_UTC=3,15
+MODEL_SERVICES_SOL_SCHEDULE_WINDOW_MINUTES=180
+LLM_PROVIDER_FAILURE_THRESHOLD=3
+LLM_PROVIDER_COOLDOWN_SECONDS=900
 LLM_ZERO_COST_PROVIDERS=modelservices,primary,fallback
 ```
 
 The Luna route supports only top-story ranking. It uses low reasoning, permits
 24 attempts per UTC day, and enforces an hourly cooldown. The Sol route supports
-only the global briefing. It uses medium reasoning, permits two attempts per
-UTC day, and enforces a 12-hour cooldown. The limits are independent, so Luna
+only the global briefing. It uses medium reasoning and can claim one edition in
+each 03:00 and 15:00 UTC window, with two attempts at most per UTC day. The limits are independent, so Luna
 activity cannot consume the Sol allowance. Attempts are reserved before network
 access, so failures and timeouts cannot bypass either subscription guard.
+
+A retryable provider failure opens a process-local route cooldown after three
+failures. Diagnostics retain only the exception class and a safe reason, never
+request authorization data or full provider responses.
+
+Successful Sol output is stored as an immutable Command Brief edition. Later
+fallback briefings remain available as a live Intelligence Delta and cannot
+replace the authoritative edition. The daily Telegram poster prefers the
+Command Brief and falls back to the live briefing before the first Sol edition.
 
 When either bounded route is unavailable, that request continues through the
 normal provider chain. This also means hourly briefing refreshes between the two

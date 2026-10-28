@@ -8,6 +8,7 @@ lapsed) so the same level does not re-alert on every pipeline tick.
 Configure via environment:
   TELEGRAM_BOT_TOKEN          — bot token from @BotFather (required to enable)
   TELEGRAM_CHAT_ID            — channel handle ("@my_channel") or numeric ID
+  TELEGRAM_OPS_CHAT_ID        — separate private operator destination (optional)
   TELEGRAM_MIN_LEVEL          — ELEVATED | CRITICAL (default ELEVATED)
   TELEGRAM_COOLDOWN_HOURS     — re-alert after N hours (default 6)
   TELEGRAM_DASHBOARD_URL      — link surfaced in the message footer
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+TELEGRAM_OPS_CHAT_ID = os.environ.get("TELEGRAM_OPS_CHAT_ID", "")
 TELEGRAM_MIN_LEVEL = os.environ.get("TELEGRAM_MIN_LEVEL", "ELEVATED").upper()
 TELEGRAM_COOLDOWN_HOURS = float(os.environ.get("TELEGRAM_COOLDOWN_HOURS", "6"))
 # CISA can list a CVE months/years after first publication, and articles can
@@ -188,13 +190,14 @@ def format_briefing_html(briefing: dict) -> str:
     return body
 
 
-def _send(text: str) -> bool:
+def _send(text: str, *, chat_id: str | None = None) -> bool:
     """POST to sendMessage. Returns True on HTTP success."""
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+    destination = TELEGRAM_CHAT_ID if chat_id is None else chat_id
+    if not TELEGRAM_BOT_TOKEN or not destination:
         return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": destination,
         "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
@@ -211,6 +214,23 @@ def _send(text: str) -> bool:
         return False
 
 
+def _is_grounded_briefing(briefing: object) -> bool:
+    if not isinstance(briefing, dict):
+        return False
+    if not str(briefing.get("headline") or "").strip():
+        return False
+    if not str(briefing.get("what_happened") or "").strip():
+        return False
+    sources = briefing.get("source_articles")
+    if not isinstance(sources, list) or not sources:
+        return False
+    return any(
+        isinstance(source, dict)
+        and str(source.get("link") or "").startswith(("https://", "http://"))
+        for source in sources
+    )
+
+
 def dispatch_telegram_briefing(briefing: dict | None) -> bool:
     """Fire a Telegram alert for the briefing if it clears the threshold.
 
@@ -218,7 +238,11 @@ def dispatch_telegram_briefing(briefing: dict | None) -> bool:
     TELEGRAM_CHAT_ID are unset — both shortcircuit to False without
     raising. Independent dedup state from the webhook dispatcher.
     """
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not briefing:
+    if (
+        not TELEGRAM_BOT_TOKEN
+        or not TELEGRAM_CHAT_ID
+        or not _is_grounded_briefing(briefing)
+    ):
         return False
     level = (briefing.get("threat_level") or "").upper()
     state = _load_json_state(_STATE_PATH)
@@ -377,7 +401,11 @@ def post_briefing_unconditional(briefing: dict | None) -> bool:
     flow — operators who want a guaranteed once-a-day post separate from
     the threshold-driven alert path.
     """
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not briefing:
+    if (
+        not TELEGRAM_BOT_TOKEN
+        or not TELEGRAM_CHAT_ID
+        or not _is_grounded_briefing(briefing)
+    ):
         return False
     return _send(format_briefing_html(briefing))
 
@@ -395,7 +423,7 @@ def dispatch_ops_alert(key: str, subject: str, detail: str) -> bool:
     failures that previously only appeared in container logs nobody reads.
     One alert per key per TELEGRAM_OPS_COOLDOWN_HOURS. Returns True if sent.
     """
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_OPS_CHAT_ID:
         return False
     state = _load_json_state(_OPS_STATE_PATH)
     last = state.get(key)
@@ -412,7 +440,7 @@ def dispatch_ops_alert(key: str, subject: str, detail: str) -> bool:
         f"{_html_escape(detail)}\n\n"
         f"{_html_escape(TELEGRAM_DASHBOARD_URL)}/api/health"
     )
-    if not _send(text):
+    if not _send(text, chat_id=TELEGRAM_OPS_CHAT_ID):
         return False
     state[key] = datetime.now(timezone.utc).isoformat()
     _save_json_state(_OPS_STATE_PATH, state)

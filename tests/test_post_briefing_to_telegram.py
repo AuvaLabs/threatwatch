@@ -25,3 +25,16 @@ def test_dry_run_validates_configuration_without_posting(tmp_path, monkeypatch, 
         "destination_configured": True,
     }
     assert post is None
+
+
+def test_command_brief_is_preferred_over_live_briefing(tmp_path, monkeypatch):
+    command = tmp_path / "command_brief.json"
+    live = tmp_path / "briefing.json"
+    command.write_text(json.dumps({"threat_level": "CRITICAL"}))
+    live.write_text(json.dumps({"threat_level": "LOW"}))
+    monkeypatch.setattr(poster, "COMMAND_BRIEF_PATH", command)
+    monkeypatch.setattr(poster, "BRIEFING_PATH", live)
+
+    loaded = poster._load_briefing(poster.logging.getLogger("test"), dry_run=True)
+
+    assert loaded == {"threat_level": "CRITICAL"}

@@ -618,6 +618,39 @@ class TestHTTPRoutes:
         data = json.loads(body)
         assert data["status"] == "ok"
 
+    def test_latest_briefing_prefers_command_edition(self, test_server, tmp_path):
+        command = tmp_path / "command.json"
+        live = tmp_path / "live.json"
+        command.write_text(json.dumps({"edition_type": "command_brief"}))
+        live.write_text(json.dumps({"edition_type": "live"}))
+        route = {
+            "file": command,
+            "fallback_file": live,
+            "content_type": "application/json; charset=utf-8",
+        }
+        with patch.dict(sw.STATIC_ROUTES, {"/api/command-brief": route}):
+            status, _, body = _get(test_server + "/api/v1/briefings/latest")
+
+        assert status == 200
+        assert json.loads(body)["edition_type"] == "command_brief"
+
+    def test_latest_briefing_falls_back_until_first_command_edition(
+        self, test_server, tmp_path,
+    ):
+        command = tmp_path / "missing-command.json"
+        live = tmp_path / "live.json"
+        live.write_text(json.dumps({"edition_type": "live"}))
+        route = {
+            "file": command,
+            "fallback_file": live,
+            "content_type": "application/json; charset=utf-8",
+        }
+        with patch.dict(sw.STATIC_ROUTES, {"/api/command-brief": route}):
+            status, _, body = _get(test_server + "/api/v1/briefings/latest")
+
+        assert status == 200
+        assert json.loads(body)["edition_type"] == "live"
+
     def test_articles_returns_json(self, test_server):
         articles = [{"title": "Test"}]
         with patch("serve_threatwatch.load_articles", return_value=articles):

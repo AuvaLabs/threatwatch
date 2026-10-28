@@ -28,6 +28,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 from modules.logger_utils import setup_logger  # noqa: E402
 from modules.briefing_generator import BRIEFING_PATH  # noqa: E402
+from modules.command_brief import COMMAND_BRIEF_PATH  # noqa: E402
 from modules.config import STATE_DIR  # noqa: E402
 from modules.utils import write_json_atomic  # noqa: E402
 
@@ -47,13 +48,16 @@ def _record_status(ok: bool, level: object, reason: str) -> None:
 
 
 def _load_briefing(log: logging.Logger, *, dry_run: bool) -> dict | None:
-    if not BRIEFING_PATH.exists():
-        log.error("Briefing file not found: %s", BRIEFING_PATH)
+    briefing_path = (
+        COMMAND_BRIEF_PATH if COMMAND_BRIEF_PATH.exists() else BRIEFING_PATH
+    )
+    if not briefing_path.exists():
+        log.error("Briefing file not found: %s", briefing_path)
         if not dry_run:
             _record_status(False, None, "briefing_missing")
         return None
     try:
-        briefing = json.loads(BRIEFING_PATH.read_text(encoding="utf-8"))
+        briefing = json.loads(briefing_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         log.error("Could not load briefing: %s", exc)
         if not dry_run:

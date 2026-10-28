@@ -24,6 +24,7 @@ describe("API client", () => {
     vi.mocked(fetch).mockImplementation(async () => response({}));
     await api.article("abc 123");
     await api.briefing("emea");
+    await api.intelligenceDelta();
     await api.health();
     await api.clusters();
     await api.watchlist();
@@ -36,6 +37,7 @@ describe("API client", () => {
     expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual([
       "/api/v1/articles/abc%20123",
       "/api/v1/briefings/emea",
+      "/api/v1/intelligence-delta",
       "/api/v1/health",
       "/api/v1/incidents",
       "/api/watchlist",

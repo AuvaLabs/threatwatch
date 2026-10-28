@@ -1,6 +1,7 @@
 """Tests for scripts/cleanup.py — retention must never delete live outputs."""
 
 import os
+import json
 import time
 from unittest.mock import patch
 
@@ -49,3 +50,28 @@ class TestCleanupOldOutputs:
         with patch.object(cleanup, "OUTPUT_DIR", tmp_path):
             cleanup.cleanup_old_outputs()
         assert snap.exists()
+
+
+class TestCleanupNoiseArticles:
+    def test_removes_only_confirmed_noise_from_live_corpus(self, tmp_path):
+        output = tmp_path / "daily_latest.json"
+        output.write_text(json.dumps([
+            {"title": "Company launches new cybersecurity product solution"},
+            {"title": "Attackers exploit Chrome zero-day in the wild"},
+        ]))
+
+        with patch.object(cleanup, "OUTPUT_DIR", tmp_path):
+            assert cleanup.cleanup_noise_articles() == 1
+
+        assert json.loads(output.read_text()) == [
+            {"title": "Attackers exploit Chrome zero-day in the wild"},
+        ]
+
+    def test_invalid_live_corpus_is_left_unchanged(self, tmp_path):
+        output = tmp_path / "hourly_latest.json"
+        output.write_text("not-json")
+
+        with patch.object(cleanup, "OUTPUT_DIR", tmp_path):
+            assert cleanup.cleanup_noise_articles() == 0
+
+        assert output.read_text() == "not-json"

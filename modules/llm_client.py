@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,11 +44,19 @@ logger = logging.getLogger(__name__)
 
 _key_index_path = OUTPUT_DIR / ".llm_key_index"
 _LLM_CIRCUIT_THRESHOLD = int(os.environ.get("LLM_CIRCUIT_THRESHOLD", "3"))
+_PROVIDER_FAILURE_THRESHOLD = max(
+    1, int(os.environ.get("LLM_PROVIDER_FAILURE_THRESHOLD", "3")),
+)
+_PROVIDER_COOLDOWN_SECONDS = max(
+    0, int(os.environ.get("LLM_PROVIDER_COOLDOWN_SECONDS", "900")),
+)
 _KIMI_MIN_MAX_TOKENS = 512
 _KIMI_DEFAULT_TIMEOUT = 120
 _consecutive_failures = 0
 _circuit_tripped = False
 _last_provider = ""
+_provider_failures: dict[str, int] = {}
+_provider_cooldowns: dict[str, float] = {}
 
 
 @dataclass(frozen=True)
@@ -61,6 +70,12 @@ class Provider:
     protocol: str = "openai"
     reasoning_effort: str | None = None
     quota_route: str | None = None
+
+
+class ProviderCallError(RuntimeError):
+    def __init__(self, message: str, *, retryable: bool):
+        super().__init__(message)
+        self.retryable = retryable
 
 
 def _record_success() -> None:
@@ -84,6 +99,41 @@ def reset_circuit() -> None:
     global _consecutive_failures, _circuit_tripped
     _consecutive_failures = 0
     _circuit_tripped = False
+    _provider_failures.clear()
+    _provider_cooldowns.clear()
+
+
+def _provider_route_key(provider: Provider) -> str:
+    return "|".join((provider.protocol, provider.base_url.rstrip("/"), provider.model))
+
+
+def _provider_cooldown_active(provider: Provider) -> bool:
+    key = _provider_route_key(provider)
+    until = _provider_cooldowns.get(key, 0.0)
+    if until <= time.monotonic():
+        _provider_cooldowns.pop(key, None)
+        return False
+    return True
+
+
+def _record_provider_success(provider: Provider) -> None:
+    key = _provider_route_key(provider)
+    _provider_failures.pop(key, None)
+    _provider_cooldowns.pop(key, None)
+
+
+def _record_provider_failure(provider: Provider, *, retryable: bool) -> None:
+    if not retryable:
+        return
+    key = _provider_route_key(provider)
+    failures = _provider_failures.get(key, 0) + 1
+    _provider_failures[key] = failures
+    if failures >= _PROVIDER_FAILURE_THRESHOLD and _PROVIDER_COOLDOWN_SECONDS:
+        _provider_cooldowns[key] = time.monotonic() + _PROVIDER_COOLDOWN_SECONDS
+        logger.warning(
+            "LLM provider %s cooling down for %d seconds after %d retryable failures",
+            provider.name, _PROVIDER_COOLDOWN_SECONDS, failures,
+        )
 
 
 def _read_key_index() -> int:
@@ -370,6 +420,7 @@ def _call_provider(provider: Provider, user_content: str, system_prompt: str,
                    max_tokens: int, response_format: dict | None,
                    caller: str | None) -> str:
     last_error = "provider unavailable"
+    last_retryable = False
     for attempt, api_key in enumerate(_provider_keys(provider), 1):
         url, headers, payload = _request_parts(
             provider, api_key, user_content, system_prompt, max_tokens,
@@ -391,6 +442,7 @@ def _call_provider(provider: Provider, user_content: str, system_prompt: str,
                     continue
                 if response.status_code in (429, 500, 502, 503, 504):
                     last_error = f"HTTP {response.status_code}"
+                    last_retryable = True
                     if response.status_code == 429 and provider.rotate_keys:
                         _advance_key()
                     break
@@ -401,15 +453,23 @@ def _call_provider(provider: Provider, user_content: str, system_prompt: str,
                 return content
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
                 last_error = type(exc).__name__
+                last_retryable = True
                 break
             except (requests.exceptions.HTTPError, KeyError, TypeError, ValueError) as exc:
+                detail = str(exc).strip()
                 last_error = type(exc).__name__
+                if detail:
+                    last_error = f"{last_error}: {detail[:120]}"
+                last_retryable = False
                 break
         logger.warning(
             "LLM provider %s attempt %d failed: %s",
             provider.name, attempt, last_error,
         )
-    raise RuntimeError(f"provider {provider.name} exhausted: {last_error}")
+    raise ProviderCallError(
+        f"provider {provider.name} exhausted: {last_error}",
+        retryable=last_retryable,
+    )
 
 
 def call_llm(user_content: str, system_prompt: str, max_tokens: int = 2000,
@@ -426,6 +486,10 @@ def call_llm(user_content: str, system_prompt: str, max_tokens: int = 2000,
         raise RuntimeError("No LLM provider configured")
     failures: list[str] = []
     for provider in providers:
+        if _provider_cooldown_active(provider):
+            failures.append(f"{provider.name}: retry cooldown")
+            logger.info("Skipping LLM provider %s: retry cooldown active", provider.name)
+            continue
         if provider.protocol == "modelservices":
             from modules.model_services_quota import claim
             if not claim(provider.quota_route or "", caller):
@@ -446,9 +510,11 @@ def call_llm(user_content: str, system_prompt: str, max_tokens: int = 2000,
                 response_format, caller,
             )
             _last_provider = f"{provider.name}/{provider.model}"
+            _record_provider_success(provider)
             _record_success()
             return result
-        except RuntimeError:
+        except ProviderCallError as exc:
+            _record_provider_failure(provider, retryable=exc.retryable)
             failures.append(provider.name)
     _record_failure()
     raise RuntimeError(f"All providers exhausted: {', '.join(failures)}")

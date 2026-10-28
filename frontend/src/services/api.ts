@@ -1,7 +1,7 @@
 import type {
   Article,
   ArticlesResponse,
-  Briefing,
+  Briefing, IntelligenceDelta,
   ClustersResponse,
   Health,
   HuntsResponse,
@@ -84,6 +84,8 @@ export const api = {
     request<Article>(`/api/v1/articles/${encodeURIComponent(id)}`, signal),
   briefing: (region = "latest", signal?: AbortSignal) =>
     request<Briefing>(`/api/v1/briefings/${region}`, signal),
+  intelligenceDelta: (signal?: AbortSignal) =>
+    request<IntelligenceDelta>("/api/v1/intelligence-delta", signal),
   health: (signal?: AbortSignal) => request<Health>("/api/v1/health", signal),
   clusters: (signal?: AbortSignal) => request<ClustersResponse>("/api/v1/incidents", signal),
   watchlist: (signal?: AbortSignal) => request<Watchlist>("/api/watchlist", signal),

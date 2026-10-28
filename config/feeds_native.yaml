@@ -62,10 +62,11 @@
   category: Native
   region: Global
 
-# SentinelLabs research — focused APT attribution, malware reversals, nation-state campaigns
-- url: https://www.sentinelone.com/labs/feed/
-  category: Native
-  region: Global
+# SentinelLabs feed paused 2026-10-28: valid but no publication since 2026-09-18.
+# Keep the official research URL for a future freshness review.
+# - url: https://www.sentinelone.com/labs/feed/
+#   category: Native
+#   region: Global
 
 # Google/Mandiant Threat Intelligence — M-Trends data, UNC group tracking, zero-day campaigns
 - url: https://cloudblog.withgoogle.com/topics/threat-intelligence/rss/
@@ -151,20 +152,22 @@
   category: Native
   region: Global
 
-# The DFIR Report — detailed incident response case studies with TTPs
-- url: https://thedfirreport.com/feed/
-  category: Native
-  region: Global
+# The DFIR Report paused 2026-10-28: valid but no publication since 2026-08-24.
+# - url: https://thedfirreport.com/feed/
+#   category: Native
+#   region: Global
 
-# Red Canary — threat detection research and annual threat report coverage
-- url: https://redcanary.com/blog/rss/
-  category: Native
-  region: Global
+# Red Canary paused 2026-10-28: valid but no publication since 2026-08-20.
+# - url: https://redcanary.com/blog/rss/
+#   category: Native
+#   region: Global
 
-# Huntress Labs — SMB-focused threat hunting and ransomware incident research
+# Huntress Labs: current official feed. Its edge rejects the previous full
+# browser UA from the production VPS, so use a short feed-client identity.
 - url: https://www.huntress.com/blog/rss.xml
   category: Native
   region: US
+  user_agent: ThreatWatch-Feed-Validator/1.0
 
 # Sekoia TI blog returns 403 (verified 2026-03-14)
 # WithSecure Labs RSS returns empty feed (verified 2026-03-14)

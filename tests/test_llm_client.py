@@ -190,6 +190,41 @@ class TestProviderFailover:
         assert mock_session.post.call_count == 1
         assert mock_session.post.call_args.args[0] == "https://api.example.com/v1/chat/completions"
 
+    def test_retryable_provider_failure_opens_route_cooldown(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_BASE_URL", "https://fallback.test/v1")
+        monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_MODEL", "fallback-model")
+        monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_API_KEY", "fallback-key")
+        monkeypatch.setattr(llm_client, "_PROVIDER_FAILURE_THRESHOLD", 1)
+        monkeypatch.setattr(llm_client, "_PROVIDER_COOLDOWN_SECONDS", 900)
+        rate_limited = _mock_response(status_code=429)
+        fallback = _mock_response(
+            json_body={"choices": [{"message": {"content": "fallback"}}]},
+        )
+        mock_session.post.side_effect = [rate_limited, fallback, fallback]
+
+        assert call_llm("x", system_prompt="y") == "fallback"
+        assert call_llm("x", system_prompt="y") == "fallback"
+
+        urls = [call.args[0] for call in mock_session.post.call_args_list]
+        assert urls == [
+            "https://api.example.com/v1/chat/completions",
+            "https://fallback.test/v1/chat/completions",
+            "https://fallback.test/v1/chat/completions",
+        ]
+
+    def test_invalid_response_logs_safe_reason(self, mock_session, caplog):
+        mock_session.post.return_value = _mock_response(
+            json_body={"choices": [{"message": {"content": ""}}]},
+        )
+
+        with caplog.at_level("WARNING"), pytest.raises(RuntimeError):
+            call_llm("x", system_prompt="y")
+
+        assert "ValueError: empty provider response" in caplog.text
+        assert "choices" not in caplog.text
+
 
 class TestModelServicesProvider:
     def test_briefing_uses_sol_first(self, mock_session, monkeypatch):

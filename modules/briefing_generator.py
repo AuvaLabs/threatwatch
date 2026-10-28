@@ -29,6 +29,7 @@ from modules.config import (
 from modules.ai_cache import get_cached_result, cache_result
 from modules.date_utils import article_datetime
 from modules.llm_client import call_llm, clear_last_provider, last_provider_label
+from modules.utils import write_json_atomic
 
 BRIEFING_PATH = OUTPUT_DIR / "briefing.json"
 
@@ -962,10 +963,15 @@ def _stamp_previous_level(briefing: dict[str, Any], path: Path) -> dict[str, Any
 def _save_briefing(briefing: dict[str, Any]) -> None:
     """Save briefing to disk for the server to serve."""
     stamped = _stamp_previous_level(briefing, BRIEFING_PATH)
-    BRIEFING_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(BRIEFING_PATH, "w", encoding="utf-8") as f:
-        json.dump(stamped, f, ensure_ascii=False)
+    write_json_atomic(BRIEFING_PATH, stamped, ensure_ascii=False)
     logger.info("Briefing saved to %s", BRIEFING_PATH)
+    try:
+        from modules.command_brief import update_briefing_products
+        product = update_briefing_products(stamped, output_dir=BRIEFING_PATH.parent)
+        if product:
+            logger.info("Briefing product updated: %s", product)
+    except (OSError, TypeError, ValueError) as exc:
+        logger.warning("Briefing product update failed: %s", exc)
 
 
 def load_briefing() -> dict[str, Any] | None:

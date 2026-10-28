@@ -182,9 +182,11 @@
   category: Google
   region: Middle East
 
-- url: https://news.google.com/rss/search?q=ransomware+Middle+East+Gulf&hl=en-AE&gl=AE&ceid=AE:en
-  category: Google
-  region: UAE
+# Paused 2026-10-28: query repeatedly returned no fresh coverage. The broader
+# Middle East cyber query above already covers relevant regional incidents.
+# - url: https://news.google.com/rss/search?q=ransomware+Middle+East+Gulf&hl=en-AE&gl=AE&ceid=AE:en
+#   category: Google
+#   region: UAE
 
 - url: https://news.google.com/rss/search?q=%D9%87%D8%AC%D9%88%D9%85+%D8%B3%D9%8A%D8%A8%D8%B1%D8%A7%D9%86%D9%8A&hl=ar&gl=AE&ceid=AE:ar
   category: Google

@@ -18,6 +18,9 @@ class TestCyberRelevance:
         ("New botnet targets IoT devices worldwide", True),
         ("CISA delays cyber incident reporting town halls", True),
         ("Children Council of San Francisco Data Breach Investigation", True),
+        ("Sycom launches new cybersecurity product solution", False),
+        ("University announces cybersecurity scholarship programme", False),
+        ("Provider receives compliance security certification", False),
         # Non-cyber
         ("Best restaurants in New York for 2026", False),
         ("Stock market reaches all-time high", False),
@@ -40,6 +43,7 @@ class TestClassificationRules:
         ("APT29 deploys backdoor in phishing campaign", "Nation-State Attack"),
         ("Volt Typhoon targets US critical infrastructure", "Nation-State Attack"),
         ("New zero-day exploit found in Chrome browser", "Zero-Day Exploit"),
+        ("Attackers Exploit Leaked Zero-Day Flaws in Edge", "Zero-Day Exploit"),
         ("Major data breach exposes 10 million records", "Data Breach"),
         ("Microsoft Patch Tuesday fixes 60 vulnerabilities", "Patch/Security Update"),
         ("Critical RCE vulnerability CVE-2024-1234 found", "Vulnerability Disclosure"),

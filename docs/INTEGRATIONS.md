@@ -260,6 +260,7 @@ the Slack/Discord webhook (level-change OR cooldown lapsed). Set these in
 ```bash
 TELEGRAM_BOT_TOKEN=123456:AA-...           # from @BotFather
 TELEGRAM_CHAT_ID=@your_channel             # or -100123456789 for private
+TELEGRAM_OPS_CHAT_ID=-100987654321         # optional private operator chat
 TELEGRAM_MIN_LEVEL=CRITICAL                # CRITICAL | ELEVATED | MODERATE | …
 TELEGRAM_COOLDOWN_HOURS=6
 TELEGRAM_DASHBOARD_URL=https://threatwatch.auvalabs.com
@@ -275,6 +276,11 @@ right after the briefing is generated. Independent state file
 (`data/state/telegram_briefing_last_alert.json`) — fully decoupled from the
 existing webhook dedup, so an org can drive both Slack and Telegram in
 parallel without one path muting the other.
+
+The public destination accepts only source-backed ThreatWatch briefings and
+verified KEV alerts. Pipeline health alerts never use `TELEGRAM_CHAT_ID`.
+They are disabled unless `TELEGRAM_OPS_CHAT_ID` names a separate private
+operator destination.
 
 **Mode B — KEV-listed CVE alerts (in-process):** Per-CVE one-shot alert
 when a new article references a CVE that CISA has flagged as actively
