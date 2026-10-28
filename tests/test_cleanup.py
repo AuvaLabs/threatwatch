@@ -75,3 +75,28 @@ class TestCleanupNoiseArticles:
             assert cleanup.cleanup_noise_articles() == 0
 
         assert output.read_text() == "not-json"
+
+
+class TestRepairKnownClassifications:
+    def test_repairs_zero_day_that_was_labeled_as_breach(self, tmp_path):
+        output = tmp_path / "daily_latest.json"
+        output.write_text(json.dumps([{
+            "title": "Attackers Exploit Leaked Zero-Day Flaws in PHP",
+            "category": "Data Breach",
+        }]))
+
+        with patch.object(cleanup, "OUTPUT_DIR", tmp_path):
+            assert cleanup.repair_known_classifications() == 1
+
+        repaired = json.loads(output.read_text())
+        assert repaired[0]["category"] == "Zero-Day Exploit"
+
+    def test_does_not_reclassify_unrelated_breach(self, tmp_path):
+        output = tmp_path / "hourly_latest.json"
+        original = [{"title": "Hospital confirms data breach", "category": "Data Breach"}]
+        output.write_text(json.dumps(original))
+
+        with patch.object(cleanup, "OUTPUT_DIR", tmp_path):
+            assert cleanup.repair_known_classifications() == 0
+
+        assert json.loads(output.read_text()) == original

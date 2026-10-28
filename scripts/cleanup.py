@@ -1,6 +1,7 @@
 import logging
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +22,7 @@ logging.basicConfig(
 ARCHIVE_RETENTION_DAYS = int(os.environ.get("ARCHIVE_RETENTION_DAYS", "30"))
 OUTPUT_RETENTION_DAYS = int(os.environ.get("OUTPUT_RETENTION_DAYS", "365"))
 _ARCHIVE_SUBDIRS = ("hourly", "daily")
+_ZERO_DAY_TITLE_RE = re.compile(r"\b(?:zero[ -]?day|0day)\b", re.IGNORECASE)
 
 # Live output files the server reads on every request. These are rewritten in
 # place by the pipeline (not date-stamped archives) and must NEVER be
@@ -146,11 +148,44 @@ def cleanup_noise_articles() -> int:
     return removed
 
 
+def repair_known_classifications() -> int:
+    """Repair narrow historical labels that now have deterministic overrides."""
+    repaired = 0
+    for name in ("daily_latest.json", "hourly_latest.json"):
+        path = OUTPUT_DIR / name
+        try:
+            articles = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(articles, list):
+            continue
+        updated = []
+        repaired_here = 0
+        for article in articles:
+            title = str(article.get("title") or "") if isinstance(article, dict) else ""
+            should_repair = (
+                isinstance(article, dict)
+                and article.get("category") == "Data Breach"
+                and _ZERO_DAY_TITLE_RE.search(title)
+            )
+            updated.append(
+                {**article, "category": "Zero-Day Exploit"}
+                if should_repair else article
+            )
+            repaired_here += int(bool(should_repair))
+        if repaired_here:
+            write_json_atomic(path, updated, indent=2, ensure_ascii=False)
+            repaired += repaired_here
+    logging.info("Repaired %d deterministic historical classification(s).", repaired)
+    return repaired
+
+
 def main():
     logging.info("=== Running cleanup script ===")
     cleanup_seen_hashes()
     cleanup_seen_titles()
     cleanup_noise_articles()
+    repair_known_classifications()
     cleanup_old_outputs()
     # Expire AI cache entries (classifications, syntheses, briefings).
     # Without this sweep nothing ever called clear_old_cache and stale LLM

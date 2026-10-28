@@ -566,6 +566,13 @@ _NOISE_PATTERNS = [
         r"|vendor\s+spotlight|product\s+review\s+roundup",
         re.IGNORECASE,
     ),
+    # Vendor solution launches phrased without the word "product"
+    re.compile(
+        r"launch\w*\s+(a\s+|new\s+)?(solution|platform|service)\s+.{0,60}"
+        r"(cyber|security|defen[cs]e)"
+        r"|launch\w*\s+.{0,40}(cyber|security)\s+(solution|platform|service)",
+        re.IGNORECASE,
+    ),
     # Certification / training content (not threat intel)
     re.compile(
         r"(get|earn|obtain|achieve|pass)\s+(your\s+)?(cissp|cism|ceh|comptia|ccna|oscp|gcih|gsec|gpen|sans\s+course)"
@@ -586,6 +593,13 @@ _NOISE_PATTERNS = [
         r"(receives?|earns?|achieves?|obtains?|awarded)\s+.{0,30}"
         r"(compliance|security|cybersecurity)\s+certification"
         r"|(iso\s*27001|soc\s*2|pci[ -]?dss)\s+(certified|certification|compliance)",
+        re.IGNORECASE,
+    ),
+    # New certification programme announcements and compliance marketing
+    re.compile(
+        r"\bisc2\b.{0,30}\bsecurity\s+certification\b"
+        r"|security\s+certification\s+(expected|launch\w*|announc\w*)"
+        r"|achiev\w*.{0,60}\bisms\b.{0,20}certification",
         re.IGNORECASE,
     ),
     # Generic cybersecurity advice / tips (not incident reporting)

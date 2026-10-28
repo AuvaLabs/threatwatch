@@ -21,6 +21,9 @@ class TestCyberRelevance:
         ("Sycom launches new cybersecurity product solution", False),
         ("University announces cybersecurity scholarship programme", False),
         ("Provider receives compliance security certification", False),
+        ("First ISC2 AI Security Certification Expected for Early 2027", False),
+        ("Fujitsu launches solution to strengthen corporate cyber defense capabilities", False),
+        ("Localizing compliance at scale: achieving South Korea's ISMS certification", False),
         # Non-cyber
         ("Best restaurants in New York for 2026", False),
         ("Stock market reaches all-time high", False),
