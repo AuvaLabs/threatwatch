@@ -134,6 +134,7 @@ def test_same_org_same_event_window_still_requires_second_signal():
 
     assert len(payload["records"]) == 2
     assert all(record["state"] == "developing" for record in payload["records"])
+    assert len({record["id"] for record in payload["records"]}) == 2
 
 
 def test_generic_title_words_do_not_become_organizations():
@@ -145,6 +146,71 @@ def test_generic_title_words_do_not_become_organizations():
     )
 
     assert ir.build_incident_records([article], generated_at=NOW)["records"] == []
+
+
+def test_compatible_intrusion_and_data_loss_reporting_merge_into_one_record():
+    articles = [
+        _article(
+            "acme-intrusion",
+            "Acme hit by wallet compromise and unauthorized transfers",
+            "Wire One",
+            "2026-10-29T08:00:00Z",
+            victim_organizations=["Acme"],
+            category="General Cyber Threat",
+        ),
+        _article(
+            "acme-breach",
+            "Acme data breach follows wallet compromise and unauthorized transfers",
+            "Wire Two",
+            "2026-10-29T09:00:00Z",
+            victim_organizations=["Acme"],
+            category="Data Breach",
+        ),
+    ]
+
+    payload = ir.build_incident_records(articles, generated_at=NOW)
+
+    assert len(payload["records"]) == 1
+    assert payload["records"][0]["event_type"] == "data_breach"
+    assert payload["records"][0]["source_count"] == 2
+
+
+def test_actor_descriptors_and_reporting_verbs_are_not_victim_names():
+    articles = [
+        _article("actor", "China-Linked Hackers Exploit Server Flaw", "Wire", "2026-10-29T08:00:00Z"),
+        _article("reporter", "Tokyo Police Investigate Cyberattack on Acme", "Wire", "2026-10-29T09:00:00Z"),
+    ]
+
+    records = ir.build_incident_records(articles, generated_at=NOW)["records"]
+
+    assert all(record["organization"] not in {"China-Linked", "Tokyo Police Investigate"} for record in records)
+
+
+def test_corroborated_components_with_overlap_merge_into_one_event():
+    articles = [
+        _article("one", "Acme hit by exchange wallet theft", "Wire One", "2026-10-29T08:00:00Z"),
+        _article("two", "Acme suffers exchange wallet compromise", "Wire Two", "2026-10-29T09:00:00Z"),
+        _article("three", "Acme hit by customer wallet losses", "Wire Three", "2026-10-29T10:00:00Z"),
+        _article("four", "Acme suffers customer wallet fraud", "Wire Four", "2026-10-29T11:00:00Z"),
+    ]
+
+    payload = ir.build_incident_records(articles, generated_at=NOW)
+
+    assert len(payload["records"]) == 1
+    assert payload["records"][0]["source_count"] == 4
+
+
+def test_geographic_alias_is_not_propagated_from_unrelated_trend_coverage():
+    articles = [
+        _article("direct", "Japan hit by nationwide service outage", "Wire One", "2026-10-29T08:00:00Z"),
+        _article("trend", "Japan firms prepare for waves of cyberattacks", "Wire Two", "2026-10-29T09:00:00Z"),
+    ]
+
+    records = ir.build_incident_records(articles, generated_at=NOW)["records"]
+
+    japan = [record for record in records if record["organization"] == "Japan"]
+    assert len(japan) == 1
+    assert japan[0]["source_count"] == 1
 
 
 def test_extracts_title_prefix_org_and_does_not_treat_security_breach_as_data_loss():

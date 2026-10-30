@@ -7,6 +7,7 @@ import json
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from typing import Any
 from urllib.parse import urlparse
 
@@ -25,6 +26,13 @@ CORRELATION_WINDOW = timedelta(hours=72)
 
 _CLAIM_STATES = frozenset({"confirmed", "reported", "assessed", "disputed", "unknown"})
 _CONFIDENCE = frozenset({"high", "medium", "low"})
+_NATIONALITY_ADJECTIVES = frozenset({
+    "american", "australian", "british", "chinese", "french", "german", "indian",
+    "iranian", "israeli", "japanese", "korean", "russian", "ukrainian",
+})
+_NAME_VERBS = frozenset({
+    "confirms", "discloses", "investigate", "investigates", "probes", "reports", "says", "warns",
+})
 _GENERIC_ORGS = frozenset({
     "ai", "attackers", "company", "customers", "cyber", "cyberattack", "cyberattacks",
     "cybersecurity", "data", "hackers", "massive", "new", "ransomware", "researchers",
@@ -82,9 +90,23 @@ def _published(article: dict[str, Any]) -> datetime | None:
     )
 
 
+def _headline(article: dict[str, Any]) -> str:
+    title = _text(article.get("translated_title") or article.get("title"))
+    if " - " not in title:
+        return title
+    headline, suffix = title.rsplit(" - ", 1)
+    return headline if 0 < len(suffix) <= 80 else title
+
+
 def _normalized_name(value: Any) -> str:
     name = re.sub(r"\s+", " ", _text(value)).strip(" .,:;-'\"")
-    return name[:120] if len(name) >= 2 and name.casefold() not in _GENERIC_ORGS else ""
+    words = set(re.findall(r"[a-z-]+", name.casefold()))
+    invalid = (
+        len(name) < 2 or name.casefold() in _GENERIC_ORGS
+        or name.casefold() in _NATIONALITY_ADJECTIVES or name.casefold().endswith("-linked")
+        or bool(words & _NAME_VERBS)
+    )
+    return "" if invalid else name[:120]
 
 
 def _organizations(article: dict[str, Any]) -> list[str]:
@@ -93,7 +115,7 @@ def _organizations(article: dict[str, Any]) -> list[str]:
         *_list(article.get("affected_organizations")),
     ]
     names = {_normalized_name(value) for value in structured}
-    title = _text(article.get("translated_title") or article.get("title"))
+    title = _headline(article)
     text = f"{title} {_text(article.get('summary'))} {_text(article.get('category'))}"
     if _INCIDENT_SIGNAL.search(text):
         subject = _SUBJECT_ORG.search(title)
@@ -107,9 +129,7 @@ def _organizations(article: dict[str, Any]) -> list[str]:
 
 
 def _event_type(article: dict[str, Any]) -> str | None:
-    narrative = " ".join(
-        _text(article.get(field)) for field in ("title", "translated_title", "summary")
-    ).casefold()
+    narrative = f"{_headline(article)} {_text(article.get('summary'))}".casefold()
     category = _text(article.get("category")).casefold()
     text = f"{category} {narrative}"
     historical = any(term in narrative for term in ("lawsuit", "payment dates", "settlement", "who will receive"))
@@ -126,6 +146,18 @@ def _event_type(article: dict[str, Any]) -> str | None:
     if _INCIDENT_SIGNAL.search(text):
         return "intrusion"
     return None
+
+
+def _event_family(event_type: str) -> str:
+    return "intrusion" if event_type in {"data_breach", "intrusion", "ransomware"} else event_type
+
+
+def _group_event_type(members: list[dict[str, Any]]) -> str:
+    event_types = {_event_type(member) for member in members}
+    for candidate in ("ransomware", "data_breach", "intrusion", "disruption"):
+        if candidate in event_types:
+            return candidate
+    return "intrusion"
 
 
 def _source(article: dict[str, Any]) -> dict[str, Any]:
@@ -183,32 +215,55 @@ def _candidate_groups(articles: list[dict[str, Any]]) -> list[tuple[str, str, li
         if not event_type:
             continue
         if not organizations:
-            title = _text(article.get("translated_title") or article.get("title"))
-            organizations = [
-                name for name in known
-                if re.search(rf"(?<!\w){re.escape(name)}(?!\w)", title, re.IGNORECASE)
-            ][:3]
+            organizations = _alias_organizations(_headline(article), known, article)
         for organization in organizations:
-            candidates[(organization, event_type)].append(article)
+            candidates[(organization, _event_family(event_type))].append(article)
     groups: list[tuple[str, str, list[dict[str, Any]]]] = []
-    for (organization, event_type), members in candidates.items():
+    for (organization, _), members in candidates.items():
         dated = sorted(members, key=lambda item: _published(item) or datetime.max.replace(tzinfo=timezone.utc))
         for window in _time_windows(dated):
+            related_groups = _merge_signal_groups(_signal_groups(window, organization), organization)
             groups.extend(
-                (organization, event_type, related)
-                for related in _signal_groups(window, organization)
+                (organization, _group_event_type(related), related)
+                for related in related_groups
             )
     return groups
+
+
+def _alias_organizations(title: str, known: list[str], article: dict[str, Any]) -> list[str]:
+    signals = [match.span() for match in _INCIDENT_SIGNAL.finditer(title)]
+    if not signals:
+        return []
+    candidates: list[tuple[int, int, str]] = []
+    asset_tags = {_text(value).casefold() for value in _list(article.get("asset_tags"))}
+    for name in known:
+        if name.casefold() in asset_tags or _geographic_name(name):
+            continue
+        match = re.search(rf"(?<!\w){re.escape(name)}(?!\w)", title, re.IGNORECASE)
+        if match is None:
+            continue
+        distance = min(
+            abs((match.start() + match.end()) - (start + end))
+            for start, end in signals
+        )
+        candidates.append((distance, -len(name), name))
+    return [min(candidates)[2]] if candidates else []
+
+
+@lru_cache(maxsize=512)
+def _geographic_name(name: str) -> bool:
+    from modules.region_inferrer import _COUNTRY_PATTERNS
+    return any(pattern.fullmatch(name) for pattern, _ in _COUNTRY_PATTERNS)
 
 
 def _time_windows(members: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
     windows: list[list[dict[str, Any]]] = []
     for member in members:
         published = _published(member)
-        first = _published(windows[-1][0]) if windows else None
-        if windows and published and first and published - first <= CORRELATION_WINDOW:
+        previous = _published(windows[-1][-1]) if windows else None
+        if windows and published and previous and published - previous <= CORRELATION_WINDOW:
             windows[-1].append(member)
-        elif windows and published is None and first is None:
+        elif windows and published is None and previous is None:
             windows[-1].append(member)
         else:
             windows.append([member])
@@ -216,7 +271,7 @@ def _time_windows(members: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
 
 
 def _title_tokens(article: dict[str, Any], organization: str) -> set[str]:
-    title = _text(article.get("translated_title") or article.get("title"))
+    title = _headline(article)
     tokens = {token for token in re.findall(r"[a-z0-9]{4,}", title.casefold()) if token not in _TITLE_STOP}
     return tokens - set(re.findall(r"[a-z0-9]{4,}", organization.casefold()))
 
@@ -234,7 +289,7 @@ def _shared_structured_signal(left: dict[str, Any], right: dict[str, Any]) -> bo
             return True
     left_techniques = {_text(value.get("technique_id") or value.get("id")) for value in _list(left.get("attack_techniques")) if isinstance(value, dict)}
     right_techniques = {_text(value.get("technique_id") or value.get("id")) for value in _list(right.get("attack_techniques")) if isinstance(value, dict)}
-    return bool((left_techniques - {""}) & (right_techniques - {""}))
+    return len((left_techniques - {""}) & (right_techniques - {""})) >= 2
 
 
 def _related(left: dict[str, Any], right: dict[str, Any], organization: str) -> bool:
@@ -265,6 +320,39 @@ def _signal_groups(members: list[dict[str, Any]], organization: str) -> list[lis
     for index, member in enumerate(members):
         grouped[find(index)].append(member)
     return list(grouped.values())
+
+
+def _component_related(left: list[dict[str, Any]], right: list[dict[str, Any]], organization: str) -> bool:
+    if len(left) < 2 or len(right) < 2:
+        return False
+    left_dates = [value for item in left if (value := _published(item))]
+    right_dates = [value for item in right if (value := _published(item))]
+    if not left_dates or not right_dates:
+        return False
+    gap = max(min(right_dates) - max(left_dates), min(left_dates) - max(right_dates), timedelta())
+    if gap > timedelta(hours=24):
+        return False
+    left_tokens = set().union(*(_title_tokens(item, organization) for item in left))
+    right_tokens = set().union(*(_title_tokens(item, organization) for item in right))
+    return bool(left_tokens & right_tokens)
+
+
+def _merge_signal_groups(groups: list[list[dict[str, Any]]], organization: str) -> list[list[dict[str, Any]]]:
+    merged = [list(group) for group in groups]
+    changed = True
+    while changed:
+        changed = False
+        for left in range(len(merged)):
+            match = next(
+                (right for right in range(left + 1, len(merged)) if _component_related(merged[left], merged[right], organization)),
+                None,
+            )
+            if match is None:
+                continue
+            merged[left] = [*merged[left], *merged.pop(match)]
+            changed = True
+            break
+    return merged
 
 
 def _structured_claims(member: dict[str, Any]) -> list[dict[str, Any]]:
@@ -413,23 +501,35 @@ def _score(record: dict[str, Any], now: datetime) -> int:
     return min(score, 100 if has_confirmed_claim else 79)
 
 
-def _record_id(organization: str, event_type: str, first_seen: str) -> str:
+def _record_id(organization: str, event_type: str, first_seen: str, seed: str) -> str:
     date = (parse_datetime(first_seen) or datetime.now(timezone.utc)).date().isoformat()
-    digest = hashlib.sha256(f"{organization.casefold()}|{event_type}|{date}".encode()).hexdigest()[:18]
+    identity = f"{organization.casefold()}|{_event_family(event_type)}|{date}|{seed}"
+    digest = hashlib.sha256(identity.encode()).hexdigest()[:18]
     return f"incident-{digest}"
 
 
-def _matching_previous(previous: dict[str, Any], organization: str, event_type: str, first_seen: str) -> dict[str, Any] | None:
+def _matching_previous(
+    previous: dict[str, Any], organization: str, event_type: str, first_seen: str,
+    source_ids: set[str], excluded_ids: set[str],
+) -> dict[str, Any] | None:
     current_first = parse_datetime(first_seen)
+    candidates = []
     for record in _list(previous.get("records")):
         if not isinstance(record, dict):
             continue
-        if _text(record.get("organization")).casefold() != organization.casefold() or record.get("event_type") != event_type:
+        if _text(record.get("id")) in excluded_ids:
+            continue
+        same_org = _text(record.get("organization")).casefold() == organization.casefold()
+        same_family = _event_family(_text(record.get("event_type"))) == _event_family(event_type)
+        if not same_org or not same_family:
             continue
         old_first = parse_datetime(record.get("first_seen"))
         if not current_first or not old_first or abs(current_first - old_first) <= timedelta(days=7):
-            return record
-    return None
+            old_ids = {source["article_id"] for source in _list(record.get("sources")) if isinstance(source, dict) and source.get("article_id")}
+            overlap = len(source_ids & old_ids)
+            distance = abs((current_first - old_first).total_seconds()) if current_first and old_first else 0
+            candidates.append((-overlap, distance, record))
+    return min(candidates, key=lambda item: (item[0], item[1]))[2] if candidates else None
 
 
 def _times(members: list[dict[str, Any]], generated_at: str) -> tuple[str, str]:
@@ -499,7 +599,8 @@ def _change(record_id: str, field: str, before: Any, after: Any, changed_at: str
 
 
 def _versioned(record: dict[str, Any], previous: dict[str, Any] | None, generated_at: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    record_id = previous.get("id") if previous else _record_id(record["organization"], record["event_type"], record["first_seen"])
+    seed = _text(record["sources"][0].get("article_id")) if record.get("sources") else record["summary"]
+    record_id = previous.get("id") if previous else _record_id(record["organization"], record["event_type"], record["first_seen"], seed)
     if previous is None:
         events = [_change(record_id, "record", None, "active", generated_at)]
         return {**record, "id": record_id, "version": 1, "last_changed": generated_at, "changes": events}, events
@@ -531,9 +632,15 @@ def build_incident_records(
     generated = now.isoformat()
     previous_data = previous if isinstance(previous, dict) else _empty()
     records, changes = [], []
+    used_previous_ids: set[str] = set()
     for organization, event_type, members in _candidate_groups(articles):
         base = _base_record(organization, event_type, members, generated)
-        old = _matching_previous(previous_data, organization, event_type, base["first_seen"])
+        source_ids = {source["article_id"] for source in base["sources"]}
+        old = _matching_previous(
+            previous_data, organization, event_type, base["first_seen"], source_ids, used_previous_ids,
+        )
+        if old and old.get("id"):
+            used_previous_ids.add(str(old["id"]))
         record, events = _versioned(base, old, generated)
         records.append(record)
         changes.extend(events)
