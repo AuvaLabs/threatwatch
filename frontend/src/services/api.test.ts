@@ -27,6 +27,9 @@ describe("API client", () => {
     await api.intelligenceDelta();
     await api.health();
     await api.clusters();
+    await api.incidents();
+    await api.incident("incident-abc123");
+    await api.incidentChanges();
     await api.watchlist();
     await api.openApi();
     await api.operations();
@@ -40,6 +43,9 @@ describe("API client", () => {
       "/api/v1/intelligence-delta",
       "/api/v1/health",
       "/api/v1/incidents",
+      "/api/v1/incidents/v2",
+      "/api/v1/incidents/v2/incident-abc123",
+      "/api/v1/incidents/v2/changes",
       "/api/watchlist",
       "/api/v1/openapi.json",
       "/api/v1/operations/summary",

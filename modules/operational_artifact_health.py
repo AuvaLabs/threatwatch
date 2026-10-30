@@ -11,6 +11,7 @@ from modules.config import OUTPUT_DIR, STATE_DIR
 from modules.utils import write_json_atomic
 
 _ARTIFACTS = {
+    "incidents": ("incidents-v2.json", "records"),
     "hunts": ("hunts.json", "hunts"),
     "ledger": ("threat_ledger.json", "records"),
 }

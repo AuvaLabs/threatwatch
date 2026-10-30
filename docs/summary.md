@@ -4,9 +4,9 @@ ThreatWatch is a self-hosted cyber intelligence operations platform built by [ni
 
 ## Product surfaces
 
-- **Today** leads with material state changes and deterministic patch, hunt, investigate, and monitor decisions.
+- **Today** leads with major incidents, material state changes, and deterministic patch, hunt, investigate, and monitor decisions.
 - **Ledger** preserves stable CVE and actor records, evidence, uncertainty, decisions, and revision history.
-- **Threats** presents CVE and named-actor clusters with persistent campaign history.
+- **Threats** presents evidence-linked Breach Anatomy records alongside CVE and named-actor clusters.
 - **Hunts** separates qualified packages from developing leads and includes observable provenance, ATT&CK behavior, vulnerability context, telemetry, queries, sources, and limitations.
 - **Reports** combines the current briefing, metrics, decisions, and source citations into a portable operating picture.
 - **Automation** exposes OpenAPI, STIX 2.1, RSS, health, and integration contracts.
@@ -19,6 +19,7 @@ ThreatWatch is a self-hosted cyber intelligence operations platform built by [ni
 - Regex-first classification with optional LLM escalation, region inference, sector tags, CVE extraction, EPSS, KEV, ATT&CK tagging, TTP extraction, and article-aware IOC validation.
 - Briefing and summary generation through a primary OpenAI-compatible route and two independent fallbacks.
 - Incident correlation on shared CVEs and named threat actors, followed by persistent campaign tracking.
+- Victim-centred incident records with source-bound claims, source-family deduplication, explicit uncertainty, and deterministic scoring.
 - Evidence-gated hunt generation from every report in a cluster, with optional cached ThreatFox and URLhaus corroboration.
 - Versioned threat-state generation with deterministic decisions and unchanged-run stability.
 - Feed, artifact, pipeline, and briefing freshness exposed through health endpoints.
@@ -36,7 +37,7 @@ See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
 - Docker Compose services for `pipeline` and `server` with one persistent data volume.
 - SQLite primary storage plus atomic JSON artifacts and fallback reads.
 - Strict security headers, bounded APIs, request rate limiting, SSRF protection, safe external URLs, and no scraped full-content exposure in operational APIs.
-- 1,513 backend tests and 53 frontend tests at the 2026-10-09 repository audit. Backend coverage was 88.19 percent and frontend statement coverage was 96.08 percent.
+- More than 1,600 backend tests and 54 frontend tests at the 2026-10-30 repository audit. Both suites remain above the required 80 percent coverage floor.
 
 ## Core architecture
 
@@ -48,6 +49,7 @@ Sources
   -> SQLite plus atomic JSON outputs
   -> briefings and source-linked reports
   -> CVE and actor clustering
+  -> victim-centred incident records and material changes
   -> cached IOC corroboration
   -> qualified hunts and developing leads
   -> versioned threat-state and decision ledger
@@ -63,6 +65,7 @@ serve_threatwatch.py          HTTP server and public API
 frontend/src/                 Typed analyst workspace
 modules/operations.py         Operational decision queue
 modules/incident_correlator.py Correlated CVE and actor evidence
+modules/incident_records.py    Versioned Breach Anatomy records
 modules/ioc_extractor.py      Text extraction and defang handling
 modules/ioc_quality.py        Article-aware observable validation
 modules/ioc_enrichment.py     Cached provider corroboration
@@ -79,6 +82,9 @@ scripts/rebuild_ledger.py     History-preserving ledger backfill
 - `GET /api/v1/articles/{id}`
 - `GET /api/v1/briefings/latest`
 - `GET /api/v1/incidents`
+- `GET /api/v1/incidents/v2`
+- `GET /api/v1/incidents/v2/changes`
+- `GET /api/v1/incidents/v2/{id}`
 - `GET /api/v1/hunts`
 - `GET /api/v1/hunts/{id}`
 - `GET /api/v1/ledger`

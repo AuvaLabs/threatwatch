@@ -4,6 +4,7 @@ export type RouteName =
   | "mission"
   | "ledger"
   | "ledgerRecord"
+  | "incident"
   | "threats"
   | "exposure"
   | "investigations"
@@ -18,9 +19,13 @@ export interface Route {
   name: RouteName;
   articleId?: string;
   recordId?: string;
+  incidentId?: string;
 }
 
 export function parseRoute(pathname: string): Route {
+  if (pathname.startsWith("/incidents/")) {
+    return { name: "incident", incidentId: decodeURIComponent(pathname.slice(11)) };
+  }
   if (pathname.startsWith("/ledger/")) {
     return { name: "ledgerRecord", recordId: decodeURIComponent(pathname.slice(8)) };
   }

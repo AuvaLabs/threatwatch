@@ -6,6 +6,7 @@ import { ArticleView } from "./views/ArticleView";
 import { AutomationView } from "./views/AutomationView";
 import { ExposureView } from "./views/ExposureView";
 import { HuntsView } from "./views/HuntsView";
+import { IncidentDetailView } from "./views/IncidentDetailView";
 import { InvestigationsView } from "./views/InvestigationsView";
 import { LedgerRecordView } from "./views/LedgerRecordView";
 import { LedgerView } from "./views/LedgerView";
@@ -22,6 +23,7 @@ export function App() {
     switch (route.name) {
       case "ledger": return <LedgerView />;
       case "ledgerRecord": return <LedgerRecordView id={route.recordId || ""} />;
+      case "incident": return <IncidentDetailView id={route.incidentId || ""} />;
       case "threats": return <ThreatsView />;
       case "exposure": return <ExposureView />;
       case "investigations": return <InvestigationsView />;

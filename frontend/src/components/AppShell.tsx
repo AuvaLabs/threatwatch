@@ -53,7 +53,7 @@ export function AppShell({ route, health, children }: { route: RouteName; health
         <nav aria-label="Primary navigation" class={`desk-navigation${menuOpen ? " open" : ""}`}>
           <div class="navigation-heading"><span>Desk index</span><button aria-label="Close navigation" class="icon-button" onClick={() => setMenuOpen(false)} type="button"><Icon name="close" /></button></div>
           {navigation.map((item, index) => (
-            <a class={route === item.route || (route === "article" && item.route === "sources") || (route === "ledgerRecord" && item.route === "ledger") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.label}</a>
+            <a class={route === item.route || (route === "article" && item.route === "sources") || (route === "ledgerRecord" && item.route === "ledger") || (route === "incident" && item.route === "threats") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.label}</a>
           ))}
           <a class={`system-link${route === "system" ? " active" : ""}`} href="/system" onClick={(event) => { follow(event, "/system"); setMenuOpen(false); }}><span>08</span>System</a>
         </nav>

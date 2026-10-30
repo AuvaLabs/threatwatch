@@ -392,11 +392,26 @@ def main():
     except Exception as e:
         logging.warning(f"Incident clustering failed: {e}")
 
-    hunt_data = None
     operational_status = {
+        "incidents": {"ok": False, "error": "not_generated"},
         "hunts": {"ok": False, "error": "not_generated"},
         "ledger": {"ok": False, "error": "not_generated"},
     }
+    try:
+        if all_articles:
+            from modules.incident_records import write_incident_records
+            incident_data = write_incident_records(all_articles)
+            logging.info(
+                "Incident desk: %s records, %s high-priority",
+                incident_data["summary"]["total_records"],
+                incident_data["summary"]["high_priority"],
+            )
+            operational_status["incidents"] = {"ok": True}
+    except Exception as e:
+        logging.warning(f"Incident record generation failed: {e}")
+        operational_status["incidents"] = {"ok": False, "error": "generation_failed"}
+
+    hunt_data = None
     try:
         if all_articles and cluster_data:
             enrichment = {}

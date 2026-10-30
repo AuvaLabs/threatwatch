@@ -12,6 +12,7 @@ describe("MissionControlView", () => {
       if (path === "/api/v1/operations/summary") return response({
         generated_at: "2026-10-08T10:00:00Z",
         metrics: { decision_queue: 0, critical_priorities: 0, watchlist_matches: 0, kev_records: 1, active_threats: 1, sources_reviewed: 20 },
+        incidents: [{ id: "incident-binance", title: "Binance intrusion", organization: "Binance", event_type: "intrusion", state: "corroborated", priority: "high", score: 72, summary: "Unauthorized transfers disrupted operations.", last_updated: "2026-10-30T04:00:00Z", source_count: 5, independent_source_count: 3, confidence: "medium", recommended_action: "Inspect relevant telemetry." }],
         priorities: [], exposure: { configured: false, brands: [], assets: [], matches: [], disclaimer: "" },
       });
       if (path === "/api/v1/briefings/latest") return response({ headline: "Current assessment", what_happened: "Evidence summary", threat_level: "Elevated", source_articles: [] });
@@ -40,6 +41,9 @@ describe("MissionControlView", () => {
     expect(screen.getByText("New exploitation signal")).toBeTruthy();
     expect(screen.getByText("A material change since the command edition.")).toBeTruthy();
     expect(screen.getByText("Decision queue")).toBeTruthy();
+    expect(screen.getByText("Major incidents")).toBeTruthy();
+    expect(screen.getByText("Binance intrusion")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open incident" }).getAttribute("href")).toBe("/incidents/incident-binance");
     expect(screen.getByRole("link", { name: "Open the full ledger" }).getAttribute("href")).toBe("/ledger");
   });
 });

@@ -68,6 +68,14 @@ export function MissionControlView() {
         <p>{excerpt(delta.what_happened, 300)}</p>
         <time>{formattedDate(delta.generated_at)}</time>
       </section>}
+      {!!operations.incidents?.length && <section class="major-incidents" aria-labelledby="major-incidents-title">
+        <div class="section-heading"><div><p class="eyebrow">Breach anatomy</p><h2 id="major-incidents-title">Major incidents</h2></div><span>{operations.incidents.length} evidence-linked records</span></div>
+        <ol>{operations.incidents.map((incident) => <li class="incident-row" key={incident.id}>
+          <div class="incident-row-status"><span class={`status-pill ${incident.priority}`}>{incident.priority}</span><strong>{incident.score}</strong></div>
+          <div><p class="eyebrow">{incident.organization} / {incident.event_type.replaceAll("_", " ")}</p><h3>{incident.title}</h3><p>{incident.summary}</p><span class="incident-evidence">{incident.independent_source_count} independent sources / {incident.confidence} confidence / updated {formattedDate(incident.last_updated)}</span></div>
+          <a href={`/incidents/${incident.id}`} onClick={(event) => { event.preventDefault(); navigate(`/incidents/${incident.id}`); }}>Open incident</a>
+        </li>)}</ol>
+      </section>}
       <section class="today-changes" aria-labelledby="today-changes-title">
         <div class="section-heading"><div><p class="eyebrow">Revision register</p><h2 id="today-changes-title">What changed today</h2></div><a href="/ledger" onClick={(event) => { event.preventDefault(); navigate("/ledger"); }}>Open the full ledger</a></div>
         {ledger?.changes.length ? <ol>{ledger.changes.slice(0, 5).map((change) => <li key={change.id}><time>{formattedDate(change.changed_at)}</time><strong>{change.summary}</strong></li>)}</ol> : <div class="quiet-empty surface"><strong>No assessment changes in the latest run</strong><p>Living records remain available in the public threat ledger.</p></div>}

@@ -27,10 +27,12 @@ def test_smoke_build_handles_malformed_url_and_publishes_valid_shapes(tmp_path, 
     }))
     monkeypatch.setattr(rebuild, "load_articles_from_db", lambda: [])
 
-    hunts, ledger = rebuild.publish_artifacts(output)
+    incidents, hunts, ledger = rebuild.publish_artifacts(output)
 
+    assert isinstance(incidents["records"], list)
     assert isinstance(hunts["hunts"], list)
     assert isinstance(ledger["records"], list)
     assert (output / "hunts.json").exists()
+    assert (output / "incidents-v2.json").exists()
     assert (output / "threat_ledger.json").exists()
     assert (tmp_path / "state" / "operational_artifact_health.json").exists()

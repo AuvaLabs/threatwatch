@@ -252,6 +252,34 @@ class TestOperationalSummary:
             "T1190 Exploit Public-Facing Application"
         ]
 
+    def test_surfaces_high_scoring_incident_without_displacing_cve_queue(self):
+        incidents = {
+            "records": [{
+                "id": "incident-binance",
+                "title": "Binance intrusion",
+                "organization": "Binance",
+                "event_type": "intrusion",
+                "state": "corroborated",
+                "priority": "high",
+                "score": 72,
+                "summary": "Multiple sources report unauthorized transfers.",
+                "last_updated": "2026-10-30T04:00:00Z",
+                "last_changed": "2026-10-30T04:00:00Z",
+                "source_count": 5,
+                "independent_source_count": 3,
+                "confidence": "medium",
+                "recommended_action": "Validate exposure and inspect relevant telemetry.",
+            }],
+        }
+        articles = [{"hash": "kev-1", "title": "Exploited CVE", "kev_listed": True}]
+
+        payload = sw.build_operational_summary(articles, [], {}, incidents)
+
+        assert payload["priorities"][0]["id"] == "kev-1"
+        assert payload["incidents"][0]["id"] == "incident-binance"
+        assert payload["metrics"]["major_incidents"] == 1
+        assert payload["metrics"]["decision_queue"] == 2
+
 
 # ── Health endpoint ──────────────────────────────────────────────────────────
 
@@ -364,8 +392,8 @@ class TestHealthEndpoint:
         assert data["deployment"] == {
             "sha": "1234567890abcdef",
             "built_at": "2026-10-10T01:02:03Z",
-            "api_schema_version": "1.0.0",
-            "artifact_schema_versions": {"hunts": 1, "ledger": 1},
+            "api_schema_version": "1.1.0",
+            "artifact_schema_versions": {"hunts": 1, "ledger": 1, "incidents": 1},
         }
         assert data["backup"]["ok"] is True
         assert 1.9 <= data["backup"]["age_hours"] <= 2.1
@@ -824,6 +852,7 @@ class TestHTTPRoutes:
     @pytest.mark.parametrize("path", [
         "/ledger", "/threats", "/exposure", "/investigations", "/hunts", "/reports",
         "/automation", "/sources", "/sources/article-1", "/ledger/threat-abc123",
+        "/incidents/incident-abc123",
     ])
     def test_operational_frontend_routes_return_application_shell(self, test_server, path):
         with patch("serve_threatwatch.render_page", return_value=b"<html>operations</html>"):
@@ -835,6 +864,7 @@ class TestHTTPRoutes:
         priority = {"hash": "one", "title": "Active exploit", "kev_listed": True}
         with patch("serve_threatwatch.load_articles", return_value=[priority]), \
              patch("serve_threatwatch.load_clusters", return_value={"clusters": []}), \
+             patch("serve_threatwatch.load_incident_records", return_value={"records": []}), \
              patch("serve_threatwatch.load_watchlist_data", return_value={}):
             status, headers, body = _get(test_server + "/api/v1/operations/summary")
         assert status == 200
@@ -842,6 +872,39 @@ class TestHTTPRoutes:
         payload = json.loads(body)
         assert payload["metrics"]["decision_queue"] == 1
         assert payload["priorities"][0]["id"] == "one"
+
+    def test_incident_v2_list_detail_and_changes_are_public_and_bounded(self, test_server):
+        record = {
+            "id": "incident-abc123", "organization": "Acme", "title": "Acme intrusion",
+            "claims": [{"statement": "Reported intrusion", "source_ids": ["article-1"]}],
+            "sources": [{"article_id": "article-1", "url": "https://example.test/report"}],
+            "changes": [{"id": "change-1", "record_id": "incident-abc123"}],
+        }
+        payload = {
+            "schema_version": 1, "generated_at": "2026-10-30T06:00:00Z",
+            "summary": {"total_records": 1}, "run_change_count": 1,
+            "records": [record], "changes": record["changes"],
+        }
+        with patch("serve_threatwatch.load_incident_records", return_value=payload):
+            list_status, _, list_body = _get(test_server + "/api/v1/incidents/v2")
+            detail_status, _, detail_body = _get(test_server + "/api/v1/incidents/v2/incident-abc123")
+            changes_status, _, changes_body = _get(test_server + "/api/v1/incidents/v2/changes")
+
+        assert list_status == detail_status == changes_status == 200
+        listed = json.loads(list_body)
+        assert listed["records"][0]["id"] == "incident-abc123"
+        assert "claims" not in listed["records"][0]
+        assert json.loads(detail_body)["claims"][0]["source_ids"] == ["article-1"]
+        assert json.loads(changes_body)["changes"][0]["id"] == "change-1"
+
+    @pytest.mark.parametrize("path", [
+        "/api/v1/incidents/v2/not-valid",
+        "/api/v1/incidents/v2/incident-missing",
+    ])
+    def test_incident_v2_detail_rejects_invalid_or_missing_id(self, test_server, path):
+        with patch("serve_threatwatch.load_incident_records", return_value={"records": [], "changes": []}):
+            status, _, _ = _get(test_server + path)
+        assert status in {400, 404}
 
     def test_operational_summary_endpoint_sanitizes_read_failures(self, test_server):
         with patch("serve_threatwatch.load_articles", side_effect=OSError("private path")):

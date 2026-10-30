@@ -67,6 +67,20 @@
 .today-changes time { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; }
 .today-changes strong { font-size: 0.82rem; }
 
+.major-incidents { margin: var(--space-12) 0; }
+.major-incidents .section-heading { border-bottom: 2px solid var(--color-ink); margin-bottom: 0; padding-bottom: var(--space-3); }
+.major-incidents ol { list-style: none; margin: 0; padding: 0; }
+.incident-row { align-items: start; border-bottom: 1px solid var(--color-border-strong); display: grid; gap: var(--space-6); grid-template-columns: 72px minmax(0, 1fr) 120px; padding: var(--space-6) var(--card-inline-padding); }
+.incident-row:hover { background: var(--color-signal-soft); }
+.incident-row-status { border-right: 1px solid var(--color-border); display: grid; gap: var(--space-2); padding-right: var(--space-4); }
+.incident-row-status strong { font-family: var(--font-mono); font-size: 1.7rem; font-weight: 500; }
+.incident-row h3 { font-size: 1.25rem; margin: var(--space-1) 0 var(--space-2); }
+.incident-row p:not(.eyebrow) { font-size: 0.84rem; margin-bottom: var(--space-3); max-width: 76ch; }
+.incident-row > a { align-self: center; font-size: 0.74rem; font-weight: 800; text-underline-offset: 3px; }
+.incident-evidence { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; }
+.status-pill.high { background: var(--color-risk-warning-soft); color: var(--color-risk-warning); }
+.status-pill.critical { background: var(--color-risk-critical-soft); color: var(--color-risk-critical); }
+
 .priority-entry {
   align-items: stretch;
   border-bottom: 1px solid var(--color-border-strong);
@@ -106,6 +120,18 @@
 .threat-card dl div:first-child { border-left: 0; padding-left: 0; }
 .threat-card dt, .hunt-card dt { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; }
 .threat-card dd, .hunt-card dd { font-size: 0.76rem; font-weight: 700; margin: var(--space-1) 0 0; }
+
+.incident-register { margin-bottom: var(--space-14); }
+.incident-register .section-heading { border-bottom: 2px solid var(--color-ink); margin-bottom: 0; padding-bottom: var(--space-3); }
+.incident-register-list { display: grid; }
+.incident-register-row { align-items: start; border-bottom: 1px solid var(--color-border-strong); display: grid; gap: var(--space-6); grid-template-columns: 80px minmax(0, 1fr) 130px; padding: var(--space-6) var(--card-inline-padding); }
+.incident-register-row:hover { background: var(--color-signal-soft); }
+.incident-register-row > div:first-child { border-right: 1px solid var(--color-border); display: grid; gap: var(--space-2); padding-right: var(--space-4); }
+.incident-register-row > div:first-child strong { font-family: var(--font-mono); font-size: 1.5rem; }
+.incident-register-row h3 { font-size: 1.2rem; margin: var(--space-1) 0; }
+.incident-register-row p:not(.eyebrow) { font-size: 0.82rem; margin-bottom: var(--space-2); max-width: 76ch; }
+.incident-register-row small { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; }
+.incident-register-row > a { align-self: center; font-size: 0.74rem; font-weight: 800; text-underline-offset: 3px; }
 
 .exposure-layout { border-bottom: 1px solid var(--color-ink); border-top: 1px solid var(--color-ink); display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); margin-bottom: var(--space-10); }
 .exposure-inventory, .exposure-summary { border: 0; padding: var(--space-6) var(--card-inline-padding); }
@@ -206,6 +232,32 @@
 .ledger-more .text-button { min-width: 220px; }
 .ledger-record-header { align-items: end; border-bottom: 1px solid var(--color-ink); border-top: 4px solid var(--color-ink); display: grid; gap: var(--space-10); grid-template-columns: minmax(0, 1fr) 300px; margin: var(--space-5) 0 0; padding: var(--space-6) 0; }
 .ledger-record-header > div:first-child > p:last-child { font-size: 1.08rem; max-width: 70ch; }
+.incident-record-header { align-items: end; border-bottom: 1px solid var(--color-ink); border-top: 4px solid var(--color-ink); display: grid; gap: var(--space-10); grid-template-columns: minmax(0, 1fr) 150px; padding: var(--space-6) 0; }
+.incident-record-header h1 { font-size: clamp(2.3rem, 6vw, 4.8rem); margin: var(--space-3) 0; max-width: 17ch; }
+.incident-record-header > div:first-child > p:last-child { font-size: 1.05rem; max-width: 72ch; }
+.incident-score { border-left: 4px solid var(--color-brand); display: grid; padding: var(--space-3) var(--space-4); }
+.incident-score span, .incident-score small { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; }
+.incident-score strong { font-family: var(--font-mono); font-size: 3rem; font-weight: 400; line-height: 1; margin: var(--space-2) 0; }
+.incident-score.incident-critical { border-color: var(--color-risk-critical); }
+.incident-score.incident-high { border-color: var(--color-risk-warning); }
+.incident-facts { border-bottom: 1px solid var(--color-ink); display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 0 var(--space-5); }
+.incident-facts div { border-left: 1px solid var(--color-border); padding: var(--space-4); }
+.incident-facts div:first-child { border-left: 0; padding-left: 0; }
+.incident-facts dt { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; }
+.incident-facts dd { font-size: 0.78rem; font-weight: 700; margin: var(--space-1) 0 0; }
+.incident-actions { justify-content: flex-end; margin-bottom: var(--space-12); }
+.incident-detail-grid { display: grid; gap: var(--space-12); grid-template-columns: minmax(0, 1fr) 340px; }
+.incident-claims { list-style: none; margin: 0; padding: 0; }
+.incident-claims li { border-bottom: 1px solid var(--color-border); padding: var(--space-4) 0; }
+.incident-claims li > div { align-items: center; display: flex; gap: var(--space-3); }
+.incident-claims li > div > span:last-child { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; }
+.incident-claims p { margin: var(--space-2) 0; }
+.claim-sources { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.claim-sources a, .claim-sources > span { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.6rem; text-underline-offset: 3px; text-transform: uppercase; }
+.state-assessed { border-color: var(--color-info); color: var(--color-info); }
+.state-disputed { border-color: var(--color-risk-critical); color: var(--color-risk-critical); }
+.technique-list { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; padding: 0; }
+.technique-list li { background: var(--color-surface-soft); font-size: 0.72rem; padding: var(--space-2); }
 .record-decision { border-left: 4px solid var(--color-brand); padding: var(--space-4); }
 .record-decision > span { color: var(--color-ink-muted); display: block; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; }
 .record-decision > strong { display: block; font-size: 1.35rem; margin: var(--space-1) 0; text-transform: uppercase; }

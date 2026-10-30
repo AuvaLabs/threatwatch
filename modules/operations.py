@@ -8,6 +8,8 @@ import math
 from datetime import datetime, timezone
 from typing import Any
 
+from modules.incident_records import TODAY_THRESHOLD
+
 
 def _list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
@@ -185,13 +187,49 @@ def _cluster_list(clusters: Any) -> list[dict[str, Any]]:
     return [value for value in _list(clusters) if isinstance(value, dict)]
 
 
-def build_operational_summary(articles: Any, clusters: Any, watchlist: Any) -> dict[str, Any]:
+def _incident_list(incidents: Any) -> list[dict[str, Any]]:
+    raw = incidents.get("records") if isinstance(incidents, dict) else incidents
+    return [value for value in _list(raw) if isinstance(value, dict)]
+
+
+def _incident_priority(record: dict[str, Any]) -> dict[str, Any] | None:
+    score = int(_number(record.get("score")) or 0)
+    if score < TODAY_THRESHOLD or record.get("state") != "corroborated":
+        return None
+    return {
+        "id": str(record.get("id") or ""),
+        "title": str(record.get("title") or "Untitled incident"),
+        "organization": str(record.get("organization") or "Unknown organization"),
+        "event_type": str(record.get("event_type") or "incident"),
+        "state": str(record.get("state") or "developing"),
+        "priority": str(record.get("priority") or "high"),
+        "score": score,
+        "summary": str(record.get("summary") or "")[:500],
+        "last_updated": record.get("last_updated"),
+        "last_changed": record.get("last_changed"),
+        "source_count": int(_number(record.get("source_count")) or 0),
+        "independent_source_count": int(_number(record.get("independent_source_count")) or 0),
+        "confidence": str(record.get("confidence") or "low"),
+        "recommended_action": str(record.get("recommended_action") or "Monitor for material changes."),
+    }
+
+
+def build_operational_summary(
+    articles: Any, clusters: Any, watchlist: Any, incidents: Any = None,
+) -> dict[str, Any]:
     """Build a bounded decision queue from real evidence and monitored context."""
     article_list = [value for value in _list(articles) if isinstance(value, dict)]
     watchlist_data = watchlist if isinstance(watchlist, dict) else {}
     terms = _watchlist_terms(watchlist_data)
     priorities = _deduplicated_priorities(article_list, terms)
     cluster_items = _cluster_list(clusters)
+    incident_records = _incident_list(incidents)
+    incident_priorities = [
+        priority for record in incident_records
+        if (priority := _incident_priority(record)) is not None
+    ]
+    incident_priorities.sort(key=lambda item: (-item["score"], item["title"].casefold()))
+    incident_priorities = incident_priorities[:5]
     watchlist_matches = [item for item in priorities if item["watchlist_matches"]]
     kev_records = sum(
         1 for article in article_list
@@ -200,13 +238,15 @@ def build_operational_summary(articles: Any, clusters: Any, watchlist: Any) -> d
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "metrics": {
-            "decision_queue": len(priorities),
+            "decision_queue": len(priorities) + len(incident_priorities),
             "critical_priorities": sum(item["urgency"] == "critical" for item in priorities),
+            "major_incidents": len(incident_priorities),
             "watchlist_matches": len(watchlist_matches),
             "kev_records": kev_records,
-            "active_threats": len(cluster_items),
+            "active_threats": len(incident_records) or len(cluster_items),
             "sources_reviewed": len(article_list),
         },
+        "incidents": incident_priorities,
         "priorities": priorities,
         "exposure": {
             "configured": bool(terms),

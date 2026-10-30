@@ -94,7 +94,7 @@ export interface Cluster {
   entity_type?: string;
   entity_name?: string;
   synthesis?: string;
-  confidence?: number;
+  confidence?: number | "high" | "medium" | "low" | string;
   article_count?: number;
   first_seen?: string;
   first_observed?: string;
@@ -157,11 +157,13 @@ export interface OperationalSummary {
   metrics: {
     decision_queue: number;
     critical_priorities: number;
+    major_incidents?: number;
     watchlist_matches: number;
     kev_records: number;
     active_threats: number;
     sources_reviewed: number;
   };
+  incidents?: IncidentRecordSummary[];
   priorities: OperationalPriority[];
   exposure: {
     configured: boolean;
@@ -170,6 +172,76 @@ export interface OperationalSummary {
     matches: OperationalPriority[];
     disclaimer: string;
   };
+}
+
+export type IncidentClaimState = "confirmed" | "reported" | "assessed" | "disputed" | "unknown";
+
+export interface IncidentSource {
+  article_id: string;
+  title: string;
+  publisher: string;
+  published?: string | null;
+  url?: string;
+  source_family: string;
+}
+
+export interface IncidentClaim {
+  subject: string;
+  statement: string;
+  state: IncidentClaimState;
+  confidence: "high" | "medium" | "low";
+  source_ids: string[];
+}
+
+export interface IncidentChange {
+  id: string;
+  record_id: string;
+  field: string;
+  previous: unknown;
+  current: unknown;
+  changed_at: string;
+  summary: string;
+}
+
+export interface IncidentRecordSummary {
+  id: string;
+  organization: string;
+  event_type: string;
+  state: "corroborated" | "developing" | string;
+  title: string;
+  summary: string;
+  priority: "critical" | "high" | "monitored" | "developing" | string;
+  score: number;
+  confidence: "high" | "medium" | "low" | string;
+  version?: number;
+  first_seen?: string | null;
+  last_updated?: string | null;
+  last_changed?: string | null;
+  source_count: number;
+  independent_source_count: number;
+  sectors?: string[];
+  recommended_action: string;
+  open_questions?: string[];
+}
+
+export interface IncidentRecord extends IncidentRecordSummary {
+  claims: IncidentClaim[];
+  sources: IncidentSource[];
+  impact: string[];
+  techniques: HuntTechnique[];
+  observables: Array<{ type: string; value: string; state: string; source_ids: string[] }>;
+  affected_assets: string[];
+  changes: IncidentChange[];
+}
+
+export interface IncidentsResponse {
+  schema_version: number;
+  generated_at?: string | null;
+  summary: { total_records: number; high_priority: number; developing: number };
+  run_change_count: number;
+  total: number;
+  changes: IncidentChange[];
+  records: IncidentRecordSummary[];
 }
 
 export type HuntStatus = "qualified" | "lead";

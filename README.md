@@ -44,6 +44,7 @@ ThreatWatch turns public cyber reporting into a living threat-state and decision
 - **Top Stories** — AI picks the 5-8 most significant incidents from all articles, with significance ratings (CRITICAL/HIGH/MODERATE)
 - **Article Summaries** — structured AI summaries (what/who/impact) for articles missing descriptions
 - **Incident Clustering** groups related coverage only on shared CVEs or named threat actors, with optional grounded synthesis
+- **Breach Anatomy** correlates victim-centred incident coverage into versioned records with source-bound claims, explicit uncertainty, defensive actions, and deterministic fallback
 - **Threat Actor Profiles** — cached AI-generated profiles for detected actors (origin, TTPs, target sectors)
 - **AI Classification Escalation**: low-confidence articles can be reclassified by the configured LLM route
 - **Provider resilience**: primary key rotation plus two independent OpenAI-compatible fallback endpoints
@@ -65,9 +66,9 @@ ThreatWatch turns public cyber reporting into a living threat-state and decision
 - Cross-source region merge, collapsing to Global when an article spans 3+ regions
 
 ### Intelligence operations workspace
-- **Today** leads with material state changes and the evidence-backed decisions they support
+- **Today** leads with major incident changes and the evidence-backed decisions they support
 - **Ledger** maintains stable, versioned CVE and actor records with revision history, uncertainty, remediation, affected technology, and original sources
-- **Threats** turns shared actors, vulnerabilities, and organizations into correlated records
+- **Threats** combines living incident records with shared actor and vulnerability clusters
 - **Hunts** correlates all reports in a CVE or actor cluster, validates observables in context, and publishes portable packages only after an evidence gate passes
 - **Reports** builds a copyable and downloadable operating picture with source-linked priorities
 - **Automation** exposes the OpenAPI contract, STIX export, RSS, and dependency health
@@ -311,7 +312,7 @@ Edit these files to add or remove feeds. No restart needed — changes apply on 
 
 ## Architecture
 
-**Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify (regex + AI) → Region Inference → NVD/EPSS/ATT&CK → IOC validation → Output → Briefings → Clustering → Cached IOC corroboration → Hunt packages → Threat-state ledger → Actor profiles
+**Pipeline** (`threatdigest_main.py`): Feeds → Fetch → Deduplicate → Scrape → Classify (regex + AI) → Region Inference → NVD/EPSS/ATT&CK → IOC validation → Output → Briefings → Clustering → Incident records → Cached IOC corroboration → Hunt packages → Threat-state ledger → Actor profiles
 
 **Server** (`serve_threatwatch.py`): Python HTTP server with safe application routing, ETag caching, gzip, and restricted CORS
 
@@ -340,6 +341,7 @@ modules/
   ├── llm_client.py          # Shared provider router and key rotation
   ├── briefing_generator.py  # AI briefing, top stories, article summaries
   ├── incident_correlator.py # Entity-based incident clustering + AI synthesis
+  ├── incident_records.py    # Evidence-linked breach records, scoring, and history
   ├── hunt_engine.py         # Evidence gating, provenance, queries, and package generation
   ├── threat_ledger.py       # Versioned public threat state and decision history
   ├── ioc_quality.py         # Article-aware IOC validation and false-positive controls
@@ -391,6 +393,9 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/articles/{id}` | Stable versioned article detail |
 | `GET` | `/api/v1/briefings/latest` | Stable latest global briefing |
 | `GET` | `/api/v1/incidents` | Stable incident-cluster collection |
+| `GET` | `/api/v1/incidents/v2` | Compact evidence-linked incident records |
+| `GET` | `/api/v1/incidents/v2/changes` | Material incident revision stream |
+| `GET` | `/api/v1/incidents/v2/{id}` | Complete Breach Anatomy record and sources |
 | `GET` | `/api/v1/hunts` | Qualified hunt packages and developing leads |
 | `GET` | `/api/v1/hunts/{id}` | One complete hunt package with provenance and queries |
 | `GET` | `/api/v1/ledger` | Filterable living threat records and current change register |
@@ -421,6 +426,8 @@ Public JSON endpoints support CORS. Operational health endpoints are same-origin
 Hunt packages are built from correlated evidence, not from a single article. A package must have independent corroboration or an authoritative structured-provider match, an actionable observable, mapped ATT&CK behavior, citations, telemetry guidance, and a readiness score of at least 60. Candidates that do not pass remain visible as developing leads and cannot be copied as qualified packages. See [`docs/HUNTS.md`](docs/HUNTS.md) for the contract and operations runbook.
 
 The public ledger does not accept or infer an organization's inventory. Its records describe public threat state, evidence quality, reported affected technology, and recommended action. Consumers can match the stable JSON records inside their own trusted environment. See [`docs/LEDGER.md`](docs/LEDGER.md) for the data contract and lifecycle.
+
+Breach Anatomy records require multiple correlation signals before separate reports are merged. Every published claim carries source article identifiers and one of five evidence states: `confirmed`, `reported`, `assessed`, `disputed`, or `unknown`. Records remain useful without a model provider. See [`docs/INCIDENTS.md`](docs/INCIDENTS.md) for the contract and accuracy gates.
 
 <details>
 <summary>Example: paginated articles response</summary>
@@ -467,8 +474,8 @@ The public ledger does not accept or infer an organization's inventory. Its reco
   "deployment": {
     "sha": "1234567890abcdef",
     "built_at": "2026-10-10T01:02:03Z",
-    "api_schema_version": "1.0.0",
-    "artifact_schema_versions": {"hunts": 1, "ledger": 1}
+    "api_schema_version": "1.1.0",
+    "artifact_schema_versions": {"hunts": 1, "ledger": 1, "incidents": 1}
   },
   "backup": {
     "configured": true,

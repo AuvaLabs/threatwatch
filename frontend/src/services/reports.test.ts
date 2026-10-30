@@ -4,7 +4,8 @@ import { downloadText, operationalReport } from "./reports";
 
 const summary: OperationalSummary = {
   generated_at: "2026-10-08T00:00:00.000Z",
-  metrics: { decision_queue: 1, critical_priorities: 1, watchlist_matches: 1, kev_records: 1, active_threats: 2, sources_reviewed: 10 },
+  metrics: { decision_queue: 2, critical_priorities: 1, major_incidents: 1, watchlist_matches: 1, kev_records: 1, active_threats: 2, sources_reviewed: 10 },
+  incidents: [{ id: "incident-acme", title: "Acme intrusion", organization: "Acme", event_type: "intrusion", state: "corroborated", priority: "high", score: 72, summary: "Corroborated intrusion reporting.", last_updated: "2026-10-08T00:00:00Z", source_count: 3, independent_source_count: 2, confidence: "medium", recommended_action: "Inspect telemetry." }],
   priorities: [{
     id: "one", title: "Exploited edge device", summary: "Evidence", score: 90, urgency: "critical", action_type: "patch",
     recommended_action: "Patch or isolate.", reasons: ["Known exploitation"], watchlist_matches: ["Device"],
@@ -24,6 +25,8 @@ describe("operational reports", () => {
     expect(report).toContain("Active exploitation");
     expect(report).toContain("1 immediate decisions");
     expect(report).toContain("Patch or isolate.");
+    expect(report).toContain("## Major incidents");
+    expect(report).toContain("[Acme intrusion](/incidents/incident-acme)");
     expect(report).toContain("## Sources");
     expect(report).toContain("[1] [CISA advisory](https://cisa.gov/advisory) - CISA");
     expect(report).toContain("Validate relevance.");

@@ -161,7 +161,7 @@ then
 fi
 
 API_ROOT=${HEALTH_URL%/health}
-for route in openapi.json operations/summary hunts ledger sources health/artifacts; do
+for route in openapi.json operations/summary incidents/v2 incidents/v2/changes hunts ledger sources health/artifacts; do
   curl -fsS "$API_ROOT/$route" >/dev/null
 done
 curl -fsS "${API_ROOT%/api/v1}/" >/dev/null

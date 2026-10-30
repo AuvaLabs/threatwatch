@@ -22,13 +22,14 @@ from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, unquote, urlparse
 
 from modules.hunt_engine import build_hunts
+from modules.incident_records import build_incident_records
 from modules.operations import build_operational_summary
 from modules.threat_ledger import build_ledger
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
-API_SCHEMA_VERSION = "1.0.0"
-ARTIFACT_SCHEMA_VERSIONS = {"hunts": 1, "ledger": 1}
+API_SCHEMA_VERSION = "1.1.0"
+ARTIFACT_SCHEMA_VERSIONS = {"hunts": 1, "ledger": 1, "incidents": 1}
 PORT = int(os.environ.get("PORT", 8098))
 CACHE_TTL = 30  # seconds
 WATCHLIST_WRITE_ENABLED = os.environ.get("WATCHLIST_WRITE_ENABLED", "").lower() in ("1", "true", "yes")
@@ -296,6 +297,22 @@ def load_clusters():
         return json.loads(raw)
     except (FileNotFoundError, json.JSONDecodeError):
         return None
+
+
+def load_incident_records() -> dict:
+    """Load generated incident records, rebuilding missing or stale data in memory."""
+    path = BASE_DIR / "data" / "output" / "incidents-v2.json"
+    daily_path = BASE_DIR / "data" / "output" / "daily_latest.json"
+    payload = None
+    try:
+        payload = json.loads(read_cached(path))
+        valid = isinstance(payload, dict) and isinstance(payload.get("records"), list)
+        fresh = not daily_path.exists() or path.stat().st_mtime >= daily_path.stat().st_mtime
+        if valid and fresh:
+            return payload
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        payload = None
+    return build_incident_records(load_articles(), previous=payload)
 
 
 def load_hunts() -> dict:
@@ -873,6 +890,9 @@ def build_openapi() -> bytes:
         "/api/v1/intelligence-delta": {"get": {"summary": "Get changes since the command briefing"}},
         "/api/v1/briefings/{region}": {"get": {"summary": "Get regional briefing"}},
         "/api/v1/incidents": {"get": {"summary": "List incident clusters"}},
+        "/api/v1/incidents/v2": {"get": {"summary": "List evidence-linked incident records"}},
+        "/api/v1/incidents/v2/changes": {"get": {"summary": "List material incident changes"}},
+        "/api/v1/incidents/v2/{id}": {"get": {"summary": "Get one evidence-linked incident record"}},
         "/api/v1/hunts": {"get": {"summary": "List evidence-gated hunt packages"}},
         "/api/v1/hunts/{id}": {"get": {"summary": "Get one hunt package"}},
         "/api/v1/ledger": {"get": {"summary": "List living threat records"}},
@@ -946,6 +966,18 @@ _LEDGER_LIST_FIELDS = (
 
 def _ledger_list_record(record: dict) -> dict:
     return {field: record.get(field) for field in _LEDGER_LIST_FIELDS}
+
+
+_INCIDENT_LIST_FIELDS = (
+    "id", "organization", "event_type", "state", "title", "summary", "priority",
+    "score", "confidence", "version", "first_seen", "last_updated", "last_changed",
+    "source_count", "independent_source_count", "sectors", "recommended_action",
+    "open_questions",
+)
+
+
+def _incident_list_record(record: dict) -> dict:
+    return {field: record.get(field) for field in _INCIDENT_LIST_FIELDS}
 
 
 def _is_vulnerability_article(article: dict) -> bool:
@@ -1056,7 +1088,7 @@ UI_ROUTES = frozenset({
 
 
 def _is_ui_route(path: str) -> bool:
-    return path in UI_ROUTES or path.startswith(("/ledger/", "/news/", "/sources/"))
+    return path in UI_ROUTES or path.startswith(("/incidents/", "/ledger/", "/news/", "/sources/"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1327,7 +1359,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         if path == "/api/v1/operations/summary":
             try:
                 payload = build_operational_summary(
-                    load_articles(), load_clusters(), load_watchlist_data(),
+                    load_articles(), load_clusters(), load_watchlist_data(), load_incident_records(),
                 )
             except OSError:
                 self._send_error_json(
@@ -1337,6 +1369,55 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
                 return
             body = json.dumps(
                 payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/incidents/v2":
+            payload = load_incident_records()
+            try:
+                limit = min(100, max(1, int(_first_param(params, "limit") or "50")))
+            except ValueError:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid incident limit")
+                return
+            records = [item for item in payload.get("records", []) if isinstance(item, dict)]
+            response = {
+                **payload,
+                "total": len(records),
+                "records": [_incident_list_record(item) for item in records[:limit]],
+            }
+            body = json.dumps(
+                response, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/incidents/v2/changes":
+            payload = load_incident_records()
+            changes = [item for item in payload.get("changes", []) if isinstance(item, dict)][:200]
+            body = json.dumps(
+                {"generated_at": payload.get("generated_at"), "total": len(changes), "changes": changes},
+                ensure_ascii=False, separators=(",", ":"), allow_nan=False,
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path.startswith("/api/v1/incidents/v2/"):
+            incident_id = path.removeprefix("/api/v1/incidents/v2/")
+            valid_id = incident_id.startswith("incident-") and incident_id[9:].isalnum()
+            if not valid_id or len(incident_id) > 64:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid incident id")
+                return
+            payload = load_incident_records()
+            record = next(
+                (item for item in payload.get("records", []) if item.get("id") == incident_id),
+                None,
+            )
+            if record is None:
+                self._send_error_json(HTTPStatus.NOT_FOUND, "Incident not found")
+                return
+            body = json.dumps(
+                record, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
             ).encode("utf-8")
             self._send_body("application/json; charset=utf-8", body, head_only)
             return

@@ -4,6 +4,8 @@ import type {
   Briefing, IntelligenceDelta,
   ClustersResponse,
   Health,
+  IncidentRecord,
+  IncidentsResponse,
   HuntsResponse,
   LedgerResponse,
   OperationalSummary,
@@ -88,6 +90,11 @@ export const api = {
     request<IntelligenceDelta>("/api/v1/intelligence-delta", signal),
   health: (signal?: AbortSignal) => request<Health>("/api/v1/health", signal),
   clusters: (signal?: AbortSignal) => request<ClustersResponse>("/api/v1/incidents", signal),
+  incidents: (signal?: AbortSignal) => request<IncidentsResponse>("/api/v1/incidents/v2", signal),
+  incident: (id: string, signal?: AbortSignal) =>
+    request<IncidentRecord>(`/api/v1/incidents/v2/${encodeURIComponent(id)}`, signal),
+  incidentChanges: (signal?: AbortSignal) =>
+    request<Pick<IncidentsResponse, "generated_at" | "changes"> & { total: number }>("/api/v1/incidents/v2/changes", signal),
   watchlist: (signal?: AbortSignal) => request<Watchlist>("/api/watchlist", signal),
   openApi: (signal?: AbortSignal) => request<OpenApiDocument>("/api/v1/openapi.json", signal),
   operations: (signal?: AbortSignal) => request<OperationalSummary>("/api/v1/operations/summary", signal),
