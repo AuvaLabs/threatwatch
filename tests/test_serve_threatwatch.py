@@ -850,7 +850,7 @@ class TestHTTPRoutes:
         assert body == b"<html>app</html>"
 
     @pytest.mark.parametrize("path", [
-        "/ledger", "/threats", "/exposure", "/investigations", "/hunts", "/reports",
+        "/ledger", "/threats", "/incidents", "/exposure", "/investigations", "/hunts", "/reports",
         "/automation", "/sources", "/sources/article-1", "/ledger/threat-abc123",
         "/incidents/incident-abc123",
     ])
