@@ -56,8 +56,8 @@
   .ledger-open { grid-column: auto; }
   .incident-row-status,
   .incident-register-row > div:first-child { border-bottom: 1px solid var(--color-border); border-right: 0; padding: 0 0 var(--space-3); }
-  .incident-row > a,
-  .incident-register-row > a { justify-self: start; }
+  .incident-row > .button,
+  .incident-register-row > .button { justify-self: start; width: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -70,13 +70,13 @@
 .major-incidents { margin: var(--space-12) 0; }
 .major-incidents .section-heading { border-bottom: 2px solid var(--color-ink); margin-bottom: 0; padding-bottom: var(--space-3); }
 .major-incidents ol { list-style: none; margin: 0; padding: 0; }
-.incident-row { align-items: start; border-bottom: 1px solid var(--color-border-strong); display: grid; gap: var(--space-6); grid-template-columns: 72px minmax(0, 1fr) 120px; padding: var(--space-6) var(--card-inline-padding); }
+.incident-row { align-items: start; border-bottom: 1px solid var(--color-border-strong); display: grid; gap: var(--space-6); grid-template-columns: 72px minmax(0, 1fr) 168px; padding: var(--space-6) var(--card-inline-padding); }
 .incident-row:hover { background: var(--color-signal-soft); }
 .incident-row-status { border-right: 1px solid var(--color-border); display: grid; gap: var(--space-2); padding-right: var(--space-4); }
 .incident-row-status strong { font-family: var(--font-mono); font-size: 1.7rem; font-weight: 500; }
 .incident-row h3 { font-size: 1.25rem; margin: var(--space-1) 0 var(--space-2); }
 .incident-row p:not(.eyebrow) { font-size: 0.84rem; margin-bottom: var(--space-3); max-width: 76ch; }
-.incident-row > a { align-self: center; font-size: 0.74rem; font-weight: 800; text-underline-offset: 3px; }
+.incident-row > .button { align-self: center; width: 100%; }
 .incident-evidence { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; }
 .status-pill.high { background: var(--color-risk-warning-soft); color: var(--color-risk-warning); }
 .status-pill.critical { background: var(--color-risk-critical-soft); color: var(--color-risk-critical); }
@@ -124,14 +124,14 @@
 .incident-register { margin-bottom: var(--space-14); }
 .incident-register .section-heading { border-bottom: 2px solid var(--color-ink); margin-bottom: 0; padding-bottom: var(--space-3); }
 .incident-register-list { display: grid; }
-.incident-register-row { align-items: start; border-bottom: 1px solid var(--color-border-strong); display: grid; gap: var(--space-6); grid-template-columns: 80px minmax(0, 1fr) 130px; padding: var(--space-6) var(--card-inline-padding); }
+.incident-register-row { align-items: start; border-bottom: 1px solid var(--color-border-strong); display: grid; gap: var(--space-6); grid-template-columns: 80px minmax(0, 1fr) 168px; padding: var(--space-6) var(--card-inline-padding); }
 .incident-register-row:hover { background: var(--color-signal-soft); }
 .incident-register-row > div:first-child { border-right: 1px solid var(--color-border); display: grid; gap: var(--space-2); padding-right: var(--space-4); }
 .incident-register-row > div:first-child strong { font-family: var(--font-mono); font-size: 1.5rem; }
 .incident-register-row h3 { font-size: 1.2rem; margin: var(--space-1) 0; }
 .incident-register-row p:not(.eyebrow) { font-size: 0.82rem; margin-bottom: var(--space-2); max-width: 76ch; }
 .incident-register-row small { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; }
-.incident-register-row > a { align-self: center; font-size: 0.74rem; font-weight: 800; text-underline-offset: 3px; }
+.incident-register-row > .button { align-self: center; width: 100%; }
 
 .exposure-layout { border-bottom: 1px solid var(--color-ink); border-top: 1px solid var(--color-ink); display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); margin-bottom: var(--space-10); }
 .exposure-inventory, .exposure-summary { border: 0; padding: var(--space-6) var(--card-inline-padding); }

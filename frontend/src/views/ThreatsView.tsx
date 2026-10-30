@@ -38,7 +38,7 @@ export function ThreatsView() {
         <div class="incident-register-list">{incidents.slice(0, 30).map((incident) => <article class="incident-register-row" key={incident.id}>
           <div><span class={`status-pill ${incident.priority}`}>{incident.priority}</span><strong>{incident.score}</strong></div>
           <div><p class="eyebrow">{incident.organization} / {incident.state}</p><h3>{incident.title}</h3><p>{incident.summary}</p><small>{incident.independent_source_count} independent sources / updated {formattedDate(incident.last_updated)}</small></div>
-          <a href={`/incidents/${incident.id}`} onClick={(event) => { event.preventDefault(); navigate(`/incidents/${incident.id}`); }}>Review evidence</a>
+          <a class="button primary" href={`/incidents/${incident.id}`} onClick={(event) => { event.preventDefault(); navigate(`/incidents/${incident.id}`); }}>Open investigation</a>
         </article>)}</div>
       </section>}
       {resource.data && !clusters.length && !incidents.length && <EmptyState title="No threats matched">Clear the filter or wait for additional correlated evidence.</EmptyState>}

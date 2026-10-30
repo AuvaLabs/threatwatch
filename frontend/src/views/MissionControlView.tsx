@@ -73,7 +73,7 @@ export function MissionControlView() {
         <ol>{operations.incidents.map((incident) => <li class="incident-row" key={incident.id}>
           <div class="incident-row-status"><span class={`status-pill ${incident.priority}`}>{incident.priority}</span><strong>{incident.score}</strong></div>
           <div><p class="eyebrow">{incident.organization} / {incident.event_type.replaceAll("_", " ")}</p><h3>{incident.title}</h3><p>{incident.summary}</p><span class="incident-evidence">{incident.independent_source_count} independent sources / {incident.confidence} confidence / updated {formattedDate(incident.last_updated)}</span></div>
-          <a href={`/incidents/${incident.id}`} onClick={(event) => { event.preventDefault(); navigate(`/incidents/${incident.id}`); }}>Open incident</a>
+          <a class="button primary" href={`/incidents/${incident.id}`} onClick={(event) => { event.preventDefault(); navigate(`/incidents/${incident.id}`); }}>Open investigation</a>
         </li>)}</ol>
       </section>}
       <section class="today-changes" aria-labelledby="today-changes-title">

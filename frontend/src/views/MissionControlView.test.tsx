@@ -43,7 +43,10 @@ describe("MissionControlView", () => {
     expect(screen.getByText("Decision queue")).toBeTruthy();
     expect(screen.getByText("Major incidents")).toBeTruthy();
     expect(screen.getByText("Binance intrusion")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open incident" }).getAttribute("href")).toBe("/incidents/incident-binance");
+    const incidentAction = screen.getByRole("link", { name: "Open investigation" });
+    expect(incidentAction.getAttribute("href")).toBe("/incidents/incident-binance");
+    expect(incidentAction.classList.contains("button")).toBe(true);
+    expect(incidentAction.classList.contains("primary")).toBe(true);
     expect(screen.getByRole("link", { name: "Open the full ledger" }).getAttribute("href")).toBe("/ledger");
   });
 });
