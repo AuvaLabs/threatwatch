@@ -24,8 +24,8 @@ function EvidenceList({ hunt }: { hunt: HuntRecord }) {
   </div>;
 }
 
-function HuntDetails({ hunt }: { hunt: HuntRecord }) {
-  return <details class="hunt-package">
+function HuntDetails({ hunt, open = false }: { hunt: HuntRecord; open?: boolean }) {
+  return <details class="hunt-package" open={open}>
     <summary>Open analyst package</summary>
     <div class="hunt-package-body">
       <section><h3>Hunt hypothesis</h3><p>{hunt.hypothesis}</p></section>
@@ -41,6 +41,15 @@ function HuntDetails({ hunt }: { hunt: HuntRecord }) {
       {hunt.limitations.length > 0 && <section class="hunt-limitations"><h3>What is still missing</h3><ul>{hunt.limitations.map((value) => <li key={value}>{value}</li>)}</ul></section>}
     </div>
   </details>;
+}
+
+function HuntLead({ hunt, open, onToggle }: { hunt: HuntRecord; open: boolean; onToggle: () => void }) {
+  return <article class="hunt-lead-row surface">
+    <div><span class="hunt-status lead">Developing lead</span><strong>{hunt.readiness_score}/100</strong></div>
+    <div><p class="eyebrow">{hunt.entity_type} / {hunt.source_count} publishers</p><h3>{hunt.title}</h3><p>{hunt.summary}</p></div>
+    <button aria-expanded={open} class="button secondary" onClick={onToggle} type="button">{open ? "Close lead" : "Review lead"}</button>
+    {open && <div class="hunt-lead-details"><HuntDetails hunt={hunt} open /></div>}
+  </article>;
 }
 
 function HuntCard({ hunt, copied, onCopy }: { hunt: HuntRecord; copied: string; onCopy: (hunt: HuntRecord) => void }) {
@@ -64,6 +73,7 @@ function HuntCard({ hunt, copied, onCopy }: { hunt: HuntRecord; copied: string; 
 export function HuntsView() {
   const resource = useResource(api.hunts, []);
   const [copied, setCopied] = useState("");
+  const [openLead, setOpenLead] = useState("");
   const copy = async (hunt: HuntRecord) => setCopied(await copyText(huntPack(hunt)) ? hunt.id : "error");
   const qualified = resource.data?.hunts.filter((hunt) => hunt.status === "qualified") || [];
   const leads = resource.data?.hunts.filter((hunt) => hunt.status === "lead") || [];
@@ -77,7 +87,7 @@ export function HuntsView() {
         {qualified.length ? <div class="hunt-grid">{qualified.map((hunt) => <HuntCard hunt={hunt} copied={copied} onCopy={copy} key={hunt.id} />)}</div> : <EmptyState title="No hunt has passed the evidence gate">Developing leads remain visible below, but ThreatWatch will not label them as hunt packages until they have independent reporting, actionable observables, and mapped behavior.</EmptyState>}
       </section>
       <section class="hunt-section hunt-leads"><header class="section-heading"><div><p class="eyebrow">Evidence queue</p><h2>Developing leads</h2></div><strong>{leads.length}</strong></header>
-        {leads.length ? <div class="hunt-grid">{leads.map((hunt) => <HuntCard hunt={hunt} copied={copied} onCopy={copy} key={hunt.id} />)}</div> : <p class="quiet-empty">No developing leads in the current reporting window.</p>}
+        {leads.length ? <div class="hunt-lead-list">{leads.map((hunt) => <HuntLead hunt={hunt} open={openLead === hunt.id} onToggle={() => setOpenLead((value) => value === hunt.id ? "" : hunt.id)} key={hunt.id} />)}</div> : <p class="quiet-empty">No developing leads in the current reporting window.</p>}
       </section>
     </>}
   </div>;

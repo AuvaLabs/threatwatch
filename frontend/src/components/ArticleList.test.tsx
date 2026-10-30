@@ -22,7 +22,7 @@ describe("ArticleList", () => {
     render(<ArticleList articles={[complete, { hash: "pending", title: "Pending report", summary_method: "none" }]} />);
     expect(screen.getByText("Cloud provider disrupted by ransomware")).toBeTruthy();
     expect(screen.getByText("Services were interrupted across multiple customers.")).toBeTruthy();
-    expect(screen.getByText("Summary pending")).toBeTruthy();
+    expect(screen.getByText("Summary unavailable")).toBeTruthy();
     expect(screen.getByText("CISA KEV")).toBeTruthy();
     expect(screen.getByText("1 CVE")).toBeTruthy();
   });

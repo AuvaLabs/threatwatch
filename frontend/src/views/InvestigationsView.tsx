@@ -1,7 +1,8 @@
 import { useState } from "preact/hooks";
 import { EmptyState, PageHeader } from "../components/PageState";
 import { actionLabel, urgencyLabel } from "../services/operations";
-import { loadWorkspace, updateInvestigation, workspaceDownload } from "../services/workspace";
+import { importWorkspace, loadWorkspace, updateInvestigation, workspaceDownload } from "../services/workspace";
+import { navigate } from "../router";
 import type { AnalystWorkspace, InvestigationStatus } from "../types";
 import { formattedDate } from "../utils/format";
 
@@ -18,12 +19,26 @@ export function InvestigationsView() {
       setNotice(error instanceof Error ? error.message : "The investigation could not be saved.");
     }
   };
+  const importFile = async (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const imported = importWorkspace(await file.text());
+      setWorkspace(imported);
+      setNotice(`Imported ${imported.investigations.length} investigation${imported.investigations.length === 1 ? "" : "s"}.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "The workspace could not be imported.");
+    } finally {
+      input.value = "";
+    }
+  };
   return (
     <div class="view investigations-view">
-      <PageHeader eyebrow="Casebook" title="Investigations" description="Status, decisions, and working notes for priorities under review." actions={workspace.investigations.length ? <button class="button secondary" onClick={() => workspaceDownload(workspace)} type="button">Export workspace</button> : undefined} />
+      <PageHeader eyebrow="Private casebook" title="Investigations" description="Status, decisions, and working notes stored locally in this browser." actions={<div class="button-row"><label class="button secondary file-button">Import workspace<input accept="application/json" onChange={importFile} type="file" /></label>{workspace.investigations.length ? <button class="button secondary" onClick={() => workspaceDownload(workspace)} type="button">Export workspace</button> : null}</div>} />
       <div class="notice" role="note"><strong>Private to this browser.</strong> Investigations are stored locally on this device. Export regularly if the record must be retained or shared.</div>
       {notice && <div class="notice" role="status">{notice}</div>}
-      {!workspace.investigations.length && <EmptyState title="No investigations yet">Open a priority from Mission Control to begin a local investigation.</EmptyState>}
+      {!workspace.investigations.length && <EmptyState title="No investigations yet"><span>Track a priority from Today to begin a private investigation.</span><button class="button primary" onClick={() => navigate("/")} type="button">Browse priorities</button></EmptyState>}
       <div class="investigation-list">
         {workspace.investigations.map((item) => <InvestigationRecord item={item} key={item.id} onSave={update} />)}
       </div>

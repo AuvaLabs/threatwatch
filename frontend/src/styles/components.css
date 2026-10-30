@@ -29,6 +29,9 @@
   color: var(--color-ink-soft);
 }
 
+.file-button { cursor: pointer; }
+.file-button input { height: 1px; opacity: 0; overflow: hidden; position: absolute; width: 1px; }
+
 .text-button,
 .back-link,
 .table-title {

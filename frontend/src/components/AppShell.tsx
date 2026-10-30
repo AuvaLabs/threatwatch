@@ -7,12 +7,17 @@ import { Icon } from "./Icon";
 
 const navigation = [
   { label: "Today", href: "/", route: "mission" },
-  { label: "Ledger", href: "/ledger", route: "ledger" },
-  { label: "Threats", href: "/threats", route: "threats" },
+  { label: "Incidents", href: "/incidents", route: "threats" },
   { label: "Hunts", href: "/hunts", route: "hunts" },
+  { label: "Investigations", href: "/investigations", route: "investigations" },
+  { label: "Ledger", href: "/ledger", route: "ledger" },
   { label: "Reports", href: "/reports", route: "reports" },
-  { label: "Automation", href: "/automation", route: "automation" },
   { label: "Sources", href: "/sources", route: "sources" },
+] as const;
+
+const utilities = [
+  { label: "API", href: "/automation", route: "automation" },
+  { label: "Status", href: "/system", route: "system" },
 ] as const;
 
 function follow(event: Event, href: string): void {
@@ -55,7 +60,9 @@ export function AppShell({ route, health, children }: { route: RouteName; health
           {navigation.map((item, index) => (
             <a class={route === item.route || (route === "article" && item.route === "sources") || (route === "ledgerRecord" && item.route === "ledger") || (route === "incident" && item.route === "threats") ? "active" : ""} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.label}</a>
           ))}
-          <a class={`system-link${route === "system" ? " active" : ""}`} href="/system" onClick={(event) => { follow(event, "/system"); setMenuOpen(false); }}><span>08</span>System</a>
+          {utilities.map((item, index) => (
+            <a class={`utility-link${route === item.route ? " active" : ""}`} href={item.href} key={item.route} onClick={(event) => { follow(event, item.href); setMenuOpen(false); }}><span>{String(navigation.length + index + 1).padStart(2, "0")}</span>{item.label}</a>
+          ))}
         </nav>
       </header>
       {menuOpen && <button aria-label="Close navigation" class="nav-scrim" onClick={() => setMenuOpen(false)} type="button" />}

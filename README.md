@@ -66,12 +66,14 @@ ThreatWatch turns public cyber reporting into a living threat-state and decision
 - Cross-source region merge, collapsing to Global when an article spans 3+ regions
 
 ### Intelligence operations workspace
-- **Today** leads with major incident changes and the evidence-backed decisions they support
-- **Ledger** maintains stable, versioned CVE and actor records with revision history, uncertainty, remediation, affected technology, and original sources
-- **Threats** combines living incident records with shared actor and vulnerability clusters
-- **Hunts** correlates all reports in a CVE or actor cluster, validates observables in context, and publishes portable packages only after an evidence gate passes
-- **Reports** builds a copyable and downloadable operating picture with source-linked priorities
-- **Automation** exposes the OpenAPI contract, STIX export, RSS, and dependency health
+- **Today** is a compact daily desk with the three most important incidents and evidence-backed decisions
+- **Incidents** explains breach anatomy through corroborated, evidence-linked records
+- **Hunts** correlates reports, validates observables in context, and separates qualified packages from developing leads
+- **Investigations** provides a private local casebook that can be imported and exported
+- **Ledger** preserves state transitions and their reasons with focused server-side paging
+- **Reports** builds a source-backed operating picture with section navigation and portable Markdown
+- **API** exposes the OpenAPI contract, STIX export, RSS, and grouped integration endpoints
+- **Status** reports pipeline freshness, artifact ownership, deployment identity, and recovery state
 - **Sources** preserves the full deduplicated evidence library without making the news feed the primary experience
 - Intelligence-desk visual system with a numbered masthead, ruled registers, accessible light and dark themes, and explicit empty and degraded states
 

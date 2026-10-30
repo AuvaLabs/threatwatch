@@ -37,6 +37,7 @@ export function parseRoute(pathname: string): Route {
   }
   const routes: Record<string, RouteName> = {
     "/": "mission",
+    "/incidents": "threats",
     "/ledger": "ledger",
     "/threats": "threats",
     "/exposure": "exposure",

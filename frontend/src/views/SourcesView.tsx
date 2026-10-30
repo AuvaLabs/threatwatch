@@ -13,7 +13,7 @@ export function SourcesView() {
   const [category, setCategory] = useState(() => initialParam("category"));
   const [region, setRegion] = useState(() => initialParam("region"));
   const [offset, setOffset] = useState(0);
-  const limit = 30;
+  const limit = 20;
   const resource = useResource((signal) => api.articles({ view: "news", q, category, region, offset, limit }, signal), [q, category, region, offset]);
   useEffect(() => {
     const params = new URLSearchParams();

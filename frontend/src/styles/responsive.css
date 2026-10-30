@@ -39,6 +39,7 @@
   .endpoint-row .text-button,
   .endpoint-row p { grid-column: 2; justify-self: start; }
   .status-grid { grid-template-columns: 1fr; }
+  .status-grid > section { border-left: 0; }
   .ledger-record-header { align-items: start; grid-template-columns: 1fr; }
   .incident-record-header { align-items: start; grid-template-columns: 1fr; }
   .ledger-facts { grid-template-columns: repeat(2, 1fr); }

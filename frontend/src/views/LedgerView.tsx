@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { ErrorState, LoadingState, PageHeader } from "../components/PageState";
 import { useResource } from "../hooks/useResource";
 import { navigate } from "../router";
 import { api } from "../services/api";
-import type { LedgerAction, LedgerChange, LedgerResponse, ThreatRecordSummary } from "../types";
+import type { LedgerAction, ThreatRecordSummary } from "../types";
 import { formattedDate } from "../utils/format";
 
 const actionLabels: Record<LedgerAction, string> = {
@@ -12,28 +12,7 @@ const actionLabels: Record<LedgerAction, string> = {
   investigate: "Investigate",
   monitor: "Monitor",
 };
-const REGISTER_BATCH_SIZE = 20;
-const API_PAGE_SIZE = 200;
-const MAX_LEDGER_RECORDS = 5_000;
-
-async function loadActiveLedger(signal: AbortSignal): Promise<LedgerResponse> {
-  const first = await api.ledger({ activity: "active", offset: 0, limit: API_PAGE_SIZE }, signal);
-  const retainedTotal = Math.min(first.total, MAX_LEDGER_RECORDS);
-  const remaining = Math.max(0, retainedTotal - first.records.length);
-  const offsets = Array.from(
-    { length: Math.ceil(remaining / API_PAGE_SIZE) },
-    (_, index) => first.records.length + index * API_PAGE_SIZE,
-  );
-  const following = await Promise.all(offsets.map((offset) => (
-    api.ledger({ activity: "active", offset, limit: API_PAGE_SIZE }, signal)
-  )));
-  const pages = [first, ...following].sort((left, right) => left.offset - right.offset);
-  const records: ThreatRecordSummary[] = pages.flatMap((page) => page.records).slice(0, retainedTotal);
-  const changes = new Map<string, LedgerChange>();
-  pages.forEach((page) => page.changes.forEach((change) => changes.set(change.id, change)));
-  const mergedChanges = [...changes.values()].sort((left, right) => right.changed_at.localeCompare(left.changed_at));
-  return { ...first, offset: 0, limit: records.length, has_more: records.length < first.total, records, changes: mergedChanges };
-}
+const LEDGER_PAGE_SIZE = 12;
 
 function follow(event: Event, path: string): void {
   event.preventDefault();
@@ -60,25 +39,20 @@ function RecordRow({ record }: { record: ThreatRecordSummary }) {
 }
 
 export function LedgerView() {
-  const resource = useResource(loadActiveLedger, []);
   const [query, setQuery] = useState("");
   const [action, setAction] = useState<LedgerAction | "">("");
-  const [visibleCount, setVisibleCount] = useState(REGISTER_BATCH_SIZE);
-  const records = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase();
-    return (resource.data?.records || []).filter((record) => {
-      if (action && record.decision.action !== action) return false;
-      if (!needle) return true;
-      return `${record.entity_name} ${record.title} ${record.summary} ${(record.affected_products || []).join(" ")}`.toLocaleLowerCase().includes(needle);
-    });
-  }, [resource.data, query, action]);
-  const visibleRecords = records.slice(0, visibleCount);
-  const remaining = records.length - visibleRecords.length;
+  const [entityType, setEntityType] = useState<"cve" | "actor" | "">("");
+  const [offset, setOffset] = useState(0);
+  const resource = useResource(
+    (signal) => api.ledger({ activity: "active", q: query, action: action || undefined, type: entityType || undefined, offset, limit: LEDGER_PAGE_SIZE }, signal),
+    [query, action, entityType, offset],
+  );
+  const records = resource.data?.records || [];
 
-  useEffect(() => setVisibleCount(REGISTER_BATCH_SIZE), [query, action]);
+  useEffect(() => setOffset(0), [query, action, entityType]);
 
   return <div class="view ledger-view">
-    <PageHeader eyebrow="Public threat-state ledger" title="What changed" description="Living CVE and actor records that preserve evidence, uncertainty, decisions, and revision history as public reporting evolves." />
+    <PageHeader eyebrow="Decision history" title="Threat ledger" description="Living CVE and actor records that preserve evidence, uncertainty, decisions, and revision history as public reporting evolves." />
     {resource.loading && <LoadingState label="Reconstructing current threat state" />}
     {resource.error && <ErrorState message={resource.error} />}
     {resource.data && <>
@@ -90,18 +64,19 @@ export function LedgerView() {
       </section>
       <section class="change-register" aria-labelledby="changes-title">
         <header class="section-heading"><div><p class="eyebrow">Revision desk</p><h2 id="changes-title">Latest recorded changes</h2></div><span>{resource.data.changes.length} retained events</span></header>
-        {resource.data.changes.length ? <ol>{resource.data.changes.slice(0, 8).map((change) => <li key={change.id}>
+        {resource.data.changes.length ? <ol>{resource.data.changes.slice(0, 5).map((change) => <li key={change.id}>
           <time>{formattedDate(change.changed_at)}</time><div><strong>{change.summary}</strong><span>{change.kind.replaceAll("_", " ")} · {change.field.replaceAll("_", " ")}</span></div>
         </li>)}</ol> : <p class="quiet-empty">No assessment state changed in the current ledger run.</p>}
       </section>
       <section class="ledger-register" aria-labelledby="records-title">
-        <header class="section-heading"><div><p class="eyebrow">Current assessment</p><h2 id="records-title">Living threat records</h2></div><span>Showing {visibleRecords.length} of {records.length} records</span></header>
+        <header class="section-heading"><div><p class="eyebrow">Current assessment</p><h2 id="records-title">Living threat records</h2></div><span>{resource.data.total ? `${offset + 1}–${Math.min(offset + records.length, resource.data.total)} of ${resource.data.total} records` : "No matching records"}</span></header>
         <div class="ledger-filter">
           <label><span>Find a record</span><input onInput={(event) => setQuery(event.currentTarget.value)} placeholder="CVE, actor, product, or report text" type="search" value={query} /></label>
           <label><span>Decision</span><select onChange={(event) => setAction(event.currentTarget.value as LedgerAction | "")} value={action}><option value="">All decisions</option><option value="patch">Patch now</option><option value="hunt">Begin hunt</option><option value="investigate">Investigate</option><option value="monitor">Monitor</option></select></label>
+          <label><span>Entity</span><select onChange={(event) => setEntityType(event.currentTarget.value as "cve" | "actor" | "")} value={entityType}><option value="">All entities</option><option value="cve">Vulnerabilities</option><option value="actor">Actors</option></select></label>
         </div>
-        {records.length ? visibleRecords.map((record) => <RecordRow key={record.id} record={record} />) : <p class="quiet-empty">No living record matches the current filter.</p>}
-        {remaining > 0 && <div class="ledger-more"><button class="text-button" onClick={() => setVisibleCount((count) => count + REGISTER_BATCH_SIZE)} type="button">Show {Math.min(remaining, REGISTER_BATCH_SIZE)} more record{Math.min(remaining, REGISTER_BATCH_SIZE) === 1 ? "" : "s"}</button></div>}
+        {records.length ? records.map((record) => <RecordRow key={record.id} record={record} />) : <p class="quiet-empty">No living record matches the current filter.</p>}
+        <nav aria-label="Ledger pagination" class="pagination"><button class="button secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LEDGER_PAGE_SIZE))} type="button">Previous</button><span>{resource.data.total ? `Page ${Math.floor(offset / LEDGER_PAGE_SIZE) + 1}` : "No pages"}</span><button class="button secondary" disabled={!resource.data.has_more} onClick={() => setOffset(offset + LEDGER_PAGE_SIZE)} type="button">Next</button></nav>
       </section>
     </>}
   </div>;

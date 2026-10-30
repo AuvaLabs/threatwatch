@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/preact";
+import { fireEvent, render, screen } from "@testing-library/preact";
 import { describe, expect, it, vi } from "vitest";
 import { HuntsView } from "./HuntsView";
 
@@ -36,7 +36,10 @@ describe("HuntsView", () => {
     expect(await screen.findByText("Validated activity")).toBeTruthy();
     expect(screen.getByText("Unconfirmed activity")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copy hunt package" }).hasAttribute("disabled")).toBe(false);
-    expect(screen.getByRole("button", { name: "Awaiting evidence" }).hasAttribute("disabled")).toBe(true);
+    expect(document.querySelectorAll(".hunt-card")).toHaveLength(1);
+    expect(document.querySelectorAll(".hunt-lead-row")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Review lead" }));
+    expect(document.querySelector(".hunt-lead-details")).toBeTruthy();
     expect(fetch).toHaveBeenCalledWith("/api/v1/hunts", expect.any(Object));
   });
 });

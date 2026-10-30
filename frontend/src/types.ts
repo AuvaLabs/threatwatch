@@ -87,6 +87,21 @@ export interface Health {
   articles_total?: number;
   briefing_stale?: boolean;
   feed_health?: Record<string, number>;
+  last_run_at?: string;
+  last_run_age_s?: number;
+  heartbeat_age_s?: number;
+  ai_artifacts?: HealthArtifactGroup;
+  operational_artifacts?: HealthArtifactGroup;
+  deployment?: { sha?: string; built_at?: string; api_schema_version?: string };
+  backup?: { configured?: boolean; ok?: boolean | null; age_hours?: number; last_restore_verified_at?: string; offsite?: { configured?: boolean; ok?: boolean | null } };
+}
+
+export interface HealthArtifactGroup {
+  configured?: boolean;
+  ok?: boolean;
+  stale_capabilities?: string[];
+  failing_capabilities?: string[];
+  capabilities?: Record<string, { ok?: boolean; stale?: boolean; age_hours?: number; generated_at?: string; reason?: string }>;
 }
 
 export interface Cluster {

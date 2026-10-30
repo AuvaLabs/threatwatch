@@ -16,7 +16,7 @@ describe("PriorityCard", () => {
     expect(screen.getByText("Threat record")).toBeTruthy();
     expect(screen.getByText("Watchlist match")).toBeTruthy();
     expect(screen.getByText("3 evidence points")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Open investigation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Track locally" }));
     expect(onInvestigate).toHaveBeenCalledWith(priority);
   });
 

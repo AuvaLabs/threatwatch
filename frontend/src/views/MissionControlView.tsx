@@ -1,5 +1,4 @@
 import { useState } from "preact/hooks";
-import { BriefingSources } from "../components/BriefingSources";
 import { ErrorState, LoadingState } from "../components/PageState";
 import { PriorityCard } from "../components/PriorityCard";
 import { useResource } from "../hooks/useResource";
@@ -58,31 +57,31 @@ export function MissionControlView() {
         <article><strong>{ledger?.summary.qualified_hunts ?? ledger?.summary.hunt ?? 0}</strong><span>Qualified hunts</span></article>
         <article><strong>{ledger?.summary.active_records ?? operations.metrics.active_threats}</strong><span>Living records</span></article>
       </section>
-      <section class="command-brief surface">
-        <div><p class="eyebrow">Command brief</p><h2>{briefingTitle(briefing)}</h2><p>{excerpt(briefing?.what_happened, 340) || "Use the decision queue below while narrative enrichment recovers."}</p><BriefingSources briefing={briefing} compact limit={3} /></div>
-        <div class="command-brief-action"><span>{briefing?.threat_level || "Unclassified"}</span><button class="button secondary" onClick={() => navigate("/reports")} type="button">Open report</button></div>
-      </section>
-      {delta && <section class="intelligence-delta surface" aria-label="Live intelligence update">
-        <p class="eyebrow">Since the command brief</p>
-        <h2>{briefingTitle(delta)}</h2>
-        <p>{excerpt(delta.what_happened, 300)}</p>
-        <time>{formattedDate(delta.generated_at)}</time>
-      </section>}
       {!!operations.incidents?.length && <section class="major-incidents" aria-labelledby="major-incidents-title">
-        <div class="section-heading"><div><p class="eyebrow">Breach anatomy</p><h2 id="major-incidents-title">Major incidents</h2></div><span>{operations.incidents.length} evidence-linked records</span></div>
-        <ol>{operations.incidents.map((incident) => <li class="incident-row" key={incident.id}>
+        <div class="section-heading"><div><p class="eyebrow">Breach anatomy</p><h2 id="major-incidents-title">Major incidents</h2></div><a href="/incidents" onClick={(event) => { event.preventDefault(); navigate("/incidents"); }}>View all incidents</a></div>
+        <ol>{operations.incidents.slice(0, 3).map((incident) => <li class="incident-row" key={incident.id}>
           <div class="incident-row-status"><span class={`status-pill ${incident.priority}`}>{incident.priority}</span><strong>{incident.score}</strong></div>
           <div><p class="eyebrow">{incident.organization} / {incident.event_type.replaceAll("_", " ")}</p><h3>{incident.title}</h3><p>{incident.summary}</p><span class="incident-evidence">{incident.independent_source_count} independent sources / {incident.confidence} confidence / updated {formattedDate(incident.last_updated)}</span></div>
           <a class="button primary" href={`/incidents/${incident.id}`} onClick={(event) => { event.preventDefault(); navigate(`/incidents/${incident.id}`); }}>Open investigation</a>
         </li>)}</ol>
       </section>}
+      <section class="command-brief surface">
+        <div><p class="eyebrow">Command brief</p><h2>{briefingTitle(briefing)}</h2><p>{excerpt(briefing?.what_happened, 180) || "Use the decision queue below while narrative enrichment recovers."}</p></div>
+        <div class="command-brief-action"><span>{briefing?.threat_level || "Unclassified"}</span><button class="button secondary" onClick={() => navigate("/reports")} type="button">Open report</button></div>
+      </section>
+      {delta && <section class="intelligence-delta surface" aria-label="Live intelligence update">
+        <p class="eyebrow">Since the command brief</p>
+        <h2>{briefingTitle(delta)}</h2>
+        <p>{excerpt(delta.what_happened, 180)}</p>
+        <time>{formattedDate(delta.generated_at)}</time>
+      </section>}
       <section class="today-changes" aria-labelledby="today-changes-title">
         <div class="section-heading"><div><p class="eyebrow">Revision register</p><h2 id="today-changes-title">What changed today</h2></div><a href="/ledger" onClick={(event) => { event.preventDefault(); navigate("/ledger"); }}>Open the full ledger</a></div>
-        {ledger?.changes.length ? <ol>{ledger.changes.slice(0, 5).map((change) => <li key={change.id}><time>{formattedDate(change.changed_at)}</time><strong>{change.summary}</strong></li>)}</ol> : <div class="quiet-empty surface"><strong>No assessment changes in the latest run</strong><p>Living records remain available in the public threat ledger.</p></div>}
+        {ledger?.changes.length ? <ol>{ledger.changes.slice(0, 3).map((change) => <li key={change.id}><time>{formattedDate(change.changed_at)}</time><strong>{change.summary}</strong></li>)}</ol> : <div class="quiet-empty surface"><strong>No assessment changes in the latest run</strong><p>Living records remain available in the public threat ledger.</p></div>}
       </section>
       <section aria-labelledby="queue-title" class="decision-queue">
         <div class="section-heading"><div><p class="eyebrow">Working register</p><h2 id="queue-title">Decision queue</h2></div><span>{operations.metrics.decision_queue} actionable items</span></div>
-        {operations.priorities.length ? operations.priorities.map((priority) => <PriorityCard key={priority.id} onInvestigate={track} priority={priority} />) : <div class="quiet-empty surface"><strong>No elevated priorities</strong><p>Signals are being monitored. No item currently passes the operational threshold.</p></div>}
+        {operations.priorities.length ? operations.priorities.slice(0, 5).map((priority) => <PriorityCard key={priority.id} onInvestigate={track} priority={priority} />) : <div class="quiet-empty surface"><strong>No elevated priorities</strong><p>Signals are being monitored. No item currently passes the operational threshold.</p></div>}
       </section>
     </div>
   );

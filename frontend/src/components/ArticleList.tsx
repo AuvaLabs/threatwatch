@@ -37,7 +37,7 @@ export function ArticleList({ articles, compact = false }: { articles: Article[]
               <a href={`/sources/${encodeURIComponent(article.hash)}`} onClick={(event) => openArticle(event, article.hash)}>
                 {displayTitle(article)}
               </a>
-              <p class={pending ? "summary-pending" : ""}>{pending ? "Summary pending" : summary}</p>
+              <p class={pending ? "summary-pending" : ""}>{pending ? "Summary unavailable" : summary}</p>
             </div>
             <div class="article-tags" aria-label="Article classifications">
               {kev && <span class="tag tag-critical">CISA KEV</span>}

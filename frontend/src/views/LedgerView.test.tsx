@@ -54,46 +54,29 @@ describe("LedgerView", () => {
     expect(screen.getAllByText("Patch now")).toHaveLength(2);
   });
 
-  it("keeps the default register readable and reveals more on request", async () => {
-    const records = Array.from({ length: 21 }, (_, index) => ({
-      ...record,
-      id: `threat-${index}`,
-      entity_name: `CVE-2026-${String(index).padStart(4, "0")}`,
-      title: `CVE-2026-${String(index).padStart(4, "0")}`,
-    }));
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({
-      generated_at: "2026-10-08T10:00:00Z",
-      run_change_count: 0,
-      summary: { total_records: 21, active_records: 21, patch: 21, hunt: 0, qualified_hunts: 21, investigate: 0, monitor: 0 },
-      total: 21, offset: 0, limit: 200, has_more: false, filters: {}, changes: [], records,
-    })));
-
-    render(<LedgerView />);
-
-    expect(await screen.findByText("Showing 20 of 21 records")).toBeTruthy();
-    expect(screen.queryByText("CVE-2026-0020")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Show 1 more record" }));
-    expect(screen.getByText("CVE-2026-0020")).toBeTruthy();
-  });
-
-  it("collects every server page before applying local filters", async () => {
+  it("pages the register through the server without loading the full corpus", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (path: string) => {
-      const isSecondPage = path.includes("offset=200");
-      const records = isSecondPage
-        ? [{ ...record, id: "threat-second", title: "Second page record" }]
-        : Array.from({ length: 200 }, (_, index) => ({ ...record, id: `threat-${index}`, title: `First page record ${index}` }));
+      const second = path.includes("offset=12");
+      const count = second ? 9 : 12;
+      const records = Array.from({ length: count }, (_, index) => {
+        const position = (second ? 12 : 0) + index;
+        return { ...record, id: `threat-${position}`, entity_name: `CVE-2026-${String(position).padStart(4, "0")}`, title: `CVE-2026-${String(position).padStart(4, "0")}` };
+      });
       return jsonResponse({
         generated_at: "2026-10-08T10:00:00Z", run_change_count: 0,
-        summary: { total_records: 201, active_records: 201, patch: 201, hunt: 0, qualified_hunts: 201, investigate: 0, monitor: 0 },
-        total: 201, offset: isSecondPage ? 200 : 0, limit: 200, has_more: !isSecondPage,
-        filters: {}, changes: [], records,
+        summary: { total_records: 21, active_records: 21, patch: 21, hunt: 0, qualified_hunts: 21, investigate: 0, monitor: 0 },
+        total: 21, offset: second ? 12 : 0, limit: 12, has_more: !second, filters: {}, changes: [], records,
       });
     }));
 
     render(<LedgerView />);
 
-    expect(await screen.findByText("Showing 20 of 201 records")).toBeTruthy();
+    expect(await screen.findByText("1–12 of 21 records")).toBeTruthy();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(await screen.findByText("CVE-2026-0020")).toBeTruthy();
     expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining("offset=12"), expect.any(Object));
   });
 
   it("shows evidence, remediation, history, and original reporting on detail", async () => {

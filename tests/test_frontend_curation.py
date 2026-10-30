@@ -15,19 +15,21 @@ def test_primary_navigation_matches_analyst_jobs():
     shell = _read("components/AppShell.tsx")
     for destination in (
         "Today",
-        "Ledger",
-        "Threats",
+        "Incidents",
         "Hunts",
+        "Investigations",
+        "Ledger",
         "Reports",
-        "Automation",
         "Sources",
+        "API",
+        "Status",
     ):
         assert destination in shell
 
 
-def test_source_library_handles_pending_summaries_explicitly():
+def test_source_library_handles_unavailable_summaries_explicitly():
     article_list = _read("components/ArticleList.tsx")
-    assert "Summary pending" in article_list
+    assert "Summary unavailable" in article_list
     assert "summary_method" in article_list
 
 

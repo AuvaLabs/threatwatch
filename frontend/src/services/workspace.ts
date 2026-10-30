@@ -53,6 +53,23 @@ export function saveInvestigation(investigation: Investigation): AnalystWorkspac
   return persist({ investigations: [investigation, ...workspace.investigations] });
 }
 
+export function importWorkspace(raw: string): AnalystWorkspace {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("The workspace file is not valid JSON.");
+  }
+  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as Partial<AnalystWorkspace>).investigations)) {
+    throw new Error("The workspace file does not contain valid investigations.");
+  }
+  const investigations = (parsed as Partial<AnalystWorkspace>).investigations || [];
+  if (investigations.some((item) => !validInvestigation(item))) {
+    throw new Error("The workspace file does not contain valid investigations.");
+  }
+  return persist({ investigations });
+}
+
 export function updateInvestigation(
   id: string,
   changes: Pick<Investigation, "status" | "notes">,

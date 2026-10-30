@@ -23,7 +23,7 @@ export function PriorityCard({ priority, onInvestigate }: {
       </div>
       <div class="priority-actions">
         <span>{evidenceCount} evidence points</span>
-        {onInvestigate && <button class="button primary" onClick={() => onInvestigate(priority)} type="button">Open investigation</button>}
+        {onInvestigate && <button class="button primary" onClick={() => onInvestigate(priority)} type="button">Track locally</button>}
         <button class="button secondary" onClick={() => navigate(`/sources?q=${encodeURIComponent(priority.title)}`)} type="button">Review sources</button>
       </div>
     </article>

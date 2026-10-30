@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { loadWorkspace, saveInvestigation, updateInvestigation, workspaceDownload } from "./workspace";
+import { importWorkspace, loadWorkspace, saveInvestigation, updateInvestigation, workspaceDownload } from "./workspace";
 import type { Investigation } from "../types";
 
 const investigation: Investigation = {
@@ -53,6 +53,13 @@ describe("analyst workspace", () => {
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(click).toHaveBeenCalledOnce();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:workspace");
+  });
+
+  it("imports only structurally valid portable workspaces", () => {
+    expect(importWorkspace(JSON.stringify({ investigations: [investigation] }))).toEqual({ investigations: [investigation] });
+    expect(loadWorkspace()).toEqual({ investigations: [investigation] });
+    expect(() => importWorkspace(JSON.stringify({ investigations: [{ ...investigation, status: "invalid" }] }))).toThrow("valid investigations");
+    expect(() => importWorkspace("not-json")).toThrow("valid JSON");
   });
 
   it("surfaces unavailable browser storage", () => {

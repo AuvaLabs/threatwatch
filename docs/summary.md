@@ -4,12 +4,14 @@ ThreatWatch is a self-hosted cyber intelligence operations platform built by [ni
 
 ## Product surfaces
 
-- **Today** leads with major incidents, material state changes, and deterministic patch, hunt, investigate, and monitor decisions.
-- **Ledger** preserves stable CVE and actor records, evidence, uncertainty, decisions, and revision history.
-- **Threats** presents evidence-linked Breach Anatomy records alongside CVE and named-actor clusters.
+- **Today** is a compact daily desk for the three most important incidents, material changes, and deterministic decisions.
+- **Incidents** presents corroborated, evidence-linked Breach Anatomy records with focused filters.
 - **Hunts** separates qualified packages from developing leads and includes observable provenance, ATT&CK behavior, vulnerability context, telemetry, queries, sources, and limitations.
+- **Investigations** provides a private local casebook with portable import and export.
+- **Ledger** preserves every material state change and its reason with focused paging.
 - **Reports** combines the current briefing, metrics, decisions, and source citations into a portable operating picture.
-- **Automation** exposes OpenAPI, STIX 2.1, RSS, health, and integration contracts.
+- **API** exposes OpenAPI, STIX 2.1, RSS, health, and grouped integration contracts.
+- **Status** makes pipeline freshness, artifact ownership, deployment identity, and recovery state visible.
 - **Sources** preserves the full bounded and searchable evidence library.
 
 ## Intelligence pipeline
