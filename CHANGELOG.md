@@ -7,6 +7,7 @@ All notable changes to ThreatWatch are documented here.
 - Replaced the dormant Trend Micro feed, retired the removed Varonis feed, and added cadence-aware health for authoritative low-volume sources.
 - Repaired the Orca feed redirect loop and broadened stale vendor, actor, and regional searches without weakening the seven-day collection cutoff.
 - Migrated optional ThreatFox collection from the retired unauthenticated export to its authenticated API and skip it cleanly without credentials.
+- Isolated the ThreatFox credential in a permission-restricted, gitignored Compose env file instead of interpolating it through the project environment.
 - Added pull-based offsite backup transfer with checksum, isolated restore validation, and public-safe health proof.
 - Repaired persistent noise, region, and confidence contract defects at corpus boundaries.
 - Moved evidence-linked incidents to canonical `/api/v2/incidents` routes while retaining the former nested path as a compatibility alias.

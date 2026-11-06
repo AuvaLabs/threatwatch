@@ -63,10 +63,14 @@ An unsupported `status` returns HTTP 400. A syntactically valid but missing hunt
 
 ## Optional provider corroboration
 
-Local qualification works without external credentials. Set these variables to enable cached provider lookups:
+Local qualification works without external credentials. Store the ThreatFox key in the gitignored secret file and keep non-secret limits in `.env`:
 
 ```env
-THREATFOX_AUTH_KEY=
+# .secrets/threatfox.env, mode 0600
+THREATFOX_AUTH_KEY=your-threatfox-auth-key
+
+# .env
+THREATFOX_ENV_FILE=.secrets/threatfox.env
 URLHAUS_AUTH_KEY=
 HUNT_ENRICHMENT_MAX_LOOKUPS=40
 HUNT_ENRICHMENT_TTL_HOURS=24

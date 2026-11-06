@@ -304,7 +304,7 @@ Hunt generation works without external provider credentials. When configured, th
 
 | Variable | Default | Description |
 |---|---|---|
-| `THREATFOX_AUTH_KEY` | _(empty)_ | Enables exact IOC corroboration through ThreatFox |
+| `THREATFOX_ENV_FILE` | `.secrets/threatfox.env` | Optional gitignored env file containing `THREATFOX_AUTH_KEY` for exact IOC corroboration |
 | `URLHAUS_AUTH_KEY` | _(empty)_ | Enables exact malicious-URL corroboration through URLhaus |
 | `HUNT_ENRICHMENT_MAX_LOOKUPS` | `40` | Maximum provider attempts per pipeline cycle |
 | `HUNT_ENRICHMENT_TTL_HOURS` | `24` | SQLite cache lifetime for provider results |

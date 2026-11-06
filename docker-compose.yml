@@ -13,6 +13,8 @@ services:
         required: false
       - path: ${MODEL_SERVICES_ENV_FILE:-.secrets/modelservices.env}
         required: false
+      - path: ${THREATFOX_ENV_FILE:-.secrets/threatfox.env}
+        required: false
     environment:
       - SITE_DOMAIN=${SITE_DOMAIN:-localhost:8098}
       - FEED_CUTOFF_DAYS=${FEED_CUTOFF_DAYS:-7}
@@ -79,7 +81,6 @@ services:
       - NEWSAPI_INTERVAL=${NEWSAPI_INTERVAL:-1800}
       # Optional cached IOC corroboration. Provider calls run in the pipeline,
       # never in an analyst-facing HTTP request.
-      - THREATFOX_AUTH_KEY=${THREATFOX_AUTH_KEY:-}
       - URLHAUS_AUTH_KEY=${URLHAUS_AUTH_KEY:-}
       - HUNT_ENRICHMENT_MAX_LOOKUPS=${HUNT_ENRICHMENT_MAX_LOOKUPS:-40}
       - HUNT_ENRICHMENT_TTL_HOURS=${HUNT_ENRICHMENT_TTL_HOURS:-24}
