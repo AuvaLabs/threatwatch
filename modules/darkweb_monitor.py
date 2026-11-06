@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 from datetime import datetime, timezone, timedelta
 
 import requests
+from urllib.parse import quote
 
 from modules.config import FEED_CUTOFF_DAYS
 from modules.url_resolver import is_clearnet_url
@@ -250,6 +251,7 @@ def _parse_threatfox(resp: requests.Response, source: dict[str, Any], cutoff: da
             if malware not in malware_groups:
                 malware_groups[malware] = {
                     "iocs": [],
+                    "malware_id": entry.get("malware") or "",
                     "threat_type": entry.get("threat_type", ""),
                     "first_seen": first_seen,
                 }
@@ -265,6 +267,13 @@ def _parse_threatfox(resp: requests.Response, source: dict[str, Any], cutoff: da
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         for malware, info in list(malware_groups.items())[:20]:
             ioc_count = len(info["iocs"])
+            malware_id = str(info.get("malware_id") or "").strip()
+            browse_link = "https://threatfox.abuse.ch/browse/"
+            if malware_id and malware_id.lower() != "unknown":
+                browse_link = (
+                    "https://threatfox.abuse.ch/browse/malware/"
+                    f"{quote(malware_id, safe='._-')}/"
+                )
             sample_iocs = ", ".join(
                 i["value"] for i in info["iocs"][:5]
             )
@@ -278,7 +287,7 @@ def _parse_threatfox(resp: requests.Response, source: dict[str, Any], cutoff: da
 
             articles.append({
                 "title": title,
-                "link": f"https://threatfox.abuse.ch/browse/malware/{malware.lower().replace(' ', '-')}/",
+                "link": browse_link,
                 "published": info["first_seen"],
                 "summary": (
                     f"abuse.ch ThreatFox reports new indicators of compromise "

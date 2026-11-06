@@ -331,12 +331,19 @@ class TestParseThreatFox:
     def _source(self):
         return {"name": "threatfox", "url": "https://threatfox.abuse.ch/export/json/recent/"}
 
-    def _make_entry(self, malware="Emotet", days_ago=0, ioc_value="http://evil.com/bad"):
+    def _make_entry(
+        self,
+        malware="Emotet",
+        days_ago=0,
+        ioc_value="http://evil.com/bad",
+        malware_id="win.emotet",
+    ):
         ts = datetime.now(timezone.utc) - timedelta(days=days_ago)
         return {
             "ioc_type": "url",
             "ioc_value": ioc_value,
             "malware_printable": malware,
+            "malware": malware_id,
             "threat_type": "botnet_cc",
             "first_seen_utc": ts.strftime("%Y-%m-%d %H:%M:%S UTC"),
             "confidence_level": 80,
@@ -351,6 +358,23 @@ class TestParseThreatFox:
         articles = _parse_threatfox(_mock_resp(data), self._source(), _make_cutoff())
         titles = [a["title"] for a in articles]
         assert any("Emotet" in t for t in titles)
+
+    def test_uses_stable_malware_identifier_for_browse_link(self):
+        data = {
+            "data": [
+                self._make_entry(
+                    malware="Quasar RAT",
+                    malware_id="win.quasar_rat",
+                )
+            ],
+            "query_status": "ok",
+        }
+
+        articles = _parse_threatfox(_mock_resp(data), self._source(), _make_cutoff())
+
+        assert articles[0]["link"] == (
+            "https://threatfox.abuse.ch/browse/malware/win.quasar_rat/"
+        )
 
     def test_malformed_response_returns_empty(self):
         resp = MagicMock()
