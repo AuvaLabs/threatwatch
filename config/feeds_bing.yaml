@@ -49,7 +49,7 @@
   category: Bing
   region: Global
 
-- url: https://www.bing.com/news/search?q=Microsoft+Cisco+Fortinet+security+patch+advisory&format=rss
+- url: https://www.bing.com/news/search?q=%28Microsoft+OR+Cisco+OR+Fortinet%29+security+advisory&format=rss
   category: Bing
   region: Global
 
@@ -77,6 +77,6 @@
   region: APAC
 
 # LATAM
-- url: https://www.bing.com/news/search?q=cyber+attack+Latin+America+Brazil+Mexico+Argentina&format=rss
+- url: https://www.bing.com/news/search?q=cybersecurity+Latin+America&format=rss
   category: Bing
   region: LATAM

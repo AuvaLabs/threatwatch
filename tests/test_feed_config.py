@@ -5,11 +5,17 @@ import yaml
 
 
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "feeds_native.yaml"
+CONFIG_DIR = CONFIG_PATH.parent
 
 
 def _native_feeds_by_url():
     feeds = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     return {feed["url"]: feed for feed in feeds}
+
+
+def _feed_urls(filename):
+    feeds = yaml.safe_load((CONFIG_DIR / filename).read_text(encoding="utf-8"))
+    return {feed["url"] for feed in feeds}
 
 
 def test_native_feed_urls_are_unique_and_current():
@@ -38,11 +44,34 @@ def test_low_cadence_authoritative_feeds_have_explicit_freshness_policy():
 
     trend = feeds["https://newsroom.trendmicro.com/cyberthreat?pagetemplate=rss"]
     cert_ua = feeds["https://cert.gov.ua/api/articles/rss"]
+    cert_eu = feeds["https://cert.europa.eu/publications/threat-intelligence-rss"]
 
     assert trend["name"] == "Trend Micro Cyberthreat News"
     assert trend["stale_after_days"] == 45
     assert cert_ua["name"] == "CERT-UA"
     assert cert_ua["stale_after_days"] == 90
+    assert cert_eu["stale_after_days"] == 45
+
+
+def test_problematic_feed_endpoints_and_searches_are_replaced():
+    native = _feed_urls("feeds_native.yaml")
+    google = _feed_urls("feeds_google.yaml")
+    bing = _feed_urls("feeds_bing.yaml")
+
+    assert "https://orca.security/resources/blog/feed/" not in native
+    assert "https://orca.security/feed/?output=1" in native
+
+    retired_google = {
+        "https://news.google.com/rss/search?q=APT+threat+actor+campaign&hl=en-US&gl=US&ceid=US:en",
+        "https://news.google.com/rss/search?q=Scattered+Spider+UNC3944+cybercrime&hl=en-US&gl=US&ceid=US:en",
+        "https://news.google.com/rss/search?q=Hunters+International+Qilin+INC+Ransom+ransomware&hl=en-US&gl=US&ceid=US:en",
+        "https://news.google.com/rss/search?q=cyber+attack+Middle+East&hl=en-AE&gl=AE&ceid=AE:en",
+        "https://news.google.com/rss/search?q=cyber+attack+China+Taiwan&hl=en&gl=US&ceid=US:en",
+        "https://news.google.com/rss/search?q=ataque+cibern%C3%A9tico+Argentina+Colombia+Chile&hl=es&gl=AR&ceid=AR:es",
+    }
+    assert retired_google.isdisjoint(google)
+    assert "https://news.google.com/rss/search?q=%28APT+OR+%22threat+actor%22%29+cybersecurity&hl=en-US&gl=US&ceid=US:en" in google
+    assert "https://www.bing.com/news/search?q=cybersecurity+Latin+America&format=rss" in bing
 
 
 def test_primary_security_source_expansion_is_configured():

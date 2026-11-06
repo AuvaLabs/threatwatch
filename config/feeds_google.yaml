@@ -90,7 +90,7 @@
   category: Google
   region: US
 
-- url: https://news.google.com/rss/search?q=APT+threat+actor+campaign&hl=en-US&gl=US&ceid=US:en
+- url: https://news.google.com/rss/search?q=%28APT+OR+%22threat+actor%22%29+cybersecurity&hl=en-US&gl=US&ceid=US:en
   category: Google
   region: US
 
@@ -105,11 +105,11 @@
   region: US
 
 # Emerging threat actors & ransomware groups (2024-2026)
-- url: https://news.google.com/rss/search?q=Scattered+Spider+UNC3944+cybercrime&hl=en-US&gl=US&ceid=US:en
+- url: https://news.google.com/rss/search?q=%28%22Scattered+Spider%22+OR+UNC3944%29&hl=en-US&gl=US&ceid=US:en
   category: Google
   region: US
 
-- url: https://news.google.com/rss/search?q=Hunters+International+Qilin+INC+Ransom+ransomware&hl=en-US&gl=US&ceid=US:en
+- url: https://news.google.com/rss/search?q=%28Qilin+OR+%22INC+Ransom%22+OR+ransomware%29&hl=en-US&gl=US&ceid=US:en
   category: Google
   region: US
 
@@ -168,7 +168,7 @@
   region: South Africa
 
 # MENA — Middle East & North Africa
-- url: https://news.google.com/rss/search?q=cyber+attack+Middle+East&hl=en-AE&gl=AE&ceid=AE:en
+- url: https://news.google.com/rss/search?q=cybersecurity+%28%22Middle+East%22+OR+UAE+OR+Saudi%29&hl=en-AE&gl=AE&ceid=AE:en
   category: Google
   region: UAE
 
@@ -207,7 +207,7 @@
   category: Google
   region: India
 
-- url: https://news.google.com/rss/search?q=cyber+attack+China+Taiwan&hl=en&gl=US&ceid=US:en
+- url: https://news.google.com/rss/search?q=cyberattack+%28China+OR+Taiwan%29&hl=en&gl=US&ceid=US:en
   category: Google
   region: China
 
@@ -232,7 +232,7 @@
   category: Google
   region: Mexico
 
-- url: https://news.google.com/rss/search?q=ataque+cibern%C3%A9tico+Argentina+Colombia+Chile&hl=es&gl=AR&ceid=AR:es
+- url: https://news.google.com/rss/search?q=ciberataque+%28Argentina+OR+Colombia+OR+Chile%29&hl=es&gl=AR&ceid=AR:es
   category: Google
   region: Argentina
 
