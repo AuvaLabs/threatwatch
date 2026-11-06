@@ -6,6 +6,7 @@ All notable changes to ThreatWatch are documented here.
 
 - Replaced the dormant Trend Micro feed, retired the removed Varonis feed, and added cadence-aware health for authoritative low-volume sources.
 - Repaired the Orca feed redirect loop and broadened stale vendor, actor, and regional searches without weakening the seven-day collection cutoff.
+- Replaced Orca's recurring production-only RSS redirect loop with a current publisher-scoped discovery feed.
 - Migrated optional ThreatFox collection from the retired unauthenticated export to its authenticated API and skip it cleanly without credentials.
 - Isolated the ThreatFox credential in a permission-restricted, gitignored Compose env file instead of interpolating it through the project environment.
 - Built ThreatFox browse links from stable API malware identifiers so analyst evidence links resolve instead of relying on guessed display-name slugs.

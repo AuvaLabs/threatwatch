@@ -59,7 +59,11 @@ def test_problematic_feed_endpoints_and_searches_are_replaced():
     bing = _feed_urls("feeds_bing.yaml")
 
     assert "https://orca.security/resources/blog/feed/" not in native
-    assert "https://orca.security/feed/?output=1" in native
+    assert "https://orca.security/feed/?output=1" not in native
+    assert (
+        "https://news.google.com/rss/search?q=site%3Aorca.security+cloud+security"
+        "&hl=en-US&gl=US&ceid=US:en"
+    ) in google
 
     retired_google = {
         "https://news.google.com/rss/search?q=APT+threat+actor+campaign&hl=en-US&gl=US&ceid=US:en",
