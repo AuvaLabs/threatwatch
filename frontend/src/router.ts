@@ -53,6 +53,7 @@ export function parseRoute(pathname: string): Route {
     "/briefings": "reports",
     "/api-docs": "automation",
     "/system": "system",
+    "/status": "system",
   };
   return { name: routes[pathname] || "mission" };
 }

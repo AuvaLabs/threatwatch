@@ -15,6 +15,7 @@ describe("router", () => {
     expect(parseRoute("/ledger/threat-abc123")).toEqual({ name: "ledgerRecord", recordId: "threat-abc123" });
     expect(parseRoute("/incidents")).toEqual({ name: "threats" });
     expect(parseRoute("/incidents/incident-abc123")).toEqual({ name: "incident", incidentId: "incident-abc123" });
+    expect(parseRoute("/status")).toEqual({ name: "system" });
     expect(parseRoute("/sources/abc%20123")).toEqual({ name: "article", articleId: "abc 123" });
     expect(parseRoute("/news/abc%20123")).toEqual({ name: "article", articleId: "abc 123" });
     expect(parseRoute("/unknown")).toEqual({ name: "mission" });

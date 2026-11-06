@@ -17,7 +17,7 @@ const navigation = [
 
 const utilities = [
   { label: "API", href: "/automation", route: "automation" },
-  { label: "Status", href: "/system", route: "system" },
+  { label: "Status", href: "/status", route: "system" },
 ] as const;
 
 function follow(event: Event, href: string): void {

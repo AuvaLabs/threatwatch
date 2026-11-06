@@ -1121,7 +1121,7 @@ STATIC_ROUTES = {
 
 UI_ROUTES = frozenset({
     "/", "/ledger", "/threats", "/incidents", "/exposure", "/investigations", "/hunts", "/reports",
-    "/automation", "/sources", "/system", "/news", "/vulnerabilities",
+    "/automation", "/sources", "/system", "/status", "/news", "/vulnerabilities",
     "/campaigns", "/watchlists", "/briefings", "/api-docs",
 })
 

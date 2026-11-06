@@ -909,7 +909,7 @@ class TestHTTPRoutes:
 
     @pytest.mark.parametrize("path", [
         "/ledger", "/threats", "/incidents", "/exposure", "/investigations", "/hunts", "/reports",
-        "/automation", "/sources", "/sources/article-1", "/ledger/threat-abc123",
+        "/automation", "/sources", "/status", "/sources/article-1", "/ledger/threat-abc123",
         "/incidents/incident-abc123",
     ])
     def test_operational_frontend_routes_return_application_shell(self, test_server, path):

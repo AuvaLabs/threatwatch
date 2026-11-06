@@ -12,7 +12,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: /Investigations/ }).getAttribute("href")).toBe("/investigations");
     expect(screen.getByRole("link", { name: /Ledger/ })).toBeTruthy();
     expect(screen.getByRole("link", { name: /API/ }).getAttribute("href")).toBe("/automation");
-    expect(screen.getByRole("link", { name: /Status/ }).getAttribute("href")).toBe("/system");
+    expect(screen.getByRole("link", { name: /Status/ }).getAttribute("href")).toBe("/status");
     expect(screen.getByText("ok")).toBeTruthy();
     expect(screen.getByText("Content")).toBeTruthy();
   });
