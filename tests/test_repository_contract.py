@@ -75,6 +75,7 @@ def test_release_scripts_fail_closed_and_verify_recovery():
     assert '--build-arg "TW_BUILD_SHA=$EXPECTED_SHA"' in deploy
     assert '--build-arg "TW_BUILD_TIME=$BUILD_TIME"' in deploy
     assert "rollback" in deploy.lower()
+    assert "repair_corpus.py --apply --filter-noise" in deploy
     assert "verify_backup.sh" in backup
     assert 'pause "$WRITER_CONTAINER"' in backup
     assert 'unpause "$WRITER_CONTAINER"' in backup

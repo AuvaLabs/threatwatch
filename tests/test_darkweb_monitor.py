@@ -159,6 +159,48 @@ class TestFetchSource:
             result = _fetch_source(source, _make_cutoff())
         assert isinstance(result, list)
 
+    def test_threatfox_uses_authenticated_post_api(self, monkeypatch):
+        monkeypatch.setenv("THREATFOX_AUTH_KEY", "test-key")
+        response = MagicMock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"query_status": "ok", "data": []}
+        session = MagicMock()
+        session.post.return_value = response
+        source = {
+            "name": "threatfox",
+            "url": "https://threatfox-api.abuse.ch/api/v1/",
+            "parser": "_parse_threatfox",
+            "method": "POST",
+            "auth_env": "THREATFOX_AUTH_KEY",
+            "payload": {"query": "get_iocs", "days": 7},
+        }
+
+        with patch("modules.darkweb_monitor._get_session", return_value=session):
+            assert _fetch_source(source, _make_cutoff()) == []
+
+        session.post.assert_called_once_with(
+            source["url"],
+            json=source["payload"],
+            headers={"Auth-Key": "test-key"},
+            timeout=15,
+        )
+
+    def test_authenticated_source_is_skipped_without_secret(self, monkeypatch):
+        monkeypatch.delenv("THREATFOX_AUTH_KEY", raising=False)
+        session = MagicMock()
+        source = {
+            "name": "threatfox",
+            "url": "https://threatfox-api.abuse.ch/api/v1/",
+            "parser": "_parse_threatfox",
+            "method": "POST",
+            "auth_env": "THREATFOX_AUTH_KEY",
+        }
+
+        with patch("modules.darkweb_monitor._get_session", return_value=session):
+            assert _fetch_source(source, _make_cutoff()) == []
+
+        session.post.assert_not_called()
+
 
 # ── _parse_ransomware_live ────────────────────────────────────────────────────
 

@@ -146,11 +146,13 @@
 #   category: Native
 #   region: Global
 
-# Trend Micro Research — original /en_us/research.rss.html URL 404s as of
-# 2026-05-10; switched to the FeedBurner-hosted feed which serves 100 entries.
-- url: https://feeds.feedburner.com/TrendMicroResearch
+# Trend Micro's official cyberthreat newsroom feed replaces the dormant
+# FeedBurner research feed. Its editorial cadence is lower than daily feeds.
+- url: https://newsroom.trendmicro.com/cyberthreat?pagetemplate=rss
   category: Native
   region: Global
+  name: Trend Micro Cyberthreat News
+  stale_after_days: 45
 
 # The DFIR Report paused 2026-10-28: valid but no publication since 2026-08-24.
 # - url: https://thedfirreport.com/feed/
@@ -294,10 +296,12 @@
 #   category: Native
 #   region: Canada
 
-# CERT-UA — Ukraine national CERT, ground-truth for Russian APT activity (Sandworm, APT28)
+# CERT-UA is an authoritative but intentionally low-cadence advisory source.
 - url: https://cert.gov.ua/api/articles/rss
   category: Native
   region: Ukraine
+  name: CERT-UA
+  stale_after_days: 90
 
 # CERT Polska (CERT-PL) — Polish national CERT, strong Eastern European coverage
 - url: https://www.cert.pl/en/feed
@@ -441,9 +445,11 @@
   region: Global
 
 # Tier 18: Additional Vendor Blogs
-- url: https://www.varonis.com/blog/rss.xml
-  category: Native
-  region: Global
+# Varonis retired its public RSS endpoint. Disabled after repeated HTTP 404
+# responses; coverage remains available through other data-security sources.
+# - url: https://www.varonis.com/blog/rss.xml
+#   category: Native
+#   region: Global
 
 # Disabled 2026-10-18: persistent fetch failures produced no current coverage.
 # - url: https://www.imperva.com/blog/feed/

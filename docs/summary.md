@@ -16,7 +16,7 @@ ThreatWatch is a self-hosted cyber intelligence operations platform built by [ni
 
 ## Intelligence pipeline
 
-- Parallel collection from native security feeds, Google News, Bing News, NewsAPI, NVD, ThreatFox, ransomware.live, CISA KEV, and custom watchlists.
+- Parallel collection from native security feeds, Google News, Bing News, NewsAPI, NVD, ransomware.live, CISA KEV, and custom watchlists, with optional authenticated ThreatFox lookups.
 - Seven-day corpus with exact and fuzzy deduplication, canonical URLs, normalized dates, and SQLite primary persistence.
 - Regex-first classification with optional LLM escalation, region inference, sector tags, CVE extraction, EPSS, KEV, ATT&CK tagging, TTP extraction, and article-aware IOC validation.
 - Briefing and summary generation through a primary OpenAI-compatible route and two independent fallbacks.
@@ -39,7 +39,7 @@ See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
 - Docker Compose services for `pipeline` and `server` with one persistent data volume.
 - SQLite primary storage plus atomic JSON artifacts and fallback reads.
 - Strict security headers, bounded APIs, request rate limiting, SSRF protection, safe external URLs, and no scraped full-content exposure in operational APIs.
-- More than 1,600 backend tests and 54 frontend tests at the 2026-10-30 repository audit. Both suites remain above the required 80 percent coverage floor.
+- More than 1,600 backend tests and 58 frontend tests at the 2026-11-06 repository audit. Both suites remain above the required 80 percent coverage floor.
 
 ## Core architecture
 
@@ -83,10 +83,10 @@ scripts/rebuild_ledger.py     History-preserving ledger backfill
 - `GET /api/v1/articles`
 - `GET /api/v1/articles/{id}`
 - `GET /api/v1/briefings/latest`
-- `GET /api/v1/incidents`
-- `GET /api/v1/incidents/v2`
-- `GET /api/v1/incidents/v2/changes`
-- `GET /api/v1/incidents/v2/{id}`
+- `GET /api/v1/clusters`
+- `GET /api/v2/incidents`
+- `GET /api/v2/incidents/changes`
+- `GET /api/v2/incidents/{id}`
 - `GET /api/v1/hunts`
 - `GET /api/v1/hunts/{id}`
 - `GET /api/v1/ledger`
@@ -97,7 +97,7 @@ scripts/rebuild_ledger.py     History-preserving ledger backfill
 - `GET /api/v1/health`
 - `GET /api/v1/health/ai`
 - `GET /api/v1/health/feeds`
-- `GET /api/v1/openapi.json`
+- `GET /api/v2/openapi.json`
 
 ## Deployment
 
@@ -121,8 +121,9 @@ routes, and restores the previous container images on failure.
 `scripts/backup_volume.sh` briefly pauses the pipeline writer for a consistent
 SQLite and WAL snapshot. It writes a SHA-256 sidecar, restores the archive into
 an isolated temporary directory, checks every SQLite database and JSON file,
-and publishes the result through `/api/v1/health`. Configured offsite transfer
-failures cause the job to fail.
+and publishes the result through `/api/v1/health`. The pull-based offsite
+verifier repeats the restore proof on separate storage and publishes that
+independent result without placing destination credentials on the VPS.
 
 After hunt changes, rebuild the current artifact and validate both containers:
 
@@ -132,4 +133,4 @@ ssh auvalabs 'docker exec threatwatch-pipeline python scripts/rebuild_ledger.py'
 ssh auvalabs 'cd ~/threatwatch && docker compose ps'
 ```
 
-Last updated: 2026-10-11
+Last updated: 2026-11-06

@@ -280,58 +280,34 @@ def audit_regions(articles):
             "samples": [(r, region_counts[r]) for r in sorted(multi_region, key=lambda x: -region_counts[x])[:8]],
         })
 
-    # Region accuracy spot-check: look for clear mismatches in title vs region
+    # Use the same target-aware inference as ingestion. Maintaining a second
+    # regex set here produced false mismatches for publisher names such as
+    # South China Morning Post and treated EMEA as different from Europe.
+    from modules.region_inferrer import _infer_from_text
+
     mismatches = []
-    region_keywords = {
-        "US": [r"(?:^|\s|,)(U\.S\.A?\.?|USA|United States|American|America)(?:\s|,|$|')",
-               r"\b(Pentagon|FBI|CISA|NSA|Washington DC)\b"],
-        "Europe": [r"\b(UK|Britain|British|France|French|Germany|German|EU|European)\b"],
-        "APAC": [r"\b(Japan|Japanese|China|Chinese|India|Indian|Australia|Australian|South Korea|Korean|APAC)\b"],
-        "Middle East": [r"\b(Israel|Israeli|Iran|Iranian|Saudi|UAE|Emirati)\b"],
-    }
-    # Regions that are considered equivalent or sub-regions of each other
-    _REGION_COMPAT = {
-        "Europe": {"UK", "France", "Germany", "Italy", "Spain", "Netherlands",
-                   "Poland", "Sweden", "Norway", "Finland", "Denmark", "Switzerland",
-                   "Austria", "Belgium", "Ireland", "Portugal", "Czech", "Romania",
-                   "Hungary", "Greece", "Bulgaria", "Croatia"},
-        "APAC": {"Japan", "Australia", "India", "Singapore", "South Korea", "China",
-                 "Taiwan", "Indonesia", "Malaysia", "Thailand", "Vietnam", "Philippines",
-                 "New Zealand", "Hong Kong", "Pakistan"},
-        "Middle East": {"UAE", "Saudi Arabia", "Israel", "Iran", "Turkey", "MENA"},
+    normalized_regions = {
+        "EMEA": "Europe", "UK": "Europe", "France": "Europe", "Germany": "Europe",
+        "Italy": "Europe", "Spain": "Europe", "Netherlands": "Europe", "Poland": "Europe",
+        "Australia": "APAC", "India": "APAC", "Singapore": "APAC", "Japan": "APAC",
+        "South Korea": "APAC", "China": "APAC", "Canada": "US",
+        "UAE": "Middle East", "MENA": "Middle East", "Saudi Arabia": "Middle East",
     }
     for a in articles:
         title = a.get("title", "")
         assigned = a.get("feed_region", "Global")
         if assigned == "Global" or "," in assigned:
             continue
-        # Count how many distinct regions are mentioned in the title
-        title_regions = set()
-        for region_name, pats in region_keywords.items():
-            for p in pats:
-                if re.search(p, title, re.I):
-                    title_regions.add(region_name)
-                    break
-        # Skip multi-region titles (comparative articles, geopolitical context)
-        if len(title_regions) > 1:
+        expected_region = _infer_from_text(title, "")
+        if not expected_region or expected_region == "Global":
             continue
-        for expected_region, patterns in region_keywords.items():
-            for p in patterns:
-                if re.search(p, title, re.I) and assigned != expected_region:
-                    # Skip if the assigned region is a sub-region of expected
-                    compat = _REGION_COMPAT.get(expected_region, set())
-                    if assigned in compat:
-                        continue
-                    # Skip if expected is a sub-region of assigned
-                    for parent, children in _REGION_COMPAT.items():
-                        if expected_region in children and assigned == parent:
-                            continue
-                    mismatches.append({
-                        "title": title[:100],
-                        "assigned": assigned,
-                        "expected": expected_region,
-                    })
-                    break
+        normalized_assigned = normalized_regions.get(assigned, assigned)
+        if normalized_assigned != expected_region:
+            mismatches.append({
+                "title": title[:100],
+                "assigned": assigned,
+                "expected": expected_region,
+            })
 
     stats["region_mismatches"] = len(mismatches)
     if mismatches:

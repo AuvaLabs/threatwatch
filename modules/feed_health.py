@@ -55,7 +55,8 @@ def _now_iso() -> str:
 
 
 def _parse_iso(s: str) -> datetime:
-    return datetime.fromisoformat(s)
+    parsed = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 def _days_since(iso_str: str) -> float:
@@ -130,7 +131,14 @@ def signal_scores() -> list[dict]:
 
 # ── core update ────────────────────────────────────────────────────────────
 
-def record_fetch(url: str, success: bool, entry_count: int = 0) -> None:
+def record_fetch(
+    url: str,
+    success: bool,
+    entry_count: int = 0,
+    *,
+    latest_entry_at: str | None = None,
+    stale_after_days: int = _STALE_DAYS,
+) -> None:
     """Call after every feed fetch attempt to update health state.
 
     success=True  + entry_count>0  → feed is healthy, reset error counter
@@ -139,11 +147,26 @@ def record_fetch(url: str, success: bool, entry_count: int = 0) -> None:
                                      and check for staleness
     success=False                  → actual error; increment error counter
     """
+    if isinstance(stale_after_days, bool) or not isinstance(stale_after_days, int) or stale_after_days < 1:
+        raise ValueError("stale_after_days must be a positive integer")
     with _health_lock:
-        _record_fetch_locked(url, success, entry_count)
+        _record_fetch_locked(
+            url,
+            success,
+            entry_count,
+            latest_entry_at=latest_entry_at,
+            stale_after_days=stale_after_days,
+        )
 
 
-def _record_fetch_locked(url: str, success: bool, entry_count: int) -> None:
+def _record_fetch_locked(
+    url: str,
+    success: bool,
+    entry_count: int,
+    *,
+    latest_entry_at: str | None,
+    stale_after_days: int,
+) -> None:
     data = load_health()
     now  = _now_iso()
 
@@ -158,12 +181,23 @@ def _record_fetch_locked(url: str, success: bool, entry_count: int) -> None:
         "fetches_total":      0,
         "fetches_successful": 0,
         "entries_total":      0,
+        "latest_entry_at":    None,
+        "stale_after_days":   stale_after_days,
     })
 
     # Ensure older entries pick up the volume fields lazily (forwards-compat).
     entry.setdefault("fetches_total", 0)
     entry.setdefault("fetches_successful", 0)
     entry.setdefault("entries_total", 0)
+    entry.setdefault("latest_entry_at", None)
+    entry["stale_after_days"] = stale_after_days
+    if latest_entry_at:
+        try:
+            _parse_iso(latest_entry_at)
+        except (TypeError, ValueError):
+            logger.warning("Ignoring invalid latest entry date for %s: %r", url, latest_entry_at)
+        else:
+            entry["latest_entry_at"] = latest_entry_at
 
     entry["last_checked"] = now
     entry["fetches_total"] += 1
@@ -183,10 +217,10 @@ def _record_fetch_locked(url: str, success: bool, entry_count: int) -> None:
         entry["consecutive_errors"] = 0
         entry["first_error"] = None
         entry["fetches_successful"] += 1
-        last_ok = entry.get("last_success")
-        if last_ok and _days_since(last_ok) >= _STALE_DAYS:
+        last_entry = entry.get("latest_entry_at") or entry.get("last_success")
+        if last_entry and _days_since(last_entry) >= stale_after_days:
             entry["status"] = "stale"
-        elif last_ok is None and entry["fetches_successful"] >= _SILENT_MIN_FETCHES:
+        elif last_entry is None and entry["fetches_successful"] >= _SILENT_MIN_FETCHES:
             # Responds but has NEVER yielded an article — wrong URL, empty
             # endpoint, or a challenge page that still parses as a feed.
             entry["status"] = "silent"

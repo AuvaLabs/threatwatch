@@ -141,6 +141,35 @@ class TestRecordFetch:
         fh.record_fetch(URL, success=True, entry_count=0)
         assert fh.load_health()[URL]["status"] == "ok"
 
+    def test_low_cadence_feed_uses_upstream_publication_date(self):
+        latest = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+
+        fh.record_fetch(
+            URL,
+            success=True,
+            entry_count=0,
+            latest_entry_at=latest,
+            stale_after_days=90,
+        )
+
+        entry = fh.load_health()[URL]
+        assert entry["status"] == "ok"
+        assert entry["latest_entry_at"] == latest
+        assert entry["stale_after_days"] == 90
+
+    def test_low_cadence_feed_is_stale_past_configured_threshold(self):
+        latest = (datetime.now(timezone.utc) - timedelta(days=91)).isoformat()
+
+        fh.record_fetch(
+            URL,
+            success=True,
+            entry_count=0,
+            latest_entry_at=latest,
+            stale_after_days=90,
+        )
+
+        assert fh.load_health()[URL]["status"] == "stale"
+
 
 class TestGetReport:
     def test_categorises_by_status(self):

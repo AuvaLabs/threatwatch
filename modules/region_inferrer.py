@@ -30,7 +30,7 @@ _COUNTRY_PATTERNS = [
 
     # Europe (country names, adjectives, city demonyms, EU institutions)
     (re.compile(
-        r"\b(European\s+Commission|European\s+Union|\bEU\b"
+        r"\b(Europe|European|European\s+Commission|European\s+Union|\bEU\b"
         r"|Germany|German|Deutschland|France|French|Italy|Italian|Spain|Spanish"
         r"|Netherlands|Dutch|Poland|Polish|Sweden|Swedish|Norway|Norwegian"
         r"|Finland|Finnish|Denmark|Danish|Switzerland|Swiss|Austria|Austrian"

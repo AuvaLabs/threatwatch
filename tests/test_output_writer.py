@@ -186,6 +186,18 @@ class TestMergeArticles:
         )
         assert len(_merge_articles([], [first, second])) == 2
 
+    def test_existing_articles_are_rechecked_for_content_region(self):
+        existing = [_make_article(
+            "europe",
+            title="Cyberattack hits supermarkets in nine European countries",
+            feed_region="India",
+            source="https://news.google.com/rss/search?q=cyber",
+        )]
+
+        merged = _merge_articles(existing, [])
+
+        assert merged[0]["feed_region"] == "Europe"
+
 
 # ---------------------------------------------------------------------------
 # _write_json

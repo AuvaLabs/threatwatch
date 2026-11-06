@@ -93,7 +93,20 @@ export interface Health {
   ai_artifacts?: HealthArtifactGroup;
   operational_artifacts?: HealthArtifactGroup;
   deployment?: { sha?: string; built_at?: string; api_schema_version?: string };
-  backup?: { configured?: boolean; ok?: boolean | null; age_hours?: number; last_restore_verified_at?: string; offsite?: { configured?: boolean; ok?: boolean | null } };
+  backup?: {
+    configured?: boolean;
+    ok?: boolean | null;
+    age_hours?: number;
+    last_restore_verified_at?: string;
+    offsite?: {
+      configured?: boolean;
+      ok?: boolean | null;
+      restore_verified?: boolean;
+      verified_at?: string;
+      location?: string;
+      archive?: string;
+    };
+  };
 }
 
 export interface HealthArtifactGroup {

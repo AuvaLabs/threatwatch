@@ -12,9 +12,9 @@ afterEach(() => cleanup());
 describe("utility views", () => {
   it("groups machine interfaces instead of rendering one unbroken endpoint list", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (path: string) => {
-      if (path === "/api/v1/openapi.json") return response({ openapi: "3.1.0", info: { title: "ThreatWatch", version: "1" }, paths: {
+      if (path === "/api/v2/openapi.json") return response({ openapi: "3.1.0", info: { title: "ThreatWatch", version: "2" }, paths: {
         "/api/v1/articles": { get: { summary: "List articles" } },
-        "/api/v1/incidents/v2": { get: { summary: "List incidents" } },
+        "/api/v2/incidents": { get: { summary: "List incidents" } },
         "/api/v1/hunts": { get: { summary: "List hunts" } },
         "/api/v1/ledger": { get: { summary: "List records" } },
         "/api/v1/health": { get: { summary: "Get health" } },
@@ -35,15 +35,21 @@ describe("utility views", () => {
       status: "ok", articles_total: 2414, feed_health: { ok: 137 }, briefing_stale: false,
       generated_at: "2026-10-30T05:00:00Z", last_run_at: "2026-10-30T04:50:00Z",
       ai_artifacts: { ok: true }, operational_artifacts: { ok: true, capabilities: { incidents: {}, hunts: {}, ledger: {} } },
-      deployment: { sha: "1234567890abcdef", api_schema_version: "1.1.0" },
-      backup: { configured: true, ok: true, last_restore_verified_at: "2026-10-30T04:00:00Z" },
+      deployment: { sha: "1234567890abcdef", api_schema_version: "2.0.0" },
+      backup: {
+        configured: true,
+        ok: true,
+        last_restore_verified_at: "2026-10-30T04:00:00Z",
+        offsite: { configured: true, ok: true, restore_verified: true, location: "commandcenter" },
+      },
     })));
 
     render(<SystemView />);
 
     expect(screen.getByRole("heading", { name: "Status", level: 1 })).toBeTruthy();
     expect(await screen.findByText("1234567890ab")).toBeTruthy();
-    expect(screen.getByText("Verified")).toBeTruthy();
+    expect(screen.getByText("Verified offsite")).toBeTruthy();
+    expect(screen.getByText(/commandcenter copy restore verified/)).toBeTruthy();
     expect(screen.getByText("incidents, hunts, ledger")).toBeTruthy();
   });
 });

@@ -33,7 +33,7 @@ ThreatWatch turns public cyber reporting into a living threat-state and decision
 ### Collection
 - **145 RSS feeds** covering security blogs, vendor advisories, CERTs, Google News, and Bing News
 - **NewsAPI integration** — additional security news with rate-limited fetching (100 req/day free tier)
-- **Dark web monitoring** — ThreatFox IOCs, ransomware victim tracking (ransomware.live), active C2 server IPs
+- **Dark web monitoring** - ransomware victim tracking plus optional authenticated ThreatFox IOC corroboration
 - **Continuous pipeline** with a new cycle every 10 minutes and typical completion in 2 to 4 minutes
 - **16-thread parallel fetching** with date rejection before network-heavy URL resolution
 - Rolling **7-day window** with merge across pipeline runs
@@ -129,6 +129,19 @@ its gate. Nightly backups use the same recovery proof:
 Each archive receives a SHA-256 sidecar. `scripts/verify_backup.sh` restores it
 to an isolated temporary directory, runs SQLite integrity checks, and parses
 every JSON artifact before the backup is marked healthy.
+
+For a credential-minimizing offsite copy, run the pull verifier from separate
+storage. It transfers the latest archive and sidecar, repeats the isolated
+restore proof, and publishes the independent result to `/api/v1/health`:
+
+```bash
+python scripts/sync_offsite_backup.py \
+  --source-host threatwatch-vps \
+  --source-dir /path/to/backups/threatwatch \
+  --destination /offsite/threatwatch \
+  --publish-host threatwatch-vps \
+  --location offsite-storage
+```
 
 ### Manual setup
 
@@ -394,10 +407,10 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/articles` | Stable versioned article collection |
 | `GET` | `/api/v1/articles/{id}` | Stable versioned article detail |
 | `GET` | `/api/v1/briefings/latest` | Stable latest global briefing |
-| `GET` | `/api/v1/incidents` | Stable incident-cluster collection |
-| `GET` | `/api/v1/incidents/v2` | Compact evidence-linked incident records |
-| `GET` | `/api/v1/incidents/v2/changes` | Material incident revision stream |
-| `GET` | `/api/v1/incidents/v2/{id}` | Complete Breach Anatomy record and sources |
+| `GET` | `/api/v1/clusters` | Legacy incident-cluster collection |
+| `GET` | `/api/v2/incidents` | Compact evidence-linked incident records |
+| `GET` | `/api/v2/incidents/changes` | Material incident revision stream |
+| `GET` | `/api/v2/incidents/{id}` | Complete Breach Anatomy record and sources |
 | `GET` | `/api/v1/hunts` | Qualified hunt packages and developing leads |
 | `GET` | `/api/v1/hunts/{id}` | One complete hunt package with provenance and queries |
 | `GET` | `/api/v1/ledger` | Filterable living threat records and current change register |
@@ -407,7 +420,7 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/sources` | Source coverage and article counts |
 | `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |
 | `GET` | `/api/v1/health/feeds` | Per-source health, including stale and silent feeds |
-| `GET` | `/api/v1/openapi.json` | OpenAPI 3.1 discovery document |
+| `GET` | `/api/v2/openapi.json` | OpenAPI 3.1 discovery document |
 | `GET` | `/api/briefing` | AI intelligence digest with source citations, serving tier (`provider`), staleness (`served_stale`) and threat-level provenance (`threat_level_source`) |
 | `GET` | `/api/briefing/na` | North America regional digest |
 | `GET` | `/api/briefing/emea` | EMEA regional digest |

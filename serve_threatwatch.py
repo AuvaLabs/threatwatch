@@ -28,7 +28,7 @@ from modules.threat_ledger import build_ledger
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
-API_SCHEMA_VERSION = "1.1.0"
+API_SCHEMA_VERSION = "2.0.0"
 ARTIFACT_SCHEMA_VERSIONS = {"hunts": 1, "ledger": 1, "incidents": 1}
 PORT = int(os.environ.get("PORT", 8098))
 CACHE_TTL = 30  # seconds
@@ -38,6 +38,10 @@ WATCHLIST_TOKEN = os.environ.get("WATCHLIST_TOKEN", "")
 # over JSON. Off by default so the cut-over is explicit and reversible: set
 # READ_FROM_SQLITE=1 in docker-compose to enable, unset to revert to JSON.
 _READ_FROM_SQLITE = os.environ.get("READ_FROM_SQLITE", "").lower() in ("1", "true", "yes")
+try:
+    OFFSITE_BACKUP_MAX_AGE_HOURS = max(1, int(os.environ.get("TW_OFFSITE_MAX_AGE_HOURS", "48")))
+except ValueError:
+    OFFSITE_BACKUP_MAX_AGE_HOURS = 48
 
 _cache: dict = {}
 _cache_lock = threading.Lock()  # guards all _cache writes; reads use GIL
@@ -830,6 +834,39 @@ def _backup_status() -> dict:
         age_hours = round(max(0, (datetime.now(timezone.utc) - completed).total_seconds()) / 3600, 2)
     except (TypeError, ValueError):
         pass
+    offsite = payload.get("offsite")
+    offsite_path = BASE_DIR / "data" / "state" / "offsite_backup_status.json"
+    try:
+        candidate = json.loads(offsite_path.read_text(encoding="utf-8"))
+        if isinstance(candidate, dict):
+            offsite = {
+                key: candidate.get(key)
+                for key in (
+                    "configured", "ok", "method", "archive", "sha256",
+                    "verified_at", "restore_verified", "location",
+                )
+                if key in candidate
+            }
+            verified_at = candidate.get("verified_at")
+            try:
+                verified = datetime.fromisoformat(str(verified_at).replace("Z", "+00:00"))
+                if verified.tzinfo is None:
+                    verified = verified.replace(tzinfo=timezone.utc)
+                offsite_age = round(
+                    max(0, (datetime.now(timezone.utc) - verified).total_seconds()) / 3600,
+                    2,
+                )
+            except (TypeError, ValueError):
+                offsite_age = None
+            offsite["age_hours"] = offsite_age
+            offsite["ok"] = bool(
+                candidate.get("ok") is True
+                and candidate.get("restore_verified") is True
+                and offsite_age is not None
+                and offsite_age <= OFFSITE_BACKUP_MAX_AGE_HOURS
+            )
+    except (FileNotFoundError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        pass
     return {
         "configured": True,
         "ok": payload.get("ok") is True,
@@ -839,7 +876,7 @@ def _backup_status() -> dict:
         "sha256": payload.get("sha256"),
         "sqlite_files": payload.get("sqlite_files"),
         "json_files": payload.get("json_files"),
-        "offsite": payload.get("offsite"),
+        "offsite": offsite,
     }
 
 
@@ -889,10 +926,12 @@ def build_openapi() -> bytes:
         "/api/v1/briefings/live": {"get": {"summary": "Get latest live briefing update"}},
         "/api/v1/intelligence-delta": {"get": {"summary": "Get changes since the command briefing"}},
         "/api/v1/briefings/{region}": {"get": {"summary": "Get regional briefing"}},
-        "/api/v1/incidents": {"get": {"summary": "List incident clusters"}},
-        "/api/v1/incidents/v2": {"get": {"summary": "List evidence-linked incident records"}},
-        "/api/v1/incidents/v2/changes": {"get": {"summary": "List material incident changes"}},
-        "/api/v1/incidents/v2/{id}": {"get": {"summary": "Get one evidence-linked incident record"}},
+        "/api/v1/clusters": {"get": {"summary": "List legacy incident clusters"}},
+        "/api/v1/incidents": {"get": {"summary": "List legacy incident clusters", "deprecated": True}},
+        "/api/v2/incidents": {"get": {"summary": "List evidence-linked incident records"}},
+        "/api/v2/incidents/changes": {"get": {"summary": "List material incident changes"}},
+        "/api/v2/incidents/{id}": {"get": {"summary": "Get one evidence-linked incident record"}},
+        "/api/v1/incidents/v2": {"get": {"summary": "Compatibility alias for v2 incidents", "deprecated": True}},
         "/api/v1/hunts": {"get": {"summary": "List evidence-gated hunt packages"}},
         "/api/v1/hunts/{id}": {"get": {"summary": "Get one hunt package"}},
         "/api/v1/ledger": {"get": {"summary": "List living threat records"}},
@@ -1333,6 +1372,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             "/api/v1/briefings/emea": "/api/briefing/emea",
             "/api/v1/briefings/apac": "/api/briefing/apac",
             "/api/v1/incidents": "/api/clusters",
+            "/api/v1/clusters": "/api/clusters",
             "/api/v1/health": "/api/health",
         }
 
@@ -1373,7 +1413,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             self._send_body("application/json; charset=utf-8", body, head_only)
             return
 
-        if path == "/api/v1/incidents/v2":
+        if path in {"/api/v2/incidents", "/api/v1/incidents/v2"}:
             payload = load_incident_records()
             try:
                 limit = min(100, max(1, int(_first_param(params, "limit") or "50")))
@@ -1392,7 +1432,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             self._send_body("application/json; charset=utf-8", body, head_only)
             return
 
-        if path == "/api/v1/incidents/v2/changes":
+        if path in {"/api/v2/incidents/changes", "/api/v1/incidents/v2/changes"}:
             payload = load_incident_records()
             changes = [item for item in payload.get("changes", []) if isinstance(item, dict)][:200]
             body = json.dumps(
@@ -1402,8 +1442,12 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             self._send_body("application/json; charset=utf-8", body, head_only)
             return
 
-        if path.startswith("/api/v1/incidents/v2/"):
-            incident_id = path.removeprefix("/api/v1/incidents/v2/")
+        incident_prefix = next(
+            (prefix for prefix in ("/api/v2/incidents/", "/api/v1/incidents/v2/") if path.startswith(prefix)),
+            None,
+        )
+        if incident_prefix:
+            incident_id = path.removeprefix(incident_prefix)
             valid_id = incident_id.startswith("incident-") and incident_id[9:].isalnum()
             if not valid_id or len(incident_id) > 64:
                 self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid incident id")
@@ -1574,7 +1618,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             )
             return
 
-        if path == "/api/v1/openapi.json":
+        if path in {"/api/v1/openapi.json", "/api/v2/openapi.json"}:
             self._send_body(
                 "application/json; charset=utf-8", build_openapi(), head_only,
             )

@@ -1,7 +1,11 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from modules.feed_fetcher import fetch_articles
+from modules.feed_fetcher import _FEED_HEADERS, fetch_articles
+
+
+def test_feed_client_avoids_broken_brotli_edges():
+    assert _FEED_HEADERS["Accept-Encoding"] == "gzip, deflate"
 
 
 class TestFetchArticles:
@@ -82,6 +86,36 @@ class TestFetchArticles:
 
         assert result == []
         mock_resolve.assert_not_called()
+
+    @patch("modules.feed_fetcher.record_fetch")
+    @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
+    @patch("modules.feed_fetcher.feedparser.parse")
+    @patch("modules.feed_fetcher._get_session")
+    def test_reports_latest_upstream_entry_for_low_cadence_feed(
+        self, mock_get_session, mock_parse, mock_resolve, mock_record,
+    ):
+        from datetime import datetime, timedelta, timezone
+
+        response = MagicMock(content=b"")
+        mock_get_session.return_value.get.return_value = response
+        published = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+        entry = MagicMock(title="Old advisory", link="https://example.com/advisory")
+        entry.get = lambda key, default="": {
+            "published": published,
+            "summary": "Old but valid",
+        }.get(key, default)
+        mock_parse.return_value = MagicMock(entries=[entry], bozo=False)
+
+        result = fetch_articles([{
+            "url": "https://cert.example/feed",
+            "stale_after_days": 90,
+        }])
+
+        assert result == []
+        mock_record.assert_called_once()
+        kwargs = mock_record.call_args.kwargs
+        assert kwargs["latest_entry_at"] == published
+        assert kwargs["stale_after_days"] == 90
 
     @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
     @patch("modules.feed_fetcher.feedparser.parse")

@@ -27,6 +27,9 @@ def _parse_article_date(date_str: str) -> datetime | None:
 _FEED_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "application/rss+xml, application/xml, text/xml, */*",
+    # Several publisher CDNs advertise Brotli but intermittently return a
+    # malformed stream. Explicit gzip/deflate keeps those feeds deterministic.
+    "Accept-Encoding": "gzip, deflate",
 }
 
 # (connect, read) — connect fails fast; the read budget is generous because
@@ -95,7 +98,8 @@ def _source_name(entry: Any, url: str, configured_name: str | None) -> str:
 
 def _fetch_feed(url: str, region: str = "Global",
                 user_agent: str | None = None,
-                source_name: str | None = None) -> list[dict[str, Any]]:
+                source_name: str | None = None,
+                stale_after_days: int = 30) -> list[dict[str, Any]]:
     try:
         session = _get_session()
         # Per-feed UA override (config `user_agent:`) — some sites 403 the
@@ -121,6 +125,7 @@ def _fetch_feed(url: str, region: str = "Global",
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(days=FEED_CUTOFF_DAYS)
         future_limit = now + timedelta(minutes=MAX_FUTURE_MINUTES)
+        latest_entry_at = None
         for entry in parsed.entries:
             # Isolate per-entry failures: one malformed entry (missing title,
             # resolver blow-up) used to abort the whole feed and mark it as a
@@ -134,6 +139,9 @@ def _fetch_feed(url: str, region: str = "Global",
                     continue
                 published = entry.get("published", "")
                 published_at = _parse_article_date(published) if published else None
+                if published_at is not None and published_at <= future_limit:
+                    if latest_entry_at is None or published_at > latest_entry_at:
+                        latest_entry_at = published_at
                 if published_at is None:
                     logger.debug(f"Missing or unparseable date, skipping: {title[:60]}")
                     skipped += 1
@@ -173,7 +181,13 @@ def _fetch_feed(url: str, region: str = "Global",
             f"Fetched {len(results)} articles from {url} "
             f"({skipped} invalid, old, or future entries filtered)"
         )
-        record_fetch(url, success=True, entry_count=len(results))
+        record_fetch(
+            url,
+            success=True,
+            entry_count=len(results),
+            latest_entry_at=latest_entry_at.isoformat() if latest_entry_at else None,
+            stale_after_days=stale_after_days,
+        )
         return results
 
     except Exception as e:
@@ -193,6 +207,7 @@ def fetch_articles(feeds_config: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 feed.get("region", "Global"),
                 feed.get("user_agent"),
                 feed.get("name"),
+                feed.get("stale_after_days", 30),
             ): feed["url"]
             for feed in feeds_config
         }

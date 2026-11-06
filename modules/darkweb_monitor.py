@@ -8,6 +8,7 @@ Optional: Direct .onion access via Tor SOCKS proxy.
 
 import json
 import logging
+import os
 import re
 import hashlib
 from typing import Any
@@ -27,10 +28,13 @@ _TOR_SESSION = None
 DARKWEB_SOURCES = [
     {
         "name": "threatfox",
-        "url": "https://threatfox.abuse.ch/export/json/recent/",
+        "url": "https://threatfox-api.abuse.ch/api/v1/",
         "type": "api_json",
         "parser": "_parse_threatfox",
         "description": "Recent IOCs from abuse.ch ThreatFox",
+        "method": "POST",
+        "auth_env": "THREATFOX_AUTH_KEY",
+        "payload": {"query": "get_iocs", "days": 7},
     },
     {
         "name": "ransomware.live",
@@ -127,7 +131,21 @@ def fetch_darkweb_intel() -> list[dict[str, Any]]:
 def _fetch_source(source: dict[str, Any], cutoff: datetime) -> list[dict[str, Any]]:
     """Fetch and parse a single dark web source."""
     session = _get_session()
-    resp = session.get(source["url"], timeout=15)
+    if source.get("method") == "POST":
+        auth_env = str(source.get("auth_env") or "")
+        auth_key = os.getenv(auth_env, "").strip() if auth_env else ""
+        if auth_env and not auth_key:
+            logger.info("Dark web source %s disabled: %s is not configured", source["name"], auth_env)
+            return []
+        headers = {"Auth-Key": auth_key} if auth_key else None
+        resp = session.post(
+            source["url"],
+            json=source.get("payload") or {},
+            headers=headers,
+            timeout=15,
+        )
+    else:
+        resp = session.get(source["url"], timeout=15)
     resp.raise_for_status()
 
     parser = globals().get(source["parser"])
@@ -206,30 +224,40 @@ def _parse_threatfox(resp: requests.Response, source: dict[str, Any], cutoff: da
         if not isinstance(data, dict):
             return []
 
+        if "query_status" in data and isinstance(data.get("data"), list):
+            if data.get("query_status") != "ok" or not isinstance(data.get("data"), list):
+                return []
+            raw_entries = data["data"][:500]
+        else:
+            raw_entries = [
+                entry
+                for entries in list(data.values())[:500]
+                if isinstance(entries, list)
+                for entry in entries
+                if isinstance(entry, dict)
+            ]
+
         # Group IOCs by malware family for summary articles
         malware_groups = {}
-        for _ioc_id, entries in list(data.items())[:500]:
-            if not isinstance(entries, list):
+        for entry in raw_entries:
+            malware = entry.get("malware_printable") or entry.get("malware") or "Unknown"
+            first_seen = entry.get("first_seen_utc") or entry.get("first_seen") or ""
+            # Undated IOC entries are dropped: the old published=now()
+            # fallback fabricated freshness for them downstream.
+            pub_dt = _parse_date(first_seen)
+            if pub_dt is None or pub_dt < cutoff:
                 continue
-            for entry in entries:
-                malware = entry.get("malware_printable", "Unknown")
-                first_seen = entry.get("first_seen_utc", "")
-                # Undated IOC entries are dropped — the old published=now()
-                # fallback fabricated freshness for them downstream.
-                pub_dt = _parse_date(first_seen)
-                if pub_dt is None or pub_dt < cutoff:
-                    continue
-                if malware not in malware_groups:
-                    malware_groups[malware] = {
-                        "iocs": [],
-                        "threat_type": entry.get("threat_type", ""),
-                        "first_seen": first_seen,
-                    }
-                if len(malware_groups[malware]["iocs"]) < 10:
-                    malware_groups[malware]["iocs"].append({
-                        "value": entry.get("ioc_value", ""),
-                        "type": entry.get("ioc_type", ""),
-                    })
+            if malware not in malware_groups:
+                malware_groups[malware] = {
+                    "iocs": [],
+                    "threat_type": entry.get("threat_type", ""),
+                    "first_seen": first_seen,
+                }
+            if len(malware_groups[malware]["iocs"]) < 10:
+                malware_groups[malware]["iocs"].append({
+                    "value": entry.get("ioc_value") or entry.get("ioc") or "",
+                    "type": entry.get("ioc_type", ""),
+                })
 
         # Create one article per malware family (cap at 20)
         # Hash includes today's date so each family produces exactly ONE article

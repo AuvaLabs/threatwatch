@@ -392,12 +392,66 @@ class TestHealthEndpoint:
         assert data["deployment"] == {
             "sha": "1234567890abcdef",
             "built_at": "2026-10-10T01:02:03Z",
-            "api_schema_version": "1.1.0",
+            "api_schema_version": "2.0.0",
             "artifact_schema_versions": {"hunts": 1, "ledger": 1, "incidents": 1},
         }
         assert data["backup"]["ok"] is True
         assert 1.9 <= data["backup"]["age_hours"] <= 2.1
         assert data["backup"]["last_restore_verified_at"] == completed_at
+
+    def test_health_merges_independent_offsite_restore_verification(self, tmp_path):
+        from datetime import datetime, timezone
+
+        verified_at = datetime.now(timezone.utc).isoformat()
+        status_dir = tmp_path / "data" / "state"
+        status_dir.mkdir(parents=True)
+        (status_dir / "backup_status.json").write_text(json.dumps({
+            "ok": True,
+            "archive": "tw_20261106_031500.tgz",
+            "sha256": "a" * 64,
+            "completed_at": verified_at,
+            "verified_at": verified_at,
+        }))
+        (status_dir / "offsite_backup_status.json").write_text(json.dumps({
+            "configured": True,
+            "ok": True,
+            "method": "pull-rsync",
+            "archive": "tw_20261106_031500.tgz",
+            "sha256": "a" * 64,
+            "verified_at": verified_at,
+            "restore_verified": True,
+        }))
+
+        with patch("serve_threatwatch.BASE_DIR", tmp_path):
+            status = sw._backup_status()
+
+        assert status["offsite"]["ok"] is True
+        assert status["offsite"]["restore_verified"] is True
+        assert status["offsite"]["method"] == "pull-rsync"
+
+    def test_health_marks_expired_offsite_verification_unhealthy(self, tmp_path):
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
+        status_dir = tmp_path / "data" / "state"
+        status_dir.mkdir(parents=True)
+        (status_dir / "backup_status.json").write_text(json.dumps({
+            "ok": True,
+            "completed_at": now.isoformat(),
+            "verified_at": now.isoformat(),
+        }))
+        (status_dir / "offsite_backup_status.json").write_text(json.dumps({
+            "configured": True,
+            "ok": True,
+            "restore_verified": True,
+            "verified_at": (now - timedelta(hours=72)).isoformat(),
+        }))
+
+        with patch("serve_threatwatch.BASE_DIR", tmp_path):
+            status = sw._backup_status()
+
+        assert status["offsite"]["ok"] is False
+        assert status["offsite"]["age_hours"] >= 71
 
     def test_health_handles_invalid_backup_status_without_crashing(self, tmp_path):
         status_dir = tmp_path / "data" / "state"
@@ -824,6 +878,10 @@ class TestHTTPRoutes:
         assert "/api/v1/articles" in data["paths"]
         assert "/api/v1/health/feeds" in data["paths"]
 
+        v2_status, _, v2_body = _get(test_server + "/api/v2/openapi.json")
+        assert v2_status == 200
+        assert json.loads(v2_body)["info"]["version"] == "2.0.0"
+
     def test_v1_feed_health_is_available(self, test_server):
         expected = {"total_tracked": 2, "ok": 1, "dead": 1}
         with patch("modules.feed_health.get_health_json", return_value=expected):
@@ -895,6 +953,23 @@ class TestHTTPRoutes:
         assert listed["records"][0]["id"] == "incident-abc123"
         assert "claims" not in listed["records"][0]
         assert json.loads(detail_body)["claims"][0]["source_ids"] == ["article-1"]
+        assert json.loads(changes_body)["changes"][0]["id"] == "change-1"
+
+    def test_canonical_v2_incident_routes_replace_nested_version_path(self, test_server):
+        payload = {
+            "schema_version": 1,
+            "generated_at": "2026-11-06T06:00:00Z",
+            "records": [{"id": "incident-abc123", "title": "Acme intrusion"}],
+            "changes": [{"id": "change-1", "record_id": "incident-abc123"}],
+        }
+        with patch("serve_threatwatch.load_incident_records", return_value=payload):
+            list_status, _, list_body = _get(test_server + "/api/v2/incidents")
+            detail_status, _, detail_body = _get(test_server + "/api/v2/incidents/incident-abc123")
+            changes_status, _, changes_body = _get(test_server + "/api/v2/incidents/changes")
+
+        assert list_status == detail_status == changes_status == 200
+        assert json.loads(list_body)["records"][0]["id"] == "incident-abc123"
+        assert json.loads(detail_body)["id"] == "incident-abc123"
         assert json.loads(changes_body)["changes"][0]["id"] == "change-1"
 
     @pytest.mark.parametrize("path", [

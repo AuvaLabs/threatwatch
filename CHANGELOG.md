@@ -2,6 +2,14 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-11-06: Source, recovery, quality, and incident API hardening
+
+- Replaced the dormant Trend Micro feed, retired the removed Varonis feed, and added cadence-aware health for authoritative low-volume sources.
+- Migrated optional ThreatFox collection from the retired unauthenticated export to its authenticated API and skip it cleanly without credentials.
+- Added pull-based offsite backup transfer with checksum, isolated restore validation, and public-safe health proof.
+- Repaired persistent noise, region, and confidence contract defects at corpus boundaries.
+- Moved evidence-linked incidents to canonical `/api/v2/incidents` routes while retaining the former nested path as a compatibility alias.
+
 ## 2026-10-28: Intelligence delivery hardening
 
 - Preserved twice-daily Sol output as immutable Command Brief editions and published later fallback analysis as a separate Intelligence Delta.

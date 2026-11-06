@@ -35,6 +35,6 @@ describe("IncidentDetailView", () => {
     expect(screen.getByText("What remains unknown")).toBeTruthy();
     expect(screen.getByText("Signing credentials may have been compromised.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Report one" }).getAttribute("href")).toBe("https://example.test/one");
-    expect(fetch).toHaveBeenCalledWith("/api/v1/incidents/v2/incident-abc123", expect.any(Object));
+    expect(fetch).toHaveBeenCalledWith("/api/v2/incidents/incident-abc123", expect.any(Object));
   });
 });

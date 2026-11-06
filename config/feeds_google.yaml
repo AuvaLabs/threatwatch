@@ -94,10 +94,8 @@
   category: Google
   region: US
 
-- url: https://news.google.com/rss/search?q=site%3Areddit.com+ransomware+attack&hl=en-US&gl=US&ceid=US:en
-  category: Google
-  region: US
-
+# Retired 2026-11-06: the Reddit ransomware query no longer returns current
+# reporting and remained outside the seven-day collection window.
 - url: https://news.google.com/rss/search?q=site%3Ax.com+OR+site%3Atwitter.com+cybersecurity+zero+day&hl=en-US&gl=US&ceid=US:en
   category: Google
   region: US

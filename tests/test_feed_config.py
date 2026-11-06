@@ -29,6 +29,20 @@ def test_native_feed_urls_are_unique_and_current():
     assert "https://www.jpcert.or.jp/english/rss/jpcert-en.rdf" not in urls
     assert "https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml" in urls
     assert "https://www.volexity.com/feed/" in urls
+    assert "https://www.varonis.com/blog/rss.xml" not in urls
+    assert "https://feeds.feedburner.com/TrendMicroResearch" not in urls
+
+
+def test_low_cadence_authoritative_feeds_have_explicit_freshness_policy():
+    feeds = _native_feeds_by_url()
+
+    trend = feeds["https://newsroom.trendmicro.com/cyberthreat?pagetemplate=rss"]
+    cert_ua = feeds["https://cert.gov.ua/api/articles/rss"]
+
+    assert trend["name"] == "Trend Micro Cyberthreat News"
+    assert trend["stale_after_days"] == 45
+    assert cert_ua["name"] == "CERT-UA"
+    assert cert_ua["stale_after_days"] == 90
 
 
 def test_primary_security_source_expansion_is_configured():

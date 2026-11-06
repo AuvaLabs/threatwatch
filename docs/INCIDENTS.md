@@ -27,12 +27,14 @@ The score is bounded from 0 to 100 and combines independent corroboration, opera
 ## Public API
 
 ```text
-GET /api/v1/incidents/v2
-GET /api/v1/incidents/v2/changes
-GET /api/v1/incidents/v2/{id}
+GET /api/v2/incidents
+GET /api/v2/incidents/changes
+GET /api/v2/incidents/{id}
 ```
 
 The collection response omits detailed claims, sources, observables, and history. Retrieve the detail route before taking action. Scraped full article content never crosses these endpoints.
+
+The former `/api/v1/incidents/v2` routes remain read-only compatibility aliases.
 
 ## Artifact and fallback
 

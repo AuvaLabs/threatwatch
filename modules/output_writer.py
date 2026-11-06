@@ -18,6 +18,7 @@ from modules.utils import write_json_atomic
 from modules.regions import collapse_regions as _collapse_regions
 from modules.regions import MAX_MERGED_REGIONS as _MAX_MERGED_REGIONS
 from modules.article_contract import normalize_article
+from modules.region_inferrer import infer_article_region
 
 HOURLY_DIR = OUTPUT_DIR / "hourly"
 DAILY_DIR = OUTPUT_DIR / "daily"
@@ -92,7 +93,7 @@ def _merge_articles(existing, new_articles):
             seen_titles.add(title)
         if link and not allow_shared_link:
             seen_links.add(link)
-        merged.append(normalize_article(article))
+        merged.append(infer_article_region(normalize_article(article)))
 
     # New articles take priority (added first)
     for article in new_articles:

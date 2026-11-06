@@ -26,7 +26,7 @@ export function AutomationView() {
     groups.set(name, [...(groups.get(name) || []), [method, path, operation]]);
   }));
   return <div class="view automation-view">
-    <PageHeader eyebrow="Machine access" title="API" description="REST, STIX, and RSS access to ThreatWatch evidence and decisions." actions={<div class="button-row"><a class="button secondary" href="/api/v1/openapi.json">OpenAPI JSON</a><a class="button primary" href="/api/stix">Download STIX</a></div>} />
+    <PageHeader eyebrow="Machine access" title="API" description="REST, STIX, and RSS access to ThreatWatch evidence and decisions." actions={<div class="button-row"><a class="button secondary" href="/api/v2/openapi.json">OpenAPI JSON</a><a class="button primary" href="/api/stix">Download STIX</a></div>} />
     {resource.loading && <LoadingState label="Loading automation contract" />}{resource.error && <ErrorState message={resource.error} />}
     {resource.data && <>
       <section class="automation-status"><article class="surface"><span class={`health-indicator ${resource.data.health.status}`} /><div><strong>REST API</strong><p>{resource.data.health.status === "ok" ? "Operational" : `Available with ${resource.data.health.status} dependencies`}</p></div></article><article class="surface"><strong>STIX 2.1</strong><p>Download current machine-readable indicators and objects.</p></article><article class="surface"><strong>RSS feed</strong><p><a href="/feed.xml">Subscribe to source reporting</a></p></article></section>

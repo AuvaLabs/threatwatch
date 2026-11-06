@@ -48,8 +48,16 @@ def normalize_article(article: dict[str, Any]) -> dict[str, Any]:
     source = str(article.get("source") or "")
     source_name = str(article.get("source_name") or "").strip() or _source_label(source)
     link = str(article.get("link") or "").strip()
+    confidence = article.get("confidence")
+    if article.get("is_cyber_attack") is True and (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or not 1 <= confidence <= 100
+    ):
+        confidence = 60
     return {
         **article,
+        "confidence": confidence,
         "source_name": source_name,
         "canonical_url": normalize_url(link) if link else "",
         "published_at": _published_at(article),

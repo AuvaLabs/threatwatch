@@ -16,7 +16,7 @@ describe("ThreatsView", () => {
       recommended_action: "Inspect relevant telemetry.",
     }));
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (path: string) => {
-      if (path === "/api/v1/incidents/v2") return response({
+      if (path === "/api/v2/incidents") return response({
         schema_version: 1,
         summary: { total_records: 13, high_priority: 13, developing: 0 },
         run_change_count: 0,

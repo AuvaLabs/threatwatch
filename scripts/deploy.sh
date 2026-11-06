@@ -114,6 +114,12 @@ echo "[deploy] starting release"
 DEPLOY_STARTED=true
 "${COMPOSE[@]}" up -d --no-deps pipeline server
 
+echo "[deploy] repairing the live corpus against current contracts"
+"${DOCKER[@]}" pause threatwatch-pipeline >/dev/null
+"${COMPOSE[@]}" run --rm --no-deps pipeline \
+  python scripts/repair_corpus.py --apply --filter-noise
+"${DOCKER[@]}" unpause threatwatch-pipeline >/dev/null
+
 echo "[deploy] rebuilding and validating analyst artifacts"
 "${COMPOSE[@]}" exec -T pipeline python scripts/rebuild_analyst_artifacts.py --write
 "${COMPOSE[@]}" exec -T pipeline python scripts/rebuild_analyst_artifacts.py
@@ -161,10 +167,13 @@ then
 fi
 
 API_ROOT=${HEALTH_URL%/health}
-for route in openapi.json operations/summary incidents/v2 incidents/v2/changes hunts ledger sources health/artifacts; do
+for route in openapi.json operations/summary clusters hunts ledger sources health/artifacts; do
   curl -fsS "$API_ROOT/$route" >/dev/null
 done
-curl -fsS "${API_ROOT%/api/v1}/" >/dev/null
+API_ORIGIN=${API_ROOT%/api/v1}
+curl -fsS "$API_ORIGIN/api/v2/incidents" >/dev/null
+curl -fsS "$API_ORIGIN/api/v2/incidents/changes" >/dev/null
+curl -fsS "$API_ORIGIN/" >/dev/null
 
 "${COMPOSE[@]}" ps
 DEPLOY_STARTED=false

@@ -1,6 +1,6 @@
 """Regression tests for the corpus quality audit."""
 
-from scripts.audit_quality import audit_classification
+from scripts.audit_quality import audit_classification, audit_regions
 
 
 def _article(title: str, category: str) -> dict:
@@ -53,3 +53,28 @@ def test_valid_actor_and_espionage_compounds_are_not_conflicts():
     stats, _ = audit_classification(articles)
 
     assert stats["misclassified_count"] == 1
+
+
+def test_region_audit_uses_the_same_target_inference_as_ingestion():
+    articles = [{
+        "title": (
+            "Supermarket fridges in Europe hit by new cyberattack: everything is destroyed "
+            "- South China Morning Post"
+        ),
+        "feed_region": "Europe",
+    }]
+
+    stats, findings = audit_regions(articles)
+
+    assert stats["region_mismatches"] == 0
+    assert findings == []
+
+
+def test_region_audit_treats_emea_as_europe_compatible():
+    stats, findings = audit_regions([{
+        "title": "European cyberattack wave reaches French blood storage facilities",
+        "feed_region": "EMEA",
+    }])
+
+    assert stats["region_mismatches"] == 0
+    assert findings == []

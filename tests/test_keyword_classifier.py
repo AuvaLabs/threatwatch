@@ -130,6 +130,7 @@ class TestNoiseFiltering:
         "Indonesia to ban children under 16 from social media",
         "Qatar arrests 313 people for sharing Iran attack videos",
         "House panel marks up kids digital safety act amid Democrat backlash",
+        "Microsoft named a Leader in the 2026 Gartner Magic Quadrant for AI Agent Management Platforms",
     ])
     def test_noise_articles_filtered(self, title, tmp_path, monkeypatch):
         monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")

@@ -141,6 +141,32 @@ class TestHybridClassifier:
             assert "_ai_enhanced" not in result
             assert result["_ai_failed"] is True
 
+    def test_ai_zero_confidence_verdict_falls_back_to_keyword(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")
+        monkeypatch.setattr("modules.llm_client.LLM_API_KEY", "sk-test")
+        import modules.hybrid_classifier as hc
+        hc._escalation_count = 0
+        keyword = {
+            "is_cyber_attack": True,
+            "category": "General Cyber Threat",
+            "confidence": 60,
+            "translated_title": "Attackers abuse Teams to steal data",
+            "summary": "",
+        }
+        with patch("modules.hybrid_classifier.keyword_classify", return_value=keyword), \
+             patch("modules.hybrid_classifier._classify_via_llm", return_value={
+                 "is_cyber_attack": True,
+                 "category": "Nation-State Attack",
+                 "confidence": 0,
+                 "translated_title": keyword["translated_title"],
+                 "summary": "Untrusted verdict",
+             }):
+            result = classify_article(keyword["translated_title"])
+
+        assert result["category"] == "General Cyber Threat"
+        assert result["confidence"] == 60
+        assert result["_ai_failed"] is True
+
     def test_ai_exception_falls_back_to_keyword(self, tmp_path, monkeypatch):
         monkeypatch.setattr("modules.ai_cache.CACHE_DIR", tmp_path / "cache")
         monkeypatch.setattr("modules.llm_client.LLM_API_KEY", "sk-test")

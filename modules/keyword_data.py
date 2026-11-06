@@ -749,7 +749,8 @@ _NOISE_PATTERNS = [
         r"|introduces?\s+.{0,20}(requirements?|sustainability)"
         r"|publishes?\s+.{0,20}white\s+paper"
         r"|sweeps?\s+.{0,15}(major\s+)?awards?"
-        r"|cybersecurity\s+-\s+\w+\s+News$",
+        r"|cybersecurity\s+-\s+\w+\s+News$"
+        r"|named\s+(?:a\s+)?leader\s+in\s+.{0,50}Gartner.{0,20}Magic\s+Quadrant",
         re.IGNORECASE,
     ),
     # More editorial/opinion noise

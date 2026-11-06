@@ -46,3 +46,16 @@ def test_validation_reports_required_boundary_errors():
     assert "title_missing" in errors
     assert "hash_missing" in errors
     assert "link_invalid" in errors
+
+
+def test_normalizes_invalid_cyber_confidence_to_reviewable_default():
+    normalized = normalize_article({
+        "hash": "abc",
+        "title": "Attackers abuse Teams to steal company data",
+        "link": "https://example.com/report",
+        "source": "https://example.com/feed",
+        "is_cyber_attack": True,
+        "confidence": 0,
+    })
+
+    assert normalized["confidence"] == 60

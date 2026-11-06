@@ -90,6 +90,18 @@ def _classify_via_llm(title, content=None):
     return None
 
 
+def _valid_ai_result(result):
+    """Reject structurally valid JSON that violates the public article contract."""
+    if not isinstance(result, dict) or not isinstance(result.get("is_cyber_attack"), bool):
+        return False
+    confidence = result.get("confidence")
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+        return False
+    if result["is_cyber_attack"] and not 1 <= confidence <= 100:
+        return False
+    return 0 <= confidence <= 100
+
+
 def classify_article(title, content=None, source_language="en"):
     """Classify an article using keyword-first, AI-escalation hybrid.
 
@@ -118,11 +130,13 @@ def classify_article(title, content=None, source_language="en"):
             with _escalation_lock:
                 _escalation_count += 1
 
-        if ai_result:
+        if ai_result and _valid_ai_result(ai_result):
             ai_result["_ai_enhanced"] = True
             ai_result["_keyword_category"] = keyword_result.get("category")
             ai_result["_keyword_confidence"] = keyword_result.get("confidence", 0)
             return ai_result
+        if ai_result:
+            logger.warning("AI escalation returned an invalid classification contract for '%s'", title[:60])
     except Exception as e:
         logger.warning("AI escalation failed for '%s': %s", title[:60], e)
 

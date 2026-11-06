@@ -10,6 +10,7 @@ Usage:
 import argparse
 import logging
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import feedparser
@@ -18,7 +19,9 @@ import yaml
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-from modules.feed_health import load_health, print_report, record_fetch
+from modules.feed_health import load_health, print_report, prune_unconfigured, record_fetch
+from modules.config import FEED_CUTOFF_DAYS, MAX_FUTURE_MINUTES
+from modules.date_utils import parse_datetime
 
 CONFIG_DIR = BASE_DIR / "config"
 FEED_FILES = [
@@ -26,6 +29,25 @@ FEED_FILES = [
     CONFIG_DIR / "feeds_google.yaml",
     CONFIG_DIR / "feeds_bing.yaml",
 ]
+
+
+def publication_health(entries: list) -> tuple[int, str | None]:
+    """Return eligible entry count and the newest valid upstream date."""
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=FEED_CUTOFF_DAYS)
+    future_limit = now + timedelta(minutes=MAX_FUTURE_MINUTES)
+    recent_count = 0
+    latest: datetime | None = None
+    for entry in entries:
+        raw = entry.get("published", "") or entry.get("updated", "")
+        parsed = parse_datetime(raw)
+        if parsed is None or parsed > future_limit:
+            continue
+        if latest is None or parsed > latest:
+            latest = parsed
+        if parsed >= cutoff:
+            recent_count += 1
+    return recent_count, latest.isoformat() if latest else None
 
 
 def load_all_feeds() -> list:
@@ -58,6 +80,7 @@ def live_validate(feeds: list, timeout: int = 12) -> None:
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
+    session.headers["Accept-Encoding"] = "gzip, deflate"
 
     passed = failed = quiet = 0
     for feed in feeds:
@@ -71,10 +94,16 @@ def live_validate(feeds: list, timeout: int = 12) -> None:
             resp = session.get(url, timeout=timeout, headers=headers)
             resp.raise_for_status()
             parsed = feedparser.parse(resp.content)
-            count  = len(parsed.entries)
-            record_fetch(url, success=True, entry_count=count)
+            count, latest_entry_at = publication_health(parsed.entries)
+            record_fetch(
+                url,
+                success=True,
+                entry_count=count,
+                latest_entry_at=latest_entry_at,
+                stale_after_days=feed.get("stale_after_days", 30),
+            )
             if count > 0:
-                logging.info(f"PASS  {count:>3} entries  {url}")
+                logging.info(f"PASS  {count:>3} recent entries  {url}")
                 passed += 1
             else:
                 logging.info(f"QUIET   0 entries  {url}")
@@ -106,6 +135,7 @@ def main() -> None:
     if args.live:
         print(f"\nRunning live validation of {len(feeds)} feeds (timeout={args.timeout}s)…")
         live_validate(feeds, timeout=args.timeout)
+        prune_unconfigured(feed["url"] for feed in feeds if feed.get("url"))
 
     if args.dead:
         data = load_health()
