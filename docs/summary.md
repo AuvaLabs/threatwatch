@@ -39,7 +39,24 @@ See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
 - Docker Compose services for `pipeline` and `server` with one persistent data volume.
 - SQLite primary storage plus atomic JSON artifacts and fallback reads.
 - Strict security headers, bounded APIs, request rate limiting, SSRF protection, safe external URLs, and no scraped full-content exposure in operational APIs.
-- More than 1,600 backend tests and 58 frontend tests at the 2026-11-06 repository audit. Both suites remain above the required 80 percent coverage floor.
+- 1,657 backend tests and 58 frontend tests at the 2026-11-07 repository audit. Both suites remain above the required 80 percent coverage floor.
+
+## Verified operational snapshot
+
+The 2026-11-07 production review verified the following state for release
+`ced0d048a0eb3ae12fa8c0b58de6839ae7b6d990`:
+
+- Both production containers were healthy, the public workspace routes returned successful responses, and `/api/v1/health` reported an operational service.
+- A controlled source validation completed with all 135 configured feeds healthy. The Orca source uses publisher-scoped discovery because its former native RSS endpoint redirects to itself.
+- ThreatFox uses its authenticated API when a key is available. The key remains outside Git in `.secrets/threatfox.env`, and evidence links use stable malware identifiers instead of guessed slugs.
+- ThreatFox and URLhaus results remain corroborating evidence. They do not independently qualify a hunt without the required observable, behavior, and readiness evidence.
+- The corpus, SQLite store, hunt artifacts, incident artifacts, ledger artifacts, and source-linked reports passed consistency checks. The offsite backup status included a successful independent restore proof.
+- The backend suite passed all 1,657 tests. The frontend suite passed all 58 tests, and its production build completed successfully.
+
+Run `scripts/validate_feeds.py` while the scheduled pipeline writer is idle. The
+validator and pipeline currently use a process-local state lock, so overlapping
+them can race when publishing feed-health state even when collection itself is
+healthy.
 
 ## Core architecture
 
@@ -133,4 +150,4 @@ ssh auvalabs 'docker exec threatwatch-pipeline python scripts/rebuild_ledger.py'
 ssh auvalabs 'cd ~/threatwatch && docker compose ps'
 ```
 
-Last updated: 2026-11-06
+Last updated: 2026-11-07
