@@ -1,7 +1,12 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from modules.article_scraper import extract_with_fallback, extract_with_trafilatura, process_urls_in_parallel
+from modules.article_scraper import (
+    extract_article_content,
+    extract_with_fallback,
+    extract_with_trafilatura,
+    process_urls_in_parallel,
+)
 
 
 class TestExtractWithTrafilatura:
@@ -126,3 +131,20 @@ class TestProcessUrlsInParallel:
     def test_empty_url_list_returns_empty_dict(self):
         results = process_urls_in_parallel([])
         assert results == {}
+
+
+class TestProtectedSources:
+    @pytest.mark.parametrize("url", [
+        "https://vulners.com/cvelist/CVELIST:CVE-2026-12345",
+        "https://news.google.com/rss/articles/UNRESOLVED",
+    ])
+    def test_skips_full_text_fetch_for_known_unextractable_url(self, url):
+        with patch("modules.article_scraper.resolve_original_url", return_value=url), \
+             patch("modules.article_scraper.extract_with_trafilatura") as trafilatura_extract, \
+             patch("modules.article_scraper.extract_with_fallback") as fallback_extract:
+            clean_url, content = extract_article_content(url)
+
+        assert clean_url == url
+        assert content is None
+        trafilatura_extract.assert_not_called()
+        fallback_extract.assert_not_called()

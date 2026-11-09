@@ -4,6 +4,7 @@ import logging
 import requests
 import trafilatura
 from typing import Any
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 from bs4 import BeautifulSoup
@@ -11,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from modules.url_resolver import resolve_original_url, is_safe_url
+from modules.url_resolver import is_google_news_url, resolve_original_url, is_safe_url
 from modules.config import MAX_SCRAPER_THREADS
 
 USER_AGENTS = [
@@ -42,6 +43,7 @@ def _create_session() -> requests.Session:
 
 
 _session = _create_session()
+_SKIP_FULL_TEXT_HOSTS = frozenset({"vulners.com"})
 
 
 def _get_headers() -> dict[str, str]:
@@ -86,6 +88,14 @@ def extract_with_fallback(url: str) -> str | None:
 
 def extract_article_content(raw_url: str) -> tuple[str, str | None]:
     clean_url = resolve_original_url(raw_url)
+    host = (urlparse(clean_url).hostname or "").lower()
+    protected_source = any(
+        host == candidate or host.endswith(f".{candidate}")
+        for candidate in _SKIP_FULL_TEXT_HOSTS
+    )
+    if protected_source or is_google_news_url(clean_url):
+        logger.debug("Skipping full-text extraction for %s", clean_url)
+        return clean_url, None
 
     content = extract_with_trafilatura(clean_url)
     if content:

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from modules.config import OUTPUT_DIR
+from modules.briefing_contract import briefing_validation_reason
 from modules.utils import write_json_atomic
 
 logger = logging.getLogger(__name__)
@@ -100,8 +101,10 @@ def update_briefing_products(
     delta_path = INTELLIGENCE_DELTA_PATH if output_dir is None else output_dir / "intelligence_delta.json"
     history_dir = COMMAND_BRIEF_HISTORY_DIR if output_dir is None else output_dir / "command_briefs"
     edition_id = _edition_id(briefing.get("generated_at"))
-    if not edition_id or not _valid_sources(briefing):
-        logger.warning("Briefing product rejected: missing timestamp or valid sources")
+    invalid_reason = briefing_validation_reason(briefing)
+    if not edition_id or invalid_reason:
+        reason = invalid_reason or "timestamp_missing"
+        logger.warning("Briefing product rejected: %s", reason)
         return None
     if briefing.get("provider") == _SOL_PROVIDER:
         _write_command_brief(

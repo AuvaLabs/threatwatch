@@ -399,6 +399,71 @@ class TestHealthEndpoint:
         assert 1.9 <= data["backup"]["age_hours"] <= 2.1
         assert data["backup"]["last_restore_verified_at"] == completed_at
 
+    def test_health_degrades_on_recent_telegram_daily_failure(self, tmp_path):
+        from datetime import datetime, timezone
+
+        fresh = datetime.now(timezone.utc).isoformat()
+        state_dir = tmp_path / "data" / "state"
+        state_dir.mkdir(parents=True)
+        (state_dir / "telegram_daily_status.json").write_text(json.dumps({
+            "attempted_at": fresh,
+            "ok": False,
+            "level": "ELEVATED",
+            "reason": "post_failed",
+        }))
+
+        with patch.dict("os.environ", {
+            "TELEGRAM_BOT_TOKEN": "configured",
+            "TELEGRAM_CHAT_ID": "configured",
+        }), patch(
+            "serve_threatwatch.load_stats",
+            return_value={"latest": {"completed_at": fresh}},
+        ), patch("serve_threatwatch.BASE_DIR", tmp_path), patch(
+            "modules.briefing_health.check_briefing_freshness",
+            return_value={"stale": False, "age_hours": 0.1},
+        ), patch(
+            "modules.artifact_health.check_artifact_health",
+            return_value={"configured": False, "ok": False,
+                          "stale_capabilities": [], "failing_capabilities": []},
+        ), patch(
+            "modules.operational_artifact_health.check_operational_artifact_health",
+            return_value={"configured": False, "ok": False,
+                          "stale_capabilities": [], "failing_capabilities": []},
+        ):
+            data = json.loads(sw.build_health())
+
+        assert data["status"] == "degraded"
+        assert data["notifications"]["telegram_daily"]["ok"] is False
+        assert data["notifications"]["telegram_daily"]["reason"] == "post_failed"
+        assert "notification_failing_telegram_daily" in data["reasons"]
+
+    def test_telegram_daily_status_expires_without_exposing_destination(self, tmp_path):
+        from datetime import datetime, timedelta, timezone
+
+        attempted_at = (
+            datetime.now(timezone.utc)
+            - timedelta(hours=sw.TELEGRAM_DAILY_MAX_AGE_HOURS + 1)
+        ).isoformat()
+        state_dir = tmp_path / "data" / "state"
+        state_dir.mkdir(parents=True)
+        (state_dir / "telegram_daily_status.json").write_text(json.dumps({
+            "attempted_at": attempted_at,
+            "ok": True,
+            "level": "MODERATE",
+            "reason": "posted",
+            "chat_id": "must-not-leak",
+        }))
+
+        with patch.dict("os.environ", {
+            "TELEGRAM_BOT_TOKEN": "configured",
+            "TELEGRAM_CHAT_ID": "configured",
+        }), patch("serve_threatwatch.BASE_DIR", tmp_path):
+            status = sw._telegram_daily_status()
+
+        assert status["ok"] is False
+        assert status["reason"] == "delivery_status_stale"
+        assert "chat_id" not in status
+
     def test_health_merges_independent_offsite_restore_verification(self, tmp_path):
         from datetime import datetime, timezone
 
@@ -703,18 +768,53 @@ class TestHTTPRoutes:
     def test_latest_briefing_prefers_command_edition(self, test_server, tmp_path):
         command = tmp_path / "command.json"
         live = tmp_path / "live.json"
-        command.write_text(json.dumps({"edition_type": "command_brief"}))
-        live.write_text(json.dumps({"edition_type": "live"}))
+        grounded = {
+            "headline": "Grounded command",
+            "what_happened": "Source-backed assessment.",
+            "source_articles": [{"link": "https://example.test/report"}],
+        }
+        command.write_text(json.dumps({**grounded, "edition_type": "command_brief"}))
+        live.write_text(json.dumps({**grounded, "edition_type": "live"}))
         route = {
             "file": command,
             "fallback_file": live,
             "content_type": "application/json; charset=utf-8",
+            "grounded_briefing": True,
         }
         with patch.dict(sw.STATIC_ROUTES, {"/api/command-brief": route}):
             status, _, body = _get(test_server + "/api/v1/briefings/latest")
 
         assert status == 200
         assert json.loads(body)["edition_type"] == "command_brief"
+
+    def test_latest_briefing_falls_back_when_command_is_incomplete(
+        self, test_server, tmp_path,
+    ):
+        command = tmp_path / "command.json"
+        live = tmp_path / "live.json"
+        command.write_text(json.dumps({
+            "headline": "",
+            "what_happened": "Command narrative.",
+            "source_articles": [{"link": "https://example.test/command"}],
+            "edition_type": "command_brief",
+        }))
+        live.write_text(json.dumps({
+            "headline": "Grounded live briefing",
+            "what_happened": "Live narrative.",
+            "source_articles": [{"link": "https://example.test/live"}],
+            "edition_type": "live",
+        }))
+        route = {
+            "file": command,
+            "fallback_file": live,
+            "content_type": "application/json; charset=utf-8",
+            "grounded_briefing": True,
+        }
+        with patch.dict(sw.STATIC_ROUTES, {"/api/command-brief": route}):
+            status, _, body = _get(test_server + "/api/v1/briefings/latest")
+
+        assert status == 200
+        assert json.loads(body)["edition_type"] == "live"
 
     def test_latest_briefing_falls_back_until_first_command_edition(
         self, test_server, tmp_path,

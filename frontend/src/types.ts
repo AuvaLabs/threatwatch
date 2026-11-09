@@ -107,6 +107,16 @@ export interface Health {
       archive?: string;
     };
   };
+  notifications?: {
+    telegram_daily?: {
+      configured?: boolean;
+      ok?: boolean | null;
+      attempted_at?: string | null;
+      age_hours?: number | null;
+      level?: string | null;
+      reason?: string;
+    };
+  };
 }
 
 export interface HealthArtifactGroup {

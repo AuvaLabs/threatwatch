@@ -2,6 +2,14 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-11-09: Briefing delivery and extraction resilience
+
+- Rejected incomplete Sol output before it can replace a valid Command Brief edition.
+- Made the Command Brief API and daily Telegram post fall back to the newest source-grounded live briefing when the stored command edition is incomplete.
+- Added Command Brief contract validation and public-safe daily Telegram delivery state to platform health.
+- Added Telegram delivery status to the Status workspace and degraded health when a configured daily delivery fails or becomes stale.
+- Stopped full-text requests to protected Vulners pages and unresolved Google News wrapper URLs while preserving their feed summaries and evidence links.
+
 ## 2026-11-06: Source, recovery, quality, and incident API hardening
 
 - Replaced the dormant Trend Micro feed, retired the removed Varonis feed, and added cadence-aware health for authoritative low-volume sources.

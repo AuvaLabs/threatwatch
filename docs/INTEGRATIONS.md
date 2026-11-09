@@ -336,6 +336,11 @@ docker exec threatwatch-pipeline python scripts/post_briefing_to_telegram.py --d
 
 The script exits 1 on failure and records successful or failed delivery state in
 `data/state/telegram_daily_status.json`.
+It prefers the authoritative Command Brief when that artifact satisfies the
+source-grounded delivery contract. If the command edition is incomplete, it
+uses the newest grounded live briefing instead. `/api/v1/health` reports the
+public-safe delivery result and degrades after a failed post or when the latest
+proof exceeds `TELEGRAM_DAILY_MAX_AGE_HOURS` (36 hours by default).
 It does not consume the alert dedup state, so Modes A, B, and C can all
 fire independently without interfering.
 

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from modules.config import OUTPUT_DIR
+from modules.briefing_contract import briefing_validation_reason
 
 
 _ARTIFACTS = {
@@ -16,6 +17,7 @@ _ARTIFACTS = {
     "regional_na": ("briefing_na.json", 3.0),
     "regional_emea": ("briefing_emea.json", 3.0),
     "regional_apac": ("briefing_apac.json", 3.0),
+    "command_brief": ("command_brief.json", 18.0),
 }
 
 
@@ -43,6 +45,16 @@ def _artifact_status(path: Path, max_age_hours: float) -> dict[str, Any]:
         0.0,
         (datetime.now(timezone.utc) - generated_at).total_seconds() / 3600,
     )
+    if path.name == "command_brief.json":
+        invalid_reason = briefing_validation_reason(data)
+        if invalid_reason:
+            return {
+                "ok": False,
+                "stale": False,
+                "age_hours": round(age_hours, 2),
+                "generated_at": generated_at.isoformat(),
+                "reason": invalid_reason,
+            }
     stale = age_hours > max_age_hours
     return {
         "ok": not stale,
@@ -60,8 +72,11 @@ def check_artifact_health(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
         name: _artifact_status(output_dir / filename, max_age)
         for name, (filename, max_age) in _ARTIFACTS.items()
     }
-    stale = [name for name, status in capabilities.items() if not status["ok"]]
-    failing: list[str] = []
+    stale = [name for name, status in capabilities.items() if status["stale"]]
+    failing = [
+        name for name, status in capabilities.items()
+        if not status["ok"] and not status["stale"]
+    ]
     state_path = output_dir.parent / "state" / "ai_health.json"
     try:
         run_status = json.loads(state_path.read_text(encoding="utf-8"))
@@ -70,10 +85,11 @@ def check_artifact_health(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
             datetime.now(timezone.utc) - checked_at
         ).total_seconds() <= 3 * 3600
         if recent:
-            failing = [
+            run_failures = [
                 name for name, status in run_status.get("capabilities", {}).items()
                 if not status.get("ok", False)
             ]
+            failing = list(dict.fromkeys([*failing, *run_failures]))
     except (OSError, json.JSONDecodeError, AttributeError):
         pass
     return {

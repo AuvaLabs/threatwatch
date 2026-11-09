@@ -6,9 +6,19 @@ from datetime import datetime, timedelta, timezone
 from modules.artifact_health import check_artifact_health
 
 
-def _write(path, generated_at):
+def _write(path, generated_at, **extra):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"generated_at": generated_at}), encoding="utf-8")
+    path.write_text(json.dumps({"generated_at": generated_at, **extra}), encoding="utf-8")
+
+
+def _write_command(output, generated_at, **overrides):
+    payload = {
+        "headline": "Grounded command brief",
+        "what_happened": "A source-backed assessment.",
+        "source_articles": [{"link": "https://example.test/report"}],
+        **overrides,
+    }
+    _write(output / "command_brief.json", generated_at, **payload)
 
 
 def test_stale_top_stories_degrades_artifact_health(tmp_path):
@@ -20,6 +30,7 @@ def test_stale_top_stories_degrades_artifact_health(tmp_path):
     _write(output / "top_stories.json", stale)
     for region in ("na", "emea", "apac"):
         _write(output / f"briefing_{region}.json", fresh)
+    _write_command(output, fresh)
 
     result = check_artifact_health(output)
 
@@ -34,6 +45,7 @@ def test_all_fresh_artifacts_are_healthy(tmp_path):
     for name in ("briefing.json", "top_stories.json", "briefing_na.json",
                  "briefing_emea.json", "briefing_apac.json"):
         _write(output / name, fresh)
+    _write_command(output, fresh)
 
     result = check_artifact_health(output)
 
@@ -51,12 +63,27 @@ def test_missing_sibling_artifact_is_unhealthy_when_ai_is_configured(tmp_path):
     assert result["capabilities"]["top_stories"]["reason"] == "missing"
 
 
+def test_incomplete_command_brief_degrades_artifact_health(tmp_path):
+    output = tmp_path / "output"
+    fresh = datetime.now(timezone.utc).isoformat()
+    for name in ("briefing.json", "top_stories.json", "briefing_na.json",
+                 "briefing_emea.json", "briefing_apac.json"):
+        _write(output / name, fresh)
+    _write_command(output, fresh, headline="")
+
+    result = check_artifact_health(output)
+
+    assert result["ok"] is False
+    assert result["capabilities"]["command_brief"]["reason"] == "headline_missing"
+
+
 def test_recent_capability_failure_is_reported(tmp_path):
     output = tmp_path / "output"
     fresh = datetime.now(timezone.utc).isoformat()
     for name in ("briefing.json", "top_stories.json", "briefing_na.json",
                  "briefing_emea.json", "briefing_apac.json"):
         _write(output / name, fresh)
+    _write_command(output, fresh)
     state = tmp_path / "state"
     state.mkdir()
     (state / "ai_health.json").write_text(json.dumps({

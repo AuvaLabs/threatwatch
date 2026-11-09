@@ -28,6 +28,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 from modules.logger_utils import setup_logger  # noqa: E402
 from modules.briefing_generator import BRIEFING_PATH  # noqa: E402
+from modules.briefing_contract import is_grounded_briefing  # noqa: E402
 from modules.command_brief import COMMAND_BRIEF_PATH  # noqa: E402
 from modules.config import STATE_DIR  # noqa: E402
 from modules.utils import write_json_atomic  # noqa: E402
@@ -48,27 +49,30 @@ def _record_status(ok: bool, level: object, reason: str) -> None:
 
 
 def _load_briefing(log: logging.Logger, *, dry_run: bool) -> dict | None:
-    briefing_path = (
-        COMMAND_BRIEF_PATH if COMMAND_BRIEF_PATH.exists() else BRIEFING_PATH
-    )
-    if not briefing_path.exists():
-        log.error("Briefing file not found: %s", briefing_path)
-        if not dry_run:
-            _record_status(False, None, "briefing_missing")
-        return None
-    try:
-        briefing = json.loads(briefing_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        log.error("Could not load briefing: %s", exc)
-        if not dry_run:
-            _record_status(False, None, "briefing_invalid")
-        return None
-    if not isinstance(briefing, dict):
-        log.error("Briefing must be a JSON object")
-        if not dry_run:
-            _record_status(False, None, "briefing_invalid_shape")
-        return None
-    return briefing
+    found_candidate = False
+    for label, briefing_path in (
+        ("command", COMMAND_BRIEF_PATH),
+        ("live", BRIEFING_PATH),
+    ):
+        if not briefing_path.exists():
+            continue
+        found_candidate = True
+        try:
+            briefing = json.loads(briefing_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            log.warning("Could not load %s briefing: %s", label, exc)
+            continue
+        if is_grounded_briefing(briefing):
+            if label == "live" and COMMAND_BRIEF_PATH.exists():
+                log.warning("Command briefing is incomplete; using grounded live briefing")
+            return briefing
+        log.warning("%s briefing does not meet the grounded delivery contract", label.title())
+
+    reason = "briefing_invalid" if found_candidate else "briefing_missing"
+    log.error("No grounded briefing is available")
+    if not dry_run:
+        _record_status(False, None, reason)
+    return None
 
 
 def main(*, dry_run: bool = False) -> int:

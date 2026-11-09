@@ -80,6 +80,19 @@ def test_invalid_or_ungrounded_briefing_is_not_published(monkeypatch, tmp_path):
     assert not command_brief.INTELLIGENCE_DELTA_PATH.exists()
 
 
+def test_incomplete_sol_briefing_does_not_replace_valid_command(monkeypatch, tmp_path):
+    _paths(monkeypatch, tmp_path)
+    assert command_brief.update_briefing_products(_briefing()) == "command_brief"
+    command_before = command_brief.COMMAND_BRIEF_PATH.read_text()
+
+    incomplete = _briefing(generated_at="2026-10-28T15:10:00+00:00")
+    incomplete["headline"] = ""
+
+    assert command_brief.update_briefing_products(incomplete) is None
+    assert command_brief.COMMAND_BRIEF_PATH.read_text() == command_before
+    assert len(list(command_brief.COMMAND_BRIEF_HISTORY_DIR.glob("*.json"))) == 1
+
+
 def test_global_briefing_save_updates_command_products(monkeypatch, tmp_path):
     monkeypatch.setattr(briefing_generator, "BRIEFING_PATH", tmp_path / "briefing.json")
 

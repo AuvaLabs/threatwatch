@@ -237,6 +237,7 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `SUMMARY_BATCH_SIZE` | `5` | Articles per structured summary call |
 | `SUMMARY_BATCH_DELAY_SECONDS` | `5` | Delay between uncached summary batches to protect provider quotas |
 | `SUMMARY_MAX_TOKENS` | `1600` | Output budget for each structured summary batch |
+| `TELEGRAM_DAILY_MAX_AGE_HOURS` | `36` | Maximum age of the configured daily Telegram delivery proof before health degrades |
 
 Example Claude configuration:
 

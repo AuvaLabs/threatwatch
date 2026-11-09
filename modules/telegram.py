@@ -29,6 +29,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from modules.config import STATE_DIR
+from modules.briefing_contract import is_grounded_briefing
 from modules.utils import write_json_atomic
 
 logger = logging.getLogger(__name__)
@@ -215,20 +216,8 @@ def _send(text: str, *, chat_id: str | None = None) -> bool:
 
 
 def _is_grounded_briefing(briefing: object) -> bool:
-    if not isinstance(briefing, dict):
-        return False
-    if not str(briefing.get("headline") or "").strip():
-        return False
-    if not str(briefing.get("what_happened") or "").strip():
-        return False
-    sources = briefing.get("source_articles")
-    if not isinstance(sources, list) or not sources:
-        return False
-    return any(
-        isinstance(source, dict)
-        and str(source.get("link") or "").startswith(("https://", "http://"))
-        for source in sources
-    )
+    """Compatibility wrapper for callers using the former private helper."""
+    return is_grounded_briefing(briefing)
 
 
 def dispatch_telegram_briefing(briefing: dict | None) -> bool:

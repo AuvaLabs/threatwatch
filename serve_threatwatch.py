@@ -22,6 +22,7 @@ from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, unquote, urlparse
 
 from modules.hunt_engine import build_hunts
+from modules.briefing_contract import is_grounded_briefing
 from modules.incident_records import build_incident_records
 from modules.operations import build_operational_summary
 from modules.threat_ledger import build_ledger
@@ -42,6 +43,12 @@ try:
     OFFSITE_BACKUP_MAX_AGE_HOURS = max(1, int(os.environ.get("TW_OFFSITE_MAX_AGE_HOURS", "48")))
 except ValueError:
     OFFSITE_BACKUP_MAX_AGE_HOURS = 48
+try:
+    TELEGRAM_DAILY_MAX_AGE_HOURS = max(
+        1, int(os.environ.get("TELEGRAM_DAILY_MAX_AGE_HOURS", "36"))
+    )
+except ValueError:
+    TELEGRAM_DAILY_MAX_AGE_HOURS = 36
 
 _cache: dict = {}
 _cache_lock = threading.Lock()  # guards all _cache writes; reads use GIL
@@ -790,8 +797,22 @@ def build_health() -> bytes:
         "operational_artifacts": operational_artifacts,
         "deployment": _deployment_metadata(),
         "backup": _backup_status(),
+        "notifications": {},
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+    telegram_daily = _telegram_daily_status()
+    payload["notifications"]["telegram_daily"] = telegram_daily
+    if telegram_daily["configured"] and telegram_daily["ok"] is False:
+        reason = (
+            "notification_stale_telegram_daily"
+            if telegram_daily["reason"] == "delivery_status_stale"
+            else "notification_failing_telegram_daily"
+        )
+        if reason not in reasons:
+            reasons.append(reason)
+        if status == "ok":
+            status = "degraded"
+        payload["status"] = status
     payload["briefing_stale"] = briefing_stale
     payload["briefing_age_hours"] = (
         briefing_age_hours
@@ -799,6 +820,67 @@ def build_health() -> bytes:
         else None
     )
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def _status_age(value: object) -> tuple[str, float] | None:
+    try:
+        attempted = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if attempted.tzinfo is None:
+        attempted = attempted.replace(tzinfo=timezone.utc)
+    age_hours = round(
+        max(0, (datetime.now(timezone.utc) - attempted).total_seconds()) / 3600,
+        2,
+    )
+    return attempted.isoformat(), age_hours
+
+
+def _telegram_daily_status() -> dict:
+    configured = bool(
+        os.environ.get("TELEGRAM_BOT_TOKEN")
+        and os.environ.get("TELEGRAM_CHAT_ID")
+    )
+    default = {
+        "configured": configured,
+        "ok": None,
+        "attempted_at": None,
+        "age_hours": None,
+        "level": None,
+        "reason": "status_missing" if configured else "not_configured",
+    }
+    if not configured:
+        return default
+    path = BASE_DIR / "data" / "state" / "telegram_daily_status.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return default
+    if not isinstance(payload, dict):
+        return default
+
+    timing = _status_age(payload.get("attempted_at"))
+    if timing is None:
+        return {**default, "reason": "status_invalid"}
+    attempted_at, age_hours = timing
+
+    allowed_reasons = {
+        "posted", "post_failed", "briefing_missing", "briefing_invalid",
+        "briefing_invalid_shape", "configuration_missing",
+    }
+    reason = str(payload.get("reason") or "status_invalid")
+    if reason not in allowed_reasons:
+        reason = "status_invalid"
+    stale = age_hours > TELEGRAM_DAILY_MAX_AGE_HOURS
+    ok = payload.get("ok") is True and not stale
+    return {
+        "configured": True,
+        "ok": ok,
+        "attempted_at": attempted_at,
+        "age_hours": age_hours,
+        "level": str(payload.get("level") or "UNKNOWN")[:16],
+        "reason": "delivery_status_stale" if stale else reason,
+    }
 
 
 def _deployment_metadata() -> dict:
@@ -1071,6 +1153,7 @@ STATIC_ROUTES = {
         "file": BASE_DIR / "data" / "output" / "command_brief.json",
         "fallback_file": BASE_DIR / "data" / "output" / "briefing.json",
         "content_type": "application/json; charset=utf-8",
+        "grounded_briefing": True,
     },
     "/api/intelligence-delta": {
         "file": BASE_DIR / "data" / "output" / "intelligence_delta.json",
@@ -1980,6 +2063,25 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             logger.error("Error reading %s: %s", route["file"], exc)
             self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error")
             return
+
+        if route.get("grounded_briefing"):
+            try:
+                usable = is_grounded_briefing(json.loads(body))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                usable = False
+            if not usable:
+                fallback_file = route.get("fallback_file")
+                if fallback_file is None:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
+                    return
+                try:
+                    body = read_cached(fallback_file)
+                    fallback_usable = is_grounded_briefing(json.loads(body))
+                except (FileNotFoundError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+                    fallback_usable = False
+                if not fallback_usable:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
+                    return
 
         self._send_body(route["content_type"], body, head_only)
 

@@ -34,13 +34,16 @@ describe("utility views", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({
       status: "ok", articles_total: 2414, feed_health: { ok: 137 }, briefing_stale: false,
       generated_at: "2026-10-30T05:00:00Z", last_run_at: "2026-10-30T04:50:00Z",
-      ai_artifacts: { ok: true }, operational_artifacts: { ok: true, capabilities: { incidents: {}, hunts: {}, ledger: {} } },
+      ai_artifacts: { ok: false, capabilities: { command_brief: { ok: false } } }, operational_artifacts: { ok: true, capabilities: { incidents: {}, hunts: {}, ledger: {} } },
       deployment: { sha: "1234567890abcdef", api_schema_version: "2.0.0" },
       backup: {
         configured: true,
         ok: true,
         last_restore_verified_at: "2026-10-30T04:00:00Z",
         offsite: { configured: true, ok: true, restore_verified: true, location: "commandcenter" },
+      },
+      notifications: {
+        telegram_daily: { configured: true, ok: false, reason: "post_failed" },
       },
     })));
 
@@ -51,5 +54,7 @@ describe("utility views", () => {
     expect(screen.getByText("Verified offsite")).toBeTruthy();
     expect(screen.getByText(/commandcenter copy restore verified/)).toBeTruthy();
     expect(screen.getByText("incidents, hunts, ledger")).toBeTruthy();
+    expect(screen.getByText("Delivery failed")).toBeTruthy();
+    expect(screen.getByText("Degraded")).toBeTruthy();
   });
 });
