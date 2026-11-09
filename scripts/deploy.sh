@@ -95,8 +95,11 @@ import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-if payload.get("status") != "ok":
-    raise SystemExit(f"pre-deploy health is {payload.get('status')!r}")
+from modules.release_health import require_deployable_health
+try:
+    require_deployable_health(payload)
+except ValueError as exc:
+    raise SystemExit(f"pre-deploy {exc}") from exc
 if not isinstance(payload.get("articles_total"), int):
     raise SystemExit("pre-deploy health has no article count")
 PY
@@ -136,9 +139,12 @@ import sys
 
 before = json.load(open(sys.argv[1], encoding="utf-8"))
 after = json.load(open(sys.argv[2], encoding="utf-8"))
+from modules.release_health import require_deployable_health
 expected_sha = sys.argv[3]
 max_loss = int(sys.argv[4])
-if after.get("status") != "ok":
+try:
+    require_deployable_health(after)
+except ValueError:
     raise SystemExit(1)
 if after.get("deployment", {}).get("sha") != expected_sha:
     raise SystemExit(1)
@@ -161,7 +167,12 @@ import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-valid = payload.get("status") == "ok" and payload.get("deployment", {}).get("sha") == sys.argv[2]
+from modules.release_health import require_deployable_health
+try:
+    require_deployable_health(payload)
+    valid = payload.get("deployment", {}).get("sha") == sys.argv[2]
+except ValueError:
+    valid = False
 raise SystemExit(0 if valid else 1)
 PY
 then
