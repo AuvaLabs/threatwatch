@@ -191,6 +191,16 @@ def test_generic_title_words_do_not_become_organizations():
     "Russia-Linked Hackers Behind Supermarket Cyberattacks",
     "AI Malware Will Hit Critical Infrastructure",
     "Data Breach Hits Japan",
+    "Another Cyberattack Overrides Grocery Refrigerators in Europe",
+    "A cyberattack hit the company responsible for building a tunnel",
+    "Protesters breach Microsoft data centre construction site",
+    "Can AI hack your phone before you even notice?",
+    "CNet IDs Disabled Following Cyberattack on Computer Science Department",
+    "Medical IT Co. Makes Data Breach Deal With Conn., Mich., NJ",
+    "Refrigerator Cyberattacks Hit Supermarkets Across Europe",
+    "Video. Freezer cyberattack was not sophisticated",
+    "Nikke Launcher Hack Compromises Official Downloads",
+    "UK Financial Services Face Cybersecurity Loss as Firms Report Attacks",
 ])
 def test_headline_grammar_and_products_do_not_become_victim_organizations(title):
     article = _article("misleading", title, "Wire", "2026-10-29T08:00:00Z")
@@ -206,6 +216,19 @@ def test_reporting_verb_keeps_the_named_victim_and_drops_the_adjective():
     records = ir.build_incident_records([article], generated_at=NOW)["records"]
 
     assert [record["organization"] for record in records] == ["DreamHost"]
+
+
+@pytest.mark.parametrize(("title", "organization"), [
+    ("Chainalysis Security Incident: Prepare for credential rotation", "Chainalysis"),
+    ("Myriad Genetics Cyber Incident Reported", "Myriad Genetics"),
+    ("Amadeus Cybersecurity Incident Exposes Airline Data", "Amadeus"),
+])
+def test_incident_descriptors_are_removed_from_headline_organizations(title, organization):
+    article = _article("descriptor", title, "Wire", "2026-10-29T08:00:00Z")
+
+    records = ir.build_incident_records([article], generated_at=NOW)["records"]
+
+    assert [record["organization"] for record in records] == [organization]
 
 
 def test_compatible_intrusion_and_data_loss_reporting_merge_into_one_record():

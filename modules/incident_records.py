@@ -32,16 +32,17 @@ _NATIONALITY_ADJECTIVES = frozenset({
     "iranian", "israeli", "japanese", "korean", "russian", "ukrainian",
 })
 _NAME_VERBS = frozenset({
-    "blame", "blamed", "blames", "confirms", "denies", "discloses", "investigate",
-    "investigates", "largest", "probes", "release", "releases", "reports", "says",
-    "warns", "will",
+    "blame", "blamed", "blames", "can", "confirms", "denies", "disabled",
+    "discloses", "following", "investigate", "investigates", "largest", "makes",
+    "probes", "release", "releases", "reports", "says", "warns", "will",
 })
 _GENERIC_ORGS = frozenset({
-    "activists", "after", "ai", "alleged ai-aided", "alpine", "attackers", "company",
-    "court", "critical infrastructure", "customers", "cyber", "cyberattack", "cyberattacks",
-    "cybersecurity", "data", "european supermarkets", "freezer", "fresh", "hackers",
-    "major", "massive", "new", "portal", "ransomware", "researchers", "security",
-    "service", "suspected", "threat actors", "users", "your",
+    "activists", "after", "ai", "alleged ai-aided", "alpine", "another", "attackers",
+    "building", "company", "court", "critical infrastructure", "customers", "cyber",
+    "cyberattack", "cyberattacks", "cybersecurity", "data", "european supermarkets",
+    "freezer", "fresh", "hackers", "major", "massive", "new", "portal", "protesters",
+    "ransomware", "researchers", "security", "service", "suspected", "threat actors",
+    "uk financial services", "users", "video. freezer", "your",
 })
 _TITLE_STOP = frozenset({
     "after", "against", "attack", "attacks", "breach", "cyber", "cyberattack",
@@ -112,7 +113,10 @@ def _normalized_name(value: Any) -> str:
     invalid = (
         len(name) < 2 or lowered in _GENERIC_ORGS
         or lowered in _NATIONALITY_ADJECTIVES or lowered.endswith("-linked")
-        or lowered.endswith((" critical infrastructure", " hackers", " nas", " teams"))
+        or lowered.endswith((
+            " critical infrastructure", " cyberattack", " cyberattacks", " hackers",
+            " launcher", " nas", " teams",
+        ))
         or "'s" in lowered or "’s" in lowered
         or (bool(ordered_words) and ordered_words[-1] in _NATIONALITY_ADJECTIVES)
         or any(word.endswith("-linked") for word in ordered_words)
@@ -121,6 +125,17 @@ def _normalized_name(value: Any) -> str:
         or bool(words & _NAME_VERBS)
     )
     return "" if invalid else name[:120]
+
+
+def _normalized_headline_name(value: Any) -> str:
+    """Normalize incident wording captured next to a headline subject."""
+    name = re.sub(r"\s+", " ", _text(value)).strip(" .,:;-'\"")
+    lowered = name.casefold()
+    for descriptor in (" cybersecurity", " security", " cyber"):
+        if lowered.endswith(descriptor) and " " in name:
+            name = name[:-len(descriptor)].rstrip()
+            break
+    return _normalized_name(name)
 
 
 def _organizations(article: dict[str, Any]) -> list[str]:
@@ -137,7 +152,7 @@ def _organizations(article: dict[str, Any]) -> list[str]:
         object_match = _OBJECT_ORG.search(title)
         for match in (subject, prefix, object_match):
             if match is not None:
-                names.add(_normalized_name(match.group(1)))
+                names.add(_normalized_headline_name(match.group(1)))
         names.update(_normalized_name(value) for value in _list(article.get("brand_tags")))
     return sorted((name for name in names if name), key=str.casefold)[:5]
 

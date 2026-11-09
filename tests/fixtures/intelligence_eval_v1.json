@@ -75,9 +75,20 @@
         {"hash": "grammar-7", "title": "Binance Denies Data Breach After Threat Actor Claims", "summary": "The organization denied a claim.", "source_name": "Wire", "link": "https://wire.example/denial", "published": "2026-11-09T06:00:00Z", "category": "Data Breach"},
         {"hash": "grammar-8", "title": "French blood banks hacked in cyber-attack on Europe", "summary": "Regional services were discussed.", "source_name": "Wire", "link": "https://wire.example/europe", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"},
         {"hash": "grammar-9", "title": "Microsoft Teams Hack Report Shows Old-School Attacks", "summary": "A product report was published.", "source_name": "Wire", "link": "https://wire.example/product", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"},
-        {"hash": "grammar-10", "title": "Russia-Linked Hackers Behind Supermarket Cyberattacks", "summary": "An actor label was reported.", "source_name": "Wire", "link": "https://wire.example/actor", "published": "2026-11-09T06:00:00Z", "category": "Nation-State Attack"}
+        {"hash": "grammar-10", "title": "Russia-Linked Hackers Behind Supermarket Cyberattacks", "summary": "An actor label was reported.", "source_name": "Wire", "link": "https://wire.example/actor", "published": "2026-11-09T06:00:00Z", "category": "Nation-State Attack"},
+        {"hash": "grammar-11", "title": "Another Cyberattack Overrides Grocery Refrigerators in Europe", "summary": "A regional attack was discussed.", "source_name": "Wire", "link": "https://wire.example/another", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"},
+        {"hash": "grammar-12", "title": "CNet IDs Disabled Following Cyberattack on Computer Science Department", "summary": "Accounts were disabled.", "source_name": "Wire", "link": "https://wire.example/following", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"},
+        {"hash": "grammar-13", "title": "UK Financial Services Face Cybersecurity Loss as Firms Report Attacks", "summary": "A sector impact estimate was published.", "source_name": "Wire", "link": "https://wire.example/sector", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"}
       ],
       "expect": {"record_count": 0}
+    },
+    {
+      "id": "headline-incident-descriptor-normalization",
+      "description": "Incident descriptors attached to a headline subject do not create duplicate organization names.",
+      "articles": [
+        {"hash": "descriptor-1", "title": "Amadeus Cybersecurity Incident Exposes Airline Data", "summary": "The organization is investigating.", "source_name": "Wire", "link": "https://wire.example/amadeus", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"}
+      ],
+      "expect": {"record_count": 1, "organizations": ["Amadeus"]}
     }
   ]
 }
