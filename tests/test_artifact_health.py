@@ -63,12 +63,35 @@ def test_missing_sibling_artifact_is_unhealthy_when_ai_is_configured(tmp_path):
     assert result["capabilities"]["top_stories"]["reason"] == "missing"
 
 
-def test_incomplete_command_brief_degrades_artifact_health(tmp_path):
+def test_incomplete_command_brief_uses_grounded_live_fallback(tmp_path):
     output = tmp_path / "output"
     fresh = datetime.now(timezone.utc).isoformat()
     for name in ("briefing.json", "top_stories.json", "briefing_na.json",
                  "briefing_emea.json", "briefing_apac.json"):
         _write(output / name, fresh)
+    _write(
+        output / "briefing.json",
+        fresh,
+        headline="Grounded live briefing",
+        what_happened="A source-backed live assessment.",
+        source_articles=[{"link": "https://example.test/live"}],
+    )
+    _write_command(output, fresh, headline="")
+
+    result = check_artifact_health(output)
+
+    assert result["ok"] is True
+    assert result["capabilities"]["command_brief"]["reason"] == "fallback_live"
+    assert result["capabilities"]["command_brief"]["fallback"] is True
+
+
+def test_command_capability_fails_when_command_and_live_are_incomplete(tmp_path):
+    output = tmp_path / "output"
+    fresh = datetime.now(timezone.utc).isoformat()
+    for name in ("briefing.json", "top_stories.json", "briefing_na.json",
+                 "briefing_emea.json", "briefing_apac.json"):
+        _write(output / name, fresh)
+    _write(output / "briefing.json", fresh, headline="")
     _write_command(output, fresh, headline="")
 
     result = check_artifact_health(output)

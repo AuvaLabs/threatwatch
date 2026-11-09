@@ -45,16 +45,6 @@ def _artifact_status(path: Path, max_age_hours: float) -> dict[str, Any]:
         0.0,
         (datetime.now(timezone.utc) - generated_at).total_seconds() / 3600,
     )
-    if path.name == "command_brief.json":
-        invalid_reason = briefing_validation_reason(data)
-        if invalid_reason:
-            return {
-                "ok": False,
-                "stale": False,
-                "age_hours": round(age_hours, 2),
-                "generated_at": generated_at.isoformat(),
-                "reason": invalid_reason,
-            }
     stale = age_hours > max_age_hours
     return {
         "ok": not stale,
@@ -65,13 +55,47 @@ def _artifact_status(path: Path, max_age_hours: float) -> dict[str, Any]:
     }
 
 
+def _grounded_artifact_status(path: Path, max_age_hours: float) -> dict[str, Any]:
+    status = _artifact_status(path, max_age_hours)
+    if not status["ok"]:
+        return status
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {**status, "ok": False, "reason": "invalid"}
+    invalid_reason = briefing_validation_reason(data)
+    if invalid_reason:
+        return {
+            **status,
+            "ok": False,
+            "stale": False,
+            "reason": invalid_reason,
+        }
+    return status
+
+
 def check_artifact_health(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
     """Return freshness for every critical generated intelligence product."""
     configured = any((output_dir / filename).exists() for filename, _ in _ARTIFACTS.values())
-    capabilities = {
-        name: _artifact_status(output_dir / filename, max_age)
-        for name, (filename, max_age) in _ARTIFACTS.items()
-    }
+    capabilities = {}
+    for name, (filename, max_age) in _ARTIFACTS.items():
+        status_reader = (
+            _grounded_artifact_status
+            if name == "command_brief"
+            else _artifact_status
+        )
+        capabilities[name] = status_reader(output_dir / filename, max_age)
+
+    if not capabilities["command_brief"]["ok"]:
+        live_fallback = _grounded_artifact_status(
+            output_dir / "briefing.json", _ARTIFACTS["global_briefing"][1]
+        )
+        if live_fallback["ok"]:
+            capabilities["command_brief"] = {
+                **live_fallback,
+                "reason": "fallback_live",
+                "fallback": True,
+            }
     stale = [name for name, status in capabilities.items() if status["stale"]]
     failing = [
         name for name, status in capabilities.items()
