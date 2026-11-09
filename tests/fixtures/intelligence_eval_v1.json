@@ -70,7 +70,12 @@
         {"hash": "grammar-2", "title": "France Blames Iran For Cyberattack On Supermarkets", "summary": "Officials attributed the attack.", "source_name": "Wire", "link": "https://wire.example/france", "published": "2026-11-09T06:00:00Z", "category": "Nation-State Attack"},
         {"hash": "grammar-3", "title": "Critical Infrastructure Under Siege From Cyberattacks", "summary": "Operators were warned.", "source_name": "Wire", "link": "https://wire.example/infrastructure", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"},
         {"hash": "grammar-4", "title": "Activists breach Microsoft data centre construction site", "summary": "Protesters entered a site.", "source_name": "Wire", "link": "https://wire.example/activists", "published": "2026-11-09T06:00:00Z", "category": "Data Breach"},
-        {"hash": "grammar-5", "title": "Synology NAS Under Ransomware Attack", "summary": "Storage devices were targeted.", "source_name": "Wire", "link": "https://wire.example/nas", "published": "2026-11-09T06:00:00Z", "category": "Ransomware"}
+        {"hash": "grammar-5", "title": "Synology NAS Under Ransomware Attack", "summary": "Storage devices were targeted.", "source_name": "Wire", "link": "https://wire.example/nas", "published": "2026-11-09T06:00:00Z", "category": "Ransomware"},
+        {"hash": "grammar-6", "title": "Your Data Breach Response Guide", "summary": "General advice for readers.", "source_name": "Wire", "link": "https://wire.example/your", "published": "2026-11-09T06:00:00Z", "category": "Data Breach"},
+        {"hash": "grammar-7", "title": "Binance Denies Data Breach After Threat Actor Claims", "summary": "The organization denied a claim.", "source_name": "Wire", "link": "https://wire.example/denial", "published": "2026-11-09T06:00:00Z", "category": "Data Breach"},
+        {"hash": "grammar-8", "title": "French blood banks hacked in cyber-attack on Europe", "summary": "Regional services were discussed.", "source_name": "Wire", "link": "https://wire.example/europe", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"},
+        {"hash": "grammar-9", "title": "Microsoft Teams Hack Report Shows Old-School Attacks", "summary": "A product report was published.", "source_name": "Wire", "link": "https://wire.example/product", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"},
+        {"hash": "grammar-10", "title": "Russia-Linked Hackers Behind Supermarket Cyberattacks", "summary": "An actor label was reported.", "source_name": "Wire", "link": "https://wire.example/actor", "published": "2026-11-09T06:00:00Z", "category": "Nation-State Attack"}
       ],
       "expect": {"record_count": 0}
     }

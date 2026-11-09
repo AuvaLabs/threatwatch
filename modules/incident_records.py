@@ -32,15 +32,16 @@ _NATIONALITY_ADJECTIVES = frozenset({
     "iranian", "israeli", "japanese", "korean", "russian", "ukrainian",
 })
 _NAME_VERBS = frozenset({
-    "blame", "blamed", "blames", "confirms", "discloses", "investigate", "investigates",
-    "probes", "reports", "says", "warns",
+    "blame", "blamed", "blames", "confirms", "denies", "discloses", "investigate",
+    "investigates", "largest", "probes", "release", "releases", "reports", "says",
+    "warns", "will",
 })
 _GENERIC_ORGS = frozenset({
     "activists", "after", "ai", "alleged ai-aided", "alpine", "attackers", "company",
-    "critical infrastructure", "customers", "cyber", "cyberattack", "cyberattacks",
+    "court", "critical infrastructure", "customers", "cyber", "cyberattack", "cyberattacks",
     "cybersecurity", "data", "european supermarkets", "freezer", "fresh", "hackers",
-    "massive", "new", "ransomware", "researchers", "security", "service", "suspected",
-    "threat actors", "users",
+    "major", "massive", "new", "portal", "ransomware", "researchers", "security",
+    "service", "suspected", "threat actors", "users", "your",
 })
 _TITLE_STOP = frozenset({
     "after", "against", "attack", "attacks", "breach", "cyber", "cyberattack",
@@ -55,7 +56,8 @@ _INCIDENT_SIGNAL = re.compile(
 )
 _SUBJECT_ORG = re.compile(
     r"^(?:breaking:\s*)?([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3})\s+"
-    r"(?i:faces?|freezes?|halts?|hit|pauses?|responds?|restores?|suffers?|suspends?|under)\b",
+    r"(?i:admits?|confirms?|faces?|freezes?|halts?|hit|pauses?|responds?|restores?|"
+    r"suffers?|suspends?|under)\b",
 )
 _PREFIX_ORG = re.compile(
     r"^(?:breaking:\s*)?([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3}?)(?:['’]s)?\s+"
@@ -110,8 +112,12 @@ def _normalized_name(value: Any) -> str:
     invalid = (
         len(name) < 2 or lowered in _GENERIC_ORGS
         or lowered in _NATIONALITY_ADJECTIVES or lowered.endswith("-linked")
-        or lowered.endswith((" critical infrastructure", " nas"))
+        or lowered.endswith((" critical infrastructure", " hackers", " nas", " teams"))
+        or "'s" in lowered or "’s" in lowered
         or (bool(ordered_words) and ordered_words[-1] in _NATIONALITY_ADJECTIVES)
+        or any(word.endswith("-linked") for word in ordered_words)
+        or _geographic_name(name)
+        or (bool(ordered_words) and all(_geographic_name(word) for word in ordered_words))
         or bool(words & _NAME_VERBS)
     )
     return "" if invalid else name[:120]

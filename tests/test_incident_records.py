@@ -181,11 +181,31 @@ def test_generic_title_words_do_not_become_organizations():
     "European Supermarkets Hit by Second Cyberattack",
     "Fresh Hack Attacks Defrost Freezers at Supermarkets",
     "Synology NAS Under Ransomware Attack",
+    "Your Data Breach Response Guide",
+    "Binance Denies Data Breach After Threat Actor Claims",
+    "Cyber Guides Releases Free Data Breach Response Guide",
+    "French blood banks hacked in cyber-attack on Europe",
+    "France Iran Cyberattack Probe Names IRGC Unit",
+    "Portal Breach Exposes Customer Passwords",
+    "Microsoft Teams Hack Report Shows Old-School Attacks",
+    "Russia-Linked Hackers Behind Supermarket Cyberattacks",
+    "AI Malware Will Hit Critical Infrastructure",
+    "Data Breach Hits Japan",
 ])
 def test_headline_grammar_and_products_do_not_become_victim_organizations(title):
     article = _article("misleading", title, "Wire", "2026-10-29T08:00:00Z")
 
     assert ir.build_incident_records([article], generated_at=NOW)["records"] == []
+
+
+def test_reporting_verb_keeps_the_named_victim_and_drops_the_adjective():
+    article = _article(
+        "named-victim", "DreamHost admits major cyberattack", "Wire", "2026-10-29T08:00:00Z",
+    )
+
+    records = ir.build_incident_records([article], generated_at=NOW)["records"]
+
+    assert [record["organization"] for record in records] == ["DreamHost"]
 
 
 def test_compatible_intrusion_and_data_loss_reporting_merge_into_one_record():
@@ -240,7 +260,7 @@ def test_corroborated_components_with_overlap_merge_into_one_event():
     assert payload["records"][0]["source_count"] == 4
 
 
-def test_geographic_alias_is_not_propagated_from_unrelated_trend_coverage():
+def test_geographic_labels_are_not_published_as_victim_organizations():
     articles = [
         _article("direct", "Japan hit by nationwide service outage", "Wire One", "2026-10-29T08:00:00Z"),
         _article("trend", "Japan firms prepare for waves of cyberattacks", "Wire Two", "2026-10-29T09:00:00Z"),
@@ -248,9 +268,7 @@ def test_geographic_alias_is_not_propagated_from_unrelated_trend_coverage():
 
     records = ir.build_incident_records(articles, generated_at=NOW)["records"]
 
-    japan = [record for record in records if record["organization"] == "Japan"]
-    assert len(japan) == 1
-    assert japan[0]["source_count"] == 1
+    assert all(record["organization"] != "Japan" for record in records)
 
 
 def test_extracts_title_prefix_org_and_does_not_treat_security_breach_as_data_loss():
