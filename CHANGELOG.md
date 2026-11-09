@@ -7,6 +7,7 @@ All notable changes to ThreatWatch are documented here.
 - Added deterministic evidence assessments with citation coverage, independent-source counts, authority markers, dispute counts, and plain-language confidence bases.
 - Added a bounded public claim-to-source graph at `/api/v2/incidents/{id}/evidence`.
 - Added a versioned golden-case intelligence dataset covering correlation, separation, syndication, authority, unsupported citations, conflicting claims, and single-source safety caps.
+- Rejected temporal phrases, attribution grammar, attacker labels, generic infrastructure, and product names that could be mistaken for victim organizations.
 - Made the intelligence benchmark a CI and guarded-deployment release gate.
 - Kept provider-budget exhaustion visible as degraded health while allowing that single bounded condition through the guarded release gate.
 - Added the evidence assessment to incident detail, JSON, and Markdown exports without accepting organizational data.

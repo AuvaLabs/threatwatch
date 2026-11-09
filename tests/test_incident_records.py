@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 import modules.incident_records as ir
+import pytest
 
 
 NOW = datetime(2026, 10, 30, 6, tzinfo=timezone.utc)
@@ -163,6 +164,26 @@ def test_generic_title_words_do_not_become_organizations():
         "Wire",
         "2026-10-29T08:00:00Z",
     )
+
+    assert ir.build_incident_records([article], generated_at=NOW)["records"] == []
+
+
+@pytest.mark.parametrize("title", [
+    "After cyberattack, rural county increases security",
+    "France Blames Iran For Cyberattack On Supermarkets",
+    "Critical Infrastructure Under Siege From Cyberattacks",
+    "Alleged AI-aided cyberattack breaches a German web host",
+    "Hackers demand ransom after attack on Alpine tunnel",
+    "Data breach hits South Korean brokerage",
+    "Activists breach Microsoft data centre construction site",
+    "Suspected cyberattack knocks out supermarket fridges",
+    "Freezer Cyberattack in Europe: What the Industry Has to Say",
+    "European Supermarkets Hit by Second Cyberattack",
+    "Fresh Hack Attacks Defrost Freezers at Supermarkets",
+    "Synology NAS Under Ransomware Attack",
+])
+def test_headline_grammar_and_products_do_not_become_victim_organizations(title):
+    article = _article("misleading", title, "Wire", "2026-10-29T08:00:00Z")
 
     assert ir.build_incident_records([article], generated_at=NOW)["records"] == []
 

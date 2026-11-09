@@ -6,6 +6,8 @@ Breach Anatomy converts fragmented public reporting into versioned incident reco
 
 An article must contain an incident signal and a conservatively extracted victim organization. Articles are grouped only when they also share a compatible event type, fall inside the bounded reporting window, and have a second correlation signal such as shared title context, an affected product, an ATT&CK technique, or structured victim metadata.
 
+Headline grammar is not treated as an entity. Temporal words, attribution verbs, attacker labels, nationality adjectives, generic infrastructure, and product-only names are rejected at the organization boundary before correlation.
+
 Publisher names do not automatically prove independence. Exact syndicated headlines share one source family. A record needs at least two independent source families to become `corroborated`. Single-source candidates remain `developing` and cannot enter Today.
 
 ## Claim states

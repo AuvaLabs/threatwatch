@@ -32,12 +32,15 @@ _NATIONALITY_ADJECTIVES = frozenset({
     "iranian", "israeli", "japanese", "korean", "russian", "ukrainian",
 })
 _NAME_VERBS = frozenset({
-    "confirms", "discloses", "investigate", "investigates", "probes", "reports", "says", "warns",
+    "blame", "blamed", "blames", "confirms", "discloses", "investigate", "investigates",
+    "probes", "reports", "says", "warns",
 })
 _GENERIC_ORGS = frozenset({
-    "ai", "attackers", "company", "customers", "cyber", "cyberattack", "cyberattacks",
-    "cybersecurity", "data", "hackers", "massive", "new", "ransomware", "researchers",
-    "security", "service", "threat actors", "users",
+    "activists", "after", "ai", "alleged ai-aided", "alpine", "attackers", "company",
+    "critical infrastructure", "customers", "cyber", "cyberattack", "cyberattacks",
+    "cybersecurity", "data", "european supermarkets", "freezer", "fresh", "hackers",
+    "massive", "new", "ransomware", "researchers", "security", "service", "suspected",
+    "threat actors", "users",
 })
 _TITLE_STOP = frozenset({
     "after", "against", "attack", "attacks", "breach", "cyber", "cyberattack",
@@ -101,10 +104,14 @@ def _headline(article: dict[str, Any]) -> str:
 
 def _normalized_name(value: Any) -> str:
     name = re.sub(r"\s+", " ", _text(value)).strip(" .,:;-'\"")
-    words = set(re.findall(r"[a-z-]+", name.casefold()))
+    lowered = name.casefold()
+    ordered_words = re.findall(r"[a-z-]+", lowered)
+    words = set(ordered_words)
     invalid = (
-        len(name) < 2 or name.casefold() in _GENERIC_ORGS
-        or name.casefold() in _NATIONALITY_ADJECTIVES or name.casefold().endswith("-linked")
+        len(name) < 2 or lowered in _GENERIC_ORGS
+        or lowered in _NATIONALITY_ADJECTIVES or lowered.endswith("-linked")
+        or lowered.endswith((" critical infrastructure", " nas"))
+        or (bool(ordered_words) and ordered_words[-1] in _NATIONALITY_ADJECTIVES)
         or bool(words & _NAME_VERBS)
     )
     return "" if invalid else name[:120]

@@ -61,6 +61,18 @@
         {"hash": "eta-1", "title": "Eta suffers ransomware outage", "summary": "Encryption disrupted operations.", "source_name": "Wire", "link": "https://wire.example/eta", "published": "2026-11-09T06:00:00Z", "category": "Ransomware", "victim_organizations": ["Eta"]}
       ],
       "expect": {"record_count": 1, "records": [{"organization": "Eta", "state": "developing", "maximum_score": 39}]}
+    },
+    {
+      "id": "headline-grammar-is-not-a-victim",
+      "description": "Temporal words, attribution grammar, generic assets, and attacker labels do not become victim organizations.",
+      "articles": [
+        {"hash": "grammar-1", "title": "After cyberattack, rural county increases security", "summary": "The county is improving security.", "source_name": "Wire", "link": "https://wire.example/after", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"},
+        {"hash": "grammar-2", "title": "France Blames Iran For Cyberattack On Supermarkets", "summary": "Officials attributed the attack.", "source_name": "Wire", "link": "https://wire.example/france", "published": "2026-11-09T06:00:00Z", "category": "Nation-State Attack"},
+        {"hash": "grammar-3", "title": "Critical Infrastructure Under Siege From Cyberattacks", "summary": "Operators were warned.", "source_name": "Wire", "link": "https://wire.example/infrastructure", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat"},
+        {"hash": "grammar-4", "title": "Activists breach Microsoft data centre construction site", "summary": "Protesters entered a site.", "source_name": "Wire", "link": "https://wire.example/activists", "published": "2026-11-09T06:00:00Z", "category": "Data Breach"},
+        {"hash": "grammar-5", "title": "Synology NAS Under Ransomware Attack", "summary": "Storage devices were targeted.", "source_name": "Wire", "link": "https://wire.example/nas", "published": "2026-11-09T06:00:00Z", "category": "Ransomware"}
+      ],
+      "expect": {"record_count": 0}
     }
   ]
 }
