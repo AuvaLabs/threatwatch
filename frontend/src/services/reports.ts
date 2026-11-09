@@ -46,9 +46,18 @@ export function operationalReport(summary: OperationalSummary, briefing: Briefin
 }
 
 export function incidentMarkdown(record: IncidentRecord): string {
+  const assessment = record.evidence_assessment ? [
+    "## Evidence assessment",
+    `Grade: ${record.evidence_assessment.grade}`,
+    `Citation coverage: ${record.evidence_assessment.citation_coverage_pct}%`,
+    `Independent sources: ${record.evidence_assessment.independent_source_count}`,
+    `Disputed claims: ${record.evidence_assessment.disputed_claim_count}`,
+    "",
+  ] : [];
   const lines = [
     `# ${record.title}`, "", record.summary, "",
     `Status: ${record.state} / ${record.priority} / score ${record.score}`, "",
+    ...assessment,
     "## What we know",
   ];
   record.claims.filter((claim) => ["confirmed", "reported"].includes(claim.state)).forEach((claim) => {

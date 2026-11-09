@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 from modules.config import OUTPUT_DIR
 from modules.date_utils import parse_datetime
+from modules.evidence_assessment import assess_incident_evidence
 from modules.ioc_quality import publisher_name
 from modules.utils import write_json_atomic
 
@@ -168,6 +169,7 @@ def _source(article: dict[str, Any]) -> dict[str, Any]:
         "publisher": publisher_name(article),
         "published": (_published(article).isoformat() if _published(article) else None),
         "url": url,
+        "role": "authoritative" if article.get("authoritative_source") is True else "reporting",
     }
 
 
@@ -548,7 +550,9 @@ def _summary(organization: str, event_type: str, claims: list[dict[str, Any]]) -
 
 def _base_record(organization: str, event_type: str, members: list[dict[str, Any]], generated_at: str) -> dict[str, Any]:
     sources = _sources(members)
-    claims = _claims(organization, event_type, members, sources)
+    claims, evidence_assessment = assess_incident_evidence(
+        sources, _claims(organization, event_type, members, sources),
+    )
     first_seen, last_updated = _times(members, generated_at)
     techniques = _techniques(members)
     observables = _observables(members)
@@ -564,6 +568,7 @@ def _base_record(organization: str, event_type: str, members: list[dict[str, Any
         "source_count": len(sources), "independent_source_count": independent,
         "confidence": "high" if independent >= 3 and techniques else "medium" if independent >= 2 else "low",
         "sources": sources, "claims": claims, "impact": impact,
+        "evidence_assessment": evidence_assessment,
         "techniques": techniques, "observables": observables, "sectors": sectors,
         "affected_assets": sorted({str(value) for member in members for value in _list(member.get("affected_products"))}),
     }
@@ -579,11 +584,14 @@ def _base_record(organization: str, event_type: str, members: list[dict[str, Any
 
 
 def _tracked(record: dict[str, Any]) -> dict[str, Any]:
+    evidence = record.get("evidence_assessment") or {}
     return {
         "state": record["state"], "priority": record["priority"],
         "source_count": record["source_count"],
         "independent_source_count": record["independent_source_count"],
         "observable_count": len(record["observables"]),
+        "evidence_grade": evidence.get("grade"),
+        "authoritative_source_count": evidence.get("authoritative_source_count", 0),
         "claim_states": sorted((claim["subject"], claim["state"], claim["statement"]) for claim in record["claims"]),
     }
 

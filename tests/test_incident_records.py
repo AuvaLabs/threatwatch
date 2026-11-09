@@ -80,6 +80,25 @@ def test_builds_one_corroborated_non_cve_incident_with_source_bound_claims():
     assert record["claims"]
     assert all(set(claim["source_ids"]) <= source_ids for claim in record["claims"])
     assert any(claim["state"] == "assessed" for claim in record["claims"])
+    assert record["evidence_assessment"] == {
+        "grade": "corroborated",
+        "citation_coverage_pct": 100,
+        "claim_count": 4,
+        "cited_claim_count": 4,
+        "independent_source_count": 2,
+        "authoritative_source_count": 0,
+        "confirmed_claim_count": 0,
+        "reported_claim_count": 1,
+        "assessed_claim_count": 3,
+        "disputed_claim_count": 0,
+        "basis": [
+            "2 independent source families",
+            "All claims are linked to retained evidence",
+            "No source is marked authoritative",
+        ],
+    }
+    assert all(claim["evidence"]["source_count"] >= 1 for claim in record["claims"])
+    assert record["sources"][0]["role"] == "reporting"
     assert "full_content" not in str(payload)
 
 
@@ -277,6 +296,8 @@ def test_confirmed_claim_requires_explicit_authoritative_evidence():
         if item["statement"] == "The signing key was compromised"
     )
     assert claim["state"] == "confirmed"
+    assert claim["evidence"]["authoritative_source_count"] == 1
+    assert trusted["records"][0]["evidence_assessment"]["authoritative_source_count"] == 1
 
 
 def test_conflicting_structured_claims_are_preserved_as_disputed():

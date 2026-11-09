@@ -45,6 +45,7 @@ ThreatWatch turns public cyber reporting into a living threat-state and decision
 - **Article Summaries** — structured AI summaries (what/who/impact) for articles missing descriptions
 - **Incident Clustering** groups related coverage only on shared CVEs or named threat actors, with optional grounded synthesis
 - **Breach Anatomy** correlates victim-centred incident coverage into versioned records with source-bound claims, explicit uncertainty, defensive actions, and deterministic fallback
+- **Evidence graph** links every retained incident claim to its supporting reports, source independence, authority state, and unresolved contradictions
 - **Threat Actor Profiles** — cached AI-generated profiles for detected actors (origin, TTPs, target sectors)
 - **AI Classification Escalation**: low-confidence articles can be reclassified by the configured LLM route
 - **Provider resilience**: primary key rotation plus two independent OpenAI-compatible fallback endpoints
@@ -59,6 +60,7 @@ ThreatWatch turns public cyber reporting into a living threat-state and decision
 - **15 industry sectors**
 - **Noise filtering** — product announcements, job listings, funding rounds, training content auto-excluded
 - Built-in quality audit covering classification, deduplication, regions, source balance, and timeliness
+- Release-gated golden intelligence evaluation covering correlation, syndication, citation integrity, authority, disputes, and single-source safety caps
 
 ### Deduplication
 - Fuzzy matching with a **word-shingle inverted index** (24x faster than naive pairwise)
@@ -412,6 +414,7 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v2/incidents` | Compact evidence-linked incident records |
 | `GET` | `/api/v2/incidents/changes` | Material incident revision stream |
 | `GET` | `/api/v2/incidents/{id}` | Complete Breach Anatomy record and sources |
+| `GET` | `/api/v2/incidents/{id}/evidence` | Claim-to-source evidence graph and assessment |
 | `GET` | `/api/v1/hunts` | Qualified hunt packages and developing leads |
 | `GET` | `/api/v1/hunts/{id}` | One complete hunt package with provenance and queries |
 | `GET` | `/api/v1/ledger` | Filterable living threat records and current change register |
@@ -443,7 +446,7 @@ Hunt packages are built from correlated evidence, not from a single article. A p
 
 The public ledger does not accept or infer an organization's inventory. Its records describe public threat state, evidence quality, reported affected technology, and recommended action. Consumers can match the stable JSON records inside their own trusted environment. See [`docs/LEDGER.md`](docs/LEDGER.md) for the data contract and lifecycle.
 
-Breach Anatomy records require multiple correlation signals before separate reports are merged. Every published claim carries source article identifiers and one of five evidence states: `confirmed`, `reported`, `assessed`, `disputed`, or `unknown`. Records remain useful without a model provider. See [`docs/INCIDENTS.md`](docs/INCIDENTS.md) for the contract and accuracy gates.
+Breach Anatomy records require multiple correlation signals before separate reports are merged. Every published claim carries source article identifiers, citation measurements, and one of five evidence states: `confirmed`, `reported`, `assessed`, `disputed`, or `unknown`. Records include a transparent evidence grade and remain useful without a model provider. See [`docs/INCIDENTS.md`](docs/INCIDENTS.md) for the contract and accuracy gates.
 
 <details>
 <summary>Example: paginated articles response</summary>

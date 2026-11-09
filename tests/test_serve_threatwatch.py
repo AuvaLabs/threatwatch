@@ -977,6 +977,7 @@ class TestHTTPRoutes:
         assert data["openapi"].startswith("3.")
         assert "/api/v1/articles" in data["paths"]
         assert "/api/v1/health/feeds" in data["paths"]
+        assert "/api/v2/incidents/{id}/evidence" in data["paths"]
 
         v2_status, _, v2_body = _get(test_server + "/api/v2/openapi.json")
         assert v2_status == 200
@@ -1071,6 +1072,24 @@ class TestHTTPRoutes:
         assert json.loads(list_body)["records"][0]["id"] == "incident-abc123"
         assert json.loads(detail_body)["id"] == "incident-abc123"
         assert json.loads(changes_body)["changes"][0]["id"] == "change-1"
+
+    def test_incident_evidence_graph_is_public_and_source_bound(self, test_server):
+        record = {
+            "id": "incident-abc123", "title": "Acme intrusion",
+            "sources": [{"article_id": "article-1", "title": "Report", "publisher": "CERT"}],
+            "claims": [{
+                "subject": "event", "statement": "Acme reported an intrusion.",
+                "state": "reported", "confidence": "medium", "source_ids": ["article-1"],
+            }],
+        }
+        with patch("serve_threatwatch.load_incident_records", return_value={"records": [record]}):
+            status, _, body = _get(test_server + "/api/v2/incidents/incident-abc123/evidence")
+
+        graph = json.loads(body)
+        assert status == 200
+        assert graph["incident_id"] == "incident-abc123"
+        assert graph["summary"]["sources"] == 1
+        assert any(edge["relationship"] == "supports" for edge in graph["edges"])
 
     @pytest.mark.parametrize("path", [
         "/api/v1/incidents/v2/not-valid",

@@ -2,6 +2,14 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-11-09: Evidence graph and intelligence evaluation
+
+- Added deterministic evidence assessments with citation coverage, independent-source counts, authority markers, dispute counts, and plain-language confidence bases.
+- Added a bounded public claim-to-source graph at `/api/v2/incidents/{id}/evidence`.
+- Added a versioned golden-case intelligence dataset covering correlation, separation, syndication, authority, unsupported citations, conflicting claims, and single-source safety caps.
+- Made the intelligence benchmark a CI and guarded-deployment release gate.
+- Added the evidence assessment to incident detail, JSON, and Markdown exports without accepting organizational data.
+
 ## 2026-11-09: Briefing delivery and extraction resilience
 
 - Rejected incomplete Sol output before it can replace a valid Command Brief edition.

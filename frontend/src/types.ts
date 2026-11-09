@@ -221,6 +221,13 @@ export interface IncidentSource {
   published?: string | null;
   url?: string;
   source_family: string;
+  role?: "authoritative" | "reporting" | string;
+}
+
+export interface ClaimEvidence {
+  source_count: number;
+  independent_source_count: number;
+  authoritative_source_count: number;
 }
 
 export interface IncidentClaim {
@@ -229,6 +236,21 @@ export interface IncidentClaim {
   state: IncidentClaimState;
   confidence: "high" | "medium" | "low";
   source_ids: string[];
+  evidence?: ClaimEvidence;
+}
+
+export interface IncidentEvidenceAssessment {
+  grade: "corroborated" | "mixed" | "developing" | "insufficient" | string;
+  citation_coverage_pct: number;
+  claim_count: number;
+  cited_claim_count: number;
+  independent_source_count: number;
+  authoritative_source_count: number;
+  confirmed_claim_count: number;
+  reported_claim_count: number;
+  assessed_claim_count: number;
+  disputed_claim_count: number;
+  basis: string[];
 }
 
 export interface IncidentChange {
@@ -270,6 +292,7 @@ export interface IncidentRecord extends IncidentRecordSummary {
   observables: Array<{ type: string; value: string; state: string; source_ids: string[] }>;
   affected_assets: string[];
   changes: IncidentChange[];
+  evidence_assessment?: IncidentEvidenceAssessment;
 }
 
 export interface IncidentsResponse {

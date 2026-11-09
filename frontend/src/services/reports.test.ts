@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { OperationalSummary } from "../types";
-import { downloadText, operationalReport } from "./reports";
+import type { IncidentRecord, OperationalSummary } from "../types";
+import { downloadText, incidentMarkdown, operationalReport } from "./reports";
 
 const summary: OperationalSummary = {
   generated_at: "2026-10-08T00:00:00.000Z",
@@ -34,6 +34,28 @@ describe("operational reports", () => {
 
   it("uses a truthful fallback when narrative enrichment is absent", () => {
     expect(operationalReport({ ...summary, priorities: [{ ...summary.priorities[0], reasons: [] }] }, null)).toContain("Narrative assessment unavailable");
+  });
+
+  it("includes the deterministic evidence assessment in incident exports", () => {
+    const incident = {
+      ...summary.incidents![0], version: 1, first_seen: "2026-10-07T00:00:00Z",
+      last_changed: "2026-10-08T00:00:00Z", open_questions: [], sectors: [],
+      claims: [{ subject: "event", statement: "Sources report an intrusion.", state: "reported", confidence: "medium", source_ids: ["one"] }],
+      sources: [{ article_id: "one", title: "Incident report", publisher: "CERT", url: "https://cert.example/report", source_family: "publisher:cert" }],
+      impact: [], techniques: [], observables: [], affected_assets: [], changes: [],
+      evidence_assessment: {
+        grade: "corroborated", citation_coverage_pct: 100, claim_count: 1,
+        cited_claim_count: 1, independent_source_count: 2, authoritative_source_count: 0,
+        confirmed_claim_count: 0, reported_claim_count: 1, assessed_claim_count: 0,
+        disputed_claim_count: 0, basis: ["All claims are linked to retained evidence"],
+      },
+    } as IncidentRecord;
+
+    const report = incidentMarkdown(incident);
+
+    expect(report).toContain("## Evidence assessment");
+    expect(report).toContain("Citation coverage: 100%");
+    expect(report).toContain("Independent sources: 2");
   });
 
   it("downloads markdown through a temporary object URL", () => {

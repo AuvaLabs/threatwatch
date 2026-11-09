@@ -44,6 +44,9 @@ if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   exit 1
 fi
 
+echo "[deploy] running intelligence golden-case evaluation"
+python3 scripts/evaluate_intelligence.py --minimum-score 100
+
 EXPECTED_SHA=$(git rev-parse HEAD)
 BUILD_TIME=$(date -u +%FT%TZ)
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/threatwatch-deploy.XXXXXX")

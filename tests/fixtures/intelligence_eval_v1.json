@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-09T10:00:00+00:00",
+  "cases": [
+    {
+      "id": "corroborated-merge",
+      "description": "Independent reporting about one incident merges and remains cited.",
+      "articles": [
+        {"hash": "acme-1", "title": "Acme hit by cloud account intrusion", "summary": "Unauthorized access disrupted operations.", "source_name": "Reuters", "link": "https://reuters.example/acme", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat", "victim_organizations": ["Acme"], "attack_techniques": [{"technique_id": "T1078", "technique_name": "Valid Accounts"}]},
+        {"hash": "acme-2", "title": "Acme suffers cloud account intrusion", "summary": "The company is investigating unauthorized access.", "source_name": "BBC", "link": "https://bbc.example/acme", "published": "2026-11-09T07:00:00Z", "category": "General Cyber Threat", "victim_organizations": ["Acme"]}
+      ],
+      "expect": {"record_count": 1, "records": [{"organization": "Acme", "event_type": "intrusion", "state": "corroborated", "independent_source_count": 2, "evidence_grade": "corroborated"}]}
+    },
+    {
+      "id": "time-window-split",
+      "description": "Separate incidents affecting one organization do not merge across the correlation window.",
+      "articles": [
+        {"hash": "beta-1", "title": "Beta confirms customer data breach", "summary": "Customer records were exposed.", "source_name": "Wire One", "link": "https://one.example/beta", "published": "2026-11-01T06:00:00Z", "category": "Data Breach", "victim_organizations": ["Beta"]},
+        {"hash": "beta-2", "title": "Beta restores service after ransomware outage", "summary": "Operations were restored after encryption.", "source_name": "Wire Two", "link": "https://two.example/beta", "published": "2026-11-09T06:00:00Z", "category": "Ransomware", "victim_organizations": ["Beta"]}
+      ],
+      "expect": {"record_count": 2, "organizations": ["Beta"], "event_types": ["data_breach", "ransomware"]}
+    },
+    {
+      "id": "syndication-not-independent",
+      "description": "Identical syndicated headlines count as one source family.",
+      "articles": [
+        {"hash": "gamma-1", "title": "Gamma confirms network intrusion", "summary": "Gamma is investigating.", "source_name": "Wire One", "link": "https://one.example/gamma", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat", "victim_organizations": ["Gamma"]},
+        {"hash": "gamma-2", "title": "Gamma confirms network intrusion", "summary": "Gamma is investigating.", "source_name": "Wire Two", "link": "https://two.example/gamma", "published": "2026-11-09T06:05:00Z", "category": "General Cyber Threat", "victim_organizations": ["Gamma"]}
+      ],
+      "expect": {"record_count": 1, "records": [{"organization": "Gamma", "state": "developing", "independent_source_count": 1, "evidence_grade": "developing"}]}
+    },
+    {
+      "id": "conflict-preserved",
+      "description": "Conflicting initial-access claims remain visible as disputed.",
+      "articles": [
+        {"hash": "delta-1", "title": "Delta hit by account intrusion", "summary": "Delta is investigating.", "source_name": "Wire One", "link": "https://one.example/delta", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat", "victim_organizations": ["Delta"], "incident_claims": [{"subject": "initial_access", "statement": "Access used stolen credentials", "state": "reported", "confidence": "medium"}]},
+        {"hash": "delta-2", "title": "Delta suffers account intrusion", "summary": "Delta is investigating.", "source_name": "Wire Two", "link": "https://two.example/delta", "published": "2026-11-09T07:00:00Z", "category": "General Cyber Threat", "victim_organizations": ["Delta"], "incident_claims": [{"subject": "initial_access", "statement": "Access used an unpatched service", "state": "reported", "confidence": "medium"}]}
+      ],
+      "expect": {"record_count": 1, "records": [{"organization": "Delta", "claim_subject": "initial_access", "claim_state": "disputed", "minimum_claims": 2}]}
+    },
+    {
+      "id": "unsupported-citation-dropped",
+      "description": "Claims that cite missing articles cannot enter the public record.",
+      "articles": [
+        {"hash": "epsilon-1", "title": "Epsilon reports security intrusion", "summary": "Epsilon is investigating.", "source_name": "Wire", "link": "https://wire.example/epsilon", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat", "victim_organizations": ["Epsilon"], "incident_claims": [{"subject": "impact", "statement": "Unsupported impact claim", "state": "reported", "confidence": "high", "source_ids": ["missing"]}]}
+      ],
+      "expect": {"record_count": 1, "records": [{"organization": "Epsilon", "missing_claim_statement": "Unsupported impact claim"}]}
+    },
+    {
+      "id": "authority-required-for-confirmation",
+      "description": "A confirmed claim requires a source explicitly marked authoritative.",
+      "articles": [
+        {"hash": "zeta-1", "title": "Zeta confirms security intrusion", "summary": "Zeta confirms unauthorized access.", "source_name": "Zeta CERT", "link": "https://cert.example/zeta", "published": "2026-11-09T06:00:00Z", "category": "General Cyber Threat", "victim_organizations": ["Zeta"], "authoritative_source": true, "incident_claims": [{"subject": "initial_access", "statement": "A service account was compromised", "state": "confirmed", "confidence": "high"}]}
+      ],
+      "expect": {"record_count": 1, "records": [{"organization": "Zeta", "claim_subject": "initial_access", "claim_state": "confirmed", "authoritative_source_count": 1}]}
+    },
+    {
+      "id": "single-source-cap",
+      "description": "One-source incidents remain developing and below the Today threshold.",
+      "articles": [
+        {"hash": "eta-1", "title": "Eta suffers ransomware outage", "summary": "Encryption disrupted operations.", "source_name": "Wire", "link": "https://wire.example/eta", "published": "2026-11-09T06:00:00Z", "category": "Ransomware", "victim_organizations": ["Eta"]}
+      ],
+      "expect": {"record_count": 1, "records": [{"organization": "Eta", "state": "developing", "maximum_score": 39}]}
+    }
+  ]
+}

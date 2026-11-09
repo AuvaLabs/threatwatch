@@ -21,6 +21,7 @@ function ClaimList({ claims, record }: { claims: IncidentClaim[]; record: Incide
       <div><span class={`evidence-state state-${claim.state}`}>{claim.state}</span><span>{claim.confidence} confidence</span></div>
       <p>{claim.statement}</p>
       <ClaimSources claim={claim} sources={record.sources} />
+      {claim.evidence && <small>{claim.evidence.independent_source_count} independent source{claim.evidence.independent_source_count === 1 ? "" : "s"} support this claim</small>}
     </li>
   ))}</ol> : <p class="muted-copy">No source-bound finding is available for this section.</p>;
 }
@@ -57,9 +58,10 @@ export function IncidentDetailView({ id }: { id: string }) {
         <section class="record-section"><p class="eyebrow">Evidence gaps</p><h2>What remains unknown</h2>{record.open_questions?.length ? <ul>{record.open_questions.map((question) => <li key={question}>{question}</li>)}</ul> : <p>No material evidence gaps are recorded.</p>}</section>
       </main>
       <aside>
+        {record.evidence_assessment && <section class="record-side-section evidence-assessment"><h2>Evidence assessment</h2><p><strong>{record.evidence_assessment.grade}</strong></p><dl><div><dt>Citation coverage</dt><dd>{record.evidence_assessment.citation_coverage_pct}%</dd></div><div><dt>Independent sources</dt><dd>{record.evidence_assessment.independent_source_count}</dd></div><div><dt>Authoritative sources</dt><dd>{record.evidence_assessment.authoritative_source_count}</dd></div><div><dt>Disputed claims</dt><dd>{record.evidence_assessment.disputed_claim_count}</dd></div></dl><p class="sr-only">{record.evidence_assessment.citation_coverage_pct}% citation coverage</p><ul>{record.evidence_assessment.basis.map((item) => <li key={item}>{item}</li>)}</ul></section>}
         <section class="record-side-section"><h2>Evidence sources</h2><p>{record.source_count} reports across {record.independent_source_count} independent source families.</p><ol class="record-sources">{record.sources.map((source) => {
           const href = safeExternalUrl(source.url);
-          return <li key={source.article_id}>{href ? <a href={href} rel="noreferrer" target="_blank">{source.title}</a> : <strong>{source.title}</strong>}<small>{source.publisher} / {formattedDate(source.published)}</small></li>;
+          return <li key={source.article_id}>{href ? <a href={href} rel="noreferrer" target="_blank">{source.title}</a> : <strong>{source.title}</strong>}<small>{source.publisher} / {formattedDate(source.published)}{source.role === "authoritative" ? " / authoritative" : ""}</small></li>;
         })}</ol></section>
         <section class="record-side-section"><h2>Revision history</h2>{record.changes.length ? <ol class="record-timeline">{record.changes.map((change) => <li key={change.id}><time>{formattedDate(change.changed_at)}</time><div><strong>{change.summary}</strong><span>{change.field.replaceAll("_", " ")}</span></div></li>)}</ol> : <p>No material revisions recorded.</p>}</section>
       </aside>

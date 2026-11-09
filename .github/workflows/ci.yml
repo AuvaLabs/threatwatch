@@ -51,6 +51,8 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=80 \
             -v
+      - name: Run intelligence golden-case evaluation
+        run: python scripts/evaluate_intelligence.py --minimum-score 100
 
   frontend:
     name: Frontend Tests + Build

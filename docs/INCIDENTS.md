@@ -20,6 +20,17 @@ Every claim has one or more valid source article identifiers.
 
 Unsupported source references are rejected. A record without a confirmed claim cannot receive a critical score.
 
+## Evidence assessment
+
+Every record exposes a deterministic `evidence_assessment`. It reports citation coverage, independent and authoritative source counts, claim-state counts, a plain-language basis, and one of four grades:
+
+- `corroborated`: every claim is cited, at least two independent source families support the record, and no conflict is present
+- `mixed`: independently corroborated evidence contains one or more unresolved disputes
+- `developing`: retained claims are cited, but fewer than two independent source families are available
+- `insufficient`: one or more retained claims do not resolve to evidence in the record
+
+Each claim also reports how many retained sources, independent source families, and authoritative sources support it. These measurements explain the existing confidence state. They do not replace it with model-generated scoring.
+
 ## Scoring
 
 The score is bounded from 0 to 100 and combines independent corroboration, operational impact, technical detail, recency, detection value, and sector relevance. Developing single-source records are capped below the Today threshold. Today requires a score of at least 60 and `corroborated` state.
@@ -30,11 +41,14 @@ The score is bounded from 0 to 100 and combines independent corroboration, opera
 GET /api/v2/incidents
 GET /api/v2/incidents/changes
 GET /api/v2/incidents/{id}
+GET /api/v2/incidents/{id}/evidence
 ```
 
 The collection response omits detailed claims, sources, observables, and history. Retrieve the detail route before taking action. Scraped full article content never crosses these endpoints.
 
 The former `/api/v1/incidents/v2` routes remain read-only compatibility aliases.
+
+The evidence route returns a bounded graph of incident, claim, and source nodes. `supports` edges connect source records to claims, while `describes` edges connect claims to the incident. Unsupported edges are never synthesized.
 
 ## Artifact and fallback
 
@@ -51,3 +65,11 @@ Before release:
 5. Existing CVE and KEV priority ordering must remain unchanged.
 6. Null, missing, stale, and corrupt artifact paths must fail safely.
 7. A live-corpus audit must review every record that crosses the Today threshold.
+
+The repository carries these cases in `tests/fixtures/intelligence_eval_v1.json`. Run the same release gate locally with:
+
+```bash
+python3 scripts/evaluate_intelligence.py --minimum-score 100
+```
+
+The evaluator publishes merge/split accuracy, evidence-state accuracy, citation integrity, per-case failures, and an aggregate score. CI and the guarded production deployment require a perfect score on the committed golden dataset.
