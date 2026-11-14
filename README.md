@@ -231,7 +231,7 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `LLM_BASE_URL` | provider dependent | Primary API base URL |
 | `LLM_MODEL` | provider dependent | Primary model name |
 | `LLM_PROVIDER` | `openai` | OpenAI-compatible provider mode |
-| `DAILY_BUDGET_USD` | `2.00` | Nominal daily spend ceiling for billable provider routes |
+| `DAILY_BUDGET_USD` | `4.00` | Nominal daily spend ceiling for billable provider routes |
 | `LLM_ZERO_COST_PROVIDERS` | _(empty)_ | Comma-separated route names that remain available after the paid budget is reached |
 | `MAX_ARTICLES_PER_SOURCE` | `250` | Maximum articles retained per named source, or `0` to disable balancing |
 | `MAX_ARTICLES_PER_FEED` | `150` | Maximum articles retained per discovery feed URL, or `0` to disable balancing |

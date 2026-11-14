@@ -139,7 +139,7 @@ that same ledger before each billable provider attempt. This prevents a token
 telemetry file and a separate empty cost file from disagreeing.
 
 ```env
-DAILY_BUDGET_USD=2.00
+DAILY_BUDGET_USD=4.00
 LLM_ZERO_COST_PROVIDERS=primary,fallback
 ```
 
@@ -148,6 +148,10 @@ is reached. Only list a route when its configured account is actually free or
 covered by a separate credit agreement. Current built-in nominal pricing covers
 the configured Claude Haiku, Claude Sonnet, Gemini Flash Lite, and GPT OSS 120B
 models. Unknown models are logged and counted as unpriced calls.
+
+The production default is intentionally bounded at $4 per UTC day. That ceiling
+keeps nominal monthly paid-provider usage below $124 in a 31-day month while
+leaving room inside the separately managed $200 monthly account credit.
 
 ## Compatibility behavior
 

@@ -34,7 +34,7 @@ services:
       - LLM_CIRCUIT_THRESHOLD=${LLM_CIRCUIT_THRESHOLD:-3}
       - LLM_PROVIDER_FAILURE_THRESHOLD=${LLM_PROVIDER_FAILURE_THRESHOLD:-3}
       - LLM_PROVIDER_COOLDOWN_SECONDS=${LLM_PROVIDER_COOLDOWN_SECONDS:-900}
-      - DAILY_BUDGET_USD=${DAILY_BUDGET_USD:-2.00}
+      - DAILY_BUDGET_USD=${DAILY_BUDGET_USD:-4.00}
       - LLM_ZERO_COST_PROVIDERS=${LLM_ZERO_COST_PROVIDERS:-}
       # Bounded private gateway routes for global briefings and top stories.
       - MODEL_SERVICES_URL=${MODEL_SERVICES_URL:-https://modelservices.auvalabs.com/techmodel/servicesapi/chat}
