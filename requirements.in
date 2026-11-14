@@ -19,6 +19,6 @@ defusedxml>=0.7
 
 # Dev / CI
 pytest>=7.0
-pytest-cov>=4.0
+pytest-cov>=7.1.0
 ruff>=0.4
 pip-audit>=2.7
