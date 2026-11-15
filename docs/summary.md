@@ -44,13 +44,16 @@ See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
 
 ## Verified operational snapshot
 
-The 2026-11-15 release review verified the following state before deployment:
+The 2026-11-15 release review and post-deployment checks verified release
+`f9463b993be85fb62d0f1797ffebf583bc2771b0` in production:
 
-- Both production containers were healthy, the public workspace routes returned successful responses, and `/api/v1/health` reported an operational service.
+- Both production containers were healthy with zero restarts, the public workspace routes returned successful responses, and `/api/v1/health` reported `ok` with no degradation reasons.
 - The source catalog contains 136 configured feeds, including the official AhnLab ASEC research feed. The Orca source uses publisher-scoped discovery because its former native RSS endpoint redirects to itself.
+- NVD, ransomware.live, and ThreatFox reported healthy provider state, and record-specific incident and ledger Atom endpoints returned valid Atom XML.
 - ThreatFox uses its authenticated API when a key is available. The key remains outside Git in `.secrets/threatfox.env`, and evidence links use stable malware identifiers instead of guessed slugs.
 - ThreatFox and URLhaus results remain corroborating evidence. They do not independently qualify a hunt without the required observable, behavior, and readiness evidence.
 - The corpus, SQLite store, hunt artifacts, incident artifacts, ledger artifacts, and source-linked reports passed consistency checks. The offsite backup status included a successful independent restore proof.
+- The guarded deployment created and restore-verified backup `tw_20261115_162632.tgz` before publishing the release.
 - The backend suite passed all 1,749 tests at 88.45 percent coverage. The frontend suite passed all 63 tests at 94.72 percent statement coverage, its production build completed successfully, and the dependency audit found no vulnerabilities.
 
 Run `scripts/validate_feeds.py` while the scheduled pipeline writer is idle. The
