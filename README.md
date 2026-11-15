@@ -236,6 +236,8 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `NVD_RETRY_ATTEMPTS` | `3` | Bounded attempts for retryable NVD failures |
 | `NVD_RETRY_BACKOFF_SECONDS` | `1` | Initial exponential backoff between NVD attempts |
 | `NVD_CACHE_MAX_AGE_HOURS` | `24` | Maximum age of NVD last-known-good fallback records |
+| `NVD_FAILURE_THRESHOLD` | `3` | Consecutive failed NVD cycles before opening the circuit |
+| `NVD_FAILURE_COOLDOWN_SECONDS` | `3600` | NVD circuit cooldown before a recovery probe |
 | `DARKWEB_PROVIDER_FAILURE_COOLDOWN_SECONDS` | `900` | Default circuit-breaker cooldown for failed structured providers |
 | `RANSOMWARE_LIVE_FAILURE_COOLDOWN_SECONDS` | `21600` | Probe interval while ransomware.live is unavailable |
 | `LLM_ZERO_COST_PROVIDERS` | _(empty)_ | Comma-separated route names that remain available after the paid budget is reached |

@@ -10,6 +10,13 @@ from modules.nvd_fetcher import (
 )
 
 
+@pytest.fixture(autouse=True)
+def closed_nvd_circuit():
+    """Keep persisted provider state from leaking into NVD unit tests."""
+    with patch("modules.nvd_fetcher.is_suspended", return_value=False):
+        yield
+
+
 class TestCvssScore:
     def test_extracts_v31_score(self):
         vuln = {
@@ -222,6 +229,23 @@ class TestFetchErrorHandling:
             mock_session.return_value.get.side_effect = requests.exceptions.Timeout()
             result = nf.fetch_nvd_cves()
         assert result == []
+
+    def test_open_circuit_uses_cache_without_request(self, tmp_path, monkeypatch):
+        import modules.nvd_fetcher as nf
+
+        monkeypatch.setattr(nf, "NVD_STATE_FILE", tmp_path / "nvd.json")
+        cached = [{"cve_id": "CVE-2026-1234", "source": "nvd:cve"}]
+        (tmp_path / "nvd.json").write_text(json.dumps({
+            "last_success_utc": datetime.now(timezone.utc).isoformat(),
+            "articles": cached,
+        }))
+
+        with patch("modules.nvd_fetcher.is_suspended", return_value=True), \
+             patch("modules.nvd_fetcher._get_session") as get_session:
+            result = nf.fetch_nvd_cves()
+
+        assert result == cached
+        get_session.assert_not_called()
 
     def test_timeout_retries_then_succeeds(self, tmp_path, monkeypatch):
         import requests

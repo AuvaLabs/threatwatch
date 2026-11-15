@@ -7,7 +7,9 @@ All notable changes to ThreatWatch are documented here.
 - Added structured provider health with bounded circuit breakers and a dedicated health endpoint.
 - Suspended ransomware.live for six hours after provider failures while preserving strict TLS validation and automatic recovery probes.
 - Added bounded NVD retries, exponential backoff, and a 24-hour last-known-good fallback.
+- Added a failure-threshold circuit breaker so persistent NVD outages do not trigger requests every pipeline cycle.
 - Refreshed Scattered Spider coverage with current actor aliases and a bounded discovery window.
+- Replaced the stale Orca discovery query with a bounded research and vulnerability search plus an explicit cadence policy.
 - Updated verified Python, Vitest, and CI action dependencies while deferring incompatible frontend major upgrades.
 
 ## 2026-11-09: Evidence graph and intelligence evaluation

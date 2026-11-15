@@ -19,7 +19,7 @@ from typing import Any
 import requests
 
 from modules.config import FEED_CUTOFF_DAYS, STATE_DIR
-from modules.provider_health import record_failure, record_success
+from modules.provider_health import is_suspended, record_failure, record_success
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,10 @@ _MIN_FETCH_INTERVAL = 600
 _RETRY_ATTEMPTS = max(1, int(os.getenv("NVD_RETRY_ATTEMPTS", "3")))
 _RETRY_BACKOFF_SECONDS = max(0.0, float(os.getenv("NVD_RETRY_BACKOFF_SECONDS", "1")))
 _CACHE_MAX_AGE_HOURS = max(1, int(os.getenv("NVD_CACHE_MAX_AGE_HOURS", "24")))
+_FAILURE_THRESHOLD = max(1, int(os.getenv("NVD_FAILURE_THRESHOLD", "3")))
+_FAILURE_COOLDOWN_SECONDS = max(
+    0, int(os.getenv("NVD_FAILURE_COOLDOWN_SECONDS", "3600"))
+)
 
 _SESSION = None
 
@@ -164,6 +168,14 @@ def fetch_nvd_cves() -> list[dict[str, Any]]:
 
     Returns articles in the standard pipeline format.
     """
+    if is_suspended("nvd"):
+        cached = _load_cached_articles()
+        logger.info(
+            "NVD: provider circuit open; using %d cached items until the next probe",
+            len(cached),
+        )
+        return cached
+
     if not _should_fetch():
         logger.info(
             "NVD: internal 10-minute fetch interval has not elapsed; skipping this run."
@@ -280,7 +292,12 @@ def fetch_nvd_cves() -> list[dict[str, Any]]:
         record_success("nvd", item_count=len(articles))
 
     except requests.exceptions.RequestException as e:
-        record_failure("nvd", _provider_error_code(e), cooldown_seconds=0)
+        record_failure(
+            "nvd",
+            _provider_error_code(e),
+            cooldown_seconds=_FAILURE_COOLDOWN_SECONDS,
+            failure_threshold=_FAILURE_THRESHOLD,
+        )
         cached = _load_cached_articles()
         logger.warning(
             "NVD: request failed after %d attempts; using %d cached items: %s",

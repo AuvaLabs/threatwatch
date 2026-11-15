@@ -18,6 +18,11 @@ def _feed_urls(filename):
     return {feed["url"] for feed in feeds}
 
 
+def _feeds_by_url(filename):
+    feeds = yaml.safe_load((CONFIG_DIR / filename).read_text(encoding="utf-8"))
+    return {feed["url"]: feed for feed in feeds}
+
+
 def test_native_feed_urls_are_unique_and_current():
     feeds = list(_native_feeds_by_url().values())
     urls = [feed["url"] for feed in feeds]
@@ -60,10 +65,18 @@ def test_problematic_feed_endpoints_and_searches_are_replaced():
 
     assert "https://orca.security/resources/blog/feed/" not in native
     assert "https://orca.security/feed/?output=1" not in native
-    assert (
+    retired_orca_search = (
         "https://news.google.com/rss/search?q=site%3Aorca.security+cloud+security"
         "&hl=en-US&gl=US&ceid=US:en"
-    ) in google
+    )
+    current_orca_search = (
+        "https://news.google.com/rss/search?q=site%3Aorca.security%2Fresources%2Fblog+"
+        "%28vulnerability+OR+research+OR+threat%29+when%3A90d"
+        "&hl=en-US&gl=US&ceid=US:en"
+    )
+    assert retired_orca_search not in google
+    assert current_orca_search in google
+    assert _feeds_by_url("feeds_google.yaml")[current_orca_search]["stale_after_days"] == 45
 
     retired_google = {
         "https://news.google.com/rss/search?q=APT+threat+actor+campaign&hl=en-US&gl=US&ceid=US:en",

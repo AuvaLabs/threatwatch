@@ -40,6 +40,37 @@ def test_failure_suspends_provider_until_retry_time(tmp_path):
     assert payload["providers"]["ransomware.live"]["error"] == "tls_certificate_error"
 
 
+def test_failure_threshold_delays_suspension(tmp_path):
+    health_file = tmp_path / "provider_health.json"
+    with patch.object(provider_health, "PROVIDER_HEALTH_FILE", health_file):
+        provider_health.record_failure(
+            "nvd",
+            "http_503",
+            cooldown_seconds=3600,
+            failure_threshold=3,
+        )
+        provider_health.record_failure(
+            "nvd",
+            "http_503",
+            cooldown_seconds=3600,
+            failure_threshold=3,
+        )
+        before_threshold = provider_health.get_provider_health()["providers"]["nvd"]
+        provider_health.record_failure(
+            "nvd",
+            "http_503",
+            cooldown_seconds=3600,
+            failure_threshold=3,
+        )
+        at_threshold = provider_health.get_provider_health()["providers"]["nvd"]
+
+    assert before_threshold["status"] == "degraded"
+    assert "retry_after" not in before_threshold
+    assert at_threshold["status"] == "suspended"
+    assert at_threshold["consecutive_failures"] == 3
+    assert "retry_after" in at_threshold
+
+
 def test_expired_suspension_allows_probe(tmp_path):
     health_file = tmp_path / "provider_health.json"
     expired = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()

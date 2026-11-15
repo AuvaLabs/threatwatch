@@ -86,9 +86,10 @@
   region: Brazil
 
 # Additional threat-specific
-- url: https://news.google.com/rss/search?q=site%3Aorca.security+cloud+security&hl=en-US&gl=US&ceid=US:en
+- url: https://news.google.com/rss/search?q=site%3Aorca.security%2Fresources%2Fblog+%28vulnerability+OR+research+OR+threat%29+when%3A90d&hl=en-US&gl=US&ceid=US:en
   category: Google
   region: Global
+  stale_after_days: 45
 
 - url: https://news.google.com/rss/search?q=critical+vulnerability+CVE&hl=en-US&gl=US&ceid=US:en
   category: Google

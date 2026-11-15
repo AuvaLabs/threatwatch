@@ -70,19 +70,25 @@ def record_failure(
     error: str,
     *,
     cooldown_seconds: int,
+    failure_threshold: int = 1,
 ) -> None:
     payload = _load()
     previous = payload.get(name, {})
     now = _now()
+    consecutive_failures = int(previous.get("consecutive_failures", 0)) + 1
+    should_suspend = (
+        cooldown_seconds > 0
+        and consecutive_failures >= max(1, int(failure_threshold))
+    )
     entry: dict[str, Any] = {
-        "status": "suspended" if cooldown_seconds > 0 else "degraded",
+        "status": "suspended" if should_suspend else "degraded",
         "checked_at": now.isoformat(),
         "error": _safe_reason(error, "provider_error"),
-        "consecutive_failures": int(previous.get("consecutive_failures", 0)) + 1,
+        "consecutive_failures": consecutive_failures,
     }
     if previous.get("last_success"):
         entry["last_success"] = previous["last_success"]
-    if cooldown_seconds > 0:
+    if should_suspend:
         entry["retry_after"] = (
             now + timedelta(seconds=max(0, cooldown_seconds))
         ).isoformat()
