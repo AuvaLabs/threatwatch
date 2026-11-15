@@ -8,6 +8,7 @@ import { ExposureView } from "./views/ExposureView";
 import { HuntsView } from "./views/HuntsView";
 import { IncidentDetailView } from "./views/IncidentDetailView";
 import { InvestigationsView } from "./views/InvestigationsView";
+import { FollowingView } from "./views/FollowingView";
 import { LedgerRecordView } from "./views/LedgerRecordView";
 import { LedgerView } from "./views/LedgerView";
 import { MissionControlView } from "./views/MissionControlView";
@@ -27,6 +28,7 @@ export function App() {
       case "threats": return <ThreatsView />;
       case "exposure": return <ExposureView />;
       case "investigations": return <InvestigationsView />;
+      case "following": return <FollowingView />;
       case "hunts": return <HuntsView />;
       case "reports": return <ReportsView />;
       case "automation": return <AutomationView />;

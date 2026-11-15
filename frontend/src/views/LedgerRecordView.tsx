@@ -3,6 +3,7 @@ import { useResource } from "../hooks/useResource";
 import { navigate } from "../router";
 import { api } from "../services/api";
 import { formattedDate, safeExternalUrl } from "../utils/format";
+import { FollowThreatButton } from "../components/FollowThreatButton";
 
 function back(event: Event): void {
   event.preventDefault();
@@ -20,6 +21,14 @@ export function LedgerRecordView({ id }: { id: string }) {
       <div><p class="eyebrow">{record.entity_type} · living record v{record.version}</p><h1>{record.title}</h1><p>{record.summary}</p></div>
       <div class={`record-decision decision-${record.decision.urgency}`}><span>Current decision</span><strong>{record.decision.action}</strong><p>{record.decision.rationale}</p></div>
     </header>
+    <div class="record-follow-actions"><FollowThreatButton target={{
+      id: record.id,
+      kind: "ledger",
+      title: record.title,
+      detail: `${record.decision.action}: ${record.decision.rationale}`,
+      href: `/ledger/${record.id}`,
+      feedHref: `/api/v1/ledger/${record.id}/feed.xml`,
+    }} /></div>
     <dl class="ledger-facts">
       <div><dt>First seen</dt><dd>{formattedDate(record.first_seen)}</dd></div>
       <div><dt>Last changed</dt><dd>{formattedDate(record.last_changed)}</dd></div>

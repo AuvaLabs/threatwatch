@@ -63,11 +63,14 @@ self-hosted deployments only.
 | `GET /api/campaigns` | Persistent threat campaigns with stable UUIDs |
 | `GET /api/campaign/<id>` | Single campaign detail |
 | `GET /api/trends` | Spike detection (today vs 14d baseline) + 7d/30d top-mentioned leaderboard |
+| `GET /api/v2/incidents/{id}` | One complete evidence-linked incident record |
+| `GET /api/v2/incidents/{id}/feed.xml` | Atom feed for material changes to one incident |
 | `GET /api/v1/hunts` | Qualified hunt packages and developing leads with sources, observables, behavior, telemetry, and queries |
 | `GET /api/v1/hunts/{id}` | One complete hunt package by stable hunt ID |
 | `GET /api/v1/ledger` | Filterable CVE and actor records with decisions, evidence, and recent changes |
 | `GET /api/v1/ledger/changes` | Bounded revision stream for polling and notifications |
 | `GET /api/v1/ledger/{id}` | One stable record with its complete retained revision history |
+| `GET /api/v1/ledger/{id}/feed.xml` | Atom feed for material changes to one threat record |
 
 ### Standards-based exports
 
@@ -75,6 +78,8 @@ self-hosted deployments only.
 |---|---|---|
 | `GET /api/stix` | STIX 2.1 bundle | Direct ingest into Microsoft Sentinel, Splunk, Elastic, OpenCTI, MISP |
 | `GET /api/rss` | RSS 2.0 XML | Outlook RSS subscriber, Feedly, Slack RSS app |
+| `GET /api/v2/incidents/{id}/feed.xml` | Atom XML | Subscribe to one incident without polling the full collection |
+| `GET /api/v1/ledger/{id}/feed.xml` | Atom XML | Subscribe to one threat record without polling the full collection |
 
 ### Operational
 
@@ -392,6 +397,21 @@ want a subset (e.g. by category or keyword).
 
 Refresh interval suggestion: 15–60 min. The pipeline writes a fresh feed
 every ~10 min so anything tighter is wasted polling.
+
+### Follow selected threats without an account
+
+The public site includes a Following desk for incidents and threat records.
+Selections and review timestamps remain in the browser and can be moved by
+exporting the analyst workspace. ThreatWatch does not receive the list. Each
+record also exposes a public Atom feed for feed readers and internal automation:
+
+```text
+https://threatwatch.auvalabs.com/api/v2/incidents/<incident-id>/feed.xml
+https://threatwatch.auvalabs.com/api/v1/ledger/<threat-id>/feed.xml
+```
+
+Atom feeds contain only the public material-change history for that record.
+They do not contain private notes or browser-local selections.
 
 ## Recipe 7: Pull analyst-ready hunt packages
 

@@ -78,6 +78,8 @@ def test_problematic_feed_endpoints_and_searches_are_replaced():
     assert current_orca_search in google
     assert _feeds_by_url("feeds_google.yaml")[current_orca_search]["stale_after_days"] == 45
 
+    assert "https://asec.ahnlab.com/en/feed/" in native
+
     retired_google = {
         "https://news.google.com/rss/search?q=APT+threat+actor+campaign&hl=en-US&gl=US&ceid=US:en",
         "https://news.google.com/rss/search?q=Scattered+Spider+UNC3944+cybercrime&hl=en-US&gl=US&ceid=US:en",

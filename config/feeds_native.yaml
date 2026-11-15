@@ -62,6 +62,12 @@
   category: Native
   region: Global
 
+# AhnLab ASEC publishes current malware research with full-text IOC sections.
+- url: https://asec.ahnlab.com/en/feed/
+  name: AhnLab ASEC
+  category: Native
+  region: APAC
+
 # SentinelLabs feed paused 2026-10-28: valid but no publication since 2026-09-18.
 # Keep the official research URL for a future freshness review.
 # - url: https://www.sentinelone.com/labs/feed/

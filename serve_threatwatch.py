@@ -23,6 +23,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from modules.hunt_engine import build_hunts
 from modules.briefing_contract import is_grounded_briefing
+from modules.change_feed import build_change_feed
+from modules.config import SITE_URL
 from modules.evidence_graph import build_incident_evidence_graph
 from modules.incident_records import build_incident_records
 from modules.operations import build_operational_summary
@@ -61,6 +63,7 @@ _gzip_memo: tuple = ("", b"")
 _gzip_memo_lock = threading.Lock()
 
 _CONTENT_TYPES = {
+    "application/atom+xml; charset=utf-8": "application/atom+xml; charset=utf-8",
     "application/json; charset=utf-8": "application/json; charset=utf-8",
     "application/octet-stream": "application/octet-stream",
     "application/stix+json; charset=utf-8": "application/stix+json; charset=utf-8",
@@ -1021,12 +1024,14 @@ def build_openapi() -> bytes:
         "/api/v2/incidents/changes": {"get": {"summary": "List material incident changes"}},
         "/api/v2/incidents/{id}": {"get": {"summary": "Get one evidence-linked incident record"}},
         "/api/v2/incidents/{id}/evidence": {"get": {"summary": "Get the claim-to-source evidence graph"}},
+        "/api/v2/incidents/{id}/feed.xml": {"get": {"summary": "Subscribe to one incident change feed"}},
         "/api/v1/incidents/v2": {"get": {"summary": "Compatibility alias for v2 incidents", "deprecated": True}},
         "/api/v1/hunts": {"get": {"summary": "List evidence-gated hunt packages"}},
         "/api/v1/hunts/{id}": {"get": {"summary": "Get one hunt package"}},
         "/api/v1/ledger": {"get": {"summary": "List living threat records"}},
         "/api/v1/ledger/changes": {"get": {"summary": "List threat state changes"}},
         "/api/v1/ledger/{id}": {"get": {"summary": "Get one living threat record"}},
+        "/api/v1/ledger/{id}/feed.xml": {"get": {"summary": "Subscribe to one threat record change feed"}},
         "/api/v1/operations/summary": {"get": {"summary": "Get prioritized operational decisions"}},
         "/api/v1/sources": {"get": {"summary": "List source coverage"}},
         "/api/v1/health": {"get": {"summary": "Get service health"}},
@@ -1212,7 +1217,7 @@ STATIC_ROUTES = {
 }
 
 UI_ROUTES = frozenset({
-    "/", "/ledger", "/threats", "/incidents", "/exposure", "/investigations", "/hunts", "/reports",
+    "/", "/ledger", "/threats", "/incidents", "/exposure", "/investigations", "/following", "/hunts", "/reports",
     "/automation", "/sources", "/system", "/status", "/news", "/vulnerabilities",
     "/campaigns", "/watchlists", "/briefings", "/api-docs",
 })
@@ -1535,6 +1540,24 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             self._send_body("application/json; charset=utf-8", body, head_only)
             return
 
+        if path.startswith("/api/v2/incidents/") and path.endswith("/feed.xml"):
+            incident_id = path.removeprefix("/api/v2/incidents/").removesuffix("/feed.xml")
+            valid_id = incident_id.startswith("incident-") and incident_id[9:].isalnum()
+            if not valid_id or len(incident_id) > 64:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid incident id")
+                return
+            payload = load_incident_records()
+            record = next(
+                (item for item in payload.get("records", []) if item.get("id") == incident_id),
+                None,
+            )
+            if record is None:
+                self._send_error_json(HTTPStatus.NOT_FOUND, "Incident not found")
+                return
+            body = build_change_feed(record, kind="incident", site_url=SITE_URL)
+            self._send_body("application/atom+xml; charset=utf-8", body, head_only)
+            return
+
         if path.startswith("/api/v2/incidents/") and path.endswith("/evidence"):
             incident_id = path.removeprefix("/api/v2/incidents/").removesuffix("/evidence")
             valid_id = incident_id.startswith("incident-") and incident_id[9:].isalnum()
@@ -1684,7 +1707,10 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             return
 
         if path.startswith("/api/v1/ledger/"):
+            is_feed = path.endswith("/feed.xml")
             record_id = path.removeprefix("/api/v1/ledger/")
+            if is_feed:
+                record_id = record_id.removesuffix("/feed.xml")
             valid_id = record_id.startswith("threat-") and record_id[7:].isalnum()
             if not valid_id or len(record_id) > 64:
                 self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid threat record id")
@@ -1693,6 +1719,10 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             record = next((item for item in payload.get("records", []) if item.get("id") == record_id), None)
             if record is None:
                 self._send_error_json(HTTPStatus.NOT_FOUND, "Threat record not found")
+                return
+            if is_feed:
+                body = build_change_feed(record, kind="ledger", site_url=SITE_URL)
+                self._send_body("application/atom+xml; charset=utf-8", body, head_only)
                 return
             body = json.dumps(
                 record, ensure_ascii=False, separators=(",", ":"), allow_nan=False,

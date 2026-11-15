@@ -47,3 +47,17 @@
 .status-hero h2 { text-transform: capitalize; }
 .status-reasons { color: var(--color-ink-soft); display: grid; gap: var(--space-1); margin: 0; padding-left: var(--space-5); }
 .large-stat { font-family: var(--font-mono); font-size: 2rem; font-weight: 500; }
+
+.record-follow-actions { display: flex; justify-content: flex-end; padding: var(--space-4) 0; }
+.follow-error { color: var(--color-danger); font-size: 0.75rem; }
+.following-summary { align-items: center; border-top: 3px solid var(--color-ink); display: flex; justify-content: space-between; margin-bottom: var(--space-8); padding: var(--space-5) var(--card-inline-padding); }
+.following-summary > div { align-items: baseline; display: flex; gap: var(--space-3); }
+.following-summary strong { font-family: var(--font-mono); font-size: 2.4rem; font-weight: 500; }
+.following-list { border-top: 2px solid var(--color-ink); }
+.followed-record { border: 0; border-bottom: 1px solid var(--color-border-strong); display: grid; gap: var(--space-5); grid-template-columns: minmax(0, 1fr) auto; padding: var(--space-6) var(--card-inline-padding); }
+.followed-record h2 { margin: var(--space-2) 0; }
+.followed-record p { max-width: var(--reading-width); }
+.followed-actions { align-items: flex-start; display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+.followed-changes { border-top: 1px solid var(--color-border); display: grid; gap: 0; grid-column: 1 / -1; margin: 0; padding: 0; }
+.followed-changes li { display: grid; gap: var(--space-4); grid-template-columns: 150px minmax(0, 1fr); padding: var(--space-3) 0; }
+.followed-changes time { color: var(--color-ink-muted); font-family: var(--font-mono); font-size: 0.66rem; }

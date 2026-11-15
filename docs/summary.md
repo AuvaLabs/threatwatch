@@ -8,6 +8,7 @@ ThreatWatch is a self-hosted cyber intelligence operations platform built by [ni
 - **Incidents** presents corroborated, evidence-linked Breach Anatomy records with focused filters.
 - **Hunts** separates qualified packages from developing leads and includes observable provenance, ATT&CK behavior, vulnerability context, telemetry, queries, sources, and limitations.
 - **Investigations** provides a private local casebook with portable import and export.
+- **Following** provides an account-free change inbox for selected incidents and threat records. The list and review cursor remain in browser storage, and every selected record has a public Atom change feed.
 - **Ledger** preserves every material state change and its reason with focused paging.
 - **Reports** combines the current briefing, metrics, decisions, and source citations into a portable operating picture.
 - **API** exposes OpenAPI, STIX 2.1, RSS, health, and grouped integration contracts.
@@ -39,19 +40,18 @@ See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
 - Docker Compose services for `pipeline` and `server` with one persistent data volume.
 - SQLite primary storage plus atomic JSON artifacts and fallback reads.
 - Strict security headers, bounded APIs, request rate limiting, SSRF protection, safe external URLs, and no scraped full-content exposure in operational APIs.
-- 1,657 backend tests and 58 frontend tests at the 2026-11-07 repository audit. Both suites remain above the required 80 percent coverage floor.
+- 1,746 backend tests and 63 frontend tests at the 2026-11-15 repository audit. Backend coverage is 88.43 percent and frontend statement coverage is 94.72 percent.
 
 ## Verified operational snapshot
 
-The 2026-11-07 production review verified the following state for release
-`ced0d048a0eb3ae12fa8c0b58de6839ae7b6d990`:
+The 2026-11-15 release review verified the following state before deployment:
 
 - Both production containers were healthy, the public workspace routes returned successful responses, and `/api/v1/health` reported an operational service.
-- A controlled source validation completed with all 135 configured feeds healthy. The Orca source uses publisher-scoped discovery because its former native RSS endpoint redirects to itself.
+- The source catalog contains 136 configured feeds, including the official AhnLab ASEC research feed. The Orca source uses publisher-scoped discovery because its former native RSS endpoint redirects to itself.
 - ThreatFox uses its authenticated API when a key is available. The key remains outside Git in `.secrets/threatfox.env`, and evidence links use stable malware identifiers instead of guessed slugs.
 - ThreatFox and URLhaus results remain corroborating evidence. They do not independently qualify a hunt without the required observable, behavior, and readiness evidence.
 - The corpus, SQLite store, hunt artifacts, incident artifacts, ledger artifacts, and source-linked reports passed consistency checks. The offsite backup status included a successful independent restore proof.
-- The backend suite passed all 1,657 tests. The frontend suite passed all 58 tests, and its production build completed successfully.
+- The backend suite passed all 1,746 tests at 88.43 percent coverage. The frontend suite passed all 63 tests at 94.72 percent statement coverage, its production build completed successfully, and the dependency audit found no vulnerabilities.
 
 Run `scripts/validate_feeds.py` while the scheduled pipeline writer is idle. The
 validator and pipeline currently use a process-local state lock, so overlapping
@@ -104,11 +104,13 @@ scripts/rebuild_ledger.py     History-preserving ledger backfill
 - `GET /api/v2/incidents`
 - `GET /api/v2/incidents/changes`
 - `GET /api/v2/incidents/{id}`
+- `GET /api/v2/incidents/{id}/feed.xml`
 - `GET /api/v1/hunts`
 - `GET /api/v1/hunts/{id}`
 - `GET /api/v1/ledger`
 - `GET /api/v1/ledger/changes`
 - `GET /api/v1/ledger/{id}`
+- `GET /api/v1/ledger/{id}/feed.xml`
 - `GET /api/v1/operations/summary`
 - `GET /api/v1/sources`
 - `GET /api/v1/health`
@@ -151,4 +153,4 @@ ssh auvalabs 'docker exec threatwatch-pipeline python scripts/rebuild_ledger.py'
 ssh auvalabs 'cd ~/threatwatch && docker compose ps'
 ```
 
-Last updated: 2026-11-07
+Last updated: 2026-11-15

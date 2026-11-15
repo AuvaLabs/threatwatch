@@ -8,6 +8,7 @@ export type RouteName =
   | "threats"
   | "exposure"
   | "investigations"
+  | "following"
   | "hunts"
   | "reports"
   | "automation"
@@ -42,6 +43,7 @@ export function parseRoute(pathname: string): Route {
     "/threats": "threats",
     "/exposure": "exposure",
     "/investigations": "investigations",
+    "/following": "following",
     "/hunts": "hunts",
     "/reports": "reports",
     "/automation": "automation",

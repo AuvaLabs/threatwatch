@@ -137,6 +137,11 @@ def main():
     logging.info("==== Starting ThreatDigest Main Run ====")
 
     stats = RunStats()
+    try:
+        from modules.provider_health import get_provider_health
+        provider_health_before = get_provider_health()
+    except Exception:
+        provider_health_before = {"providers": {}}
 
     feed_paths = [
         str(BASE_DIR / "config" / "feeds_bing.yaml"),
@@ -207,6 +212,18 @@ def main():
             logging.info(f"NVD: added {len(nvd_articles)} high/critical CVEs")
     except Exception as e:
         logging.warning(f"NVD CVE fetch failed: {e}")
+
+    try:
+        from modules.provider_alerts import dispatch_current_provider_transitions
+        from modules.provider_health import get_provider_health
+        from modules.telegram import dispatch_ops_alert
+        provider_health_before, _ = dispatch_current_provider_transitions(
+            provider_health_before,
+            dispatcher=dispatch_ops_alert,
+            health_loader=get_provider_health,
+        )
+    except Exception as e:
+        logging.debug(f"Provider transition alert skipped: {e}")
 
     # Watchlist monitor — custom brand/asset keywords (self-hosted only)
     try:
@@ -440,6 +457,20 @@ def main():
     except Exception as e:
         logging.warning(f"Hunt package generation failed: {e}")
         operational_status["hunts"] = {"ok": False, "error": "generation_failed"}
+
+    # ThreatFox health changes during hunt enrichment, after the early
+    # ransomware.live and NVD check. Compare again from the updated baseline.
+    try:
+        from modules.provider_alerts import dispatch_current_provider_transitions
+        from modules.provider_health import get_provider_health
+        from modules.telegram import dispatch_ops_alert
+        provider_health_before, _ = dispatch_current_provider_transitions(
+            provider_health_before,
+            dispatcher=dispatch_ops_alert,
+            health_loader=get_provider_health,
+        )
+    except Exception as e:
+        logging.debug(f"Late provider transition alert skipped: {e}")
 
     try:
         if all_articles and cluster_data:

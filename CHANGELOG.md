@@ -2,6 +2,14 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-11-15: Private following and provider transition alerts
+
+- Added an account-free Following desk for incidents and living threat records, with browser-local storage, review cursors, and workspace import and export.
+- Added bounded public Atom feeds for material changes to individual incidents and threat records.
+- Added private operator alerts when NVD, ransomware.live, or ThreatFox changes between healthy, degraded, and suspended states.
+- Added the official AhnLab ASEC research feed for additional APAC malware reporting and indicator-rich source material.
+- Preserved the existing hunt evidence gate so source expansion cannot turn weak single-report indicators into qualified packages.
+
 ## 2026-11-15: Provider resilience and dependency maintenance
 
 - Added structured provider health with bounded circuit breakers and a dedicated health endpoint.

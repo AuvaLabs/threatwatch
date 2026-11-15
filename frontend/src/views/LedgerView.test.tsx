@@ -89,5 +89,7 @@ describe("LedgerView", () => {
     expect(screen.getByText("CVE-2026-1000 gained confirmed exploitation evidence.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Technical report" }).getAttribute("href")).toBe("https://research.example/report");
     expect(fetch).toHaveBeenCalledWith("/api/v1/ledger/threat-abc123", expect.any(Object));
+    fireEvent.click(screen.getByRole("button", { name: "Follow threat" }));
+    expect(screen.getByRole("button", { name: "Unfollow threat" })).toBeTruthy();
   });
 });

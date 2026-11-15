@@ -1,10 +1,11 @@
-import type { AnalystWorkspace, Investigation, InvestigationStatus } from "../types";
+import type { AnalystWorkspace, FollowedThreat, FollowedThreatKind, Investigation, InvestigationStatus } from "../types";
 
 const STORAGE_KEY = "threatwatch-workspace-v1";
 const statuses = new Set<InvestigationStatus>(["open", "monitoring", "closed"]);
 const urgencies = new Set(["critical", "high", "medium"]);
 const actionTypes = new Set(["patch", "hunt", "investigate", "monitor"]);
-const emptyWorkspace = (): AnalystWorkspace => ({ investigations: [] });
+const followKinds = new Set<FollowedThreatKind>(["ledger", "incident"]);
+const emptyWorkspace = (): AnalystWorkspace => ({ investigations: [], follows: [] });
 
 function validInvestigation(value: unknown): value is Investigation {
   if (!value || typeof value !== "object") return false;
@@ -29,7 +30,8 @@ export function loadWorkspace(): AnalystWorkspace {
     if (!raw) return emptyWorkspace();
     const parsed = JSON.parse(raw) as Partial<AnalystWorkspace>;
     if (!Array.isArray(parsed.investigations)) return emptyWorkspace();
-    return { investigations: parsed.investigations.filter(validInvestigation) };
+    const follows = Array.isArray(parsed.follows) ? parsed.follows.filter(validFollow) : [];
+    return { investigations: parsed.investigations.filter(validInvestigation), follows };
   } catch {
     return emptyWorkspace();
   }
@@ -50,7 +52,46 @@ export function saveInvestigation(investigation: Investigation): AnalystWorkspac
     (item) => item.id === investigation.id || item.sourceId === investigation.sourceId,
   );
   if (exists) return workspace;
-  return persist({ investigations: [investigation, ...workspace.investigations] });
+  return persist({ ...workspace, investigations: [investigation, ...workspace.investigations] });
+}
+
+function validFollow(value: unknown): value is FollowedThreat {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<FollowedThreat>;
+  return Boolean(
+    typeof item.id === "string" && item.id.length > 0
+    && item.kind && followKinds.has(item.kind)
+    && typeof item.title === "string"
+    && typeof item.detail === "string"
+    && typeof item.href === "string" && item.href.startsWith("/") && !item.href.startsWith("//")
+    && typeof item.feedHref === "string" && item.feedHref.startsWith("/api/")
+    && typeof item.followedAt === "string"
+    && typeof item.lastReviewedAt === "string",
+  );
+}
+
+export function followThreat(follow: FollowedThreat): AnalystWorkspace {
+  if (!validFollow(follow)) throw new Error("The followed threat is invalid.");
+  const workspace = loadWorkspace();
+  const exists = workspace.follows.some((item) => item.kind === follow.kind && item.id === follow.id);
+  if (exists) return workspace;
+  return persist({ ...workspace, follows: [follow, ...workspace.follows] });
+}
+
+export function unfollowThreat(kind: FollowedThreatKind, id: string): AnalystWorkspace {
+  const workspace = loadWorkspace();
+  return persist({
+    ...workspace,
+    follows: workspace.follows.filter((item) => item.kind !== kind || item.id !== id),
+  });
+}
+
+export function markFollowsReviewed(now = new Date().toISOString()): AnalystWorkspace {
+  const workspace = loadWorkspace();
+  return persist({
+    ...workspace,
+    follows: workspace.follows.map((item) => ({ ...item, lastReviewedAt: now })),
+  });
 }
 
 export function importWorkspace(raw: string): AnalystWorkspace {
@@ -63,11 +104,16 @@ export function importWorkspace(raw: string): AnalystWorkspace {
   if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as Partial<AnalystWorkspace>).investigations)) {
     throw new Error("The workspace file does not contain valid investigations.");
   }
-  const investigations = (parsed as Partial<AnalystWorkspace>).investigations || [];
+  const workspace = parsed as Partial<AnalystWorkspace>;
+  const investigations = workspace.investigations || [];
   if (investigations.some((item) => !validInvestigation(item))) {
     throw new Error("The workspace file does not contain valid investigations.");
   }
-  return persist({ investigations });
+  const follows = workspace.follows || [];
+  if (!Array.isArray(follows) || follows.some((item) => !validFollow(item))) {
+    throw new Error("The workspace file does not contain valid followed threats.");
+  }
+  return persist({ investigations, follows });
 }
 
 export function updateInvestigation(
@@ -82,7 +128,7 @@ export function updateInvestigation(
     updated = { ...item, status: changes.status, notes: changes.notes, updatedAt: now };
     return updated;
   });
-  if (updated) persist({ investigations });
+  if (updated) persist({ ...workspace, investigations });
   return updated;
 }
 
@@ -91,7 +137,7 @@ export function workspaceDownload(workspace: AnalystWorkspace): void {
   const href = URL.createObjectURL(new Blob([body], { type: "application/json" }));
   const anchor = document.createElement("a");
   anchor.href = href;
-  anchor.download = `threatwatch-investigations-${new Date().toISOString().slice(0, 10)}.json`;
+  anchor.download = `threatwatch-workspace-${new Date().toISOString().slice(0, 10)}.json`;
   anchor.click();
   URL.revokeObjectURL(href);
 }

@@ -9,7 +9,7 @@
 [![License: Non-Commercial](https://img.shields.io/badge/license-Non--Commercial-orange.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![AI Powered](https://img.shields.io/badge/AI-intelligence--briefing-8B5CF6?logo=openai&logoColor=white)]()
-[![Feeds](https://img.shields.io/badge/feeds-135-blue)]()
+[![Feeds](https://img.shields.io/badge/feeds-136-blue)]()
 [![GitHub Stars](https://img.shields.io/github/stars/AuvaLabs/threatwatch?style=social)](https://github.com/AuvaLabs/threatwatch)
 
 **[Live Demo](https://threatwatch.auvalabs.com)**
@@ -31,7 +31,7 @@ ThreatWatch turns public cyber reporting into a living threat-state and decision
 ## Features
 
 ### Collection
-- **135 configured feeds** covering security blogs, vendor advisories, CERTs, Google News, and Bing News
+- **136 configured feeds** covering security blogs, vendor advisories, CERTs, Google News, and Bing News
 - **NewsAPI integration** — additional security news with rate-limited fetching (100 req/day free tier)
 - **Dark web monitoring** - ransomware victim tracking plus optional authenticated ThreatFox IOC corroboration
 - **Continuous pipeline** with a new cycle every 10 minutes and typical completion in 2 to 4 minutes
@@ -72,6 +72,7 @@ ThreatWatch turns public cyber reporting into a living threat-state and decision
 - **Incidents** explains breach anatomy through corroborated, evidence-linked records
 - **Hunts** correlates reports, validates observables in context, and separates qualified packages from developing leads
 - **Investigations** provides a private local casebook that can be imported and exported
+- **Following** keeps a private browser-local watch desk for selected incidents and threat records, with portable public Atom change feeds
 - **Ledger** preserves state transitions and their reasons with focused server-side paging
 - **Reports** builds a source-backed operating picture with section navigation and portable Markdown
 - **API** exposes the OpenAPI contract, STIX export, RSS, and grouped integration endpoints
@@ -433,11 +434,13 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v2/incidents/changes` | Material incident revision stream |
 | `GET` | `/api/v2/incidents/{id}` | Complete Breach Anatomy record and sources |
 | `GET` | `/api/v2/incidents/{id}/evidence` | Claim-to-source evidence graph and assessment |
+| `GET` | `/api/v2/incidents/{id}/feed.xml` | Atom change feed for one incident |
 | `GET` | `/api/v1/hunts` | Qualified hunt packages and developing leads |
 | `GET` | `/api/v1/hunts/{id}` | One complete hunt package with provenance and queries |
 | `GET` | `/api/v1/ledger` | Filterable living threat records and current change register |
 | `GET` | `/api/v1/ledger/changes` | Bounded revision stream for automation and polling |
 | `GET` | `/api/v1/ledger/{id}` | One stable record with evidence and revision history |
+| `GET` | `/api/v1/ledger/{id}/feed.xml` | Atom change feed for one threat record |
 | `GET` | `/api/v1/operations/summary` | Ranked decisions, evidence, metrics, and watchlist relevance |
 | `GET` | `/api/v1/sources` | Source coverage and article counts |
 | `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |

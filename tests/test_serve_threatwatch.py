@@ -988,6 +988,8 @@ class TestHTTPRoutes:
         assert "/api/v1/health/feeds" in data["paths"]
         assert "/api/v1/health/providers" in data["paths"]
         assert "/api/v2/incidents/{id}/evidence" in data["paths"]
+        assert "/api/v2/incidents/{id}/feed.xml" in data["paths"]
+        assert "/api/v1/ledger/{id}/feed.xml" in data["paths"]
 
         v2_status, _, v2_body = _get(test_server + "/api/v2/openapi.json")
         assert v2_status == 200
@@ -1028,7 +1030,7 @@ class TestHTTPRoutes:
     @pytest.mark.parametrize("path", [
         "/ledger", "/threats", "/incidents", "/exposure", "/investigations", "/hunts", "/reports",
         "/automation", "/sources", "/status", "/sources/article-1", "/ledger/threat-abc123",
-        "/incidents/incident-abc123",
+        "/incidents/incident-abc123", "/following",
     ])
     def test_operational_frontend_routes_return_application_shell(self, test_server, path):
         with patch("serve_threatwatch.render_page", return_value=b"<html>operations</html>"):
@@ -1089,6 +1091,23 @@ class TestHTTPRoutes:
         assert json.loads(list_body)["records"][0]["id"] == "incident-abc123"
         assert json.loads(detail_body)["id"] == "incident-abc123"
         assert json.loads(changes_body)["changes"][0]["id"] == "change-1"
+
+    def test_incident_change_feed_is_entity_scoped_atom(self, test_server):
+        record = {
+            "id": "incident-abc123", "title": "Acme intrusion",
+            "last_changed": "2026-11-06T06:00:00Z",
+            "changes": [{
+                "id": "change-1", "record_id": "incident-abc123",
+                "changed_at": "2026-11-06T06:00:00Z", "summary": "Impact was confirmed.",
+            }],
+        }
+        with patch("serve_threatwatch.load_incident_records", return_value={"records": [record]}):
+            status, headers, body = _get(test_server + "/api/v2/incidents/incident-abc123/feed.xml")
+
+        assert status == 200
+        assert "application/atom+xml" in headers["Content-Type"]
+        assert b"Acme intrusion" in body
+        assert b"Impact was confirmed." in body
 
     def test_incident_evidence_graph_is_public_and_source_bound(self, test_server):
         record = {
@@ -1189,6 +1208,23 @@ class TestHTTPRoutes:
         assert json.loads(changes_body)["changes"][0]["id"] == "change-one"
         assert detail_status == 200
         assert json.loads(detail_body)["entity_name"] == "CVE-2026-1000"
+
+    def test_ledger_change_feed_is_entity_scoped_atom(self, test_server):
+        record = {
+            "id": "threat-abc123", "title": "CVE-2026-1000",
+            "last_changed": "2026-10-08T10:00:00Z",
+            "changes": [{
+                "id": "change-one", "record_id": "threat-abc123",
+                "changed_at": "2026-10-08T10:00:00Z", "summary": "Decision changed to patch.",
+            }],
+        }
+        with patch("serve_threatwatch.load_ledger", return_value={"records": [record]}):
+            status, headers, body = _get(test_server + "/api/v1/ledger/threat-abc123/feed.xml")
+
+        assert status == 200
+        assert "application/atom+xml" in headers["Content-Type"]
+        assert b"CVE-2026-1000" in body
+        assert b"Decision changed to patch." in body
 
     def test_ledger_changes_reports_total_before_limit(self, test_server):
         payload = {

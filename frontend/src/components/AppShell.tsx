@@ -7,6 +7,7 @@ import { Icon } from "./Icon";
 
 const navigation = [
   { label: "Today", href: "/", route: "mission" },
+  { label: "Following", href: "/following", route: "following" },
   { label: "Incidents", href: "/incidents", route: "threats" },
   { label: "Hunts", href: "/hunts", route: "hunts" },
   { label: "Investigations", href: "/investigations", route: "investigations" },

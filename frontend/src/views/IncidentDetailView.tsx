@@ -5,6 +5,7 @@ import { api } from "../services/api";
 import { downloadText, incidentMarkdown } from "../services/reports";
 import type { IncidentClaim, IncidentRecord, IncidentSource } from "../types";
 import { formattedDate, safeExternalUrl } from "../utils/format";
+import { FollowThreatButton } from "../components/FollowThreatButton";
 
 function ClaimSources({ claim, sources }: { claim: IncidentClaim; sources: IncidentSource[] }) {
   const linked = sources.filter((source) => claim.source_ids.includes(source.article_id));
@@ -46,6 +47,14 @@ export function IncidentDetailView({ id }: { id: string }) {
       <div><dt>Last material change</dt><dd>{formattedDate(record.last_changed)}</dd></div>
     </dl>
     <div class="incident-actions button-row">
+      <FollowThreatButton target={{
+        id: record.id,
+        kind: "incident",
+        title: record.title,
+        detail: `${record.priority} priority: ${record.summary}`,
+        href: `/incidents/${record.id}`,
+        feedHref: `/api/v2/incidents/${record.id}/feed.xml`,
+      }} />
       <button class="button secondary" onClick={() => downloadText(`${record.id}.md`, incidentMarkdown(record))} type="button">Download Markdown</button>
       <button class="button secondary" onClick={() => downloadText(`${record.id}.json`, JSON.stringify(record, null, 2), "application/json")} type="button">Download JSON</button>
     </div>

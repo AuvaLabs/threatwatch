@@ -11,6 +11,7 @@ describe("router", () => {
   it("maps analyst routes and article ids", () => {
     expect(parseRoute("/")).toEqual({ name: "mission" });
     expect(parseRoute("/exposure")).toEqual({ name: "exposure" });
+    expect(parseRoute("/following")).toEqual({ name: "following" });
     expect(parseRoute("/ledger")).toEqual({ name: "ledger" });
     expect(parseRoute("/ledger/threat-abc123")).toEqual({ name: "ledgerRecord", recordId: "threat-abc123" });
     expect(parseRoute("/incidents")).toEqual({ name: "threats" });

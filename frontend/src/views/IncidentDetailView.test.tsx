@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/preact";
+import { fireEvent, render, screen } from "@testing-library/preact";
 import { describe, expect, it, vi } from "vitest";
 import { IncidentDetailView } from "./IncidentDetailView";
 
@@ -45,5 +45,7 @@ describe("IncidentDetailView", () => {
     expect(screen.getByText("2 independent sources", { exact: false })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Report one" }).getAttribute("href")).toBe("https://example.test/one");
     expect(fetch).toHaveBeenCalledWith("/api/v2/incidents/incident-abc123", expect.any(Object));
+    fireEvent.click(screen.getByRole("button", { name: "Follow threat" }));
+    expect(screen.getByRole("button", { name: "Unfollow threat" })).toBeTruthy();
   });
 });

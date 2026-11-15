@@ -462,6 +462,20 @@ export interface Investigation {
   cves: string[];
 }
 
+export type FollowedThreatKind = "ledger" | "incident";
+
+export interface FollowedThreat {
+  id: string;
+  kind: FollowedThreatKind;
+  title: string;
+  detail: string;
+  href: string;
+  feedHref: string;
+  followedAt: string;
+  lastReviewedAt: string;
+}
+
 export interface AnalystWorkspace {
   investigations: Investigation[];
+  follows: FollowedThreat[];
 }
