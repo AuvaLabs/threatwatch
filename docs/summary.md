@@ -40,7 +40,7 @@ See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
 - Docker Compose services for `pipeline` and `server` with one persistent data volume.
 - SQLite primary storage plus atomic JSON artifacts and fallback reads.
 - Strict security headers, bounded APIs, request rate limiting, SSRF protection, safe external URLs, and no scraped full-content exposure in operational APIs.
-- 1,748 backend tests and 63 frontend tests at the 2026-11-15 repository audit. Backend coverage is 88.45 percent and frontend statement coverage is 94.72 percent.
+- 1,749 backend tests and 63 frontend tests at the 2026-11-15 repository audit. Backend coverage is 88.45 percent and frontend statement coverage is 94.72 percent.
 
 ## Verified operational snapshot
 
@@ -51,7 +51,7 @@ The 2026-11-15 release review verified the following state before deployment:
 - ThreatFox uses its authenticated API when a key is available. The key remains outside Git in `.secrets/threatfox.env`, and evidence links use stable malware identifiers instead of guessed slugs.
 - ThreatFox and URLhaus results remain corroborating evidence. They do not independently qualify a hunt without the required observable, behavior, and readiness evidence.
 - The corpus, SQLite store, hunt artifacts, incident artifacts, ledger artifacts, and source-linked reports passed consistency checks. The offsite backup status included a successful independent restore proof.
-- The backend suite passed all 1,748 tests at 88.45 percent coverage. The frontend suite passed all 63 tests at 94.72 percent statement coverage, its production build completed successfully, and the dependency audit found no vulnerabilities.
+- The backend suite passed all 1,749 tests at 88.45 percent coverage. The frontend suite passed all 63 tests at 94.72 percent statement coverage, its production build completed successfully, and the dependency audit found no vulnerabilities.
 
 Run `scripts/validate_feeds.py` while the scheduled pipeline writer is idle. The
 validator and pipeline currently use a process-local state lock, so overlapping

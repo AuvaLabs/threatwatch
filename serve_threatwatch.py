@@ -28,6 +28,7 @@ from modules.config import SITE_URL
 from modules.evidence_graph import build_incident_evidence_graph
 from modules.incident_records import build_incident_records
 from modules.operations import build_operational_summary
+from modules.release_health import MIN_ANALYSIS_SAMPLE
 from modules.threat_ledger import build_ledger
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -585,7 +586,6 @@ _PIPELINE_INTERVAL_S = int(os.environ.get("PIPELINE_INTERVAL", "600"))
 _HEARTBEAT_STALE_S = max(_PIPELINE_INTERVAL_S * 3, 300)
 _RUN_STALE_S = int(os.environ.get("RUN_STALE_S", "21600"))  # 6h default
 _DEGRADED_FAILURE_RATE = 0.30
-_MIN_ANALYSIS_SAMPLE = 10
 _BRIEFING_STALE_HOURS = float(os.environ.get("BRIEFING_STALE_HOURS", "3"))
 _HEARTBEAT_PATH = "data/state/scheduler_heartbeat.txt"
 
@@ -623,7 +623,7 @@ def _compute_status(latest_run: dict, feed_summary: dict,
         reasons.append("llm_budget_exceeded_last_run")
     enriched = latest_run.get("articles_enriched") or 0
     failures = latest_run.get("analysis_failures") or 0
-    if enriched >= _MIN_ANALYSIS_SAMPLE and failures / enriched >= _DEGRADED_FAILURE_RATE:
+    if enriched >= MIN_ANALYSIS_SAMPLE and failures / enriched >= _DEGRADED_FAILURE_RATE:
         reasons.append(f"analysis_failure_rate_{failures}/{enriched}")
     dead_feeds = feed_summary.get("dead", 0) + feed_summary.get("failing", 0)
     if dead_feeds > 20:
