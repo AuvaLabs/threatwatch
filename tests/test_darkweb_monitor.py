@@ -409,6 +409,8 @@ class TestParseThreatFox:
         assert len(articles) == 1
         # Verify summary has IOCs (up to 5 shown)
         assert "http://evil" in articles[0]["summary"]
+        assert len(articles[0]["structured_iocs"]) == 10
+        assert articles[0]["structured_iocs"][0]["provider"] == "threatfox"
 
     def test_skips_non_list_entries(self):
         data = {

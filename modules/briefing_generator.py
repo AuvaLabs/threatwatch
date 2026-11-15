@@ -488,6 +488,13 @@ def _build_digest(articles: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _metadata_list(value: object) -> list[str]:
+    """Expose only normalized scalar metadata in source citation records."""
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if isinstance(item, (str, int, float))]
+
+
 def _build_trend_context() -> str:
     """Load trend spike data and format for the LLM prompt."""
     trends_path = OUTPUT_DIR.parent / "state" / "trends.json"
@@ -885,6 +892,14 @@ def generate_briefing(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
                 "title": (a.get("translated_title") or a.get("title", ""))[:120],
                 "link": a.get("link", ""),
                 "source_name": a.get("source_name", ""),
+                "category": a.get("category", ""),
+                "feed_region": a.get("feed_region", ""),
+                "victim_sectors": _metadata_list(a.get("victim_sectors")),
+                "asset_tags": _metadata_list(a.get("asset_tags")),
+                "brand_tags": _metadata_list(a.get("brand_tags")),
+                "cve_ids": _metadata_list(a.get("cve_ids")),
+                "kev_listed": bool(a.get("kev_listed") or a.get("kevListed")),
+                "confidence": a.get("confidence"),
             })
         briefing["source_articles"] = source_map
 
@@ -1156,6 +1171,14 @@ def generate_regional_briefings(articles: list[dict[str, Any]]) -> dict[str, Any
                     "title": (a.get("translated_title") or a.get("title", ""))[:120],
                     "link": a.get("link", ""),
                     "source_name": a.get("source_name", ""),
+                    "category": a.get("category", ""),
+                    "feed_region": a.get("feed_region", ""),
+                    "victim_sectors": _metadata_list(a.get("victim_sectors")),
+                    "asset_tags": _metadata_list(a.get("asset_tags")),
+                    "brand_tags": _metadata_list(a.get("brand_tags")),
+                    "cve_ids": _metadata_list(a.get("cve_ids")),
+                    "kev_listed": bool(a.get("kev_listed") or a.get("kevListed")),
+                    "confidence": a.get("confidence"),
                 })
             briefing["source_articles"] = source_map
             briefing["generated_at"] = datetime.now(timezone.utc).isoformat()

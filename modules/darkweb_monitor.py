@@ -301,11 +301,48 @@ def _parse_threatfox(resp: requests.Response, source: dict[str, Any], cutoff: da
                 "darkweb": True,
                 "darkweb_group": malware,
                 "darkweb_source": "threatfox",
+                "structured_iocs": _threatfox_iocs(info["iocs"]),
             })
     except (json.JSONDecodeError, KeyError) as e:
         logger.warning(f"ThreatFox parse error: {e}")
 
     return articles
+
+
+def _threatfox_iocs(entries: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Normalize ThreatFox's typed records without losing provider provenance."""
+    from modules.ioc_extractor import extract_iocs
+
+    type_map = {
+        "url": "urls",
+        "domain": "domains",
+        "hostname": "domains",
+        "ip": "ipv4",
+        "ip:port": "ipv4",
+        "sha256_hash": "sha256",
+        "sha1_hash": "sha1",
+        "md5_hash": "md5",
+    }
+    normalized: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for entry in entries:
+        raw_value = str(entry.get("value") or "").strip()
+        expected = type_map.get(str(entry.get("type") or "").casefold())
+        if not raw_value or expected is None:
+            continue
+        extracted = extract_iocs(raw_value)
+        values = extracted.get(expected) or []
+        for value in values:
+            key = (expected, value.casefold())
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized.append({
+                "type": expected,
+                "value": value,
+                "provider": "threatfox",
+            })
+    return normalized
 
 
 def _parse_date(date_str: str | None) -> datetime | None:

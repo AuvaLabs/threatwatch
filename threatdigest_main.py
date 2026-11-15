@@ -43,8 +43,18 @@ def enrich_articles(articles, summarize=False, stats=None):
     url_to_content = process_urls_in_parallel(url_list)
 
     if stats:
-        stats.scrape_successes = sum(1 for v in url_to_content.values() if v)
-        stats.scrape_failures = sum(1 for v in url_to_content.values() if not v)
+        outcome_counts = getattr(url_to_content, "outcome_counts", None)
+        if outcome_counts is None:
+            stats.scrape_successes = sum(1 for v in url_to_content.values() if v)
+            stats.scrape_failures = sum(1 for v in url_to_content.values() if not v)
+        else:
+            stats.scrape_successes = outcome_counts["succeeded"]
+            stats.scrape_failures = outcome_counts["failed"]
+            stats.scrape_blocked = outcome_counts["blocked"]
+            stats.scrape_skipped = (
+                outcome_counts["skipped_protected"]
+                + outcome_counts["skipped_unresolved"]
+            )
 
     enriched = []
     ingested_at = datetime.now(timezone.utc).isoformat()

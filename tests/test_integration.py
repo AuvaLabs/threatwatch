@@ -114,6 +114,47 @@ class TestEnrichArticles:
         enrich_articles(articles, summarize=True, stats=stats)
         assert stats.scrape_successes == 1
         assert stats.scrape_failures == 1
+        assert stats.scrape_skipped == 0
+        assert stats.scrape_blocked == 0
+
+    @patch("threatdigest_main.classify_article")
+    @patch("threatdigest_main.process_urls_in_parallel")
+    @patch("threatdigest_main.detect_language", return_value="en")
+    def test_stats_use_detailed_scrape_outcomes(self, mock_lang, mock_parallel, mock_classify):
+        from modules.article_scraper import ScrapeResults
+
+        articles = [
+            self._make_article("A", "https://example.com/a"),
+            self._make_article("B", "https://vulners.com/b"),
+            self._make_article("C", "https://unsafe.test/c"),
+        ]
+        mock_parallel.return_value = ScrapeResults(
+            {
+                "https://example.com/a": "content",
+                "https://vulners.com/b": None,
+                "https://unsafe.test/c": None,
+            },
+            outcomes={
+                "https://example.com/a": "succeeded",
+                "https://vulners.com/b": "skipped_protected",
+                "https://unsafe.test/c": "blocked",
+            },
+        )
+        mock_classify.return_value = {
+            "is_cyber_attack": True,
+            "category": "Malware",
+            "confidence": 90,
+            "translated_title": "Test",
+            "summary": "",
+        }
+
+        stats = RunStats()
+        enrich_articles(articles, summarize=True, stats=stats)
+
+        assert stats.scrape_successes == 1
+        assert stats.scrape_failures == 0
+        assert stats.scrape_skipped == 1
+        assert stats.scrape_blocked == 1
 
     @patch("threatdigest_main.classify_article")
     @patch("threatdigest_main.process_urls_in_parallel")

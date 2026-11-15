@@ -100,6 +100,7 @@ def _observables(
     grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     contexts: dict[tuple[str, str], list[str]] = defaultdict(list)
     structured: dict[tuple[str, str], bool] = defaultdict(bool)
+    structured_providers: dict[tuple[str, str], set[str]] = defaultdict(set)
     display_values: dict[tuple[str, str], str] = {}
     for article in articles:
         for observable in article_observables(article):
@@ -109,6 +110,8 @@ def _observables(
             if observable["context"]:
                 contexts[key].append(observable["context"])
             structured[key] = structured[key] or observable["structured"]
+            if observable.get("structured") and observable.get("provider"):
+                structured_providers[key].add(str(observable["provider"]))
 
     results: list[dict[str, Any]] = []
     for (ioc_type, normalized), evidence in grouped.items():
@@ -123,6 +126,16 @@ def _observables(
             for item in enrichments.get((ioc_type, normalized), [])
             if isinstance(item, dict)
         ]
+        known_providers = {item["provider"].casefold() for item in provider_evidence}
+        provider_evidence.extend(
+            {
+                "provider": provider,
+                "status": "matched",
+                "confidence": 95,
+            }
+            for provider in sorted(structured_providers[(ioc_type, normalized)])
+            if provider.casefold() not in known_providers
+        )
         provider_match = any(item["status"] == "matched" for item in provider_evidence)
         disposition = "confirmed" if structured[(ioc_type, normalized)] or len(publishers) >= 2 or provider_match else "reported"
         results.append({

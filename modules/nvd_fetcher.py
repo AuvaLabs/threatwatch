@@ -110,7 +110,9 @@ def fetch_nvd_cves() -> list[dict[str, Any]]:
     Returns articles in the standard pipeline format.
     """
     if not _should_fetch():
-        logger.info("NVD: rate-limited, skipping this run.")
+        logger.info(
+            "NVD: internal 10-minute fetch interval has not elapsed; skipping this run."
+        )
         return []
 
     now = datetime.now(timezone.utc)

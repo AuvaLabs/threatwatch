@@ -32,12 +32,52 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from modules.config import STATE_DIR
+from modules.telegram import filter_briefing_for_notification, matches_notification_focus
 from modules.utils import write_json_atomic
 
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 WEBHOOK_MIN_CONF = int(os.environ.get("WEBHOOK_MIN_CONF", "80"))
 WEBHOOK_BRIEFING_MIN_LEVEL = os.environ.get("WEBHOOK_BRIEFING_MIN_LEVEL", "ELEVATED").upper()
 WEBHOOK_BRIEFING_COOLDOWN_HOURS = float(os.environ.get("WEBHOOK_BRIEFING_COOLDOWN_HOURS", "6"))
+WEBHOOK_INCLUDE_TERMS = tuple(
+    value.strip().casefold()
+    for value in os.environ.get("WEBHOOK_INCLUDE_TERMS", "").split(",")
+    if value.strip()
+)
+WEBHOOK_INCLUDE_REGIONS = tuple(
+    value.strip().casefold()
+    for value in os.environ.get("WEBHOOK_INCLUDE_REGIONS", "").split(",")
+    if value.strip()
+)
+WEBHOOK_INCLUDE_SECTORS = tuple(
+    value.strip().casefold()
+    for value in os.environ.get("WEBHOOK_INCLUDE_SECTORS", "").split(",")
+    if value.strip()
+)
+
+
+def _float_setting(name: str, default: float = 0.0) -> float:
+    try:
+        return float(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        logger.warning("Invalid %s value; using %.1f", name, default)
+        return default
+
+
+WEBHOOK_FOCUS_MIN_CONFIDENCE = _float_setting("WEBHOOK_FOCUS_MIN_CONFIDENCE")
+WEBHOOK_KEV_ONLY = os.environ.get("WEBHOOK_KEV_ONLY", "").strip().casefold() in {
+    "1", "true", "yes", "on",
+}
+
+
+def _focus_settings() -> dict:
+    return {
+        "terms": WEBHOOK_INCLUDE_TERMS,
+        "regions": WEBHOOK_INCLUDE_REGIONS,
+        "sectors": WEBHOOK_INCLUDE_SECTORS,
+        "min_confidence": WEBHOOK_FOCUS_MIN_CONFIDENCE,
+        "kev_only": WEBHOOK_KEV_ONLY,
+    }
 
 # Ordered threat-level severity (ascending). Used to decide whether an
 # incoming briefing clears the alert threshold.
@@ -121,6 +161,7 @@ def dispatch(articles: list[dict]) -> None:
     high_conf = [
         a for a in articles
         if a.get("is_cyber_attack") and (a.get("confidence") or 0) >= WEBHOOK_MIN_CONF
+        and matches_notification_focus(a, **_focus_settings())
     ]
     if not high_conf:
         logger.debug("Webhook: no high-confidence articles to report")
@@ -237,6 +278,9 @@ def dispatch_briefing_alert(briefing: dict | None) -> bool:
     to call with a ``None`` briefing or when ``WEBHOOK_URL`` is empty.
     """
     if not WEBHOOK_URL or not briefing:
+        return False
+    briefing = filter_briefing_for_notification(briefing, **_focus_settings())
+    if briefing is None:
         return False
     level = (briefing.get("threat_level") or "").upper()
     state = _load_briefing_alert_state()

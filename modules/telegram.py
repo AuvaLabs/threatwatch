@@ -49,6 +49,33 @@ TELEGRAM_DASHBOARD_URL = os.environ.get(
     "TELEGRAM_DASHBOARD_URL", "https://threatwatch.auvalabs.com"
 )
 
+
+def _csv_setting(name: str) -> tuple[str, ...]:
+    return tuple(
+        value.strip().casefold()
+        for value in os.environ.get(name, "").split(",")
+        if value.strip()
+    )
+
+
+def _bool_setting(name: str) -> bool:
+    return os.environ.get(name, "").strip().casefold() in {"1", "true", "yes", "on"}
+
+
+def _float_setting(name: str, default: float = 0.0) -> float:
+    try:
+        return float(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        logger.warning("Invalid %s value; using %.1f", name, default)
+        return default
+
+
+TELEGRAM_INCLUDE_TERMS = _csv_setting("TELEGRAM_INCLUDE_TERMS")
+TELEGRAM_INCLUDE_REGIONS = _csv_setting("TELEGRAM_INCLUDE_REGIONS")
+TELEGRAM_INCLUDE_SECTORS = _csv_setting("TELEGRAM_INCLUDE_SECTORS")
+TELEGRAM_MIN_CONFIDENCE = _float_setting("TELEGRAM_MIN_CONFIDENCE")
+TELEGRAM_KEV_ONLY = _bool_setting("TELEGRAM_KEV_ONLY")
+
 # Telegram sendMessage caps at 4096 chars. We keep a comfortable safety
 # margin since headline + actions + footer also consume budget.
 _TELEGRAM_MAX_BODY = 4000
@@ -191,6 +218,127 @@ def format_briefing_html(briefing: dict) -> str:
     return body
 
 
+def _notification_filters_enabled(
+    *,
+    terms: tuple[str, ...] | None = None,
+    regions: tuple[str, ...] | None = None,
+    sectors: tuple[str, ...] | None = None,
+    min_confidence: float | None = None,
+    kev_only: bool | None = None,
+) -> bool:
+    terms = TELEGRAM_INCLUDE_TERMS if terms is None else terms
+    regions = TELEGRAM_INCLUDE_REGIONS if regions is None else regions
+    sectors = TELEGRAM_INCLUDE_SECTORS if sectors is None else sectors
+    min_confidence = TELEGRAM_MIN_CONFIDENCE if min_confidence is None else min_confidence
+    kev_only = TELEGRAM_KEV_ONLY if kev_only is None else kev_only
+    return bool(
+        terms or regions or sectors or min_confidence > 0 or kev_only
+    )
+
+
+def _strings(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value if not isinstance(item, (dict, list))]
+    return [str(value)] if value not in (None, "") else []
+
+
+def matches_notification_focus(
+    item: dict,
+    *,
+    terms: tuple[str, ...] | None = None,
+    regions: tuple[str, ...] | None = None,
+    sectors: tuple[str, ...] | None = None,
+    min_confidence: float | None = None,
+    kev_only: bool | None = None,
+) -> bool:
+    terms = TELEGRAM_INCLUDE_TERMS if terms is None else terms
+    regions = TELEGRAM_INCLUDE_REGIONS if regions is None else regions
+    sectors = TELEGRAM_INCLUDE_SECTORS if sectors is None else sectors
+    min_confidence = TELEGRAM_MIN_CONFIDENCE if min_confidence is None else min_confidence
+    kev_only = TELEGRAM_KEV_ONLY if kev_only is None else kev_only
+    searchable_values: list[str] = []
+    for key in (
+        "title", "source_name", "category", "feed_region", "asset_tags",
+        "brand_tags", "victim_sectors", "cve_ids", "cve_id",
+    ):
+        searchable_values.extend(_strings(item.get(key)))
+    for entry in item.get("kev_entries") or []:
+        if isinstance(entry, dict):
+            for key in ("cve_id", "vendor", "product", "name"):
+                searchable_values.extend(_strings(entry.get(key)))
+    searchable = " ".join(searchable_values).casefold()
+    if terms and not any(term in searchable for term in terms):
+        return False
+
+    region = str(item.get("feed_region") or "").casefold()
+    if regions and not any(value in region for value in regions):
+        return False
+
+    item_sectors = {value.casefold() for value in _strings(item.get("victim_sectors"))}
+    if sectors and not item_sectors.intersection(sectors):
+        return False
+
+    try:
+        confidence = float(item.get("confidence") or 0)
+    except (TypeError, ValueError):
+        confidence = 0
+    if confidence < min_confidence:
+        return False
+    if kev_only and not (item.get("kev_listed") or item.get("kevListed")):
+        return False
+    return True
+
+
+def filter_briefing_for_notification(
+    briefing: dict,
+    *,
+    terms: tuple[str, ...] | None = None,
+    regions: tuple[str, ...] | None = None,
+    sectors: tuple[str, ...] | None = None,
+    min_confidence: float | None = None,
+    kev_only: bool | None = None,
+) -> dict | None:
+    """Return a deterministic, source-linked focus brief or suppress no-match delivery."""
+    settings = {
+        "terms": terms,
+        "regions": regions,
+        "sectors": sectors,
+        "min_confidence": min_confidence,
+        "kev_only": kev_only,
+    }
+    if not _notification_filters_enabled(**settings):
+        return briefing
+    sources = [
+        source for source in briefing.get("source_articles") or []
+        if isinstance(source, dict) and matches_notification_focus(source, **settings)
+    ]
+    if not sources:
+        return None
+    indexes = {
+        source.get("index") for source in sources
+        if isinstance(source.get("index"), int)
+    }
+    actions = [
+        action for action in briefing.get("what_to_do") or []
+        if isinstance(action, dict)
+        and indexes.intersection(
+            value for value in action.get("sources") or [] if isinstance(value, int)
+        )
+    ]
+    titles = [str(source.get("title") or "Untitled report") for source in sources]
+    headline = _truncate(f"Focused update: {titles[0]}", 180)
+    assessment = "Matched reports: " + "; ".join(titles[:5]) + "."
+    return {
+        **briefing,
+        "headline": headline,
+        "headline_source": sources[0].get("index"),
+        "what_happened": assessment,
+        "what_happened_sources": sorted(indexes),
+        "what_to_do": actions,
+        "source_articles": sources,
+    }
+
+
 def _send(text: str, *, chat_id: str | None = None) -> bool:
     """POST to sendMessage. Returns True on HTTP success."""
     destination = TELEGRAM_CHAT_ID if chat_id is None else chat_id
@@ -232,6 +380,9 @@ def dispatch_telegram_briefing(briefing: dict | None) -> bool:
         or not TELEGRAM_CHAT_ID
         or not _is_grounded_briefing(briefing)
     ):
+        return False
+    briefing = filter_briefing_for_notification(briefing)
+    if briefing is None or not _is_grounded_briefing(briefing):
         return False
     level = (briefing.get("threat_level") or "").upper()
     state = _load_json_state(_STATE_PATH)
@@ -305,6 +456,10 @@ def dispatch_telegram_kev_alerts(articles: list[dict]) -> int:
     """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not articles:
         return 0
+    if _notification_filters_enabled():
+        articles = [article for article in articles if matches_notification_focus(article)]
+        if not articles:
+            return 0
 
     state = _load_json_state(_KEV_STATE_PATH)
 
@@ -395,6 +550,9 @@ def post_briefing_unconditional(briefing: dict | None) -> bool:
         or not TELEGRAM_CHAT_ID
         or not _is_grounded_briefing(briefing)
     ):
+        return False
+    briefing = filter_briefing_for_notification(briefing)
+    if briefing is None or not _is_grounded_briefing(briefing):
         return False
     return _send(format_briefing_html(briefing))
 

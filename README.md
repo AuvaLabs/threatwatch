@@ -240,6 +240,16 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `SUMMARY_BATCH_DELAY_SECONDS` | `5` | Delay between uncached summary batches to protect provider quotas |
 | `SUMMARY_MAX_TOKENS` | `1600` | Output budget for each structured summary batch |
 | `TELEGRAM_DAILY_MAX_AGE_HOURS` | `36` | Maximum age of the configured daily Telegram delivery proof before health degrades |
+| `TELEGRAM_INCLUDE_TERMS` | _(empty)_ | Optional comma-separated vendor, product, CVE, or keyword focus for private delivery |
+| `TELEGRAM_INCLUDE_REGIONS` | _(empty)_ | Optional comma-separated regional focus |
+| `TELEGRAM_INCLUDE_SECTORS` | _(empty)_ | Optional comma-separated victim-sector focus |
+| `TELEGRAM_MIN_CONFIDENCE` | `0` | Optional source confidence floor for focused Telegram delivery |
+| `TELEGRAM_KEV_ONLY` | `false` | Restrict focused Telegram delivery to CISA KEV-linked sources |
+| `WEBHOOK_INCLUDE_TERMS` | _(empty)_ | Optional comma-separated focus for webhook article and briefing delivery |
+| `WEBHOOK_INCLUDE_REGIONS` | _(empty)_ | Optional comma-separated regional focus for webhooks |
+| `WEBHOOK_INCLUDE_SECTORS` | _(empty)_ | Optional comma-separated victim-sector focus for webhooks |
+| `WEBHOOK_FOCUS_MIN_CONFIDENCE` | `0` | Optional source confidence floor for focused webhooks |
+| `WEBHOOK_KEV_ONLY` | `false` | Restrict focused webhook delivery to CISA KEV-linked sources |
 
 Example Claude configuration:
 

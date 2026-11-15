@@ -210,6 +210,12 @@ that fires on briefing threat-level changes. Set these env vars in `.env`:
 WEBHOOK_URL=https://hooks.slack.com/services/T0000/B0000/xxxxxxxx
 WEBHOOK_BRIEFING_MIN_LEVEL=ELEVATED   # CRITICAL | ELEVATED | MODERATE | GUARDED | LOW
 WEBHOOK_BRIEFING_COOLDOWN_HOURS=6
+# Optional focus. Values within one line use OR; configured lines combine with AND.
+WEBHOOK_INCLUDE_TERMS=Microsoft Azure,Fortinet
+WEBHOOK_INCLUDE_REGIONS=Middle East,Europe
+WEBHOOK_INCLUDE_SECTORS=Finance,Healthcare
+WEBHOOK_FOCUS_MIN_CONFIDENCE=80
+WEBHOOK_KEV_ONLY=false
 ```
 
 Auto-detected payload shape: Slack incoming webhook, Discord webhook, or
@@ -264,7 +270,19 @@ TELEGRAM_OPS_CHAT_ID=-100987654321         # optional private operator chat
 TELEGRAM_MIN_LEVEL=CRITICAL                # CRITICAL | ELEVATED | MODERATE | …
 TELEGRAM_COOLDOWN_HOURS=6
 TELEGRAM_DASHBOARD_URL=https://threatwatch.auvalabs.com
+# Optional private-delivery focus. Leave every value empty for the full editorial brief.
+TELEGRAM_INCLUDE_TERMS=Microsoft Azure,Fortinet
+TELEGRAM_INCLUDE_REGIONS=Middle East,Europe
+TELEGRAM_INCLUDE_SECTORS=Finance,Healthcare
+TELEGRAM_MIN_CONFIDENCE=80
+TELEGRAM_KEV_ONLY=false
 ```
+
+Focused delivery is deterministic and source-linked. When any focus setting is
+configured, ThreatWatch sends only when at least one cited source matches. The
+message lists the matching source titles and retains only actions citing those
+sources. Values on the same setting are alternatives, while different settings
+must all match. The public editorial channel can leave these settings empty.
 
 > **Recommended threshold:** `CRITICAL`. The platform sits at `ELEVATED`
 > on most days, so an `ELEVATED` floor turns Telegram into a daily ping.

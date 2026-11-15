@@ -10,6 +10,7 @@ from modules.ioc_extractor import refang
 
 _IOC_TYPES = ("ipv4", "ipv6", "domains", "urls", "sha256", "sha1", "md5", "emails")
 _STRONG_TYPES = frozenset({"ipv4", "ipv6", "sha256", "sha1", "md5"})
+_STRUCTURED_PROVIDERS = frozenset({"threatfox"})
 _AGGREGATORS = frozenset({"bing", "google", "google news", "feedburner"})
 _NETWORK_CONTEXT = re.compile(
     r"\b(?:c2|c&c|command(?: and |-)control|malicious|malware|phish(?:ing)?|"
@@ -101,20 +102,53 @@ def _is_publisher_reference(value: str, article: dict[str, Any]) -> bool:
     return bool(domain_token and domain_token in _publisher_tokens(article))
 
 
-def _values(article: dict[str, Any]) -> list[tuple[str, str]]:
+def _values(article: dict[str, Any]) -> list[dict[str, Any]]:
     raw = article.get("iocs")
-    if not isinstance(raw, dict):
-        return []
-    values: list[tuple[str, str]] = []
-    for ioc_type in _IOC_TYPES:
-        items = raw.get(ioc_type)
-        if not isinstance(items, list):
-            continue
-        for item in items:
-            value = _text(item.get("value") if isinstance(item, dict) else item)
-            if value:
-                values.append((ioc_type, value))
-    return values
+    structured_source = _text(
+        article.get("darkweb_source") or article.get("darkwebSource")
+    ).casefold()
+    values: list[dict[str, Any]] = []
+    if isinstance(raw, dict):
+        for ioc_type in _IOC_TYPES:
+            items = raw.get(ioc_type)
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                value = _text(item.get("value") if isinstance(item, dict) else item)
+                if value:
+                    values.append({
+                        "type": ioc_type,
+                        "value": value,
+                        "structured": structured_source == "threatfox",
+                        "provider": "threatfox" if structured_source == "threatfox" else "",
+                    })
+    for item in _list_of_dicts(article.get("structured_iocs")):
+        ioc_type = _text(item.get("type"))
+        value = _text(item.get("value"))
+        provider = _text(item.get("provider")).casefold()
+        if (
+            ioc_type in _IOC_TYPES
+            and value
+            and provider in _STRUCTURED_PROVIDERS
+            and provider == structured_source
+        ):
+            values.append({
+                "type": ioc_type,
+                "value": value,
+                "structured": True,
+                "provider": provider,
+            })
+    unique: dict[tuple[str, str], dict[str, Any]] = {}
+    for item in values:
+        key = (item["type"], item["value"].casefold())
+        existing = unique.get(key)
+        if existing is None or (item["structured"] and not existing["structured"]):
+            unique[key] = item
+    return list(unique.values())
+
+
+def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
+    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 
 
 def article_observables(article: dict[str, Any]) -> list[dict[str, Any]]:
@@ -127,9 +161,11 @@ def article_observables(article: dict[str, Any]) -> list[dict[str, Any]]:
         "published": article.get("published_at") or article.get("published") or article.get("timestamp"),
         "url": _text(article.get("canonical_url") or article.get("link")),
     }
-    structured = bool(article.get("darkweb_source") == "threatfox" or article.get("darkwebSource") == "threatfox")
     observables: list[dict[str, Any]] = []
-    for ioc_type, value in _values(article):
+    for candidate in _values(article):
+        ioc_type = candidate["type"]
+        value = candidate["value"]
+        structured = bool(candidate["structured"])
         context = _context(text, value)
         if ioc_type in {"domains", "urls"} and not _host(value):
             continue
@@ -146,6 +182,7 @@ def article_observables(article: dict[str, Any]) -> list[dict[str, Any]]:
             "value": value,
             "context": context[:280],
             "structured": structured,
+            "provider": candidate["provider"],
             "source": source,
         })
     return observables

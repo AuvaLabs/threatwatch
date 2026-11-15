@@ -109,6 +109,7 @@ class TestProcessUrlsInParallel:
             results = process_urls_in_parallel(["https://example.com/1"])
 
         assert "https://example.com/1" in results
+        assert results.outcomes["https://example.com/1"] == "succeeded"
 
     def test_deduplicates_urls(self):
         calls = []
@@ -127,10 +128,26 @@ class TestProcessUrlsInParallel:
             results = process_urls_in_parallel(["https://example.com/1"])
 
         assert results.get("https://example.com/1") is None
+        assert results.outcomes["https://example.com/1"] == "failed"
 
     def test_empty_url_list_returns_empty_dict(self):
         results = process_urls_in_parallel([])
         assert results == {}
+        assert results.outcome_counts == {
+            "succeeded": 0,
+            "failed": 0,
+            "blocked": 0,
+            "skipped_protected": 0,
+            "skipped_unresolved": 0,
+        }
+
+    def test_reports_intentional_skip_separately_from_failure(self):
+        url = "https://vulners.com/cvelist/CVELIST:CVE-2026-12345"
+        with patch("modules.article_scraper.extract_article_content", return_value=(url, None)):
+            results = process_urls_in_parallel([url])
+
+        assert results.outcomes[url] == "skipped_protected"
+        assert results.outcome_counts["failed"] == 0
 
 
 class TestProtectedSources:

@@ -39,6 +39,8 @@ class RunStats:
         self.cache_misses = 0
         self.scrape_successes = 0
         self.scrape_failures = 0
+        self.scrape_skipped = 0
+        self.scrape_blocked = 0
         self.cyber_articles = 0
         self.non_cyber_articles = 0
         self.analysis_failures = 0
@@ -73,6 +75,8 @@ class RunStats:
             "cache_misses": self.cache_misses,
             "scrape_successes": self.scrape_successes,
             "scrape_failures": self.scrape_failures,
+            "scrape_skipped": self.scrape_skipped,
+            "scrape_blocked": self.scrape_blocked,
             "cyber_articles": self.cyber_articles,
             "non_cyber_articles": self.non_cyber_articles,
             "analysis_failures": self.analysis_failures,
@@ -91,5 +95,7 @@ class RunStats:
             f"{self.news_reviewed} news reviewed, "
             f"{self.cyber_articles} cyber articles, "
             f"{self.cache_hits} cache hits, "
-            f"{self.scrape_successes}/{self.articles_after_dedup} scraped"
+            f"scraping={self.scrape_successes} succeeded, "
+            f"{self.scrape_failures} failed, {self.scrape_blocked} blocked, "
+            f"{self.scrape_skipped} intentionally skipped"
         )

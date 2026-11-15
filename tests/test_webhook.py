@@ -62,6 +62,14 @@ class TestDispatchNoOp:
             wh.dispatch([NON_CYBER_ARTICLE])
             mock_sess.assert_not_called()
 
+    def test_focus_terms_exclude_unrelated_articles(self):
+        with patch.object(wh, "WEBHOOK_URL", "https://hooks.slack.com/test"), \
+             patch.object(wh, "WEBHOOK_MIN_CONF", 80), \
+             patch.object(wh, "WEBHOOK_INCLUDE_TERMS", ("fortinet",)), \
+             patch("modules.webhook._get_session") as mock_sess:
+            wh.dispatch([CYBER_ARTICLE])
+            mock_sess.assert_not_called()
+
 
 class TestDispatchSlack:
     def test_posts_to_slack(self):
@@ -199,6 +207,23 @@ class TestDispatchBriefingAlert:
     def test_noop_when_briefing_none(self, monkeypatch):
         monkeypatch.setattr(wh, "WEBHOOK_URL", "https://example.com/webhook")
         assert wh.dispatch_briefing_alert(None) is False
+
+    def test_focus_terms_suppress_unrelated_briefing(self, monkeypatch):
+        monkeypatch.setattr(wh, "WEBHOOK_URL", "https://example.com/webhook")
+        monkeypatch.setattr(wh, "WEBHOOK_INCLUDE_TERMS", ("fortinet",))
+        briefing = {
+            "threat_level": "CRITICAL",
+            "headline": "Cisco incident",
+            "what_happened": "Cisco incident details",
+            "source_articles": [{
+                "index": 1,
+                "title": "Cisco incident",
+                "link": "https://example.test/cisco",
+            }],
+        }
+        with patch("modules.webhook._get_session") as session:
+            assert wh.dispatch_briefing_alert(briefing) is False
+        session.assert_not_called()
 
     def test_slack_payload_shape(self, monkeypatch):
         monkeypatch.setattr(wh, "WEBHOOK_URL", "https://hooks.slack.com/services/xyz")

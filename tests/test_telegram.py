@@ -101,6 +101,49 @@ class TestFormatBriefingHTML:
         assert "Three notable incidents" in out
 
 
+class TestNotificationFiltering:
+    def test_invalid_focus_confidence_uses_safe_default(self, monkeypatch):
+        monkeypatch.setenv("TELEGRAM_MIN_CONFIDENCE", "not-a-number")
+        assert tg._float_setting("TELEGRAM_MIN_CONFIDENCE") == 0.0
+
+    def test_term_filter_builds_focused_source_linked_brief(self):
+        briefing = {
+            **_BRIEFING,
+            "source_articles": [
+                {"index": 1, "title": "Cisco ASA exploitation", "link": "https://example.test/cisco", "asset_tags": ["Cisco"]},
+                {"index": 2, "title": "Unrelated phishing story", "link": "https://example.test/phish", "asset_tags": ["Other"]},
+            ],
+            "what_to_do": [
+                {"action": "Patch Cisco ASA", "sources": [1]},
+                {"action": "Review unrelated mail", "sources": [2]},
+            ],
+        }
+        with patch.object(tg, "TELEGRAM_INCLUDE_TERMS", ("cisco",)), \
+             patch.object(tg, "TELEGRAM_INCLUDE_REGIONS", ()), \
+             patch.object(tg, "TELEGRAM_INCLUDE_SECTORS", ()), \
+             patch.object(tg, "TELEGRAM_MIN_CONFIDENCE", 0.0), \
+             patch.object(tg, "TELEGRAM_KEV_ONLY", False):
+            filtered = tg.filter_briefing_for_notification(briefing)
+
+        assert filtered is not None
+        assert [item["index"] for item in filtered["source_articles"]] == [1]
+        assert [item["action"] for item in filtered["what_to_do"]] == ["Patch Cisco ASA"]
+        assert "Cisco ASA exploitation" in filtered["what_happened"]
+        assert "Unrelated phishing story" not in filtered["what_happened"]
+
+    def test_no_filter_match_suppresses_delivery(self):
+        with patch.object(tg, "TELEGRAM_INCLUDE_TERMS", ("fortinet",)), \
+             patch.object(tg, "TELEGRAM_INCLUDE_REGIONS", ()), \
+             patch.object(tg, "TELEGRAM_INCLUDE_SECTORS", ()), \
+             patch.object(tg, "TELEGRAM_MIN_CONFIDENCE", 0.0), \
+             patch.object(tg, "TELEGRAM_KEV_ONLY", False), \
+             patch.object(tg, "TELEGRAM_BOT_TOKEN", "abc"), \
+             patch.object(tg, "TELEGRAM_CHAT_ID", "@x"), \
+             patch.object(tg, "_send") as send:
+            assert tg.post_briefing_unconditional(_BRIEFING) is False
+        send.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # dispatch_telegram_briefing
 # ---------------------------------------------------------------------------

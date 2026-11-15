@@ -44,6 +44,52 @@ def _create_session() -> requests.Session:
 
 _session = _create_session()
 _SKIP_FULL_TEXT_HOSTS = frozenset({"vulners.com"})
+_OUTCOME_KEYS = (
+    "succeeded",
+    "failed",
+    "blocked",
+    "skipped_protected",
+    "skipped_unresolved",
+)
+
+
+class ExtractionResult(tuple):
+    """Backward-compatible two-tuple carrying a machine-readable outcome."""
+
+    outcome: str
+
+    def __new__(
+        cls,
+        clean_url: str,
+        content: str | None,
+        outcome: str,
+    ) -> "ExtractionResult":
+        instance = super().__new__(cls, (clean_url, content))
+        instance.outcome = outcome
+        return instance
+
+    @property
+    def clean_url(self) -> str:
+        return self[0]
+
+    @property
+    def content(self) -> str | None:
+        return self[1]
+
+
+class ScrapeResults(dict[str, str | None]):
+    """Content map with one explicit outcome for each requested URL."""
+
+    def __init__(self, *args: Any, outcomes: dict[str, str] | None = None, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.outcomes = dict(outcomes or {})
+
+    @property
+    def outcome_counts(self) -> dict[str, int]:
+        return {
+            key: sum(outcome == key for outcome in self.outcomes.values())
+            for key in _OUTCOME_KEYS
+        }
 
 
 def _get_headers() -> dict[str, str]:
@@ -86,7 +132,7 @@ def extract_with_fallback(url: str) -> str | None:
         return None
 
 
-def extract_article_content(raw_url: str) -> tuple[str, str | None]:
+def extract_article_content(raw_url: str) -> ExtractionResult:
     clean_url = resolve_original_url(raw_url)
     host = (urlparse(clean_url).hostname or "").lower()
     protected_source = any(
@@ -95,24 +141,40 @@ def extract_article_content(raw_url: str) -> tuple[str, str | None]:
     )
     if protected_source or is_google_news_url(clean_url):
         logger.debug("Skipping full-text extraction for %s", clean_url)
-        return clean_url, None
+        outcome = "skipped_protected" if protected_source else "skipped_unresolved"
+        return ExtractionResult(clean_url, None, outcome)
+
+    if not is_safe_url(clean_url):
+        logger.warning("Full-text extraction blocked for unsafe URL %s", clean_url)
+        return ExtractionResult(clean_url, None, "blocked")
 
     content = extract_with_trafilatura(clean_url)
     if content:
         logger.info(f"Extracted {len(content)} chars from {clean_url}")
-        return clean_url, content
+        return ExtractionResult(clean_url, content, "succeeded")
 
     content = extract_with_fallback(clean_url)
     if content:
         logger.info(f"Extracted {len(content)} chars (fallback) from {clean_url}")
-        return clean_url, content
+        return ExtractionResult(clean_url, content, "succeeded")
 
     logger.warning(f"No content extracted from {clean_url}")
-    return clean_url, None
+    return ExtractionResult(clean_url, None, "failed")
 
 
-def process_urls_in_parallel(url_list: list[str], max_threads: int = MAX_SCRAPER_THREADS) -> dict[str, str | None]:
-    results = {}
+def _inferred_outcome(clean_url: str, content: str | None) -> str:
+    if content:
+        return "succeeded"
+    host = (urlparse(clean_url).hostname or "").lower()
+    if any(host == value or host.endswith(f".{value}") for value in _SKIP_FULL_TEXT_HOSTS):
+        return "skipped_protected"
+    if is_google_news_url(clean_url):
+        return "skipped_unresolved"
+    return "failed"
+
+
+def process_urls_in_parallel(url_list: list[str], max_threads: int = MAX_SCRAPER_THREADS) -> ScrapeResults:
+    results = ScrapeResults()
     unique_urls = list(dict.fromkeys(url_list))
 
     with ThreadPoolExecutor(max_workers=max_threads) as executor:
@@ -123,16 +185,26 @@ def process_urls_in_parallel(url_list: list[str], max_threads: int = MAX_SCRAPER
         for future in as_completed(future_to_url):
             url = future_to_url[future]
             try:
-                clean_url, content = future.result()
+                extracted = future.result()
+                clean_url, content = extracted
                 results[url] = content
+                results.outcomes[url] = getattr(
+                    extracted, "outcome", _inferred_outcome(clean_url, content)
+                )
                 if clean_url != url:
                     results[clean_url] = content
             except Exception as exc:
                 logger.error(f"Exception scraping {url}: {exc}")
                 results[url] = None
+                results.outcomes[url] = "failed"
 
+    counts = results.outcome_counts
     logger.info(
-        f"Scraping complete: {sum(1 for v in results.values() if v)} of "
-        f"{len(unique_urls)} articles extracted"
+        "Scraping complete: %d succeeded, %d failed, %d blocked, %d skipped of %d URLs",
+        counts["succeeded"],
+        counts["failed"],
+        counts["blocked"],
+        counts["skipped_protected"] + counts["skipped_unresolved"],
+        len(unique_urls),
     )
     return results

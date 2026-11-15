@@ -78,6 +78,12 @@ HUNT_ENRICHMENT_TTL_HOURS=24
 
 ThreatFox supports exact IOC searches for IPs, domains, URLs, and hashes. URLhaus is queried only for complete URLs. The pipeline stores provider results in the `observable_enrichments` SQLite table and does not make provider calls from API requests.
 
+ThreatFox collection also preserves the typed IOC records returned by the
+provider. Hunt generation carries that provenance into each observable instead
+of reconstructing only the visible summary text. A structured provider match
+can satisfy corroboration, but it still cannot qualify without an actionable
+observable, ATT&CK behavior, and readiness score of at least 60.
+
 Failed providers do not prevent local package generation. Attempts are capped per cycle, expired cache entries are refreshed, and credentials are never stored in the database or API response.
 
 ## Operations

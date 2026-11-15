@@ -91,6 +91,34 @@ class TestHuntQualification:
         assert hunt["status"] == "qualified"
         assert hunt["observables"][0]["enrichments"][0]["provider"] == "threatfox"
 
+    def test_structured_threatfox_ioc_retains_provider_provenance(self):
+        article = _article(
+            "a",
+            "ThreatFox",
+            techniques=[{"technique_id": "T1071", "technique_name": "Application Layer Protocol"}],
+            title="ThreatFox reports Emotet command and control",
+        )
+        article.update({
+            "darkweb_source": "threatfox",
+            "structured_iocs": [{
+                "type": "domains",
+                "value": "emotet-c2.example",
+                "provider": "threatfox",
+            }],
+            "summary": "ThreatFox reports malicious command and control at emotet-c2.example.",
+        })
+
+        hunt = build_hunts(
+            [article],
+            _cluster("a", entity_type="actor", entity_name="Emotet"),
+        )["hunts"][0]
+
+        assert hunt["status"] == "qualified"
+        assert hunt["observables"][0]["enrichments"] == [{
+            "provider": "threatfox", "status": "matched", "confidence": 95,
+        }]
+        assert "RemoteUrl" in hunt["queries"][0]["query"]
+
     def test_publisher_domains_do_not_create_actor_hunt(self):
         articles = [
             _article(
