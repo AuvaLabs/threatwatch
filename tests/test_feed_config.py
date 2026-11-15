@@ -78,7 +78,9 @@ def test_problematic_feed_endpoints_and_searches_are_replaced():
     assert current_orca_search in google
     assert _feeds_by_url("feeds_google.yaml")[current_orca_search]["stale_after_days"] == 45
 
-    assert "https://asec.ahnlab.com/en/feed/" in native
+    ahnlab_url = "https://asec.ahnlab.com/en/feed/"
+    assert ahnlab_url in native
+    assert _feeds_by_url("feeds_native.yaml")[ahnlab_url]["user_agent"].startswith("ThreatWatch/")
 
     retired_google = {
         "https://news.google.com/rss/search?q=APT+threat+actor+campaign&hl=en-US&gl=US&ceid=US:en",

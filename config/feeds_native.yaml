@@ -67,6 +67,7 @@
   name: AhnLab ASEC
   category: Native
   region: APAC
+  user_agent: ThreatWatch/3.1 (+https://threatwatch.auvalabs.com)
 
 # SentinelLabs feed paused 2026-10-28: valid but no publication since 2026-09-18.
 # Keep the official research URL for a future freshness review.
