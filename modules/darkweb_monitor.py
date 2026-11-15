@@ -20,10 +20,22 @@ import requests
 from urllib.parse import quote
 
 from modules.config import FEED_CUTOFF_DAYS
+from modules.provider_health import (
+    is_suspended,
+    record_disabled,
+    record_failure as record_provider_failure,
+    record_success as record_provider_success,
+)
 from modules.url_resolver import is_clearnet_url
 
 _SESSION = None
 _TOR_SESSION = None
+_PROVIDER_FAILURE_COOLDOWN_SECONDS = max(
+    0, int(os.getenv("DARKWEB_PROVIDER_FAILURE_COOLDOWN_SECONDS", "900"))
+)
+_RANSOMWARE_LIVE_FAILURE_COOLDOWN_SECONDS = max(
+    0, int(os.getenv("RANSOMWARE_LIVE_FAILURE_COOLDOWN_SECONDS", "21600"))
+)
 
 # Clearnet sources that aggregate dark web intel (free, no API key)
 DARKWEB_SOURCES = [
@@ -43,6 +55,7 @@ DARKWEB_SOURCES = [
         "type": "api_json",
         "parser": "_parse_ransomware_live",
         "description": "Ransomware victim posts from leak sites",
+        "failure_cooldown_seconds": _RANSOMWARE_LIVE_FAILURE_COOLDOWN_SECONDS,
     },
     # C2-Tracker (montysecurity) removed 2026-04-21: repo archived.
     # Feodo Tracker (abuse.ch) evaluated as replacement but has <5 active IPs.
@@ -116,17 +129,56 @@ def fetch_darkweb_intel() -> list[dict[str, Any]]:
     cutoff = datetime.now(timezone.utc) - timedelta(days=FEED_CUTOFF_DAYS)
 
     for source in DARKWEB_SOURCES:
+        name = str(source["name"])
+        auth_env = str(source.get("auth_env") or "")
+        if auth_env and not os.getenv(auth_env, "").strip():
+            record_disabled(name, "credential_not_configured")
+            logger.info("Dark web source %s disabled: %s is not configured", name, auth_env)
+            continue
+        if is_suspended(name):
+            logger.info("Dark web source %s suspended until its next health probe", name)
+            continue
         try:
             articles = _fetch_source(source, cutoff)
             all_articles.extend(articles)
+            record_provider_success(name, item_count=len(articles))
             logger.info(
-                f"Dark web: {len(articles)} items from {source['name']}"
+                "Dark web: %d items from %s", len(articles), name
             )
         except Exception as e:
-            logger.warning(f"Dark web source {source['name']} failed: {e}")
+            cooldown = max(
+                0,
+                int(source.get(
+                    "failure_cooldown_seconds",
+                    _PROVIDER_FAILURE_COOLDOWN_SECONDS,
+                )),
+            )
+            record_provider_failure(
+                name,
+                _provider_error_code(e),
+                cooldown_seconds=cooldown,
+            )
+            logger.warning("Dark web source %s failed: %s", name, e)
 
     logger.info(f"Dark web monitoring: {len(all_articles)} total items")
     return all_articles
+
+
+def _provider_error_code(error: Exception) -> str:
+    message = str(error).lower()
+    if isinstance(error, requests.exceptions.SSLError):
+        if "certificate has expired" in message:
+            return "tls_certificate_expired"
+        return "tls_validation_error"
+    if isinstance(error, requests.exceptions.Timeout):
+        return "request_timeout"
+    if isinstance(error, requests.exceptions.HTTPError):
+        response = getattr(error, "response", None)
+        status = getattr(response, "status_code", None)
+        return f"http_{status}" if isinstance(status, int) else "http_error"
+    if isinstance(error, requests.exceptions.ConnectionError):
+        return "connection_error"
+    return "provider_error"
 
 
 def _fetch_source(source: dict[str, Any], cutoff: datetime) -> list[dict[str, Any]]:

@@ -118,14 +118,37 @@ class TestFetchDarkwebIntel:
             result = fetch_darkweb_intel()
         assert isinstance(result, list)
 
-    def test_handles_source_failure_gracefully(self):
-        with patch("modules.darkweb_monitor._fetch_source", side_effect=Exception("network error")):
+    def test_handles_source_failure_gracefully(self, monkeypatch):
+        monkeypatch.setenv("THREATFOX_AUTH_KEY", "test-key")
+        with patch("modules.darkweb_monitor._fetch_source", side_effect=Exception("network error")), \
+             patch("modules.darkweb_monitor.record_provider_failure") as record_failure:
             result = fetch_darkweb_intel()
         assert isinstance(result, list)
         assert len(result) == 0
+        assert record_failure.call_count == len(darkweb_mod.DARKWEB_SOURCES)
 
-    def test_aggregates_articles_from_all_sources(self):
+    def test_suspended_provider_is_not_retried(self):
+        with patch("modules.darkweb_monitor.is_suspended", return_value=True), \
+             patch("modules.darkweb_monitor._fetch_source") as fetch_source:
+            result = fetch_darkweb_intel()
+
+        assert result == []
+        fetch_source.assert_not_called()
+
+    def test_success_records_provider_health(self, monkeypatch):
+        monkeypatch.setenv("THREATFOX_AUTH_KEY", "test-key")
+        fake_article = {"title": "Test", "darkweb": True}
+        with patch("modules.darkweb_monitor.is_suspended", return_value=False), \
+             patch("modules.darkweb_monitor._fetch_source", return_value=[fake_article]), \
+             patch("modules.darkweb_monitor.record_provider_success") as record_success:
+            result = fetch_darkweb_intel()
+
+        assert len(result) == len(darkweb_mod.DARKWEB_SOURCES)
+        assert record_success.call_count == len(darkweb_mod.DARKWEB_SOURCES)
+
+    def test_aggregates_articles_from_all_sources(self, monkeypatch):
         from modules.darkweb_monitor import DARKWEB_SOURCES
+        monkeypatch.setenv("THREATFOX_AUTH_KEY", "test-key")
         fake_article = {"title": "Test", "darkweb": True}
         with patch("modules.darkweb_monitor._fetch_source", return_value=[fake_article]):
             result = fetch_darkweb_intel()

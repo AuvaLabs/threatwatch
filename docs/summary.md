@@ -114,6 +114,7 @@ scripts/rebuild_ledger.py     History-preserving ledger backfill
 - `GET /api/v1/health`
 - `GET /api/v1/health/ai`
 - `GET /api/v1/health/feeds`
+- `GET /api/v1/health/providers`
 - `GET /api/v2/openapi.json`
 
 ## Deployment

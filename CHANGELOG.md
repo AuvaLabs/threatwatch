@@ -2,6 +2,14 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-11-15: Provider resilience and dependency maintenance
+
+- Added structured provider health with bounded circuit breakers and a dedicated health endpoint.
+- Suspended ransomware.live for six hours after provider failures while preserving strict TLS validation and automatic recovery probes.
+- Added bounded NVD retries, exponential backoff, and a 24-hour last-known-good fallback.
+- Refreshed Scattered Spider coverage with current actor aliases and a bounded discovery window.
+- Updated verified Python, Vitest, and CI action dependencies while deferring incompatible frontend major upgrades.
+
 ## 2026-11-09: Evidence graph and intelligence evaluation
 
 - Added deterministic evidence assessments with citation coverage, independent-source counts, authority markers, dispute counts, and plain-language confidence bases.

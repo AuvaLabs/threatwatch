@@ -223,6 +223,70 @@ class TestFetchErrorHandling:
             result = nf.fetch_nvd_cves()
         assert result == []
 
+    def test_timeout_retries_then_succeeds(self, tmp_path, monkeypatch):
+        import requests
+        import modules.nvd_fetcher as nf
+
+        monkeypatch.setattr(nf, "NVD_STATE_FILE", tmp_path / "nvd.json")
+        response = MagicMock()
+        response.json.return_value = {"vulnerabilities": []}
+        session = MagicMock()
+        session.get.side_effect = [
+            requests.exceptions.Timeout(),
+            requests.exceptions.Timeout(),
+            response,
+        ]
+
+        with patch("modules.nvd_fetcher._get_session", return_value=session), \
+             patch("modules.nvd_fetcher.time.sleep") as sleep:
+            result = nf.fetch_nvd_cves()
+
+        assert result == []
+        assert session.get.call_count == 3
+        assert sleep.call_count == 2
+
+    def test_timeout_returns_fresh_last_known_good(self, tmp_path, monkeypatch):
+        import requests
+        import modules.nvd_fetcher as nf
+
+        monkeypatch.setattr(nf, "NVD_STATE_FILE", tmp_path / "nvd.json")
+        cache_file = tmp_path / "nvd.json"
+        cached = [{"cve_id": "CVE-2026-1234", "source": "nvd:cve"}]
+        cache_file.write_text(json.dumps({
+            "last_success_utc": datetime.now(timezone.utc).isoformat(),
+            "articles": cached,
+        }))
+        session = MagicMock()
+        session.get.side_effect = requests.exceptions.Timeout()
+
+        with patch("modules.nvd_fetcher._get_session", return_value=session), \
+             patch("modules.nvd_fetcher._should_fetch", return_value=True), \
+             patch("modules.nvd_fetcher.time.sleep"):
+            result = nf.fetch_nvd_cves()
+
+        assert result == cached
+        assert session.get.call_count == 3
+
+    def test_stale_last_known_good_is_not_returned(self, tmp_path, monkeypatch):
+        import requests
+        import modules.nvd_fetcher as nf
+
+        monkeypatch.setattr(nf, "NVD_STATE_FILE", tmp_path / "nvd.json")
+        cache_file = tmp_path / "nvd.json"
+        cache_file.write_text(json.dumps({
+            "last_success_utc": (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
+            "articles": [{"cve_id": "CVE-OLD"}],
+        }))
+        session = MagicMock()
+        session.get.side_effect = requests.exceptions.Timeout()
+
+        with patch("modules.nvd_fetcher._get_session", return_value=session), \
+             patch("modules.nvd_fetcher._should_fetch", return_value=True), \
+             patch("modules.nvd_fetcher.time.sleep"):
+            result = nf.fetch_nvd_cves()
+
+        assert result == []
+
     def test_http_error_swallowed(self, tmp_path, monkeypatch):
         from unittest.mock import patch
         import modules.nvd_fetcher as nf

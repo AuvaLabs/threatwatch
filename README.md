@@ -232,6 +232,12 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `LLM_MODEL` | provider dependent | Primary model name |
 | `LLM_PROVIDER` | `openai` | OpenAI-compatible provider mode |
 | `DAILY_BUDGET_USD` | `4.00` | Nominal daily spend ceiling for billable provider routes |
+| `NVD_API_KEY` | _(empty)_ | Optional NVD key for higher upstream rate limits |
+| `NVD_RETRY_ATTEMPTS` | `3` | Bounded attempts for retryable NVD failures |
+| `NVD_RETRY_BACKOFF_SECONDS` | `1` | Initial exponential backoff between NVD attempts |
+| `NVD_CACHE_MAX_AGE_HOURS` | `24` | Maximum age of NVD last-known-good fallback records |
+| `DARKWEB_PROVIDER_FAILURE_COOLDOWN_SECONDS` | `900` | Default circuit-breaker cooldown for failed structured providers |
+| `RANSOMWARE_LIVE_FAILURE_COOLDOWN_SECONDS` | `21600` | Probe interval while ransomware.live is unavailable |
 | `LLM_ZERO_COST_PROVIDERS` | _(empty)_ | Comma-separated route names that remain available after the paid budget is reached |
 | `MAX_ARTICLES_PER_SOURCE` | `250` | Maximum articles retained per named source, or `0` to disable balancing |
 | `MAX_ARTICLES_PER_FEED` | `150` | Maximum articles retained per discovery feed URL, or `0` to disable balancing |
@@ -434,6 +440,7 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/sources` | Source coverage and article counts |
 | `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |
 | `GET` | `/api/v1/health/feeds` | Per-source health, including stale and silent feeds |
+| `GET` | `/api/v1/health/providers` | Structured intelligence provider health and circuit-breaker state |
 | `GET` | `/api/v2/openapi.json` | OpenAPI 3.1 discovery document |
 | `GET` | `/api/briefing` | AI intelligence digest with source citations, serving tier (`provider`), staleness (`served_stale`) and threat-level provenance (`threat_level_source`) |
 | `GET` | `/api/briefing/na` | North America regional digest |

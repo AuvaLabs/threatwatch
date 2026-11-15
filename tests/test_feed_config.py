@@ -68,6 +68,7 @@ def test_problematic_feed_endpoints_and_searches_are_replaced():
     retired_google = {
         "https://news.google.com/rss/search?q=APT+threat+actor+campaign&hl=en-US&gl=US&ceid=US:en",
         "https://news.google.com/rss/search?q=Scattered+Spider+UNC3944+cybercrime&hl=en-US&gl=US&ceid=US:en",
+        "https://news.google.com/rss/search?q=%28%22Scattered+Spider%22+OR+UNC3944%29&hl=en-US&gl=US&ceid=US:en",
         "https://news.google.com/rss/search?q=Hunters+International+Qilin+INC+Ransom+ransomware&hl=en-US&gl=US&ceid=US:en",
         "https://news.google.com/rss/search?q=cyber+attack+Middle+East&hl=en-AE&gl=AE&ceid=AE:en",
         "https://news.google.com/rss/search?q=cyber+attack+China+Taiwan&hl=en&gl=US&ceid=US:en",
@@ -75,6 +76,10 @@ def test_problematic_feed_endpoints_and_searches_are_replaced():
     }
     assert retired_google.isdisjoint(google)
     assert "https://news.google.com/rss/search?q=%28APT+OR+%22threat+actor%22%29+cybersecurity&hl=en-US&gl=US&ceid=US:en" in google
+    assert (
+        "https://news.google.com/rss/search?q=%28%22Scattered+Spider%22+OR+UNC3944+OR+%22Muddled+Libra%22+OR+%22Octo+Tempest%22%29+when%3A30d"
+        "&hl=en-US&gl=US&ceid=US:en"
+    ) in google
     assert "https://www.bing.com/news/search?q=cybersecurity+Latin+America&format=rss" in bing
 
 

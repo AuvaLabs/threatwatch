@@ -794,6 +794,7 @@ def build_health() -> bytes:
         "budget_exceeded": bool(latest_run.get("budget_exceeded", False)),
         "api_cost_today_usd": latest_run.get("api_cost_today", 0),
         "feed_health": feed_summary,
+        "intelligence_providers": None,
         "ai_artifacts": artifact_health,
         "operational_artifacts": operational_artifacts,
         "deployment": _deployment_metadata(),
@@ -801,6 +802,11 @@ def build_health() -> bytes:
         "notifications": {},
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+    try:
+        from modules.provider_health import get_provider_health
+        payload["intelligence_providers"] = get_provider_health()
+    except Exception as exc:
+        logger.warning("Provider health check failed: %s", exc)
     telegram_daily = _telegram_daily_status()
     payload["notifications"]["telegram_daily"] = telegram_daily
     if telegram_daily["configured"] and telegram_daily["ok"] is False:
@@ -1027,6 +1033,7 @@ def build_openapi() -> bytes:
         "/api/v1/health/ai": {"get": {"summary": "Get AI artifact health"}},
         "/api/v1/health/artifacts": {"get": {"summary": "Get hunt and ledger health"}},
         "/api/v1/health/feeds": {"get": {"summary": "Get feed health"}},
+        "/api/v1/health/providers": {"get": {"summary": "Get intelligence provider health"}},
     }
     payload = {
         "openapi": "3.1.0",
@@ -1245,6 +1252,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         "/api/health", "/api/v1/health", "/api/v1/health/ai",
         "/api/v1/health/artifacts",
         "/api/v1/health/feeds",
+        "/api/v1/health/providers",
         "/api/watchlist", "/api/quality", "/api/groq-usage",
     })
 
@@ -1714,6 +1722,14 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             from modules.feed_health import get_health_json
             body = json.dumps(
                 get_health_json(), ensure_ascii=False, separators=(",", ":"),
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/health/providers":
+            from modules.provider_health import get_provider_health
+            body = json.dumps(
+                get_provider_health(), ensure_ascii=False, separators=(",", ":"),
             ).encode("utf-8")
             self._send_body("application/json; charset=utf-8", body, head_only)
             return

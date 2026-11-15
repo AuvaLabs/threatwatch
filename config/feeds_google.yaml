@@ -109,7 +109,7 @@
   region: US
 
 # Emerging threat actors & ransomware groups (2024-2026)
-- url: https://news.google.com/rss/search?q=%28%22Scattered+Spider%22+OR+UNC3944%29&hl=en-US&gl=US&ceid=US:en
+- url: https://news.google.com/rss/search?q=%28%22Scattered+Spider%22+OR+UNC3944+OR+%22Muddled+Libra%22+OR+%22Octo+Tempest%22%29+when%3A30d&hl=en-US&gl=US&ceid=US:en
   category: Google
   region: US
 

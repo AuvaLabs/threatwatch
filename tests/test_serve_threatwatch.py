@@ -575,6 +575,15 @@ class TestHealthEndpoint:
         assert data["feed_health"].get("ok", 0) == 1
         assert data["feed_health"].get("dead", 0) == 1
 
+    def test_health_includes_intelligence_provider_summary(self, tmp_path):
+        expected = {"total": 2, "healthy": 1, "suspended": 1, "providers": {}}
+        with patch("serve_threatwatch.load_stats", return_value={}), \
+             patch("serve_threatwatch.BASE_DIR", tmp_path), \
+             patch("modules.provider_health.get_provider_health", return_value=expected):
+            data = json.loads(sw.build_health())
+
+        assert data["intelligence_providers"] == expected
+
     def test_health_degrades_when_hunts_or_ledger_are_missing(self, tmp_path):
         from datetime import datetime, timezone
 
@@ -977,6 +986,7 @@ class TestHTTPRoutes:
         assert data["openapi"].startswith("3.")
         assert "/api/v1/articles" in data["paths"]
         assert "/api/v1/health/feeds" in data["paths"]
+        assert "/api/v1/health/providers" in data["paths"]
         assert "/api/v2/incidents/{id}/evidence" in data["paths"]
 
         v2_status, _, v2_body = _get(test_server + "/api/v2/openapi.json")
@@ -987,6 +997,13 @@ class TestHTTPRoutes:
         expected = {"total_tracked": 2, "ok": 1, "dead": 1}
         with patch("modules.feed_health.get_health_json", return_value=expected):
             status, _, body = _get(test_server + "/api/v1/health/feeds")
+        assert status == 200
+        assert json.loads(body) == expected
+
+    def test_v1_provider_health_is_available(self, test_server):
+        expected = {"healthy": 1, "suspended": 1, "providers": {}}
+        with patch("modules.provider_health.get_provider_health", return_value=expected):
+            status, _, body = _get(test_server + "/api/v1/health/providers")
         assert status == 200
         assert json.loads(body) == expected
 

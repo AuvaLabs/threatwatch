@@ -12,12 +12,14 @@ import hashlib
 import json
 import logging
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import requests
 
 from modules.config import FEED_CUTOFF_DAYS, STATE_DIR
+from modules.provider_health import record_failure, record_success
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,9 @@ _MIN_CVSS_SCORE = 7.0  # HIGH and CRITICAL
 
 # Rate limit: at most once per 10 minutes
 _MIN_FETCH_INTERVAL = 600
+_RETRY_ATTEMPTS = max(1, int(os.getenv("NVD_RETRY_ATTEMPTS", "3")))
+_RETRY_BACKOFF_SECONDS = max(0.0, float(os.getenv("NVD_RETRY_BACKOFF_SECONDS", "1")))
+_CACHE_MAX_AGE_HOURS = max(1, int(os.getenv("NVD_CACHE_MAX_AGE_HOURS", "24")))
 
 _SESSION = None
 
@@ -73,6 +78,56 @@ def _should_fetch() -> bool:
         return elapsed >= _MIN_FETCH_INTERVAL
     except Exception:
         return True
+
+
+def _request_nvd(session: requests.Session, params: dict[str, Any]) -> requests.Response:
+    retryable_statuses = {429, 500, 502, 503, 504}
+    last_error: requests.RequestException | None = None
+    for attempt in range(_RETRY_ATTEMPTS):
+        try:
+            response = session.get(NVD_API_URL, params=params, timeout=20)
+            response.raise_for_status()
+            return response
+        except requests.exceptions.HTTPError as error:
+            status = getattr(error.response, "status_code", None)
+            if status not in retryable_statuses:
+                raise
+            last_error = error
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as error:
+            last_error = error
+        if attempt + 1 < _RETRY_ATTEMPTS:
+            time.sleep(_RETRY_BACKOFF_SECONDS * (2 ** attempt))
+    if last_error is None:
+        raise requests.exceptions.RequestException("NVD request failed")
+    raise last_error
+
+
+def _load_cached_articles() -> list[dict[str, Any]]:
+    state = _load_state()
+    try:
+        fetched_at = datetime.fromisoformat(
+            str(state["last_success_utc"]).replace("Z", "+00:00")
+        )
+        if fetched_at.tzinfo is None:
+            fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - fetched_at
+    except (KeyError, TypeError, ValueError):
+        return []
+    articles = state.get("articles")
+    if age > timedelta(hours=_CACHE_MAX_AGE_HOURS) or not isinstance(articles, list):
+        return []
+    return [dict(article) for article in articles if isinstance(article, dict)]
+
+
+def _provider_error_code(error: Exception) -> str:
+    if isinstance(error, requests.exceptions.Timeout):
+        return "request_timeout"
+    if isinstance(error, requests.exceptions.ConnectionError):
+        return "connection_error"
+    if isinstance(error, requests.exceptions.HTTPError):
+        status = getattr(error.response, "status_code", None)
+        return f"http_{status}" if isinstance(status, int) else "http_error"
+    return "provider_error"
 
 
 def _cvss_score(vuln: dict) -> tuple[float, str]:
@@ -130,8 +185,7 @@ def fetch_nvd_cves() -> list[dict[str, Any]]:
     articles = []
     try:
         session = _get_session()
-        resp = session.get(NVD_API_URL, params=params, timeout=20)
-        resp.raise_for_status()
+        resp = _request_nvd(session, params)
         data = resp.json()
 
         vulns = data.get("vulnerabilities", [])
@@ -218,13 +272,27 @@ def fetch_nvd_cves() -> list[dict[str, Any]]:
                 "ref_url": ref_url,
             })
 
-        _save_state({"last_fetch_utc": now.isoformat()})
+        _save_state({
+            "last_fetch_utc": now.isoformat(),
+            "last_success_utc": now.isoformat(),
+            "articles": articles,
+        })
+        record_success("nvd", item_count=len(articles))
 
-    except requests.exceptions.Timeout:
-        logger.warning("NVD: request timed out")
-    except requests.exceptions.HTTPError as e:
-        logger.warning(f"NVD: HTTP error: {e}")
+    except requests.exceptions.RequestException as e:
+        record_failure("nvd", _provider_error_code(e), cooldown_seconds=0)
+        cached = _load_cached_articles()
+        logger.warning(
+            "NVD: request failed after %d attempts; using %d cached items: %s",
+            _RETRY_ATTEMPTS,
+            len(cached),
+            e,
+        )
+        return cached
     except Exception as e:
-        logger.warning(f"NVD: fetch failed: {e}")
+        record_failure("nvd", "provider_error", cooldown_seconds=0)
+        cached = _load_cached_articles()
+        logger.warning("NVD: fetch failed; using %d cached items: %s", len(cached), e)
+        return cached
 
     return articles
