@@ -9,6 +9,7 @@ All notable changes to ThreatWatch are documented here.
 - Added private operator alerts when NVD, ransomware.live, or ThreatFox changes between healthy, degraded, and suspended states.
 - Added the official AhnLab ASEC research feed for additional APAC malware reporting and indicator-rich source material.
 - Preserved the existing hunt evidence gate so source expansion cannot turn weak single-report indicators into qualified packages.
+- Required a meaningful analysis sample before a fallback classification rate can degrade platform health.
 
 ## 2026-11-15: Provider resilience and dependency maintenance
 

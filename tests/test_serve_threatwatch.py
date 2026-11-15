@@ -299,6 +299,24 @@ class TestComputeStatus:
         assert status == "ok"
         assert reasons == []
 
+    def test_small_analysis_sample_does_not_degrade_service(self):
+        status, reasons = sw._compute_status(
+            latest_run={"articles_enriched": 2, "analysis_failures": 1},
+            feed_summary={}, last_run_age=60.0, heartbeat_age=30.0,
+            briefing_stale=False, briefing_age_hours=1.0,
+        )
+        assert status == "ok"
+        assert not any(reason.startswith("analysis_failure_rate_") for reason in reasons)
+
+    def test_material_analysis_failure_rate_degrades_service(self):
+        status, reasons = sw._compute_status(
+            latest_run={"articles_enriched": 10, "analysis_failures": 3},
+            feed_summary={}, last_run_age=60.0, heartbeat_age=30.0,
+            briefing_stale=False, briefing_age_hours=1.0,
+        )
+        assert status == "degraded"
+        assert "analysis_failure_rate_3/10" in reasons
+
     def test_stale_briefing_degrades_status(self):
         # Signal 1: stale (but not severe) => degraded with a briefing_stale reason.
         status, reasons = sw._compute_status(
