@@ -20,6 +20,15 @@ ANTHROPIC_TOP_STORIES_MODEL = os.getenv(
     "ANTHROPIC_TOP_STORIES_MODEL", "claude-sonnet-5-5"
 )
 ANTHROPIC_TIMEOUT = float(os.getenv("ANTHROPIC_TIMEOUT", "60"))
+ANTHROPIC_ROUTE_MODE = os.getenv(
+    "ANTHROPIC_ROUTE_MODE", "fallback"
+).strip().lower()
+if ANTHROPIC_ROUTE_MODE not in {"preferred", "fallback", "disabled"}:
+    logger.warning(
+        "Invalid ANTHROPIC_ROUTE_MODE %r; using fallback",
+        ANTHROPIC_ROUTE_MODE,
+    )
+    ANTHROPIC_ROUTE_MODE = "fallback"
 
 # AuvaLabs Model Services is a private, subscription-backed gateway. Route
 # frequent ranking through Luna and reserve Sol for infrequent deep synthesis.

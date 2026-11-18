@@ -9,8 +9,8 @@ fallback endpoints.
 ## Routing order
 
 1. Bounded Model Services route for approved callers when configured.
-2. Native `ANTHROPIC_*` provider when configured.
-3. Primary `LLM_*` provider, including primary key rotation.
+2. Primary `LLM_*` provider, including primary key rotation.
+3. Native `ANTHROPIC_*` fallback when configured.
 4. `FEATHERLESS_*` fallback.
 5. `BRIEFING_FALLBACK_*` fallback.
 6. Deterministic product behavior, such as the normal digest or a labeled stale
@@ -85,12 +85,16 @@ ANTHROPIC_MODEL=claude-haiku-5-5
 ANTHROPIC_BRIEFING_MODEL=claude-sonnet-5-5
 ANTHROPIC_TOP_STORIES_MODEL=claude-sonnet-5-5
 ANTHROPIC_TIMEOUT=60
+ANTHROPIC_ROUTE_MODE=fallback
 ```
 
 The native provider sends bulk calls to Haiku. Briefing and top-story callers
-select Sonnet through their task-specific model settings. If native Claude
-fails, the task-specific Claude model is not forwarded to another provider.
-The next provider uses its own configured model.
+select Sonnet through their task-specific model settings. The default
+`fallback` mode tries the primary route first, preventing an unhealthy Claude
+route from consuming every first attempt. Use `preferred` to place Claude
+before the primary route, or `disabled` to retain its secret without routing
+traffic to it. Task-specific Claude model names are never forwarded to another
+provider.
 
 The canonical AuvaLabs key is stored in the gitignored operator secret at
 `kb_center/secrets/anthropic.env`. Each deployment copies it to the gitignored

@@ -15,6 +15,7 @@ from modules.config import (
     ANTHROPIC_API_KEY,
     ANTHROPIC_BASE_URL,
     ANTHROPIC_MODEL,
+    ANTHROPIC_ROUTE_MODE,
     ANTHROPIC_TIMEOUT,
     BRIEFING_FALLBACK_API_KEY,
     BRIEFING_FALLBACK_BASE_URL,
@@ -226,20 +227,25 @@ def _configured_providers(
     model_services = _model_services_provider(caller)
     if model_services:
         providers.append(model_services)
-    anthropic_configured = bool(
+    anthropic_key_configured = bool(
         ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL and ANTHROPIC_MODEL
     )
-    if anthropic_configured:
-        providers.append(Provider(
+    anthropic = None
+    if anthropic_key_configured and ANTHROPIC_ROUTE_MODE != "disabled":
+        anthropic = Provider(
             "anthropic", ANTHROPIC_BASE_URL, model_override or ANTHROPIC_MODEL,
             (ANTHROPIC_API_KEY,), ANTHROPIC_TIMEOUT, protocol="anthropic",
-        ))
+        )
+    if anthropic and ANTHROPIC_ROUTE_MODE == "preferred":
+        providers.append(anthropic)
     primary_keys = (
         tuple(LLM_API_KEYS) or (LLM_API_KEY,)
         if LLM_API_KEY else ()
     )
     if LLM_BASE_URL and primary_keys:
-        primary_model = LLM_MODEL if anthropic_configured else model_override or LLM_MODEL
+        primary_model = (
+            LLM_MODEL if anthropic_key_configured else model_override or LLM_MODEL
+        )
         providers.append(Provider(
             "kimi" if _is_kimi_endpoint() else "primary",
             LLM_BASE_URL,
@@ -248,6 +254,8 @@ def _configured_providers(
             _primary_timeout(),
             rotate_keys=True,
         ))
+    if anthropic and ANTHROPIC_ROUTE_MODE == "fallback":
+        providers.append(anthropic)
     if FEATHERLESS_BASE_URL and FEATHERLESS_API_KEY and FEATHERLESS_MODEL:
         providers.append(Provider(
             "featherless", FEATHERLESS_BASE_URL, FEATHERLESS_MODEL,

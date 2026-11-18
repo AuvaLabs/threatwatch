@@ -91,6 +91,13 @@
   region: Global
   stale_after_days: 45
 
+# The native DataBreaches.Net feed is protected by an HTML challenge. Keep
+# bounded publisher coverage through Google News without bypassing that control.
+- url: https://news.google.com/rss/search?q=site%3Adatabreaches.net+%28breach+OR+ransomware+OR+leak%29+when%3A30d&hl=en-US&gl=US&ceid=US:en
+  name: DataBreaches.Net
+  category: Google
+  region: Global
+
 - url: https://news.google.com/rss/search?q=critical+vulnerability+CVE&hl=en-US&gl=US&ceid=US:en
   category: Google
   region: US
@@ -168,7 +175,7 @@
   category: Google
   region: Netherlands
 
-- url: https://news.google.com/rss/search?q=cyber+attack+Africa+South+Africa+Nigeria+Kenya&hl=en&gl=ZA&ceid=ZA:en
+- url: https://news.google.com/rss/search?q=%28cyberattack+OR+%22cyber+attack%22+OR+ransomware+OR+%22data+breach%22%29+%28%22South+Africa%22+OR+Nigeria+OR+Kenya+OR+Ghana%29+when%3A30d&hl=en-ZA&gl=ZA&ceid=ZA:en
   category: Google
   region: South Africa
 

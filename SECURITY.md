@@ -29,7 +29,7 @@ ThreatWatch implements the following protections:
 - **XSS prevention** — HTML escaping on all user-controlled output; SSR JSON injection uses `</` escaping; STIX pattern injection sanitization
 - **Non-root Docker** — container runs as UID 1001 unprivileged user
 - **Security headers** — X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy no-referrer
-- **Dependency auditing**: `pip-audit` and `npm audit` run in CI on every push
+- **Dependency auditing**: `pip-audit` and the bounded frontend audit policy run in CI on every push
 - **Code scanning**: extended Python and JavaScript analysis runs on the default branch
 - **Bearer token auth** — optional token protection for watchlist write endpoint
 - **CORS restriction** — sensitive endpoints (`/api/health`, `/api/watchlist`) require `CORS_ORIGIN` match; public data endpoints allow wildcard
@@ -50,6 +50,16 @@ The following are out of scope:
 
 - Third-party RSS feed content
 - Issues in upstream dependencies (report those to the respective projects)
+
+## Temporary Development Dependency Exception
+
+`frontend/scripts/audit-security.mjs` requires zero production dependency
+findings and rejects every unapproved development advisory. The only current
+exception is `GHSA-fc5q-39xc-vjpf` in `picomatch`, which has no patched release.
+It is reachable only through build and test tooling that is discarded before
+the production image. The build uses repository-controlled glob patterns, not
+remote user input. The exception expires on 2026-12-18 and CI will fail unless
+it is reviewed or removed.
 
 ## Best Practices for Self-Hosting
 

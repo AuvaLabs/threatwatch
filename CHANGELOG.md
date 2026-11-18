@@ -2,6 +2,14 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-11-18: Provider routing and source-health remediation
+
+- Made native Claude a configurable fallback so repeated empty responses do not consume every first attempt while the healthy primary provider is available.
+- Replaced the challenged DataBreaches.Net RSS endpoint with bounded publisher-scoped discovery.
+- Replaced the stale Africa search with a current 30-day regional query and assigned Volexity a 45-day low-cadence freshness policy.
+- Replaced a test-only backtracking regular expression with a bounded line parser to clear the CodeQL finding.
+- Added a time-bounded audit exception for the unpatched, build-only `picomatch` advisory while continuing to reject all production findings and every other development advisory.
+
 ## 2026-11-15: Private following and provider transition alerts
 
 - Added an account-free Following desk for incidents and living threat records, with browser-local storage, review cursors, and workspace import and export.

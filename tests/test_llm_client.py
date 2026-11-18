@@ -63,6 +63,7 @@ def single_key(monkeypatch, tmp_path):
     monkeypatch.setattr(llm_client, "ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
     monkeypatch.setattr(llm_client, "ANTHROPIC_MODEL", "claude-haiku-5-5")
     monkeypatch.setattr(llm_client, "ANTHROPIC_TIMEOUT", 60.0)
+    monkeypatch.setattr(llm_client, "ANTHROPIC_ROUTE_MODE", "preferred", raising=False)
     monkeypatch.setattr(llm_client, "FEATHERLESS_API_KEY", "")
     monkeypatch.setattr(llm_client, "FEATHERLESS_BASE_URL", "")
     monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_API_KEY", "")
@@ -465,6 +466,36 @@ class TestAnthropicProvider:
 
         assert call_llm("x", system_prompt="y") == "safe fallback"
         assert mock_session.post.call_count == 2
+
+    def test_fallback_mode_uses_healthy_primary_before_anthropic(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "sk-ant-test")
+        monkeypatch.setattr(
+            llm_client, "ANTHROPIC_ROUTE_MODE", "fallback", raising=False,
+        )
+
+        def respond(url, **_kwargs):
+            if url == "https://api.example.com/v1/chat/completions":
+                return _mock_response(
+                    json_body={
+                        "choices": [{"message": {"content": "primary result"}}]
+                    }
+                )
+            return _mock_response(
+                json_body={
+                    "content": [{"type": "text", "text": "anthropic result"}],
+                    "usage": {"input_tokens": 3, "output_tokens": 2},
+                }
+            )
+
+        mock_session.post.side_effect = respond
+
+        assert call_llm("x", system_prompt="y") == "primary result"
+        assert mock_session.post.call_count == 1
+        assert mock_session.post.call_args.args[0] == (
+            "https://api.example.com/v1/chat/completions"
+        )
 
 
 class TestKimiEndpoint:

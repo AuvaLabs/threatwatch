@@ -4,6 +4,7 @@
   "version": "3.1.0",
   "type": "module",
   "scripts": {
+    "audit:security": "node scripts/audit-security.mjs",
     "build": "tsc --noEmit && vite build",
     "dev": "vite --host 0.0.0.0",
     "test": "vitest run --coverage",

@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 
 import yaml
@@ -50,12 +49,15 @@ def test_low_cadence_authoritative_feeds_have_explicit_freshness_policy():
     trend = feeds["https://newsroom.trendmicro.com/cyberthreat?pagetemplate=rss"]
     cert_ua = feeds["https://cert.gov.ua/api/articles/rss"]
     cert_eu = feeds["https://cert.europa.eu/publications/threat-intelligence-rss"]
+    volexity = feeds["https://www.volexity.com/feed/"]
 
     assert trend["name"] == "Trend Micro Cyberthreat News"
     assert trend["stale_after_days"] == 45
     assert cert_ua["name"] == "CERT-UA"
     assert cert_ua["stale_after_days"] == 90
     assert cert_eu["stale_after_days"] == 45
+    assert volexity["name"] == "Volexity"
+    assert volexity["stale_after_days"] == 45
 
 
 def test_problematic_feed_endpoints_and_searches_are_replaced():
@@ -77,6 +79,30 @@ def test_problematic_feed_endpoints_and_searches_are_replaced():
     assert retired_orca_search not in google
     assert current_orca_search in google
     assert _feeds_by_url("feeds_google.yaml")[current_orca_search]["stale_after_days"] == 45
+
+    retired_databreaches = "https://databreaches.net/feed/"
+    databreaches_discovery = (
+        "https://news.google.com/rss/search?q=site%3Adatabreaches.net+"
+        "%28breach+OR+ransomware+OR+leak%29+when%3A30d"
+        "&hl=en-US&gl=US&ceid=US:en"
+    )
+    assert retired_databreaches not in native
+    assert databreaches_discovery in google
+    assert _feeds_by_url("feeds_google.yaml")[databreaches_discovery]["name"] == (
+        "DataBreaches.Net"
+    )
+
+    retired_africa = (
+        "https://news.google.com/rss/search?q=cyber+attack+Africa+South+Africa+"
+        "Nigeria+Kenya&hl=en&gl=ZA&ceid=ZA:en"
+    )
+    current_africa = (
+        "https://news.google.com/rss/search?q=%28cyberattack+OR+%22cyber+attack%22+"
+        "OR+ransomware+OR+%22data+breach%22%29+%28%22South+Africa%22+OR+Nigeria+"
+        "OR+Kenya+OR+Ghana%29+when%3A30d&hl=en-ZA&gl=ZA&ceid=ZA:en"
+    )
+    assert retired_africa not in google
+    assert current_africa in google
 
     ahnlab_url = "https://asec.ahnlab.com/en/feed/"
     assert ahnlab_url in native
@@ -133,9 +159,20 @@ def test_cert_poland_keeps_its_configured_region():
 
 def test_disabled_feed_blocks_do_not_leave_active_metadata():
     contents = CONFIG_PATH.read_text(encoding="utf-8")
-    active_metadata_after_disabled_url = re.compile(
-        r"^# - url:.*\n(?:(?:#.*|\s*)\n)*  (?:name|category|region|user_agent):",
-        re.MULTILINE,
-    )
+    active_keys = {"name", "category", "region", "user_agent"}
+    disabled_url = None
 
-    assert active_metadata_after_disabled_url.search(contents) is None
+    for line_number, line in enumerate(contents.splitlines(), 1):
+        if line.startswith("# - url:"):
+            disabled_url = line.removeprefix("# - url:").strip()
+            continue
+        if line.startswith("- url:"):
+            disabled_url = None
+            continue
+        if disabled_url is None or not line.startswith("  "):
+            continue
+        key = line.strip().partition(":")[0]
+        assert key not in active_keys, (
+            f"disabled feed {disabled_url} has active {key} metadata "
+            f"at line {line_number}"
+        )

@@ -213,6 +213,7 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `ANTHROPIC_BRIEFING_MODEL` | `claude-sonnet-5-5` | Command and regional briefing model |
 | `ANTHROPIC_TOP_STORIES_MODEL` | `claude-sonnet-5-5` | Top-story synthesis model |
 | `ANTHROPIC_TIMEOUT` | `60` | Native Claude request timeout in seconds |
+| `ANTHROPIC_ROUTE_MODE` | `fallback` | Claude route position: `preferred`, `fallback`, or `disabled` |
 | `MODEL_SERVICES_ENV_FILE` | `.secrets/modelservices.env` | Gitignored gateway bearer-token file loaded by Compose |
 | `MODEL_SERVICES_URL` | AuvaLabs gateway | Exact private gateway chat endpoint |
 | `MODEL_SERVICES_LUNA_MODEL` | `gpt-6-luna` | Efficient model used for top-story ranking |
@@ -267,12 +268,12 @@ ANTHROPIC_API_KEY=your_key_here
 ANTHROPIC_MODEL=claude-haiku-5-5
 ANTHROPIC_BRIEFING_MODEL=claude-sonnet-5-5
 ANTHROPIC_TOP_STORIES_MODEL=claude-sonnet-5-5
+ANTHROPIC_ROUTE_MODE=fallback
 ```
 
-Outside the bounded Model Services route, configured Claude is tried first.
-Haiku handles routine, high-volume enrichment while Sonnet handles briefings
-and top-story synthesis. The generic `LLM_*` provider remains the first
-independent fallback.
+Outside the bounded Model Services route, the healthy generic `LLM_*` provider
+is tried before Claude by default. Claude remains an independent fallback.
+Set `ANTHROPIC_ROUTE_MODE=preferred` only after validating the native route.
 
 When the private Model Services token is configured, `gpt-6-luna` ranks top
 stories at most hourly and `gpt-6.1-sol` creates the global command briefing at

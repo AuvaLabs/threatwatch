@@ -71,7 +71,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - run: npm audit --audit-level=high
+      - run: npm run audit:security
 
   audit:
     name: Dependency Audit (pip-audit)
