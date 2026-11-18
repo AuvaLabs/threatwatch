@@ -40,7 +40,7 @@ See [HUNTS.md](HUNTS.md) for the full contract and rebuild runbook.
 - Docker Compose services for `pipeline` and `server` with one persistent data volume.
 - SQLite primary storage plus atomic JSON artifacts and fallback reads.
 - Strict security headers, bounded APIs, request rate limiting, SSRF protection, safe external URLs, and no scraped full-content exposure in operational APIs.
-- 1,751 backend tests and 66 frontend tests at the 2026-11-18 repository audit. Backend coverage is 88.49 percent and frontend statement coverage is 94.72 percent.
+- 1,751 backend tests and 66 frontend tests at the 2026-11-18 repository audit. Backend coverage is 88.44 percent and frontend statement coverage is 94.72 percent.
 
 ## Verified operational snapshot
 
@@ -54,7 +54,7 @@ The 2026-11-15 release review and post-deployment checks verified release
 - ThreatFox and URLhaus results remain corroborating evidence. They do not independently qualify a hunt without the required observable, behavior, and readiness evidence.
 - The corpus, SQLite store, hunt artifacts, incident artifacts, ledger artifacts, and source-linked reports passed consistency checks. The offsite backup status included a successful independent restore proof.
 - The guarded deployment created and restore-verified backup `tw_20261115_162632.tgz` before publishing the release.
-- The backend suite passed all 1,751 tests at 88.49 percent coverage. The frontend suite passed all 66 tests at 94.72 percent statement coverage, and its production build completed successfully. Python and production frontend dependency audits found no vulnerabilities. The unpatched build-only `picomatch` advisory has a narrow exception that expires on 2026-12-18.
+- The backend suite passed all 1,751 tests at 88.44 percent coverage. The frontend suite passed all 66 tests at 94.72 percent statement coverage, and its production build completed successfully. Python and production frontend dependency audits found no vulnerabilities. The unpatched build-only `picomatch` advisory has a narrow exception that expires on 2026-12-18.
 
 Run `scripts/validate_feeds.py` while the scheduled pipeline writer is idle. The
 validator and pipeline currently use a process-local state lock, so overlapping

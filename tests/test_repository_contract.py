@@ -18,7 +18,7 @@ def test_ci_enforces_complete_quality_harness():
         "npm ci",
         "npm test",
         "npm run build",
-        "npm audit --audit-level=high",
+        "npm run audit:security",
     )
 
     for step in required_steps:
