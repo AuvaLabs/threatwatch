@@ -9,6 +9,8 @@ All notable changes to ThreatWatch are documented here.
 - Replaced the stale Africa search with a current 30-day regional query and assigned Volexity a 45-day low-cadence freshness policy.
 - Replaced a test-only backtracking regular expression with a bounded line parser to clear the CodeQL finding.
 - Added a time-bounded audit exception for the unpatched, build-only `picomatch` advisory while continuing to reject all production findings and every other development advisory.
+- Restored the public `/feed.xml` subscription advertised by the Automation workspace and served it with the RSS media type.
+- Made provider startup logs report the configured Anthropic route mode.
 
 ## 2026-11-15: Private following and provider transition alerts
 

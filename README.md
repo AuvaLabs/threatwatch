@@ -426,6 +426,7 @@ The server runs on port **8098** by default:
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/` | Preact analyst workspace application shell |
+| `GET` | `/feed.xml` | Public RSS 2.0 source-reporting feed |
 | `GET` | `/api/articles` | Paginated articles, 50 by default and 100 maximum |
 | `GET` | `/api/v1/articles` | Stable versioned article collection |
 | `GET` | `/api/v1/articles/{id}` | Stable versioned article detail |

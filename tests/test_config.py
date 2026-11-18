@@ -23,12 +23,13 @@ def test_daily_budget_defaults_to_four_dollars():
 
 def test_validate_config_reports_native_anthropic(monkeypatch, caplog):
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(config, "ANTHROPIC_ROUTE_MODE", "fallback")
     monkeypatch.setattr(config, "LLM_API_KEY", "")
 
     with caplog.at_level(logging.INFO, logger=config.__name__):
         config.validate_config()
 
-    assert "native Anthropic" in caplog.text
+    assert "native Anthropic fallback" in caplog.text
 
 
 def test_validate_config_reports_disabled_without_any_key(monkeypatch, caplog):

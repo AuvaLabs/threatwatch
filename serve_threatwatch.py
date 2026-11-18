@@ -67,6 +67,7 @@ _CONTENT_TYPES = {
     "application/atom+xml; charset=utf-8": "application/atom+xml; charset=utf-8",
     "application/json; charset=utf-8": "application/json; charset=utf-8",
     "application/octet-stream": "application/octet-stream",
+    "application/rss+xml; charset=utf-8": "application/rss+xml; charset=utf-8",
     "application/stix+json; charset=utf-8": "application/stix+json; charset=utf-8",
     "application/xml; charset=utf-8": "application/xml; charset=utf-8",
     "font/woff": "font/woff",
@@ -1210,6 +1211,10 @@ STATIC_ROUTES = {
     "/api/rss": {
         "file": BASE_DIR / "data" / "output" / "rss_cyberattacks.xml",
         "content_type": "application/xml; charset=utf-8",
+    },
+    "/feed.xml": {
+        "file": BASE_DIR / "data" / "output" / "rss_cyberattacks.xml",
+        "content_type": "application/rss+xml; charset=utf-8",
     },
     "/favicon.svg": {
         "file": BASE_DIR / "favicon.svg",

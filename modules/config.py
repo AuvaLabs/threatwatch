@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# Native Anthropic provider. When configured it is preferred over the generic
-# OpenAI-compatible chain, which remains available as a fallback.
+# Native Anthropic provider. It follows the generic OpenAI-compatible chain by
+# default and can be explicitly preferred or disabled.
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-5-5")
@@ -234,7 +234,8 @@ def validate_config():
     if ANTHROPIC_API_KEY:
         logger.info(
             "LLM configured: AI features enabled "
-            f"(native Anthropic/{ANTHROPIC_MODEL} via "
+            f"(native Anthropic {ANTHROPIC_ROUTE_MODE}/"
+            f"{ANTHROPIC_MODEL} via "
             f"{ANTHROPIC_BASE_URL.split('@')[-1]})."
         )
     elif LLM_API_KEY:

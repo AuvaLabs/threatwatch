@@ -792,6 +792,22 @@ class TestHTTPRoutes:
         data = json.loads(body)
         assert data["status"] == "ok"
 
+    def test_public_feed_alias_serves_rss(self, test_server, tmp_path):
+        feed = tmp_path / "rss_cyberattacks.xml"
+        feed.write_text("<?xml version='1.0'?><rss version='2.0'><channel /></rss>")
+        route = sw.STATIC_ROUTES["/feed.xml"]
+
+        assert route["file"].name == "rss_cyberattacks.xml"
+        assert route["content_type"] == "application/rss+xml; charset=utf-8"
+        with patch.dict(sw.STATIC_ROUTES, {
+            "/feed.xml": {**route, "file": feed},
+        }):
+            status, headers, body = _get(test_server + "/feed.xml")
+
+        assert status == 200
+        assert headers["Content-Type"] == "application/rss+xml; charset=utf-8"
+        assert body.startswith(b"<?xml")
+
     def test_latest_briefing_prefers_command_edition(self, test_server, tmp_path):
         command = tmp_path / "command.json"
         live = tmp_path / "live.json"
