@@ -3,7 +3,7 @@
 
 feedparser>=6.0.14
 feedgen
-anthropic>=0.40.0
+anthropic>=2.10.0
 httpx>=0.25.0
 trafilatura>=1.6
 requests>=2.34.2
