@@ -2,6 +2,13 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-11-21: Persistent model reliability and regional source recovery
+
+- Added persistent provider cooldowns so rate limits, server failures, transport errors, and empty responses are not retried by every pipeline process.
+- Added bounded LLM request and provider reliability metrics to platform health and a dedicated `/api/v1/health/llm` endpoint.
+- Staggered deferrable classification and CTI enrichment calls while preserving cache use and the independent command, regional, top-story, and summary schedules.
+- Replaced stale Latin America and MENA discovery searches with current, bounded regional queries.
+
 ## 2026-11-18: Provider routing and source-health remediation
 
 - Made native Claude a configurable fallback so repeated empty responses do not consume every first attempt while the healthy primary provider is available.

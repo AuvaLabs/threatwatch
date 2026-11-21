@@ -10,6 +10,7 @@ import pytest
 import requests
 
 from modules import llm_client
+from modules import llm_reliability
 from modules.llm_client import (
     call_llm,
     _next_api_key, _advance_key, _get_http_session, is_available,
@@ -87,6 +88,12 @@ def single_key(monkeypatch, tmp_path):
     )
     monkeypatch.delenv("LLM_ZERO_COST_PROVIDERS", raising=False)
     monkeypatch.setattr("modules.cost_tracker.COST_FILE", tmp_path / "api_costs.json")
+    monkeypatch.setattr(
+        llm_reliability, "STATE_FILE", tmp_path / "llm_reliability.json",
+    )
+    monkeypatch.setattr(
+        llm_reliability, "LOCK_FILE", tmp_path / "llm_reliability.lock",
+    )
 
 
 class TestCallLLMDefaultBehavior:
@@ -206,6 +213,33 @@ class TestProviderFailover:
         mock_session.post.side_effect = [rate_limited, fallback, fallback]
 
         assert call_llm("x", system_prompt="y") == "fallback"
+        assert call_llm("x", system_prompt="y") == "fallback"
+
+        urls = [call.args[0] for call in mock_session.post.call_args_list]
+        assert urls == [
+            "https://api.example.com/v1/chat/completions",
+            "https://fallback.test/v1/chat/completions",
+            "https://fallback.test/v1/chat/completions",
+        ]
+
+    def test_route_cooldown_survives_process_state_reset(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(
+            llm_client, "BRIEFING_FALLBACK_BASE_URL", "https://fallback.test/v1",
+        )
+        monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_MODEL", "fallback-model")
+        monkeypatch.setattr(llm_client, "BRIEFING_FALLBACK_API_KEY", "fallback-key")
+        monkeypatch.setattr(llm_client, "_PROVIDER_FAILURE_THRESHOLD", 1)
+        monkeypatch.setattr(llm_client, "_PROVIDER_COOLDOWN_SECONDS", 3600)
+        rate_limited = _mock_response(status_code=429)
+        fallback = _mock_response(
+            json_body={"choices": [{"message": {"content": "fallback"}}]},
+        )
+        mock_session.post.side_effect = [rate_limited, fallback, fallback]
+
+        assert call_llm("x", system_prompt="y") == "fallback"
+        reset_circuit()
         assert call_llm("x", system_prompt="y") == "fallback"
 
         urls = [call.args[0] for call in mock_session.post.call_args_list]

@@ -43,6 +43,10 @@ def analyze_article(title: str, content: str | None = None, source_language: str
             cached["_cached"] = True
             return cached
 
+        from modules.llm_policy import caller_enabled
+        if not caller_enabled("ai_engine"):
+            return {**SAFE_DEFAULT, "translated_title": title}
+
         user_content = f"Headline: {title}\nSource language: {source_language}"
         if content:
             truncated = content[:MAX_CONTENT_CHARS]

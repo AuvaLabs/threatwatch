@@ -800,6 +800,7 @@ def build_health() -> bytes:
         "api_cost_today_usd": latest_run.get("api_cost_today", 0),
         "feed_health": feed_summary,
         "intelligence_providers": None,
+        "llm_reliability": None,
         "ai_artifacts": artifact_health,
         "operational_artifacts": operational_artifacts,
         "deployment": _deployment_metadata(),
@@ -812,6 +813,19 @@ def build_health() -> bytes:
         payload["intelligence_providers"] = get_provider_health()
     except Exception as exc:
         logger.warning("Provider health check failed: %s", exc)
+    try:
+        from modules.llm_reliability import get_llm_reliability
+        payload["llm_reliability"] = get_llm_reliability(
+            state_file=BASE_DIR / "data" / "state" / "llm_reliability.json",
+        )
+        if payload["llm_reliability"]["status"] == "degraded":
+            if "llm_reliability_degraded" not in reasons:
+                reasons.append("llm_reliability_degraded")
+            if status == "ok":
+                status = "degraded"
+            payload["status"] = status
+    except Exception as exc:
+        logger.warning("LLM reliability check failed: %s", exc)
     telegram_daily = _telegram_daily_status()
     payload["notifications"]["telegram_daily"] = telegram_daily
     if telegram_daily["configured"] and telegram_daily["ok"] is False:
@@ -1041,6 +1055,7 @@ def build_openapi() -> bytes:
         "/api/v1/health/artifacts": {"get": {"summary": "Get hunt and ledger health"}},
         "/api/v1/health/feeds": {"get": {"summary": "Get feed health"}},
         "/api/v1/health/providers": {"get": {"summary": "Get intelligence provider health"}},
+        "/api/v1/health/llm": {"get": {"summary": "Get LLM request and provider health"}},
     }
     payload = {
         "openapi": "3.1.0",
@@ -1264,6 +1279,7 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
         "/api/v1/health/artifacts",
         "/api/v1/health/feeds",
         "/api/v1/health/providers",
+        "/api/v1/health/llm",
         "/api/watchlist", "/api/quality", "/api/groq-usage",
     })
 
@@ -1766,6 +1782,18 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
             from modules.provider_health import get_provider_health
             body = json.dumps(
                 get_provider_health(), ensure_ascii=False, separators=(",", ":"),
+            ).encode("utf-8")
+            self._send_body("application/json; charset=utf-8", body, head_only)
+            return
+
+        if path == "/api/v1/health/llm":
+            from modules.llm_reliability import get_llm_reliability
+            body = json.dumps(
+                get_llm_reliability(
+                    state_file=BASE_DIR / "data" / "state" / "llm_reliability.json",
+                ),
+                ensure_ascii=False,
+                separators=(",", ":"),
             ).encode("utf-8")
             self._send_body("application/json; charset=utf-8", body, head_only)
             return

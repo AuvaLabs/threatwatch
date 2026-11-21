@@ -287,6 +287,10 @@ def _synthesize_clusters(clusters: list[dict]) -> None:
                 cluster["synthesis"] = cached
                 continue
 
+            from modules.llm_policy import caller_enabled
+            if not caller_enabled("cluster_synth"):
+                continue
+
             try:
                 reply = call_llm(
                     user_content=f"Entity: {cluster['entity_name']} ({cluster['entity_type']})\n\nRelated articles:\n{digest}",

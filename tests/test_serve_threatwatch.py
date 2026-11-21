@@ -602,6 +602,46 @@ class TestHealthEndpoint:
 
         assert data["intelligence_providers"] == expected
 
+    def test_health_includes_llm_reliability_summary(self, tmp_path):
+        expected = {
+            "status": "healthy",
+            "requests": {"total": 10, "successful": 9, "failed": 1},
+            "providers": {},
+        }
+        with patch("serve_threatwatch.load_stats", return_value={}), \
+             patch("serve_threatwatch.BASE_DIR", tmp_path), \
+             patch(
+                 "modules.llm_reliability.get_llm_reliability",
+                 return_value=expected,
+             ):
+            data = json.loads(sw.build_health())
+
+        assert data["llm_reliability"] == expected
+
+    def test_health_degrades_on_low_llm_request_success_rate(self, tmp_path):
+        from datetime import datetime, timezone
+
+        fresh = datetime.now(timezone.utc).isoformat()
+        expected = {
+            "status": "degraded",
+            "requests": {"total": 10, "successful": 8, "failed": 2},
+            "providers": {},
+        }
+        with patch(
+            "serve_threatwatch.load_stats",
+            return_value={"latest": {"completed_at": fresh}},
+        ), patch("serve_threatwatch.BASE_DIR", tmp_path), patch(
+            "modules.briefing_health.check_briefing_freshness",
+            return_value={"stale": False, "age_hours": 0.1},
+        ), patch(
+            "modules.llm_reliability.get_llm_reliability",
+            return_value=expected,
+        ):
+            data = json.loads(sw.build_health())
+
+        assert data["status"] == "degraded"
+        assert "llm_reliability_degraded" in data["reasons"]
+
     def test_health_degrades_when_hunts_or_ledger_are_missing(self, tmp_path):
         from datetime import datetime, timezone
 
@@ -1021,6 +1061,7 @@ class TestHTTPRoutes:
         assert "/api/v1/articles" in data["paths"]
         assert "/api/v1/health/feeds" in data["paths"]
         assert "/api/v1/health/providers" in data["paths"]
+        assert "/api/v1/health/llm" in data["paths"]
         assert "/api/v2/incidents/{id}/evidence" in data["paths"]
         assert "/api/v2/incidents/{id}/feed.xml" in data["paths"]
         assert "/api/v1/ledger/{id}/feed.xml" in data["paths"]
@@ -1040,6 +1081,16 @@ class TestHTTPRoutes:
         expected = {"healthy": 1, "suspended": 1, "providers": {}}
         with patch("modules.provider_health.get_provider_health", return_value=expected):
             status, _, body = _get(test_server + "/api/v1/health/providers")
+        assert status == 200
+        assert json.loads(body) == expected
+
+    def test_v1_llm_health_is_available(self, test_server):
+        expected = {"status": "healthy", "requests": {"total": 10}}
+        with patch(
+            "modules.llm_reliability.get_llm_reliability",
+            return_value=expected,
+        ):
+            status, _, body = _get(test_server + "/api/v1/health/llm")
         assert status == 200
         assert json.loads(body) == expected
 

@@ -225,9 +225,10 @@ def _generate_single_profile(actor_name: str, meta: dict) -> dict | None:
     """Generate a single actor profile via LLM."""
     try:
         from modules.llm_client import call_llm, is_available
+        from modules.llm_policy import caller_enabled
         from modules.utils import extract_json
 
-        if not is_available():
+        if not caller_enabled("actor_profile") or not is_available():
             return None
 
         reply = call_llm(

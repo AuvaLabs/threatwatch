@@ -328,6 +328,9 @@ def tag_articles_with_attack(articles: list[dict[str, Any]]) -> list[dict[str, A
                 }
                 llm_hits += 1
             continue
+        from modules.llm_policy import caller_enabled
+        if not caller_enabled(_LLM_CALLER):
+            continue
         if llm_calls >= _LLM_FALLBACK_MAX_CALLS:
             continue
         proposed = _llm_tag_article(article)

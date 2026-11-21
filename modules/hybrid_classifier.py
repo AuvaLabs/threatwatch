@@ -82,6 +82,10 @@ def _classify_via_llm(title, content=None):
         cached["_cached"] = True
         return cached
 
+    from modules.llm_policy import caller_enabled
+    if not caller_enabled("classify"):
+        return {"_deferred": True}
+
     reply = call_llm(user_content, system_prompt=SYSTEM_PROMPT, max_tokens=300, caller="classify")
     result = extract_json(reply)
     if result and "is_cyber_attack" in result:
@@ -126,6 +130,8 @@ def classify_article(title, content=None, source_language="en"):
             keyword_result.get("confidence", 0),
         )
         ai_result = _classify_via_llm(title, content)
+        if ai_result and ai_result.get("_deferred"):
+            return keyword_result
         if ai_result and not ai_result.get("_cached"):
             with _escalation_lock:
                 _escalation_count += 1

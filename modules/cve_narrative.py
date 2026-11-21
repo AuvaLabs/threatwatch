@@ -109,6 +109,10 @@ def generate_cve_narrative(article: dict[str, Any]) -> str | None:
     if isinstance(cached, str) and cached.strip():
         return cached
 
+    from modules.llm_policy import caller_enabled
+    if not caller_enabled(CVE_NARRATIVE_CALLER):
+        return None
+
     try:
         narrative = call_llm(
             user_content=_build_prompt(article),

@@ -11,6 +11,9 @@ from typing import Any
 import requests
 from requests.adapters import HTTPAdapter
 
+from modules import llm_reliability
+from modules.llm_policy import caller_enabled
+
 from modules.config import (
     ANTHROPIC_API_KEY,
     ANTHROPIC_BASE_URL,
@@ -49,7 +52,7 @@ _PROVIDER_FAILURE_THRESHOLD = max(
     1, int(os.environ.get("LLM_PROVIDER_FAILURE_THRESHOLD", "3")),
 )
 _PROVIDER_COOLDOWN_SECONDS = max(
-    0, int(os.environ.get("LLM_PROVIDER_COOLDOWN_SECONDS", "900")),
+    0, int(os.environ.get("LLM_PROVIDER_COOLDOWN_SECONDS", "3600")),
 )
 _KIMI_MIN_MAX_TOKENS = 512
 _KIMI_DEFAULT_TIMEOUT = 120
@@ -74,9 +77,10 @@ class Provider:
 
 
 class ProviderCallError(RuntimeError):
-    def __init__(self, message: str, *, retryable: bool):
+    def __init__(self, message: str, *, retryable: bool, failure_kind: str):
         super().__init__(message)
         self.retryable = retryable
+        self.failure_kind = failure_kind
 
 
 def _record_success() -> None:
@@ -109,6 +113,8 @@ def _provider_route_key(provider: Provider) -> str:
 
 
 def _provider_cooldown_active(provider: Provider) -> bool:
+    if llm_reliability.provider_cooldown_active(provider.name):
+        return True
     key = _provider_route_key(provider)
     until = _provider_cooldowns.get(key, 0.0)
     if until <= time.monotonic():
@@ -121,9 +127,21 @@ def _record_provider_success(provider: Provider) -> None:
     key = _provider_route_key(provider)
     _provider_failures.pop(key, None)
     _provider_cooldowns.pop(key, None)
+    llm_reliability.record_provider_success(provider.name)
 
 
-def _record_provider_failure(provider: Provider, *, retryable: bool) -> None:
+def _record_provider_failure(
+    provider: Provider,
+    *,
+    retryable: bool,
+    failure_kind: str,
+) -> None:
+    llm_reliability.record_provider_failure(
+        provider.name,
+        failure_kind,
+        threshold=_PROVIDER_FAILURE_THRESHOLD,
+        cooldown_seconds=_PROVIDER_COOLDOWN_SECONDS if retryable else 0,
+    )
     if not retryable:
         return
     key = _provider_route_key(provider)
@@ -429,6 +447,7 @@ def _call_provider(provider: Provider, user_content: str, system_prompt: str,
                    caller: str | None) -> str:
     last_error = "provider unavailable"
     last_retryable = False
+    last_failure_kind = "invalid_response"
     for attempt, api_key in enumerate(_provider_keys(provider), 1):
         url, headers, payload = _request_parts(
             provider, api_key, user_content, system_prompt, max_tokens,
@@ -451,6 +470,9 @@ def _call_provider(provider: Provider, user_content: str, system_prompt: str,
                 if response.status_code in (429, 500, 502, 503, 504):
                     last_error = f"HTTP {response.status_code}"
                     last_retryable = True
+                    last_failure_kind = (
+                        "rate_limit" if response.status_code == 429 else "server_error"
+                    )
                     if response.status_code == 429 and provider.rotate_keys:
                         _advance_key()
                     break
@@ -462,13 +484,19 @@ def _call_provider(provider: Provider, user_content: str, system_prompt: str,
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
                 last_error = type(exc).__name__
                 last_retryable = True
+                last_failure_kind = "transport_error"
                 break
             except (requests.exceptions.HTTPError, KeyError, TypeError, ValueError) as exc:
                 detail = str(exc).strip()
                 last_error = type(exc).__name__
                 if detail:
                     last_error = f"{last_error}: {detail[:120]}"
-                last_retryable = False
+                last_failure_kind = (
+                    "empty_response"
+                    if isinstance(exc, ValueError) and "empty provider response" in detail
+                    else "invalid_response"
+                )
+                last_retryable = last_failure_kind == "empty_response"
                 break
         logger.warning(
             "LLM provider %s attempt %d failed: %s",
@@ -477,6 +505,7 @@ def _call_provider(provider: Provider, user_content: str, system_prompt: str,
     raise ProviderCallError(
         f"provider {provider.name} exhausted: {last_error}",
         retryable=last_retryable,
+        failure_kind=last_failure_kind,
     )
 
 
@@ -485,12 +514,16 @@ def call_llm(user_content: str, system_prompt: str, max_tokens: int = 2000,
              model: str | None = None) -> str:
     """Call configured providers in order and return the first valid response."""
     global _last_provider
+    if not caller_enabled(caller):
+        raise RuntimeError(f"Routine LLM caller disabled for this pipeline tick: {caller}")
     if _circuit_open():
+        llm_reliability.record_request_result(False, caller)
         raise RuntimeError(
             f"LLM circuit breaker open: >= {_LLM_CIRCUIT_THRESHOLD} consecutive failures"
         )
     providers = _configured_providers(model, caller)
     if not providers:
+        llm_reliability.record_request_result(False, caller)
         raise RuntimeError("No LLM provider configured")
     failures: list[str] = []
     for provider in providers:
@@ -520,11 +553,17 @@ def call_llm(user_content: str, system_prompt: str, max_tokens: int = 2000,
             _last_provider = f"{provider.name}/{provider.model}"
             _record_provider_success(provider)
             _record_success()
+            llm_reliability.record_request_result(True, caller)
             return result
         except ProviderCallError as exc:
-            _record_provider_failure(provider, retryable=exc.retryable)
+            _record_provider_failure(
+                provider,
+                retryable=exc.retryable,
+                failure_kind=exc.failure_kind,
+            )
             failures.append(provider.name)
     _record_failure()
+    llm_reliability.record_request_result(False, caller)
     raise RuntimeError(f"All providers exhausted: {', '.join(failures)}")
 
 

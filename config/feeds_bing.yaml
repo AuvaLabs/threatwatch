@@ -62,11 +62,6 @@
   category: Bing
   region: EMEA
 
-# MENA
-- url: https://www.bing.com/news/search?q=cyber+attack+Middle+East+Saudi+Arabia+UAE+Qatar&format=rss
-  category: Bing
-  region: MENA
-
 - url: https://www.bing.com/news/search?q=cyber+attack+Iran+Israel+Turkey&format=rss
   category: Bing
   region: MENA

@@ -135,6 +135,10 @@ def _extract_ttps(article: dict) -> dict | None:
     if isinstance(cached, dict):
         return cached
 
+    from modules.llm_policy import caller_enabled
+    if not caller_enabled(TTP_EXTRACT_CALLER):
+        return None
+
     try:
         from modules.llm_client import call_llm
         raw = call_llm(

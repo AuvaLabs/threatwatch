@@ -50,7 +50,8 @@ MODEL_SERVICES_SOL_CALLER_COOLDOWN_SECONDS=43200
 MODEL_SERVICES_SOL_SCHEDULE_HOURS_UTC=3,15
 MODEL_SERVICES_SOL_SCHEDULE_WINDOW_MINUTES=180
 LLM_PROVIDER_FAILURE_THRESHOLD=3
-LLM_PROVIDER_COOLDOWN_SECONDS=900
+LLM_PROVIDER_COOLDOWN_SECONDS=3600
+ROUTINE_LLM_EVERY=3
 LLM_ZERO_COST_PROVIDERS=modelservices,primary,fallback
 ```
 
@@ -61,9 +62,19 @@ each 03:00 and 15:00 UTC window, with two attempts at most per UTC day. The limi
 activity cannot consume the Sol allowance. Attempts are reserved before network
 access, so failures and timeouts cannot bypass either subscription guard.
 
-A retryable provider failure opens a process-local route cooldown after three
-failures. Diagnostics retain only the exception class and a safe reason, never
-request authorization data or full provider responses.
+A retryable provider failure opens a persistent provider cooldown after three
+failures. The cooldown survives pipeline process restarts and prevents a failed
+route from being retried by every short-lived worker. Empty provider responses
+count as retryable failures. Public health diagnostics expose only bounded
+success, failure, rate-limit, empty-response, and cooldown counters. They never
+retain prompts, callers, authorization data, or full provider responses.
+
+Routine classification, ATT&CK tagging, TTP extraction, CVE narratives, cluster
+synthesis, and actor profiles run on the first scheduler tick and then every
+`ROUTINE_LLM_EVERY` ticks. Cache hits are still applied on deferred ticks.
+Command briefings, regional analysis, top stories, and summaries keep their
+independent schedules. Current LLM request and provider health is available in
+`/api/health` and `/api/v1/health/llm`.
 
 Successful Sol output is stored as an immutable Command Brief edition. Later
 fallback briefings remain available as a live Intelligence Delta and cannot

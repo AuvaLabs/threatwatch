@@ -104,6 +104,29 @@ def test_problematic_feed_endpoints_and_searches_are_replaced():
     assert retired_africa not in google
     assert current_africa in google
 
+    retired_latam = (
+        "https://news.google.com/rss/search?q=data+breach+Latin+America"
+        "&hl=en&gl=US&ceid=US:en"
+    )
+    current_latam = (
+        "https://news.google.com/rss/search?q=%28ciberataque+OR+ransomware+OR+"
+        "%22filtraci%C3%B3n+de+datos%22%29+%28M%C3%A9xico+OR+Brasil+OR+Argentina+"
+        "OR+Colombia+OR+Chile%29+when%3A30d&hl=es-419&gl=MX&ceid=MX:es-419"
+    )
+    retired_mena = (
+        "https://www.bing.com/news/search?q=cyber+attack+Middle+East+"
+        "Saudi+Arabia+UAE+Qatar&format=rss"
+    )
+    current_mena = (
+        "https://news.google.com/rss/search?q=%28cyberattack+OR+ransomware+OR+"
+        "%22data+breach%22%29+%28UAE+OR+%22Saudi+Arabia%22+OR+Qatar+OR+Bahrain+"
+        "OR+Oman+OR+Kuwait%29+when%3A30d&hl=en-AE&gl=AE&ceid=AE:en"
+    )
+    assert retired_latam not in google
+    assert current_latam in google
+    assert retired_mena not in bing
+    assert current_mena in google
+
     ahnlab_url = "https://asec.ahnlab.com/en/feed/"
     assert ahnlab_url in native
     assert _feeds_by_url("feeds_native.yaml")[ahnlab_url]["user_agent"].startswith("ThreatWatch/")

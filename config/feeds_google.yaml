@@ -180,6 +180,10 @@
   region: South Africa
 
 # MENA — Middle East & North Africa
+- url: https://news.google.com/rss/search?q=%28cyberattack+OR+ransomware+OR+%22data+breach%22%29+%28UAE+OR+%22Saudi+Arabia%22+OR+Qatar+OR+Bahrain+OR+Oman+OR+Kuwait%29+when%3A30d&hl=en-AE&gl=AE&ceid=AE:en
+  category: Google
+  region: MENA
+
 - url: https://news.google.com/rss/search?q=cybersecurity+%28%22Middle+East%22+OR+UAE+OR+Saudi%29&hl=en-AE&gl=AE&ceid=AE:en
   category: Google
   region: UAE
@@ -252,6 +256,6 @@
   category: Google
   region: Brazil
 
-- url: https://news.google.com/rss/search?q=data+breach+Latin+America&hl=en&gl=US&ceid=US:en
+- url: https://news.google.com/rss/search?q=%28ciberataque+OR+ransomware+OR+%22filtraci%C3%B3n+de+datos%22%29+%28M%C3%A9xico+OR+Brasil+OR+Argentina+OR+Colombia+OR+Chile%29+when%3A30d&hl=es-419&gl=MX&ceid=MX:es-419
   category: Google
   region: LATAM

@@ -227,7 +227,8 @@ ThreatWatch works without any API keys. To enable the full AI platform (intellig
 | `MODEL_SERVICES_SOL_SCHEDULE_HOURS_UTC` | `3,15` | UTC edition windows allowed to claim Sol |
 | `MODEL_SERVICES_SOL_SCHEDULE_WINDOW_MINUTES` | `180` | Claim window after each scheduled Sol edition hour |
 | `LLM_PROVIDER_FAILURE_THRESHOLD` | `3` | Retryable provider failures before a route cooldown opens |
-| `LLM_PROVIDER_COOLDOWN_SECONDS` | `900` | Provider route cooldown after the failure threshold |
+| `LLM_PROVIDER_COOLDOWN_SECONDS` | `3600` | Persistent provider cooldown after the failure threshold |
+| `ROUTINE_LLM_EVERY` | `3` | Pipeline ticks between deferrable classification and CTI enrichment calls; `0` disables them |
 | `LLM_API_KEY` | _(empty)_ | API key for your LLM provider |
 | `LLM_API_KEYS` | _(empty)_ | Comma-separated keys for round-robin rotation |
 | `LLM_BASE_URL` | provider dependent | Primary API base URL |
@@ -448,6 +449,7 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |
 | `GET` | `/api/v1/health/feeds` | Per-source health, including stale and silent feeds |
 | `GET` | `/api/v1/health/providers` | Structured intelligence provider health and circuit-breaker state |
+| `GET` | `/api/v1/health/llm` | Bounded LLM success, failure, rate-limit, empty-response, and cooldown state |
 | `GET` | `/api/v2/openapi.json` | OpenAPI 3.1 discovery document |
 | `GET` | `/api/briefing` | AI intelligence digest with source citations, serving tier (`provider`), staleness (`served_stale`) and threat-level provenance (`threat_level_source`) |
 | `GET` | `/api/briefing/na` | North America regional digest |

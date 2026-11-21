@@ -42,6 +42,7 @@ CLEANUP_EVERY = int(os.environ.get("CLEANUP_EVERY", "144"))
 # feed ingestion. Set to 0 to disable out-of-band AI entirely (e.g. when
 # AI_ENRICHMENT_INLINE=1 is preferred).
 AI_ENRICHMENT_EVERY = int(os.environ.get("AI_ENRICHMENT_EVERY", "3"))
+ROUTINE_LLM_EVERY = int(os.environ.get("ROUTINE_LLM_EVERY", "3"))
 
 _shutdown = False
 
@@ -56,9 +57,15 @@ signal.signal(signal.SIGTERM, _on_signal)
 signal.signal(signal.SIGINT, _on_signal)
 
 
-def _run(script: str) -> int:
+def _routine_llm_env(run_count: int, *, every: int) -> dict[str, str]:
+    enabled = every > 0 and (run_count == 0 or (run_count - 1) % every == 0)
+    return {"ROUTINE_LLM_ENABLED": "1" if enabled else "0"}
+
+
+def _run(script: str, env_overrides: dict[str, str] | None = None) -> int:
     logging.info("Running: python %s", script)
-    result = subprocess.run([sys.executable, script])
+    child_env = {**os.environ, **(env_overrides or {})}
+    result = subprocess.run([sys.executable, script], env=child_env)
     if result.returncode != 0:
         logging.warning("Script exited with code %d: %s", result.returncode, script)
     return result.returncode
@@ -81,7 +88,7 @@ def main() -> None:
 
     _heartbeat()
     _run("scripts/cleanup.py")
-    _run("threatdigest_main.py")
+    _run("threatdigest_main.py", _routine_llm_env(0, every=ROUTINE_LLM_EVERY))
     _heartbeat()
 
     run_count = 0
@@ -97,7 +104,10 @@ def main() -> None:
         run_count += 1
         logging.info("Pipeline run #%d starting", run_count)
         _heartbeat()
-        _run("threatdigest_main.py")
+        _run(
+            "threatdigest_main.py",
+            _routine_llm_env(run_count, every=ROUTINE_LLM_EVERY),
+        )
         _heartbeat()
 
         # Out-of-band AI enrichment on its own cadence. Guards:
