@@ -11,6 +11,7 @@ All notable changes to ThreatWatch are documented here.
 - Added deterministic display fallbacks for empty summaries while keeping those articles eligible for grounded AI enrichment.
 - Isolated Luna and Sol retry suppression so a failed ranking call cannot block a scheduled Command Brief.
 - Allowed guarded releases during a stale Sol edition only when the current source-grounded fallback briefing is explicitly healthy and fresh.
+- Made the latest briefing API prefer a valid fresh live assessment over a stale Command Brief so Reports and health expose the same current edition.
 - Replayed the current production corpus through the regression harness to verify that false multi-source clusters are removed.
 
 ## 2026-11-21: Persistent model reliability and regional source recovery

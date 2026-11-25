@@ -37,6 +37,8 @@ API_SCHEMA_VERSION = "2.0.0"
 ARTIFACT_SCHEMA_VERSIONS = {"hunts": 1, "ledger": 1, "incidents": 1}
 PORT = int(os.environ.get("PORT", 8098))
 CACHE_TTL = 30  # seconds
+COMMAND_BRIEF_MAX_AGE_HOURS = 18
+LIVE_BRIEFING_MAX_AGE_HOURS = 3
 WATCHLIST_WRITE_ENABLED = os.environ.get("WATCHLIST_WRITE_ENABLED", "").lower() in ("1", "true", "yes")
 WATCHLIST_TOKEN = os.environ.get("WATCHLIST_TOKEN", "")
 # SQLite read path toggle. When set, load_articles prefers the shadow store
@@ -94,6 +96,44 @@ _ASSET_CONTENT_TYPES = {
     ".woff": "font/woff",
     ".woff2": "font/woff2",
 }
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _briefing_generated_at(briefing: dict) -> datetime | None:
+    value = briefing.get("generated_at")
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.replace(tzinfo=parsed.tzinfo or timezone.utc)
+
+
+def _briefing_is_fresh(briefing: dict, max_age_hours: int) -> bool:
+    generated_at = _briefing_generated_at(briefing)
+    if generated_at is None:
+        return False
+    age = _utc_now() - generated_at.astimezone(timezone.utc)
+    return age <= timedelta(hours=max_age_hours)
+
+
+def _select_grounded_briefing(command: object, live: object) -> dict | None:
+    command_ok = is_grounded_briefing(command)
+    live_ok = is_grounded_briefing(live)
+    if command_ok and (
+        _briefing_generated_at(command) is None
+        or _briefing_is_fresh(command, COMMAND_BRIEF_MAX_AGE_HOURS)
+    ):
+        return command
+    if live_ok and _briefing_is_fresh(live, LIVE_BRIEFING_MAX_AGE_HOURS):
+        return live
+    if command_ok:
+        return command
+    return live if live_ok else None
 
 
 def _normalized_content_type(content_type: str) -> str:
@@ -2169,22 +2209,23 @@ class ThreatWatchHandler(BaseHTTPRequestHandler):
 
         if route.get("grounded_briefing"):
             try:
-                usable = is_grounded_briefing(json.loads(body))
+                command = json.loads(body)
             except (UnicodeDecodeError, json.JSONDecodeError):
-                usable = False
-            if not usable:
-                fallback_file = route.get("fallback_file")
-                if fallback_file is None:
-                    self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
-                    return
+                command = None
+            fallback_file = route.get("fallback_file")
+            live = None
+            if fallback_file is not None:
                 try:
-                    body = read_cached(fallback_file)
-                    fallback_usable = is_grounded_briefing(json.loads(body))
+                    live = json.loads(read_cached(fallback_file))
                 except (FileNotFoundError, OSError, UnicodeDecodeError, json.JSONDecodeError):
-                    fallback_usable = False
-                if not fallback_usable:
-                    self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
-                    return
+                    live = None
+            selected = _select_grounded_briefing(command, live)
+            if selected is None:
+                self._send_error_json(HTTPStatus.NOT_FOUND, "Data file not available")
+                return
+            body = json.dumps(
+                selected, ensure_ascii=False, separators=(",", ":"),
+            ).encode("utf-8")
 
         self._send_body(route["content_type"], body, head_only)
 

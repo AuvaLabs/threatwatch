@@ -4,6 +4,7 @@ import hashlib
 import json
 import threading
 import time
+from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import HTTPServer
 from pathlib import Path
@@ -891,6 +892,40 @@ class TestHTTPRoutes:
 
         assert status == 200
         assert json.loads(body)["edition_type"] == "command_brief"
+
+    def test_latest_briefing_prefers_fresh_live_update_over_stale_command(
+        self, test_server, tmp_path,
+    ):
+        command = tmp_path / "command.json"
+        live = tmp_path / "live.json"
+        grounded = {
+            "headline": "Grounded assessment",
+            "what_happened": "Source-backed assessment.",
+            "source_articles": [{"link": "https://example.test/report"}],
+        }
+        command.write_text(json.dumps({
+            **grounded,
+            "edition_type": "command_brief",
+            "generated_at": "2026-11-20T00:00:00+00:00",
+        }))
+        live.write_text(json.dumps({
+            **grounded,
+            "edition_type": "live",
+            "generated_at": "2026-11-25T05:00:00+00:00",
+        }))
+        route = {
+            "file": command,
+            "fallback_file": live,
+            "content_type": "application/json; charset=utf-8",
+            "grounded_briefing": True,
+        }
+        now = datetime(2026, 11, 25, 5, 30, tzinfo=timezone.utc)
+        with patch.dict(sw.STATIC_ROUTES, {"/api/command-brief": route}), \
+             patch("serve_threatwatch._utc_now", return_value=now):
+            status, _, body = _get(test_server + "/api/v1/briefings/latest")
+
+        assert status == 200
+        assert json.loads(body)["edition_type"] == "live"
 
     def test_latest_briefing_falls_back_when_command_is_incomplete(
         self, test_server, tmp_path,
