@@ -84,6 +84,10 @@ def test_enrichment_repair_can_release_with_fresh_delivery_and_pipeline():
     with pytest.raises(ValueError):
         require_deployable_health(payload)
     require_deployable_health(payload, repair_enrichment=True)
+    require_deployable_health(
+        {**payload, "analysis_failures": 1, "articles_enriched": 2},
+        repair_enrichment=True,
+    )
 
     for unhealthy in (
         {"ai_artifacts": {"ok": False}},
@@ -91,6 +95,7 @@ def test_enrichment_repair_can_release_with_fresh_delivery_and_pipeline():
         {"last_run_age_s": 901},
         {"heartbeat_age_s": None},
         {"analysis_failures": 4},
+        {"analysis_failures": 4, "articles_enriched": 10},
         {"reasons": ["llm_reliability_degraded", "pipeline_stale"]},
     ):
         with pytest.raises(ValueError):

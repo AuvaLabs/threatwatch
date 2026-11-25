@@ -44,10 +44,21 @@ def _artifacts_are_fresh(payload: dict[str, Any], names: tuple[str, ...]) -> boo
 def _enrichment_repair_baseline(payload: dict[str, Any]) -> bool:
     ages = (payload.get("last_run_age_s"), payload.get("heartbeat_age_s"))
     artifacts = (payload.get("ai_artifacts"), payload.get("operational_artifacts"))
+    enriched = payload.get("articles_enriched")
+    failures = payload.get("analysis_failures")
     return (
         all(type(age) is int and 0 <= age <= _ENRICHMENT_REPAIR_MAX_PIPELINE_AGE_S for age in ages)
         and all(isinstance(group, dict) and group.get("ok") is True for group in artifacts)
-        and payload.get("analysis_failures") == 0
+        and (failures == 0 or _small_analysis_sample(enriched, failures))
+    )
+
+
+def _small_analysis_sample(enriched: object, failures: object) -> bool:
+    return (
+        isinstance(enriched, int)
+        and isinstance(failures, int)
+        and 0 < enriched < MIN_ANALYSIS_SAMPLE
+        and 0 <= failures <= enriched
     )
 
 
@@ -72,12 +83,7 @@ def require_deployable_health(payload: dict[str, Any], *, repair_enrichment: boo
     for reason, artifact_names in _REFRESH_ARTIFACTS.items():
         if reason in reason_set and _artifacts_are_fresh(payload, artifact_names):
             allowed_reasons.add(reason)
-    if (
-        isinstance(enriched, int)
-        and isinstance(failures, int)
-        and 0 < enriched < MIN_ANALYSIS_SAMPLE
-        and 0 <= failures <= enriched
-    ):
+    if _small_analysis_sample(enriched, failures):
         allowed_reasons.add(f"analysis_failure_rate_{failures}/{enriched}")
     safely_degraded = (
         status == "degraded"

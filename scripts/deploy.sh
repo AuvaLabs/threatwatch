@@ -133,6 +133,7 @@ echo "[deploy] rebuilding and validating analyst artifacts"
 "${COMPOSE[@]}" exec -T pipeline python scripts/rebuild_analyst_artifacts.py
 
 deadline=$((SECONDS + HEALTH_TIMEOUT))
+health_gate_passed=false
 while [ "$SECONDS" -lt "$deadline" ]; do
   if curl -fsS "$HEALTH_URL" > "$POST_HEALTH" 2>/dev/null && \
     python3 - "$PRE_HEALTH" "$POST_HEALTH" "$EXPECTED_SHA" "$MAX_ARTICLE_LOSS_PERCENT" "$REPAIR_ENRICHMENT" <<'PY'
@@ -159,25 +160,13 @@ if after.get("backup", {}).get("ok") is not True:
     raise SystemExit(1)
 PY
   then
+    health_gate_passed=true
     break
   fi
   sleep 5
 done
 
-if [ ! -s "$POST_HEALTH" ] || ! python3 - "$POST_HEALTH" "$EXPECTED_SHA" "$REPAIR_ENRICHMENT" <<'PY'
-import json
-import sys
-
-payload = json.load(open(sys.argv[1], encoding="utf-8"))
-from modules.release_health import require_deployable_health
-try:
-    require_deployable_health(payload, repair_enrichment=sys.argv[3] == "true")
-    valid = payload.get("deployment", {}).get("sha") == sys.argv[2]
-except ValueError:
-    valid = False
-raise SystemExit(0 if valid else 1)
-PY
-then
+if ! "$health_gate_passed"; then
   echo "Release did not pass its health gate within ${HEALTH_TIMEOUT}s" >&2
   false
 fi
