@@ -67,7 +67,7 @@ Output format:
 ]}"""
 
 
-def _needs_summary(article: dict[str, Any]) -> bool:
+def needs_summary(article: dict[str, Any]) -> bool:
     fallback = (
         article.get("summary_method") == "fallback"
         or article.get("summary_needs_enrichment") is True
@@ -89,23 +89,23 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
         return 0
 
     # Find articles missing summaries
-    needs_summary = [
+    pending = [
         (index, article)
         for index, article in enumerate(articles)
-        if _needs_summary(article)
+        if needs_summary(article)
     ]
 
-    if not needs_summary:
+    if not pending:
         return 0
 
     # Cap to prevent budget overrun
-    needs_summary = needs_summary[:_MAX_SUMMARIES_PER_RUN]
+    pending = pending[:_MAX_SUMMARIES_PER_RUN]
     total_generated = 0
     network_batches = 0
 
     # Process in batches
-    for batch_start in range(0, len(needs_summary), _SUMMARY_BATCH_SIZE):
-        batch = needs_summary[batch_start:batch_start + _SUMMARY_BATCH_SIZE]
+    for batch_start in range(0, len(pending), _SUMMARY_BATCH_SIZE):
+        batch = pending[batch_start:batch_start + _SUMMARY_BATCH_SIZE]
 
         # Build batch prompt
         lines = []

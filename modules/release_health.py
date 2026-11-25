@@ -7,6 +7,7 @@ from typing import Any
 
 ALLOWED_RELEASE_DEGRADATIONS = frozenset({"llm_budget_exceeded_last_run"})
 MIN_ANALYSIS_SAMPLE = 10
+_ENRICHMENT_REPAIR_MAX_PIPELINE_AGE_S = 900
 _REFRESH_ARTIFACTS = {
     "ai_capability_failing_global_briefing": ("global_briefing",),
     "ai_capability_failing_regional_briefings": (
@@ -40,13 +41,29 @@ def _artifacts_are_fresh(payload: dict[str, Any], names: tuple[str, ...]) -> boo
     )
 
 
-def require_deployable_health(payload: dict[str, Any]) -> None:
+def _enrichment_repair_baseline(payload: dict[str, Any]) -> bool:
+    ages = (payload.get("last_run_age_s"), payload.get("heartbeat_age_s"))
+    artifacts = (payload.get("ai_artifacts"), payload.get("operational_artifacts"))
+    return (
+        all(type(age) is int and 0 <= age <= _ENRICHMENT_REPAIR_MAX_PIPELINE_AGE_S for age in ages)
+        and all(isinstance(group, dict) and group.get("ok") is True for group in artifacts)
+        and payload.get("analysis_failures") == 0
+    )
+
+
+def require_deployable_health(payload: dict[str, Any], *, repair_enrichment: bool = False) -> None:
     """Raise unless health is safe for deployment and automatic rollback."""
     status = payload.get("status")
     if status == "ok":
         return
     reasons = payload.get("reasons")
     reason_set = set(reasons) if isinstance(reasons, list) else set()
+    if (
+        repair_enrichment and status == "degraded"
+        and reason_set == {"llm_reliability_degraded"}
+        and _enrichment_repair_baseline(payload)
+    ):
+        return
     allowed_reasons = set(ALLOWED_RELEASE_DEGRADATIONS)
     enriched = payload.get("articles_enriched")
     failures = payload.get("analysis_failures")

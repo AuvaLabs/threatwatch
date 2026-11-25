@@ -16,6 +16,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from modules.article_summariser import needs_summary
 from modules.config import STATE_DIR
 from modules.utils import write_json_atomic
 
@@ -39,10 +40,7 @@ def run_ai_enrichment(
     """
     if new_batch is None:
         new_batch = all_articles
-    pending_summaries = sum(
-        1 for article in new_batch
-        if article.get("is_cyber_attack") and not article.get("summary")
-    )
+    pending_summaries = sum(needs_summary(article) for article in new_batch)
 
     # Reset breaker at the start of each enrichment invocation — the process
     # may be long-lived (inline pipeline) or short-lived (out-of-band cron).

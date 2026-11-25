@@ -260,6 +260,24 @@ class TestProviderFailover:
         assert "ValueError: empty provider response" in caplog.text
         assert "choices" not in caplog.text
 
+    def test_routine_anthropic_failure_does_not_cool_down_briefing_model(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(llm_client, "ANTHROPIC_API_KEY", "test-anthropic")
+        monkeypatch.setattr(llm_client, "_PROVIDER_FAILURE_THRESHOLD", 1)
+        mock_session.post.side_effect = [
+            _mock_response(json_body={"content": [{"type": "text", "text": ""}]}),
+            _mock_response(),
+            _mock_response(json_body={"content": [{"type": "text", "text": "briefing"}]}),
+        ]
+
+        assert call_llm("x", system_prompt="y", caller="summaries") == "ok"
+        assert llm_reliability.provider_cooldown_active("anthropic")
+        reset_circuit()
+        assert call_llm(
+            "x", system_prompt="y", caller="briefing", model="test-sonnet",
+        ) == "briefing"
+
 
 class TestModelServicesProvider:
     def test_persisted_luna_cooldown_does_not_block_sol(

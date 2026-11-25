@@ -112,11 +112,17 @@ def _provider_route_key(provider: Provider) -> str:
     return "|".join((provider.protocol, provider.base_url.rstrip("/"), provider.model))
 
 
+def _provider_health_key(provider: Provider) -> str:
+    if provider.protocol == "anthropic" and provider.model != ANTHROPIC_MODEL:
+        return f"{provider.name}/{provider.model}"
+    return provider.name
+
+
 def _provider_cooldown_active(provider: Provider) -> bool:
     # Model Services routes have independent durable quota and schedule guards.
     # A Luna transport failure must not suppress a scheduled Sol command brief.
     persistent_cooldown = provider.protocol != "modelservices"
-    if persistent_cooldown and llm_reliability.provider_cooldown_active(provider.name):
+    if persistent_cooldown and llm_reliability.provider_cooldown_active(_provider_health_key(provider)):
         return True
     key = _provider_route_key(provider)
     until = _provider_cooldowns.get(key, 0.0)
@@ -130,7 +136,7 @@ def _record_provider_success(provider: Provider) -> None:
     key = _provider_route_key(provider)
     _provider_failures.pop(key, None)
     _provider_cooldowns.pop(key, None)
-    llm_reliability.record_provider_success(provider.name)
+    llm_reliability.record_provider_success(_provider_health_key(provider))
 
 
 def _record_provider_failure(
@@ -140,7 +146,7 @@ def _record_provider_failure(
     failure_kind: str,
 ) -> None:
     llm_reliability.record_provider_failure(
-        provider.name,
+        _provider_health_key(provider),
         failure_kind,
         threshold=_PROVIDER_FAILURE_THRESHOLD,
         cooldown_seconds=_PROVIDER_COOLDOWN_SECONDS if retryable else 0,

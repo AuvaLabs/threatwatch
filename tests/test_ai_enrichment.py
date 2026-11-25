@@ -156,6 +156,22 @@ class TestRunAiEnrichment:
 
         assert result["global_briefing"] == {"ok": False, "error": "generation_failed"}
 
+    def test_failed_fallback_summary_refresh_is_visible(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(ai_enrichment, "STATE_DIR", tmp_path)
+        article = {
+            "title": "Advisory",
+            "is_cyber_attack": True,
+            "summary": "Source fallback",
+            "summary_method": "fallback",
+        }
+        with patch("modules.briefing_generator.generate_briefing"), \
+             patch("modules.briefing_generator.generate_regional_briefings"), \
+             patch("modules.briefing_generator.generate_top_stories"), \
+             patch("modules.briefing_generator.summarize_articles", return_value=0):
+            result = ai_enrichment.run_ai_enrichment([article])
+
+        assert result["article_summaries"] == {"ok": False, "count": 0, "pending": 1}
+
     def test_partial_regional_result_is_reported_failed(self):
         with patch("modules.briefing_generator.generate_briefing", return_value={"headline": "ok"}), \
              patch("modules.briefing_generator.generate_regional_briefings", return_value={"na": {}}), \

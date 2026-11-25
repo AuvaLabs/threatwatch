@@ -14,6 +14,8 @@ All notable changes to ThreatWatch are documented here.
 - Made the latest briefing API prefer a valid fresh live assessment over a stale Command Brief so Reports and health expose the same current edition.
 - Added a neutral, source-independent title when the headline safety guard rejects a model headline, allowing the fresh sourced assessment to remain publishable without retaining an invalid source pointer.
 - Kept recent generation failures visible as diagnostics without degrading the platform while the corresponding published artifacts remain fresh and usable.
+- Isolated the briefing model's retry cooldown from routine enrichment and included fallback summaries in the reported enrichment backlog.
+- Added an opt-in release mode for enrichment repairs when daily model reliability is degraded and the pipeline and published artifacts pass freshness checks.
 - Replayed the current production corpus through the regression harness to verify that false multi-source clusters are removed.
 
 ## 2026-11-21: Persistent model reliability and regional source recovery

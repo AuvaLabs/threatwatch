@@ -71,6 +71,32 @@ def test_rejects_failed_refresh_attempt_when_published_artifact_is_stale():
         require_deployable_health(payload)
 
 
+def test_enrichment_repair_can_release_with_fresh_delivery_and_pipeline():
+    payload = {
+        "status": "degraded",
+        "reasons": ["llm_reliability_degraded"],
+        "last_run_age_s": 500,
+        "heartbeat_age_s": 20,
+        "analysis_failures": 0,
+        "ai_artifacts": {"ok": True},
+        "operational_artifacts": {"ok": True},
+    }
+    with pytest.raises(ValueError):
+        require_deployable_health(payload)
+    require_deployable_health(payload, repair_enrichment=True)
+
+    for unhealthy in (
+        {"ai_artifacts": {"ok": False}},
+        {"operational_artifacts": {"ok": False}},
+        {"last_run_age_s": 901},
+        {"heartbeat_age_s": None},
+        {"analysis_failures": 4},
+        {"reasons": ["llm_reliability_degraded", "pipeline_stale"]},
+    ):
+        with pytest.raises(ValueError):
+            require_deployable_health({**payload, **unhealthy}, repair_enrichment=True)
+
+
 @pytest.mark.parametrize("global_briefing", [
     None,
     {},

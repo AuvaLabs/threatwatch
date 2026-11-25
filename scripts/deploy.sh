@@ -3,6 +3,7 @@
 set -Eeuo pipefail
 
 REBUILD=true
+REPAIR_ENRICHMENT=false
 HEALTH_URL="${TW_HEALTH_URL:-http://127.0.0.1:8098/api/v1/health}"
 HEALTH_TIMEOUT="${TW_HEALTH_TIMEOUT:-180}"
 MAX_ARTICLE_LOSS_PERCENT="${TW_MAX_ARTICLE_LOSS_PERCENT:-5}"
@@ -12,12 +13,13 @@ DEPLOY_STARTED=false
 TEMP_DIR=""
 
 usage() {
-  echo "Usage: $0 [--no-rebuild]" >&2
+  echo "Usage: $0 [--no-rebuild] [--repair-enrichment]" >&2
 }
 
 for arg in "$@"; do
   case "$arg" in
     --no-rebuild) REBUILD=false ;;
+    --repair-enrichment) REPAIR_ENRICHMENT=true ;;
     *) usage; exit 2 ;;
   esac
 done
@@ -90,14 +92,14 @@ trap cleanup EXIT
 
 echo "[deploy] release $EXPECTED_SHA"
 curl -fsS "$HEALTH_URL" > "$PRE_HEALTH"
-python3 - "$PRE_HEALTH" <<'PY'
+python3 - "$PRE_HEALTH" "$REPAIR_ENRICHMENT" <<'PY'
 import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
 from modules.release_health import require_deployable_health
 try:
-    require_deployable_health(payload)
+    require_deployable_health(payload, repair_enrichment=sys.argv[2] == "true")
 except ValueError as exc:
     raise SystemExit(f"pre-deploy {exc}") from exc
 if not isinstance(payload.get("articles_total"), int):
@@ -133,7 +135,7 @@ echo "[deploy] rebuilding and validating analyst artifacts"
 deadline=$((SECONDS + HEALTH_TIMEOUT))
 while [ "$SECONDS" -lt "$deadline" ]; do
   if curl -fsS "$HEALTH_URL" > "$POST_HEALTH" 2>/dev/null && \
-    python3 - "$PRE_HEALTH" "$POST_HEALTH" "$EXPECTED_SHA" "$MAX_ARTICLE_LOSS_PERCENT" <<'PY'
+    python3 - "$PRE_HEALTH" "$POST_HEALTH" "$EXPECTED_SHA" "$MAX_ARTICLE_LOSS_PERCENT" "$REPAIR_ENRICHMENT" <<'PY'
 import json
 import sys
 
@@ -143,7 +145,7 @@ from modules.release_health import require_deployable_health
 expected_sha = sys.argv[3]
 max_loss = int(sys.argv[4])
 try:
-    require_deployable_health(after)
+    require_deployable_health(after, repair_enrichment=sys.argv[5] == "true")
 except ValueError:
     raise SystemExit(1)
 if after.get("deployment", {}).get("sha") != expected_sha:
@@ -162,14 +164,14 @@ PY
   sleep 5
 done
 
-if [ ! -s "$POST_HEALTH" ] || ! python3 - "$POST_HEALTH" "$EXPECTED_SHA" <<'PY'
+if [ ! -s "$POST_HEALTH" ] || ! python3 - "$POST_HEALTH" "$EXPECTED_SHA" "$REPAIR_ENRICHMENT" <<'PY'
 import json
 import sys
 
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
 from modules.release_health import require_deployable_health
 try:
-    require_deployable_health(payload)
+    require_deployable_health(payload, repair_enrichment=sys.argv[3] == "true")
     valid = payload.get("deployment", {}).get("sha") == sys.argv[2]
 except ValueError:
     valid = False
