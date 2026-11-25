@@ -8,7 +8,7 @@ import math
 from datetime import datetime, timezone
 from typing import Any
 
-from modules.incident_records import TODAY_THRESHOLD
+from modules.incident_records import TODAY_THRESHOLD, valid_incident_organization
 
 
 def _list(value: Any) -> list[Any]:
@@ -193,6 +193,8 @@ def _incident_list(incidents: Any) -> list[dict[str, Any]]:
 
 
 def _incident_priority(record: dict[str, Any]) -> dict[str, Any] | None:
+    if not valid_incident_organization(record.get("organization")):
+        return None
     score = int(_number(record.get("score")) or 0)
     if score < TODAY_THRESHOLD or record.get("state") != "corroborated":
         return None

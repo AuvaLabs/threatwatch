@@ -168,6 +168,145 @@ def test_generic_title_words_do_not_become_organizations():
     assert ir.build_incident_records([article], generated_at=NOW)["records"] == []
 
 
+@pytest.mark.parametrize(("title", "invalid_name"), [
+    (
+        "As cyberattack hits European Commission, FBI warning in focus",
+        "As",
+    ),
+    (
+        "Data breach at IT provider Wellington IT hits credit unions",
+        "IT",
+    ),
+    (
+        "US cyberattack fears grow after infrastructure warning",
+        "US",
+    ),
+])
+def test_ambiguous_headline_words_do_not_become_victim_organizations(
+    title, invalid_name,
+):
+    article = _article("ambiguous", title, "Wire", "2026-10-29T08:00:00Z")
+
+    records = ir.build_incident_records([article], generated_at=NOW)["records"]
+
+    assert all(record["organization"] != invalid_name for record in records)
+
+
+def test_ambiguous_structured_organization_is_rejected():
+    article = _article(
+        "structured-it",
+        "Provider confirms customer data breach",
+        "Wire",
+        "2026-10-29T08:00:00Z",
+        victim_organizations=["IT"],
+    )
+
+    assert ir.build_incident_records([article], generated_at=NOW)["records"] == []
+
+
+def test_reporting_verb_extracts_the_named_victim():
+    article = _article(
+        "equinor",
+        "Equinor reports ongoing cyber-attack on IT systems",
+        "Wire",
+        "2026-10-29T08:00:00Z",
+    )
+
+    records = ir.build_incident_records([article], generated_at=NOW)["records"]
+
+    assert [record["organization"] for record in records] == ["Equinor"]
+
+
+def test_ambiguous_seed_cannot_alias_unrelated_incident_headlines():
+    articles = [
+        _article(
+            "seed",
+            "As cyberattack hits European Commission",
+            "Wire One",
+            "2026-10-29T08:00:00Z",
+        ),
+        _article(
+            "unrelated",
+            "Retailers respond as ransomware disrupts logistics",
+            "Wire Two",
+            "2026-10-29T09:00:00Z",
+        ),
+    ]
+
+    records = ir.build_incident_records(articles, generated_at=NOW)["records"]
+
+    assert all(record["organization"] != "As" for record in records)
+
+
+@pytest.mark.parametrize("value", [
+    "", "AI-driven", "As", "Current", "Customer", "INTELLIGENCE", "IT",
+    "Latest", "NC", "Police", "Possible", "Tech", "Third-party", "Trump",
+    "US", "Vendor", "Japan",
+])
+def test_public_incident_organization_validator_rejects_ambiguous_names(value):
+    assert ir.valid_incident_organization(value) is False
+
+
+def test_public_incident_organization_validator_accepts_named_organization():
+    assert ir.valid_incident_organization("Equinor") is True
+
+
+@pytest.mark.parametrize("title", [
+    "AI-driven cyberattack disrupts European Commission services",
+    "Customer data breach follows ransomware attack",
+    "INTELLIGENCE BREACH exposes unclassified records",
+    "Latest data breach affects national retailer",
+    "Third-party breach follows ransomware extortion claim",
+    "Vendor hack exposed customer email addresses",
+    "Cyberattack disrupts NC gates at shipping terminal",
+    "Possible data breach at software provider",
+    "Current cyberattack trends and countermeasures",
+    "Police ransomware arrest follows investigation",
+    "Tech outage sparks cyberattack speculation",
+])
+def test_descriptors_and_context_words_do_not_become_victims(title):
+    article = _article("descriptor-victim", title, "Wire", "2026-10-29T08:00:00Z")
+
+    assert ir.build_incident_records([article], generated_at=NOW)["records"] == []
+
+
+def test_ambiguous_company_name_is_not_used_for_alias_expansion():
+    articles = [
+        _article(
+            "next-retailer",
+            "Next reports cyber attack at third-party supplier",
+            "Wire One",
+            "2026-10-29T08:00:00Z",
+        ),
+        _article(
+            "nvidia",
+            "Nvidia ransomware listing puts a countdown next to its name",
+            "Wire Two",
+            "2026-10-29T09:00:00Z",
+        ),
+    ]
+
+    records = ir.build_incident_records(articles, generated_at=NOW)["records"]
+    next_records = [record for record in records if record["organization"] == "Next"]
+
+    assert len(next_records) == 1
+    assert next_records[0]["source_count"] == 1
+
+
+def test_brand_relevance_tag_alone_does_not_establish_a_victim():
+    article = _article(
+        "brand-only",
+        "Trump discusses reported FBI cyberattack",
+        "Wire",
+        "2026-10-29T08:00:00Z",
+        brand_tags=["Trump"],
+    )
+
+    organizations = ir._organizations(article)
+
+    assert "Trump" not in organizations
+
+
 @pytest.mark.parametrize("title", [
     "After cyberattack, rural county increases security",
     "France Blames Iran For Cyberattack On Supermarkets",

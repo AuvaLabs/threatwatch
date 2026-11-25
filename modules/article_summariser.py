@@ -67,6 +67,18 @@ Output format:
 ]}"""
 
 
+def _needs_summary(article: dict[str, Any]) -> bool:
+    fallback = (
+        article.get("summary_method") == "fallback"
+        or article.get("summary_needs_enrichment") is True
+    )
+    return bool(
+        (not article.get("summary") or fallback)
+        and article.get("is_cyber_attack")
+        and article.get("title")
+    )
+
+
 def summarize_articles(articles: list[dict[str, Any]]) -> int:
     """Generate AI summaries for articles that lack them.
 
@@ -78,9 +90,9 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
 
     # Find articles missing summaries
     needs_summary = [
-        (i, a) for i, a in enumerate(articles)
-        if not a.get("summary") and a.get("is_cyber_attack")
-        and a.get("title")
+        (index, article)
+        for index, article in enumerate(articles)
+        if _needs_summary(article)
     ]
 
     if not needs_summary:
@@ -153,6 +165,7 @@ def summarize_articles(articles: list[dict[str, Any]]) -> int:
                     articles[orig_idx]["summary"] = summary_text
                     articles[orig_idx]["summary_method"] = "ai"
                     articles[orig_idx]["summary_generated"] = True
+                    articles[orig_idx].pop("summary_needs_enrichment", None)
                     # Store structured intel fields if available
                     if item.get("what"):
                         articles[orig_idx]["intel_what"] = item["what"]

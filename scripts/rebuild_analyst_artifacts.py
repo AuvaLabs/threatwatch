@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
 from modules.config import OUTPUT_DIR
 from modules.db import load_articles_from_db
 from modules.hunt_engine import build_hunts
-from modules.incident_records import build_incident_records
+from modules.incident_records import build_incident_records, valid_incident_organization
 from modules.operational_artifact_health import write_operational_artifact_status
 from modules.threat_ledger import build_ledger
 from modules.utils import write_json_atomic
@@ -27,6 +27,27 @@ def _json(path: Path, fallback: Any) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return fallback
+
+
+def validate_artifacts(incidents: dict, hunts: dict, ledger: dict) -> None:
+    """Reject malformed or unsafe analyst artifacts before publication."""
+    collections = (
+        (incidents, "records"),
+        (hunts, "hunts"),
+        (ledger, "records"),
+    )
+    if not all(isinstance(payload.get(name), list) for payload, name in collections):
+        raise ValueError("generated analyst artifact has an invalid shape")
+    if not all(isinstance(record, dict) for record in incidents["records"]):
+        raise ValueError("generated incidents contain an invalid incident record")
+    invalid = [
+        record.get("organization")
+        for record in incidents["records"]
+        if not valid_incident_organization(record.get("organization"))
+    ]
+    if invalid:
+        labels = ", ".join(sorted({str(value or "<empty>") for value in invalid}))
+        raise ValueError(f"generated incidents contain invalid organization labels: {labels}")
 
 
 def build_artifacts(output_dir: Path = OUTPUT_DIR) -> tuple[dict, dict, dict]:
@@ -41,11 +62,7 @@ def build_artifacts(output_dir: Path = OUTPUT_DIR) -> tuple[dict, dict, dict]:
     hunts = build_hunts(articles, clusters)
     previous = _json(output_dir / "threat_ledger.json", None)
     ledger = build_ledger(articles, clusters, hunts, previous=previous)
-    valid = all(isinstance(payload.get(collection), list) for payload, collection in (
-        (incidents, "records"), (hunts, "hunts"), (ledger, "records"),
-    ))
-    if not valid:
-        raise ValueError("generated analyst artifact has an invalid shape")
+    validate_artifacts(incidents, hunts, ledger)
     return incidents, hunts, ledger
 
 

@@ -36,3 +36,27 @@ def test_smoke_build_handles_malformed_url_and_publishes_valid_shapes(tmp_path, 
     assert (output / "incidents-v2.json").exists()
     assert (output / "threat_ledger.json").exists()
     assert (tmp_path / "state" / "operational_artifact_health.json").exists()
+
+
+def test_artifact_validation_rejects_ambiguous_incident_organization():
+    incidents = {"records": [{"organization": "As"}]}
+    hunts = {"hunts": []}
+    ledger = {"records": []}
+
+    try:
+        rebuild.validate_artifacts(incidents, hunts, ledger)
+    except ValueError as exc:
+        assert "invalid organization" in str(exc)
+    else:
+        raise AssertionError("ambiguous organization passed artifact validation")
+
+
+def test_artifact_validation_rejects_non_object_incident_record():
+    incidents = {"records": [None]}
+
+    try:
+        rebuild.validate_artifacts(incidents, {"hunts": []}, {"records": []})
+    except ValueError as exc:
+        assert "invalid incident record" in str(exc)
+    else:
+        raise AssertionError("non-object incident passed artifact validation")

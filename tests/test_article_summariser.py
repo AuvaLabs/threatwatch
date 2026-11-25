@@ -48,6 +48,25 @@ class TestSummarizeArticles:
         assert articles[0]["intel_what"] == "ransomware"
         assert articles[0]["summary_method"] == "ai"
 
+    def test_fallback_summary_is_selected_for_enrichment_and_marker_is_removed(self):
+        articles = [{
+            **_article(title="LockBit attack", summary="Source report headline: LockBit attack"),
+            "summary_method": "fallback",
+            "summary_needs_enrichment": True,
+        }]
+        response = json.dumps([{"index": 1, "summary": "LockBit hit a hospital."}])
+        with patch("modules.article_summariser.is_available", return_value=True), \
+             patch("modules.article_summariser.get_cached_result", return_value=None), \
+             patch("modules.article_summariser.call_llm", return_value=response), \
+             patch("modules.article_summariser._parse_json", return_value=json.loads(response)), \
+             patch("modules.article_summariser.cache_result"):
+            count = summarize_articles(articles)
+
+        assert count == 1
+        assert articles[0]["summary"] == "LockBit hit a hospital."
+        assert articles[0]["summary_method"] == "ai"
+        assert "summary_needs_enrichment" not in articles[0]
+
     def test_summary_request_has_room_for_complete_batch(self, monkeypatch):
         articles = [_article(summary="")]
         response = json.dumps([{"index": 1, "summary": "Complete"}])

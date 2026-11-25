@@ -2,6 +2,15 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-11-25: Incident identity and summary integrity
+
+- Rejected ambiguous victim labels, context words, descriptors, people, and geographic abbreviations before incident correlation.
+- Stopped using broad brand relevance tags as victim evidence and prevented ambiguous company names from expanding through title aliases.
+- Added a release-blocking artifact check and a public operations boundary check so malformed legacy incidents cannot enter Today or Reports.
+- Removed leading source `SYSTEM NOTICE` chrome from summaries and scraped content at the corpus boundary.
+- Added deterministic display fallbacks for empty summaries while keeping those articles eligible for grounded AI enrichment.
+- Replayed the current production corpus through the regression harness to verify that false multi-source clusters are removed.
+
 ## 2026-11-21: Persistent model reliability and regional source recovery
 
 - Added persistent provider cooldowns so rate limits, server failures, transport errors, and empty responses are not retried by every pipeline process.

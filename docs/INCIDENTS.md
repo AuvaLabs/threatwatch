@@ -6,7 +6,9 @@ Breach Anatomy converts fragmented public reporting into versioned incident reco
 
 An article must contain an incident signal and a conservatively extracted victim organization. Articles are grouped only when they also share a compatible event type, fall inside the bounded reporting window, and have a second correlation signal such as shared title context, an affected product, an ATT&CK technique, or structured victim metadata.
 
-Headline grammar is not treated as an entity. Temporal words, attribution verbs, attacker labels, nationality adjectives, generic infrastructure, and product-only names are rejected at the organization boundary before correlation.
+Headline grammar is not treated as an entity. Temporal words, attribution verbs, attacker labels, people, nationality adjectives, geographic abbreviations, generic infrastructure, context descriptors, and product-only names are rejected at the organization boundary before correlation. Broad brand relevance tags are not accepted as victim evidence. Structured victim fields and conservative headline grammar remain the victim identity inputs.
+
+Ambiguous names that can also be ordinary prose are not expanded as title aliases. A company can still be retained when the headline identifies it directly, but unrelated uses of the same word cannot absorb other reporting into its record.
 
 Publisher names do not automatically prove independence. Exact syndicated headlines share one source family. A record needs at least two independent source families to become `corroborated`. Single-source candidates remain `developing` and cannot enter Today.
 
@@ -67,6 +69,9 @@ Before release:
 5. Existing CVE and KEV priority ordering must remain unchanged.
 6. Null, missing, stale, and corrupt artifact paths must fail safely.
 7. A live-corpus audit must review every record that crosses the Today threshold.
+8. Every published victim label must pass the same organization boundary used during correlation.
+
+The guarded deployment rebuilds incidents from the repaired live corpus and rejects the release if any unsafe organization label remains. The operations summary repeats this validation so older malformed artifacts cannot enter Today or Reports while a rebuild is pending.
 
 The repository carries these cases in `tests/fixtures/intelligence_eval_v1.json`. Run the same release gate locally with:
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -14,6 +15,10 @@ _SOURCE_ALIASES = {
     "darkweb:ransomware.live": "Ransomware.live",
     "darkweb:threatfox": "ThreatFox",
 }
+_LEADING_SYSTEM_NOTICE = re.compile(
+    r"\A\s*SYSTEM\s+NOTICE\s*(?:\r?\n|\Z)",
+    re.IGNORECASE,
+)
 
 
 def _source_label(source: str) -> str:
@@ -35,12 +40,35 @@ def _published_at(article: dict[str, Any]) -> str | None:
     return parsed.isoformat() if parsed else None
 
 
-def _summary_method(article: dict[str, Any]) -> str:
-    if not str(article.get("summary") or "").strip():
+def _clean_source_text(value: Any) -> str:
+    text = str(value or "").strip()
+    while match := _LEADING_SYSTEM_NOTICE.match(text):
+        text = text[match.end():].lstrip()
+    return text
+
+
+def _summary_method(article: dict[str, Any], summary: str, fallback: bool) -> str:
+    if fallback:
+        return "fallback"
+    if not summary:
         return "none"
     if article.get("_ai_enhanced") or article.get("summary_generated"):
         return "ai"
     return str(article.get("summary_method") or "source")
+
+
+def _summary_fields(article: dict[str, Any]) -> tuple[str, str, bool]:
+    summary = _clean_source_text(article.get("summary"))
+    fallback = False
+    if not summary:
+        summary = _clean_source_text(article.get("intel_what"))
+        if not summary:
+            title = _clean_source_text(
+                article.get("translated_title") or article.get("title")
+            )
+            summary = f"Source report headline: {title}" if title else ""
+        fallback = bool(summary)
+    return summary[:500], _summary_method(article, summary, fallback), fallback
 
 
 def normalize_article(article: dict[str, Any]) -> dict[str, Any]:
@@ -55,7 +83,8 @@ def normalize_article(article: dict[str, Any]) -> dict[str, Any]:
         or not 1 <= confidence <= 100
     ):
         confidence = 60
-    return {
+    summary, summary_method, needs_enrichment = _summary_fields(article)
+    normalized = {
         **article,
         "confidence": confidence,
         "source_name": source_name,
@@ -63,13 +92,23 @@ def normalize_article(article: dict[str, Any]) -> dict[str, Any]:
         "published_at": _published_at(article),
         "region": article.get("region") or article.get("feed_region") or "Global",
         "content_hash": article.get("content_hash") or article.get("hash") or "",
-        "summary": str(article.get("summary") or ""),
-        "summary_method": _summary_method(article),
+        "summary": summary,
+        "summary_method": summary_method,
         "cve_ids": list(article.get("cve_ids") or []),
         "asset_tags": list(article.get("asset_tags") or []),
         "brand_tags": list(article.get("brand_tags") or []),
         "victim_sectors": list(article.get("victim_sectors") or []),
     }
+    if "full_content" in article:
+        content = article.get("full_content")
+        normalized["full_content"] = (
+            None if content is None else _clean_source_text(content)
+        )
+    if needs_enrichment:
+        normalized["summary_needs_enrichment"] = True
+    else:
+        normalized.pop("summary_needs_enrichment", None)
+    return normalized
 
 
 def validate_article(article: dict[str, Any]) -> list[str]:

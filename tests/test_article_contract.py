@@ -22,7 +22,9 @@ def test_normalizes_legacy_article_without_mutating_input():
     assert normalized["published_at"] == "2026-10-07T10:00:00+00:00"
     assert normalized["region"] == "Europe"
     assert normalized["content_hash"] == "abc"
-    assert normalized["summary_method"] == "none"
+    assert normalized["summary"] == "Source report headline: Security report"
+    assert normalized["summary_method"] == "fallback"
+    assert normalized["summary_needs_enrichment"] is True
     assert normalized["cve_ids"] == []
 
 
@@ -59,3 +61,44 @@ def test_normalizes_invalid_cyber_confidence_to_reviewable_default():
     })
 
     assert normalized["confidence"] == 60
+
+
+def test_removes_leading_source_notice_from_summary_and_content():
+    normalized = normalize_article({
+        "hash": "abc",
+        "title": "Critical NGINX vulnerabilities disclosed",
+        "link": "https://example.com/report",
+        "source": "https://example.com/feed",
+        "summary": "SYSTEM NOTICE\nCritical flaws affect supported NGINX releases.",
+        "full_content": " SYSTEM NOTICE\r\nResearchers published technical details.",
+    })
+
+    assert normalized["summary"] == "Critical flaws affect supported NGINX releases."
+    assert normalized["full_content"] == "Researchers published technical details."
+    assert normalized["summary_method"] == "source"
+    assert "summary_needs_enrichment" not in normalized
+
+
+def test_does_not_remove_notice_words_inside_source_text():
+    normalized = normalize_article({
+        "hash": "abc",
+        "title": "Security report",
+        "link": "https://example.com/report",
+        "summary": "The vendor issued a system notice after the incident.",
+    })
+
+    assert normalized["summary"] == "The vendor issued a system notice after the incident."
+
+
+def test_uses_existing_intelligence_as_missing_summary_fallback():
+    normalized = normalize_article({
+        "hash": "abc",
+        "title": "Security report",
+        "link": "https://example.com/report",
+        "summary": "SYSTEM NOTICE",
+        "intel_what": "A ransomware attack disrupted hospital systems.",
+    })
+
+    assert normalized["summary"] == "A ransomware attack disrupted hospital systems."
+    assert normalized["summary_method"] == "fallback"
+    assert normalized["summary_needs_enrichment"] is True

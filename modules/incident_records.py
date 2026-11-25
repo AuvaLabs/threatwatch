@@ -37,13 +37,17 @@ _NAME_VERBS = frozenset({
     "probes", "release", "releases", "reports", "says", "warns", "will",
 })
 _GENERIC_ORGS = frozenset({
-    "activists", "after", "ai", "alleged ai-aided", "alpine", "another", "attackers",
-    "building", "company", "court", "critical infrastructure", "customers", "cyber",
-    "cyberattack", "cyberattacks", "cybersecurity", "data", "european supermarkets",
-    "freezer", "fresh", "hackers", "major", "massive", "new", "portal", "protesters",
+    "activists", "after", "ai", "ai-driven", "alleged ai-aided", "alpine", "another", "as", "attackers",
+    "building", "company", "court", "critical infrastructure", "current", "customers", "cyber",
+    "customer", "cyberattack", "cyberattacks", "cybersecurity", "data", "european supermarkets",
+    "freezer", "fresh", "hackers", "intelligence", "it", "latest", "major", "massive", "nc",
+    "new", "police", "portal", "possible", "protesters",
+    "provider",
     "ransomware", "researchers", "security", "service", "suspected", "threat actors",
-    "uk financial services", "users", "video. freezer", "your",
+    "tech", "third-party", "trump", "uk financial services", "us", "users", "vendor",
+    "video. freezer", "your",
 })
+_AMBIGUOUS_ALIAS_ORGS = frozenset({"next"})
 _TITLE_STOP = frozenset({
     "after", "against", "attack", "attacks", "breach", "cyber", "cyberattack",
     "data", "exploited", "flaw", "from", "hack", "hacked", "incident", "into",
@@ -58,7 +62,7 @@ _INCIDENT_SIGNAL = re.compile(
 _SUBJECT_ORG = re.compile(
     r"^(?:breaking:\s*)?([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3})\s+"
     r"(?i:admits?|confirms?|faces?|freezes?|halts?|hit|pauses?|responds?|restores?|"
-    r"suffers?|suspends?|under)\b",
+    r"reports|suffers?|suspends?|under)\b",
 )
 _PREFIX_ORG = re.compile(
     r"^(?:breaking:\s*)?([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3}?)(?:['’]s)?\s+"
@@ -138,6 +142,12 @@ def _normalized_headline_name(value: Any) -> str:
     return _normalized_name(name)
 
 
+def valid_incident_organization(value: Any) -> bool:
+    """Return whether a label is safe to publish as a victim organization."""
+    name = _text(value)
+    return bool(name) and _normalized_name(name) == name
+
+
 def _organizations(article: dict[str, Any]) -> list[str]:
     structured = [
         *_list(article.get("victim_organizations")),
@@ -153,7 +163,6 @@ def _organizations(article: dict[str, Any]) -> list[str]:
         for match in (subject, prefix, object_match):
             if match is not None:
                 names.add(_normalized_headline_name(match.group(1)))
-        names.update(_normalized_name(value) for value in _list(article.get("brand_tags")))
     return sorted((name for name in names if name), key=str.casefold)[:5]
 
 
@@ -267,7 +276,12 @@ def _alias_organizations(title: str, known: list[str], article: dict[str, Any]) 
     candidates: list[tuple[int, int, str]] = []
     asset_tags = {_text(value).casefold() for value in _list(article.get("asset_tags"))}
     for name in known:
-        if name.casefold() in asset_tags or _geographic_name(name):
+        lowered = name.casefold()
+        if (
+            lowered in asset_tags
+            or lowered in _AMBIGUOUS_ALIAS_ORGS
+            or not valid_incident_organization(name)
+        ):
             continue
         match = re.search(rf"(?<!\w){re.escape(name)}(?!\w)", title, re.IGNORECASE)
         if match is None:

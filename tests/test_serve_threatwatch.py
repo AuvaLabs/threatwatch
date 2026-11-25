@@ -280,6 +280,28 @@ class TestOperationalSummary:
         assert payload["metrics"]["major_incidents"] == 1
         assert payload["metrics"]["decision_queue"] == 2
 
+    def test_rejects_ambiguous_incident_organization_from_today_and_reports(self):
+        incidents = {
+            "records": [{
+                "id": "incident-as",
+                "title": "As ransomware",
+                "organization": "As",
+                "event_type": "ransomware",
+                "state": "corroborated",
+                "priority": "high",
+                "score": 77,
+                "summary": "Unrelated reporting was incorrectly clustered.",
+                "source_count": 42,
+                "independent_source_count": 20,
+            }],
+        }
+
+        payload = sw.build_operational_summary([], [], {}, incidents)
+
+        assert payload["incidents"] == []
+        assert payload["metrics"]["major_incidents"] == 0
+        assert payload["metrics"]["decision_queue"] == 0
+
 
 # ── Health endpoint ──────────────────────────────────────────────────────────
 
