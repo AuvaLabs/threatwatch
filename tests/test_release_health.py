@@ -36,6 +36,41 @@ def test_accepts_stale_command_edition_when_live_fallback_is_fresh():
     })
 
 
+def test_accepts_failed_refresh_attempts_when_published_artifacts_are_fresh():
+    require_deployable_health({
+        "status": "degraded",
+        "reasons": [
+            "ai_capability_failing_regional_briefings",
+            "ai_capability_failing_top_stories",
+        ],
+        "ai_artifacts": {
+            "capabilities": {
+                "regional_na": {"ok": True, "stale": False},
+                "regional_emea": {"ok": True, "stale": False},
+                "regional_apac": {"ok": True, "stale": False},
+                "top_stories": {"ok": True, "stale": False},
+            },
+        },
+    })
+
+
+def test_rejects_failed_refresh_attempt_when_published_artifact_is_stale():
+    payload = {
+        "status": "degraded",
+        "reasons": ["ai_capability_failing_regional_briefings"],
+        "ai_artifacts": {
+            "capabilities": {
+                "regional_na": {"ok": True, "stale": False},
+                "regional_emea": {"ok": False, "stale": True},
+                "regional_apac": {"ok": True, "stale": False},
+            },
+        },
+    }
+
+    with pytest.raises(ValueError):
+        require_deployable_health(payload)
+
+
 @pytest.mark.parametrize("global_briefing", [
     None,
     {},
