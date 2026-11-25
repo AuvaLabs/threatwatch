@@ -27,6 +27,7 @@ from modules.config import (
     MAX_CONTENT_CHARS, OUTPUT_DIR,
 )
 from modules.ai_cache import get_cached_result, cache_result
+from modules.briefing_contract import with_safe_fallback_headline
 from modules.date_utils import article_datetime
 from modules.llm_client import call_llm, clear_last_provider, last_provider_label
 from modules.utils import write_json_atomic
@@ -977,7 +978,8 @@ def _stamp_previous_level(briefing: dict[str, Any], path: Path) -> dict[str, Any
 
 def _save_briefing(briefing: dict[str, Any]) -> None:
     """Save briefing to disk for the server to serve."""
-    stamped = _stamp_previous_level(briefing, BRIEFING_PATH)
+    publishable = with_safe_fallback_headline(briefing)
+    stamped = _stamp_previous_level(publishable, BRIEFING_PATH)
     write_json_atomic(BRIEFING_PATH, stamped, ensure_ascii=False)
     logger.info("Briefing saved to %s", BRIEFING_PATH)
     try:

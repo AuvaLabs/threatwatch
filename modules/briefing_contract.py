@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 
+FALLBACK_BRIEFING_HEADLINE = "Current intelligence assessment"
+
+
 def briefing_validation_reason(briefing: object) -> str | None:
     """Return why a briefing cannot be published, or None when it can."""
     if not isinstance(briefing, dict):
@@ -27,3 +30,15 @@ def briefing_validation_reason(briefing: object) -> str | None:
 def is_grounded_briefing(briefing: object) -> bool:
     """Return whether a briefing meets the public delivery contract."""
     return briefing_validation_reason(briefing) is None
+
+
+def with_safe_fallback_headline(briefing: dict[str, Any]) -> dict[str, Any]:
+    """Return a publishable copy when only the model headline was rejected."""
+    candidate = dict(briefing)
+    if str(candidate.get("headline") or "").strip():
+        return candidate
+    candidate["headline"] = FALLBACK_BRIEFING_HEADLINE
+    candidate.pop("headline_source", None)
+    if briefing_validation_reason(candidate) is None:
+        return candidate
+    return dict(briefing)

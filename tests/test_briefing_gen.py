@@ -441,6 +441,27 @@ class TestSaveLoadBriefing:
         with patch.object(bg, "BRIEFING_PATH", path):
             assert bg.load_briefing() is None
 
+    def test_save_adds_safe_headline_to_grounded_briefing(self, tmp_path):
+        path = tmp_path / "briefing.json"
+        data = {
+            "threat_level": "ELEVATED",
+            "headline": "",
+            "headline_source": 17,
+            "what_happened": "A source-backed assessment.",
+            "source_articles": [
+                {"index": 1, "link": "https://example.test/report"},
+            ],
+        }
+
+        with patch.object(bg, "BRIEFING_PATH", path):
+            bg._save_briefing(data)
+
+        saved = json.loads(path.read_text())
+        assert saved["headline"] == "Current intelligence assessment"
+        assert "headline_source" not in saved
+        assert data["headline"] == ""
+        assert data["headline_source"] == 17
+
 
 class TestCallOpenaiCompatible:
     def test_delegates_to_llm_client(self):
