@@ -100,7 +100,7 @@ def test_command_capability_fails_when_command_and_live_are_incomplete(tmp_path)
     assert result["capabilities"]["command_brief"]["reason"] == "headline_missing"
 
 
-def test_recent_capability_failure_is_reported(tmp_path):
+def test_recent_generation_failure_does_not_degrade_fresh_artifact(tmp_path):
     output = tmp_path / "output"
     fresh = datetime.now(timezone.utc).isoformat()
     for name in ("briefing.json", "top_stories.json", "briefing_na.json",
@@ -119,5 +119,6 @@ def test_recent_capability_failure_is_reported(tmp_path):
 
     result = check_artifact_health(output)
 
-    assert result["ok"] is False
-    assert result["failing_capabilities"] == ["top_stories"]
+    assert result["ok"] is True
+    assert result["failing_capabilities"] == []
+    assert result["generation_failures"] == ["top_stories"]

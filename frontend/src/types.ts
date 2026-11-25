@@ -124,6 +124,7 @@ export interface HealthArtifactGroup {
   ok?: boolean;
   stale_capabilities?: string[];
   failing_capabilities?: string[];
+  generation_failures?: string[];
   capabilities?: Record<string, { ok?: boolean; stale?: boolean; age_hours?: number; generated_at?: string; reason?: string }>;
 }
 

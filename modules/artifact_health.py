@@ -101,6 +101,7 @@ def check_artifact_health(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
         name for name, status in capabilities.items()
         if not status["ok"] and not status["stale"]
     ]
+    generation_failures: list[str] = []
     state_path = output_dir.parent / "state" / "ai_health.json"
     try:
         run_status = json.loads(state_path.read_text(encoding="utf-8"))
@@ -109,11 +110,10 @@ def check_artifact_health(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
             datetime.now(timezone.utc) - checked_at
         ).total_seconds() <= 3 * 3600
         if recent:
-            run_failures = [
+            generation_failures = [
                 name for name, status in run_status.get("capabilities", {}).items()
                 if not status.get("ok", False)
             ]
-            failing = list(dict.fromkeys([*failing, *run_failures]))
     except (OSError, json.JSONDecodeError, AttributeError):
         pass
     return {
@@ -121,5 +121,6 @@ def check_artifact_health(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
         "ok": configured and not stale and not failing,
         "stale_capabilities": stale,
         "failing_capabilities": failing,
+        "generation_failures": generation_failures,
         "capabilities": capabilities,
     }
