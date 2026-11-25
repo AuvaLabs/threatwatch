@@ -113,7 +113,10 @@ def _provider_route_key(provider: Provider) -> str:
 
 
 def _provider_cooldown_active(provider: Provider) -> bool:
-    if llm_reliability.provider_cooldown_active(provider.name):
+    # Model Services routes have independent durable quota and schedule guards.
+    # A Luna transport failure must not suppress a scheduled Sol command brief.
+    persistent_cooldown = provider.protocol != "modelservices"
+    if persistent_cooldown and llm_reliability.provider_cooldown_active(provider.name):
         return True
     key = _provider_route_key(provider)
     until = _provider_cooldowns.get(key, 0.0)

@@ -262,6 +262,36 @@ class TestProviderFailover:
 
 
 class TestModelServicesProvider:
+    def test_persisted_luna_cooldown_does_not_block_sol(
+        self, mock_session, monkeypatch,
+    ):
+        monkeypatch.setattr(llm_client, "MODEL_SERVICES_API_KEY", "gateway-secret")
+        llm_reliability.record_provider_failure(
+            "modelservices",
+            "server_error",
+            threshold=1,
+            cooldown_seconds=3600,
+        )
+        mock_session.post.return_value = _mock_response(
+            json_body={
+                "model": "gpt-6.1-sol",
+                "choices": [{"message": {"content": '{"status":"ok"}'}}],
+            }
+        )
+
+        with patch("modules.model_services_quota.claim", return_value=True):
+            result = call_llm(
+                "incident data",
+                system_prompt="Return JSON",
+                caller="briefing",
+            )
+
+        assert result == '{"status":"ok"}'
+        assert mock_session.post.call_args.args[0] == (
+            "https://modelservices.example/techmodel/servicesapi/chat"
+        )
+        assert llm_client.last_provider_label() == "modelservices/gpt-6.1-sol"
+
     def test_briefing_uses_sol_first(self, mock_session, monkeypatch):
         monkeypatch.setattr(llm_client, "MODEL_SERVICES_API_KEY", "gateway-secret")
         mock_session.post.return_value = _mock_response(
