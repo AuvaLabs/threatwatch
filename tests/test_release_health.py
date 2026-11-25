@@ -23,6 +23,40 @@ def test_accepts_legacy_small_sample_analysis_degradation():
     })
 
 
+def test_accepts_stale_command_edition_when_live_fallback_is_fresh():
+    require_deployable_health({
+        "status": "degraded",
+        "reasons": ["artifact_stale_command_brief"],
+        "ai_artifacts": {
+            "capabilities": {
+                "global_briefing": {"ok": True, "stale": False},
+                "command_brief": {"ok": False, "stale": True},
+            },
+        },
+    })
+
+
+@pytest.mark.parametrize("global_briefing", [
+    None,
+    {},
+    {"ok": False, "stale": False},
+    {"ok": True, "stale": True},
+])
+def test_rejects_stale_command_edition_without_fresh_live_fallback(
+    global_briefing,
+):
+    payload = {
+        "status": "degraded",
+        "reasons": ["artifact_stale_command_brief"],
+        "ai_artifacts": {"capabilities": {}},
+    }
+    if global_briefing is not None:
+        payload["ai_artifacts"]["capabilities"]["global_briefing"] = global_briefing
+
+    with pytest.raises(ValueError):
+        require_deployable_health(payload)
+
+
 @pytest.mark.parametrize("payload", [
     {"status": "degraded", "reasons": ["pipeline_stale"]},
     {"status": "degraded", "reasons": ["llm_budget_exceeded_last_run", "backup_stale"]},
