@@ -22,6 +22,7 @@ sys.path.insert(0, str(BASE_DIR))
 from modules.feed_health import load_health, print_report, prune_unconfigured, record_fetch
 from modules.config import FEED_CUTOFF_DAYS, MAX_FUTURE_MINUTES
 from modules.date_utils import parse_datetime
+from modules.official_advisories import parse_advisory_entries
 
 CONFIG_DIR = BASE_DIR / "config"
 FEED_FILES = [
@@ -94,7 +95,14 @@ def live_validate(feeds: list, timeout: int = 12) -> None:
             resp = session.get(url, timeout=timeout, headers=headers)
             resp.raise_for_status()
             parsed = feedparser.parse(resp.content)
-            count, latest_entry_at = publication_health(parsed.entries)
+            if feed.get("official_advisory") is True:
+                advisories, latest = parse_advisory_entries(
+                    parsed.entries, url, feed.get("name") or url,
+                    feed.get("region") or "Global", datetime.now(timezone.utc),
+                )
+                count, latest_entry_at = len(advisories), latest.isoformat() if latest else None
+            else:
+                count, latest_entry_at = publication_health(parsed.entries)
             record_fetch(
                 url,
                 success=True,

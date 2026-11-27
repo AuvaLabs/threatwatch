@@ -172,7 +172,7 @@ if ! "$health_gate_passed"; then
 fi
 
 API_ROOT=${HEALTH_URL%/health}
-for route in openapi.json operations/summary clusters hunts ledger sources health/artifacts; do
+for route in openapi.json operations/summary clusters hunts ledger sources advisories health/artifacts; do
   curl -fsS "$API_ROOT/$route" >/dev/null
 done
 API_ORIGIN=${API_ROOT%/api/v1}

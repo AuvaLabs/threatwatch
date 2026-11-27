@@ -2,6 +2,11 @@
 
 All notable changes to ThreatWatch are documented here.
 
+## 2026-11-28: Research feeds and official advisories
+
+- Added Group-IB, restored Morphisec Threat Labs, labeled both as vendor research, and replaced the stale Bing APAC query.
+- Added Canadian Cyber Centre, JPCERT/CC, and Siemens ProductCERT advisories under Exposure. Kept publisher update dates distinct from publication dates and retained the latest revision for each advisory link.
+
 ## 2026-11-25: Incident identity and summary integrity
 
 - Rejected ambiguous victim labels, context words, descriptors, people, and geographic abbreviations before incident correlation.

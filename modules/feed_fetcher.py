@@ -15,8 +15,9 @@ from urllib3.util.retry import Retry
 
 from modules.config import FEED_CUTOFF_DAYS, MAX_FUTURE_MINUTES, MAX_FEED_FETCH_THREADS
 from modules.url_resolver import resolve_original_url, is_clearnet_url
-from modules.feed_health import record_fetch
+from modules.feed_health import load_health, record_fetch
 from modules.deduplicator import normalize_url
+from modules.official_advisories import parse_advisory_entries
 
 def _parse_article_date(date_str: str) -> datetime | None:
     """Thin wrapper over date_utils.parse_datetime — call-site stability only."""
@@ -99,7 +100,9 @@ def _source_name(entry: Any, url: str, configured_name: str | None) -> str:
 def _fetch_feed(url: str, region: str = "Global",
                 user_agent: str | None = None,
                 source_name: str | None = None,
-                stale_after_days: int = 30) -> list[dict[str, Any]]:
+                stale_after_days: int = 30,
+                *, official_advisory: bool = False,
+                vendor_research: bool = False) -> list[dict[str, Any]]:
     try:
         session = _get_session()
         # Per-feed UA override (config `user_agent:`) — some sites 403 the
@@ -119,6 +122,19 @@ def _fetch_feed(url: str, region: str = "Global",
             )
             record_fetch(url, success=False, entry_count=0)
             return []
+
+        if official_advisory:
+            advisories, latest = parse_advisory_entries(
+                parsed.entries, url, source_name or _fallback_source_name(url),
+                region, datetime.now(timezone.utc),
+            )
+            record_fetch(
+                url, success=True, entry_count=len(advisories),
+                latest_entry_at=latest.isoformat() if latest else None,
+                stale_after_days=stale_after_days,
+            )
+            logger.info("Fetched %d official advisories from %s", len(advisories), url)
+            return advisories
 
         results = []
         skipped = 0
@@ -171,6 +187,7 @@ def _fetch_feed(url: str, region: str = "Global",
                     "source": url,
                     "source_name": _source_name(entry, url, source_name),
                     "feed_region": region,
+                    **({"vendor_research": True} if vendor_research else {}),
                 })
             except Exception as entry_exc:
                 logger.warning(f"Skipping malformed entry in {url}: {entry_exc}")
@@ -196,9 +213,20 @@ def _fetch_feed(url: str, region: str = "Global",
         return []
 
 
+def _feed_due(feed, health, now):
+    interval = feed.get("poll_interval_minutes")
+    if not isinstance(interval, int) or isinstance(interval, bool) or interval <= 0:
+        return True
+    entry = health.get(feed["url"]) if isinstance(health, dict) else None
+    last_checked = _parse_article_date(entry.get("last_checked")) if isinstance(entry, dict) else None
+    return last_checked is None or now - last_checked >= timedelta(minutes=interval) or last_checked > now
+
+
 def fetch_articles(feeds_config: list[dict[str, Any]]) -> list[dict[str, Any]]:
     from modules.config import MAX_FEED_FETCH_THREADS
     all_articles = []
+    now = datetime.now(timezone.utc)
+    health = load_health() if any(feed.get("poll_interval_minutes") for feed in feeds_config) else {}
     with ThreadPoolExecutor(max_workers=MAX_FEED_FETCH_THREADS) as executor:
         futures = {
             executor.submit(
@@ -208,8 +236,11 @@ def fetch_articles(feeds_config: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 feed.get("user_agent"),
                 feed.get("name"),
                 feed.get("stale_after_days", 30),
+                official_advisory=feed.get("official_advisory") is True,
+                vendor_research=feed.get("vendor_research") is True,
             ): feed["url"]
             for feed in feeds_config
+            if _feed_due(feed, health, now)
         }
         for future in as_completed(futures):
             url = futures[future]

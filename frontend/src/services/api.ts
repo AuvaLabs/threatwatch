@@ -9,6 +9,7 @@ import type {
   HuntsResponse,
   LedgerResponse,
   OperationalSummary,
+  OfficialAdvisory,
   OpenApiDocument,
   Watchlist,
   ThreatRecord,
@@ -98,6 +99,8 @@ export const api = {
   watchlist: (signal?: AbortSignal) => request<Watchlist>("/api/watchlist", signal),
   openApi: (signal?: AbortSignal) => request<OpenApiDocument>("/api/v2/openapi.json", signal),
   operations: (signal?: AbortSignal) => request<OperationalSummary>("/api/v1/operations/summary", signal),
+  advisories: (signal?: AbortSignal) =>
+    request<{ generated_at: string | null; advisories: OfficialAdvisory[] }>("/api/v1/advisories", signal),
   hunts: (signal?: AbortSignal) => request<HuntsResponse>("/api/v1/hunts", signal),
   ledger: (query: LedgerQuery = {}, signal?: AbortSignal) =>
     request<LedgerResponse>(`/api/v1/ledger${ledgerQueryString(query)}`, signal),

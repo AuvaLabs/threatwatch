@@ -10,6 +10,7 @@ export interface Article {
   summary?: string;
   summary_method?: "none" | "source" | "ai" | string;
   source_name?: string;
+  vendor_research?: boolean;
   source?: string;
   category?: string;
   confidence?: number;
@@ -37,6 +38,15 @@ export interface ArticlesResponse {
   limit: number;
   has_more: boolean;
   filters?: Record<string, string>;
+}
+
+export interface OfficialAdvisory {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  published_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface BriefingAction {

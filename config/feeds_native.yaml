@@ -398,11 +398,39 @@
   region: Europe
 
 # Tier 15: Threat Intelligence Research
-# Disabled 2026-10-18: the endpoint returned no usable entries across repeated checks.
-# - url: https://www.morphisec.com/blog/topic/threat-research/feed/
-#   name: Morphisec Threat Labs
-#   category: Native
-#   region: Global
+- url: https://www.morphisec.com/blog/topic/threat-research/feed/
+  name: Morphisec Threat Labs
+  category: Native
+  region: Global
+  stale_after_days: 45
+  vendor_research: true
+
+- url: https://www.group-ib.com/feed/blogfeed/
+  name: Group-IB
+  category: Native
+  region: Global
+  vendor_research: true
+
+# Official advisory sources are delivered under Exposure.
+- url: https://www.cyber.gc.ca/api/cccs/atom/v1/get?feed=alerts_advisories&lang=en
+  name: Canadian Centre for Cyber Security
+  category: Native
+  region: Canada
+  official_advisory: true
+
+- url: https://www.jpcert.or.jp/rss/jpcert.rdf
+  name: JPCERT/CC
+  category: Native
+  region: Japan
+  official_advisory: true
+
+- url: https://cert-portal.siemens.com/productcert/rss/advisories.atom
+  name: Siemens ProductCERT
+  category: Native
+  region: Global
+  official_advisory: true
+  poll_interval_minutes: 60
+  stale_after_days: 45
 
 - url: https://www.intel471.com/blog/feed
   category: Native

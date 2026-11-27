@@ -1,11 +1,21 @@
 import pytest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 
-from modules.feed_fetcher import _FEED_HEADERS, fetch_articles
+from modules.feed_fetcher import _FEED_HEADERS, _feed_due, fetch_articles
 
 
 def test_feed_client_avoids_broken_brotli_edges():
     assert _FEED_HEADERS["Accept-Encoding"] == "gzip, deflate"
+
+
+def test_polling_interval_uses_last_attempt_and_handles_missing_state():
+    feed = {"url": "https://example.test/atom", "poll_interval_minutes": 60}
+    now = datetime.now(timezone.utc)
+    assert _feed_due(feed, {}, now)
+    for minutes, expected in ((-61, True), (-59, False), (1, True)):
+        checked = (now + timedelta(minutes=minutes)).isoformat()
+        assert _feed_due(feed, {feed["url"]: {"last_checked": checked}}, now) is expected
 
 
 class TestFetchArticles:
@@ -29,13 +39,14 @@ class TestFetchArticles:
 
         mock_parse.return_value = MagicMock(entries=[mock_entry])
 
-        feeds = [{"url": "https://feed.example.com/rss", "name": "Example Security"}]
+        feeds = [{"url": "https://feed.example.com/rss", "name": "Example Security", "vendor_research": True}]
         result = fetch_articles(feeds)
 
         assert len(result) == 1
         assert result[0]["title"] == "Test Article"
         assert "hash" in result[0]
         assert result[0]["source_name"] == "Example Security"
+        assert result[0]["vendor_research"] is True
 
     @patch("modules.feed_fetcher.resolve_original_url", side_effect=lambda x, **kw: x)
     @patch("modules.feed_fetcher.feedparser.parse")

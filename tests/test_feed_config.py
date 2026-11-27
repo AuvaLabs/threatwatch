@@ -171,7 +171,20 @@ def test_primary_security_source_expansion_is_configured():
         assert feeds[url]["category"] == "Native"
         assert feeds[url]["region"] == region
 
-    assert "https://www.morphisec.com/blog/topic/threat-research/feed/" not in feeds
+    assert feeds["https://www.morphisec.com/blog/topic/threat-research/feed/"]["name"] == "Morphisec Threat Labs"
+    assert feeds["https://www.group-ib.com/feed/blogfeed/"]["name"] == "Group-IB"
+
+
+def test_exposure_advisory_and_apac_feeds_are_configured():
+    feeds = _native_feeds_by_url()
+    assert {url for url, feed in feeds.items() if feed.get("official_advisory")} == {
+        "https://www.cyber.gc.ca/api/cccs/atom/v1/get?feed=alerts_advisories&lang=en",
+        "https://www.jpcert.or.jp/rss/jpcert.rdf",
+        "https://cert-portal.siemens.com/productcert/rss/advisories.atom",
+    }
+    bing = _feed_urls("feeds_bing.yaml")
+    assert "https://www.bing.com/news/search?q=cyber+attack+Asia+Pacific&format=rss" in bing
+    assert "https://www.bing.com/news/search?q=cyber+attack+Asia+India+Japan+China+Korea&format=rss" not in bing
 
 
 def test_cert_poland_keeps_its_configured_region():

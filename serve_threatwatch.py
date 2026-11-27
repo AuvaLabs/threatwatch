@@ -1089,6 +1089,7 @@ def build_openapi() -> bytes:
         "/api/v1/ledger/{id}": {"get": {"summary": "Get one living threat record"}},
         "/api/v1/ledger/{id}/feed.xml": {"get": {"summary": "Subscribe to one threat record change feed"}},
         "/api/v1/operations/summary": {"get": {"summary": "Get prioritized operational decisions"}},
+        "/api/v1/advisories": {"get": {"summary": "List recent official advisories and revisions"}},
         "/api/v1/sources": {"get": {"summary": "List source coverage"}},
         "/api/v1/health": {"get": {"summary": "Get service health"}},
         "/api/v1/health/ai": {"get": {"summary": "Get AI artifact health"}},
@@ -1220,6 +1221,11 @@ def filter_articles(articles: list[dict], params: dict) -> tuple[list[dict], dic
 
 
 STATIC_ROUTES = {
+    "/api/v1/advisories": {
+        "file": BASE_DIR / "data" / "output" / "official_advisories.json",
+        "fallback_body": b'{"generated_at":null,"advisories":[]}',
+        "content_type": "application/json; charset=utf-8",
+    },
     "/api/command-brief": {
         "file": BASE_DIR / "data" / "output" / "command_brief.json",
         "fallback_file": BASE_DIR / "data" / "output" / "briefing.json",

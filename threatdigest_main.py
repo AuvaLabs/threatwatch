@@ -36,6 +36,7 @@ from modules.kev_enricher import enrich_articles_with_kev
 from modules.attack_tagger import tag_articles_with_attack
 from modules.trend_detector import update_trends
 from modules.article_contract import normalize_article
+from modules.official_advisories import split_and_publish_advisories
 
 
 def enrich_articles(articles, summarize=False, stats=None):
@@ -155,7 +156,7 @@ def main():
         stats.finalize()
         return
 
-    raw_articles = fetch_articles(all_feeds)
+    raw_articles = split_and_publish_advisories(fetch_articles(all_feeds), all_feeds)
     # Drop health entries for feeds removed from config — leftovers otherwise
     # inflate the dead/error counts /api/health reports forever.
     try:

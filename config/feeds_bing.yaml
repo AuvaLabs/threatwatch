@@ -67,7 +67,7 @@
   region: MENA
 
 # APAC
-- url: https://www.bing.com/news/search?q=cyber+attack+Asia+India+Japan+China+Korea&format=rss
+- url: https://www.bing.com/news/search?q=cyber+attack+Asia+Pacific&format=rss
   category: Bing
   region: APAC
 

@@ -31,6 +31,7 @@ export function ArticleList({ articles, compact = false }: { articles: Article[]
             </div>
             <div class="article-source">
               <span>{sourceLabel(article)}</span>
+              {article.vendor_research && <span class="subtle-label">Vendor research</span>}
               {article.language && article.language !== "en" && <span class="subtle-label">{article.language.toUpperCase()}</span>}
             </div>
             <div class="article-copy">

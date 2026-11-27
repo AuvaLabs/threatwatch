@@ -837,6 +837,14 @@ def test_server():
 
 
 class TestHTTPRoutes:
+    def test_official_advisories_returns_empty_snapshot_before_first_fetch(self, test_server, tmp_path):
+        path = "/api/v1/advisories"
+        route = {**sw.STATIC_ROUTES[path], "file": tmp_path / "missing.json"}
+        with patch.dict(sw.STATIC_ROUTES, {path: route}):
+            status, _, body = _get(test_server + path)
+        assert status == 200
+        assert json.loads(body) == {"generated_at": None, "advisories": []}
+
     def setup_method(self):
         sw._cache.clear()
         sw._rate_buckets.clear()

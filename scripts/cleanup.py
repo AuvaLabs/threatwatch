@@ -35,6 +35,7 @@ _LIVE_OUTPUT_FILES = frozenset({
     "briefing.json",
     "command_brief.json",
     "intelligence_delta.json",
+    "official_advisories.json",
     "briefing_na.json",
     "briefing_emea.json",
     "briefing_apac.json",

@@ -1,5 +1,6 @@
 import { ErrorState, LoadingState, PageHeader } from "../components/PageState";
 import { PriorityCard } from "../components/PriorityCard";
+import { OfficialAdvisories } from "../components/OfficialAdvisories";
 import { useResource } from "../hooks/useResource";
 import { api } from "../services/api";
 
@@ -18,6 +19,7 @@ export function ExposureView() {
         </section>
         <section><div class="section-heading"><div><p class="eyebrow">Evidence requiring validation</p><h2>Relevant priorities</h2></div></div>{resource.data.exposure.matches.length ? resource.data.exposure.matches.map((priority) => <PriorityCard key={priority.id} priority={priority} />) : <div class="quiet-empty surface"><strong>No watchlist matches</strong><p>Configure monitored brands and technologies through the protected watchlist API.</p></div>}</section>
       </>}
+      <OfficialAdvisories />
     </div>
   );
 }

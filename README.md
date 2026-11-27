@@ -445,6 +445,7 @@ The server runs on port **8098** by default:
 | `GET` | `/api/v1/ledger/{id}` | One stable record with evidence and revision history |
 | `GET` | `/api/v1/ledger/{id}/feed.xml` | Atom change feed for one threat record |
 | `GET` | `/api/v1/operations/summary` | Ranked decisions, evidence, metrics, and watchlist relevance |
+| `GET` | `/api/v1/advisories` | Recent official Exposure advisories with publisher dates and links |
 | `GET` | `/api/v1/sources` | Source coverage and article counts |
 | `GET` | `/api/v1/health/ai` | Per-artifact AI health and freshness |
 | `GET` | `/api/v1/health/feeds` | Per-source health, including stale and silent feeds |
